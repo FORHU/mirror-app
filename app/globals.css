@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Ultra-modern 2026 Palette */
+  --color-brand-core: var(--brand-core);
+  --color-brand-vibrant: var(--brand-vibrant);
+  --color-brand-burgundy: var(--brand-burgundy);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-light: var(--brand-light);
+
+  --color-background-primary: var(--background-primary);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-background-elevated: var(--background-elevated);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-quaternary: var(--text-quaternary);
+
+  --color-border-default: var(--border-default);
+  --color-border-light: var(--border-light);
+  --color-border-strong: var(--border-strong);
+
+  --font-sans: "Poppins", var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono);
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+/* 
+  2026 Theme Options:
+  
+  Option 1: Cyberpunk Blue (Deep Blue & Electric Cyan)
+  --brand-core: #0ea5e9; --brand-vibrant: #22d3ee; --brand-burgundy: #0c4a6e; --brand-dark: #082f49; --brand-light: #7dd3fc;
+  
+  Option 2: Emerald Aurora (Forest Green & Vibrant Teal)
+  --brand-core: #10b981; --brand-vibrant: #34d399; --brand-burgundy: #064e3b; --brand-dark: #06201a; --brand-light: #6ee7b7;
+  
+  Option 3: Retro Sunset (Deep Amber & Vivid Rose)
+  --brand-core: #f43f5e; --brand-vibrant: #fb923c; --brand-burgundy: #881337; --brand-dark: #4c0519; --brand-light: #fda4af;
+  
+  Option 4: Midnight Monochrome (Sleek Grays & Pure White Accents) - ACTIVE
+  --brand-core: #ffffff; --brand-vibrant: #94a3b8; --brand-burgundy: #1e293b; --brand-dark: #020617; --brand-light: #f8fafc;
+*/
+
+:root {
+  /* Midnight Monochrome Light */
+  --brand-core: #0f172a;
+  --brand-vibrant: #334155;
+  --brand-burgundy: #1e293b;
+  --brand-dark: #020617;
+  --brand-light: #e2e8f0;
+
+  --background-primary: #ffffff;
+  --background-secondary: #f8fafc;
+  --background-tertiary: #f1f5f9;
+  --background-elevated: #ffffff;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-quaternary: #94a3b8;
+
+  --border-default: rgba(15, 23, 42, 0.08);
+  --border-light: rgba(15, 23, 42, 0.04);
+  --border-strong: rgba(15, 23, 42, 0.15);
+}
+
+.dark {
+  /* Midnight Monochrome Dark */
+  --brand-core: #ffffff;
+  --brand-vibrant: #94a3b8;
+  --brand-burgundy: #1e293b;
+  --brand-dark: #020617;
+  --brand-light: #f8fafc;
+
+  --background-primary: #020617;
+  --background-secondary: #0f172a;
+  --background-tertiary: #1e293b;
+  --background-elevated: #111827;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-quaternary: #64748b;
+
+  --border-default: rgba(248, 250, 252, 0.1);
+  --border-light: rgba(248, 250, 252, 0.05);
+  --border-strong: rgba(248, 250, 252, 0.2);
+}
+
+body {
+  background: var(--background-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Enhanced 2026 Glassmorphism */
+.glass {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Shimmer/Glow effects */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+}
+
+.glow-vibrant {
+  box-shadow: 0 0 25px rgba(217, 70, 239, 0.4);
+}
+
+/* Futuristic Gradient Text */
+.text-gradient-2026 {
+  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-soft {
+  background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
