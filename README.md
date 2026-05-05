@@ -1,6 +1,6 @@
-# Mirror Application
+# Mirror App
 
-Mirror Application is a Next.js 16 project that provides a modern mirror-focused web experience with authentication flows, QR code features, and reusable shared UI modules.
+Mirror App is a Next.js 16 project
 
 ## Project Overview
 

@@ -23,7 +23,7 @@ export function SampleContent() {
         <div className="absolute inset-0 bg-gradient-to-br from-brand-core/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <h2 className="text-3xl font-bold mb-4 text-gradient-pink">Sample Component</h2>
         <p className="text-text-secondary leading-relaxed mb-6">
-          This is a sample module component showing how to use the boilerplate's
+          This is a sample module component showing how to use the Mirror App's
           design tokens and shared components. It's fully responsive and
           supports both dark and light modes.
         </p>

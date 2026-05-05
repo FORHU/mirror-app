@@ -23,20 +23,20 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Mirror Application",
-    default: "Mirror Application",
+    template: "%s | Mirror App",
+    default: "Mirror App",
   },
   description:
-    "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
+    "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
   openGraph: {
-    title: "Mirror Application",
+    title: "Mirror App",
     description:
-      "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
+      "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
     url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-    siteName: "Mirror Application",
+    siteName: "Mirror App",
     images: [
       {
         url: "/og-image.png",
@@ -49,9 +49,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Mirror Application",
+    title: "Mirror App",
     description:
-      "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
+      "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
     images: ["/og-image.png"],
   },
   icons: {

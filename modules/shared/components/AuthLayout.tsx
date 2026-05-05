@@ -17,7 +17,7 @@ interface AuthLayoutProps {
 export function AuthLayout({
   children,
   headline = ["Build faster.", "Ship better."],
-  tagline = "Experience the ultimate Next.js 15 boilerplate with a premium 2026 aesthetic.",
+  tagline = "Experience the ultimate Next.js 15 Mirror App with a premium 2026 aesthetic.",
   className,
 }: AuthLayoutProps) {
   return (
@@ -61,7 +61,7 @@ export function AuthLayout({
                 {/* Add Logo here */}
               </div>
               <span className="text-xl font-bold tracking-tighter text-gradient-2026">
-                BOILERPLATE
+                Mirror App
               </span>
             </Link>
 

@@ -65,7 +65,7 @@ export default function LandingPage() {
               <Sparkles className="text-white w-6 h-6" />
             </div>
             <span className="text-xl font-bold tracking-tight text-gradient-2026">
-              BOILERPLATE 2026
+              Mirror App 2026
             </span>
           </motion.div>
 

@@ -43,7 +43,7 @@ export const Hero = () => {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-xl md:text-2xl text-text-tertiary max-w-2xl mx-auto font-medium leading-relaxed"
         >
-          The ultimate Next.js 15 boilerplate for high-performance applications. 
+          The ultimate Next.js 15 Mirror App for high-performance applications. 
           Engineered for speed, built for the next generation of web development.
         </motion.p>
 
