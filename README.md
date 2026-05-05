@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mirror Application
+
+Mirror Application is a Next.js 16 project that provides a modern mirror-focused web experience with authentication flows, QR code features, and reusable shared UI modules.
+
+## Project Overview
+
+- **Framework:** Next.js App Router with React 19 and TypeScript
+- **Styling:** Tailwind CSS 4 with global theme support (`next-themes`)
+- **State Management:** Zustand for client-side auth state
+- **Networking:** Apisauce-based API client and auth services
+
 
 ## Getting Started
 
-First, run the development server:
+After cloning the repository, run these commands:
 
 ```bash
+git clone <your-repo-url>
+cd mirror-app
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Developer Access Flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Clone the project** to your local machine.
+2. **Move into the project directory** (`cd mirror-app`).
+3. **Install dependencies** with `npm install`.
+4. **Start the development server** with `npm run dev`.
+5. **Access the app in browser** at `http://localhost:3000`.
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev` - start development server
+- `npm run build` - create production build
+- `npm run start` - run production server
+- `npm run lint` - run ESLint
+- `npm run check` - run TypeScript checks
+- `npm run format` - format files with Prettier
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Main Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/` - routes, layouts, and app-level metadata
+- `components/` - app-level components
+- `modules/landing/` - landing page-specific API and UI
+- `modules/shared/` - shared components, API, hooks, store, and utilities
+- `public/` - static assets
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- App metadata and branding are configured in `app/layout.tsx`.
+- Set `NEXT_PUBLIC_SITE_URL` for production metadata URLs.

@@ -23,20 +23,20 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Boilerplate 2026",
-    default: "Boilerplate 2026 | Premium Next.js Starter",
+    template: "%s | Mirror Application",
+    default: "Mirror Application",
   },
   description:
-    "Experience the next generation of development with Boilerplate 2026. A premium high-performance ecosystem.",
+    "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://boilerplate-2026.vercel.app",
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
   openGraph: {
-    title: "Boilerplate 2026 | Premium Starter",
+    title: "Mirror Application",
     description:
-      "Experience the next generation of development with Boilerplate 2026.",
-    url: "https://boilerplate-2026.vercel.app",
-    siteName: "Boilerplate 2026",
+      "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    siteName: "Mirror Application",
     images: [
       {
         url: "/og-image.png",
@@ -49,9 +49,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Boilerplate 2026 | Premium Starter",
+    title: "Mirror Application",
     description:
-      "Experience the next generation of development with Boilerplate 2026.",
+      "Mirror Application is a Next.js app with authentication, QR code flow, and shared UI modules.",
     images: ["/og-image.png"],
   },
   icons: {
