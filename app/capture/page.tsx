@@ -177,29 +177,39 @@ export default function CapturePage() {
   }, [startCountdown]);
 
   return (
-    <main className="min-h-screen bg-[#121212] text-white px-6 py-8">
-      <section className="mx-auto w-full max-w-6xl">
-        <h1 className="text-3xl md:text-4xl font-bold text-center mb-4">
-          EMEET 4K Gesture Timer
-        </h1>
-        <div className="mx-auto w-fit rounded-full border border-[#444] bg-[#222] px-5 py-2 text-base md:text-lg">
-          {statusText}
+    <main className="min-h-screen bg-background-primary text-text-primary px-6 py-8 overflow-x-hidden">
+      <div className="fixed inset-0 z-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(124,58,237,0.05),transparent_55%)]" />
+        <div className="absolute -top-[8%] -left-[8%] h-[35%] w-[35%] rounded-full bg-brand-core/10 blur-[110px]" />
+        <div className="absolute top-[20%] -right-[5%] h-[30%] w-[30%] rounded-full bg-brand-vibrant/10 blur-[110px]" />
+      </div>
+
+      <section className="relative z-10 mx-auto w-full max-w-6xl">
+        <div className="mb-6 rounded-2xl border border-border-default glass-light px-6 py-5 text-center">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Gesture Capture</h1>
+          <p className="mt-2 text-text-secondary">
+            Position your hand and show ✌️ to trigger the countdown.
+          </p>
+        </div>
+
+        <div className="mx-auto w-fit rounded-full border border-border-strong bg-background-secondary/80 px-5 py-2 text-sm md:text-base text-text-secondary">
+          <span className="font-semibold text-text-primary">Status:</span> {statusText}
         </div>
 
         <div
-          className={`relative mt-6 w-full overflow-hidden rounded-2xl border-4 border-[#333] shadow-[0_10px_30px_rgba(0,0,0,0.5)] ${
-            isFlashActive ? "opacity-30" : "opacity-100"
+          className={`relative mt-6 w-full overflow-hidden rounded-2xl border border-border-default bg-background-elevated shadow-[0_10px_40px_rgba(2,6,23,0.25)] ${
+            isFlashActive ? "opacity-35" : "opacity-100"
           } transition-opacity duration-200`}
         >
           {!isReady && (
-            <div className="absolute inset-0 z-20 grid place-items-center bg-black/65">
-              <p className="text-sm md:text-base text-white/90">Starting camera...</p>
+            <div className="absolute inset-0 z-20 grid place-items-center bg-background-primary/70 backdrop-blur-sm">
+              <p className="text-sm md:text-base text-text-secondary">Starting camera...</p>
             </div>
           )}
 
           {isCountingDown && (
             <div className="absolute inset-0 z-10 grid place-items-center pointer-events-none">
-              <span className="text-[110px] md:text-[150px] font-bold text-[#00ff00] [text-shadow:0_0_20px_rgba(0,255,0,0.8)]">
+              <span className="text-[110px] md:text-[150px] font-bold text-brand-core [text-shadow:0_0_20px_rgba(148,163,184,0.85)]">
                 {countdownValue}
               </span>
             </div>
@@ -208,15 +218,21 @@ export default function CapturePage() {
           <video ref={videoRef} autoPlay playsInline className="block w-full -scale-x-100" />
         </div>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
+        <div className="mt-8">
+          <h2 className="mb-3 text-lg font-semibold text-text-primary">Captured Photos</h2>
+          <div className="flex flex-wrap gap-4">
           {thumbnails.map((src, idx) => (
             <img
               key={`${src.slice(0, 30)}-${idx}`}
               src={src}
               alt={`Captured ${idx + 1}`}
-              className="w-[200px] rounded-[10px] border-2 border-[#00ff00] transition-transform duration-200 hover:scale-105"
+              className="w-[200px] rounded-xl border border-border-strong bg-background-elevated p-1 transition-transform duration-200 hover:scale-105"
             />
           ))}
+          </div>
+          {thumbnails.length === 0 && (
+            <p className="text-text-tertiary text-sm">No photos yet. Show ✌️ to capture your first shot.</p>
+          )}
         </div>
       </section>
     </main>
