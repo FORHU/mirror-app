@@ -3,15 +3,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSocketClient } from "./socket-client";
 import {
+  KioskLoginPayload,
   KioskRegisteredPayload,
   RegisterKioskPayload,
 } from "./socket-events";
 
 export function useKioskSocket() {
-  const kioskId = useMemo(() => crypto.randomUUID(), []);
+  const kioskId = useMemo(() => {
+    if (typeof window === "undefined") return crypto.randomUUID();
+
+    const existing = window.sessionStorage.getItem("kiosk_id");
+    if (existing) return existing;
+
+    const created = crypto.randomUUID();
+    window.sessionStorage.setItem("kiosk_id", created);
+    return created;
+  }, []);
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loggedInUsername, setLoggedInUsername] = useState<string | null>(null);
 
   useEffect(() => {
     const socket = getSocketClient();
@@ -34,17 +46,29 @@ export function useKioskSocket() {
     };
 
     const handleKioskScanning = (payload: { status?: string }) => {
-      console.log("Waiting to login")
       if (payload?.status === "pending_login") {
-        console.log("Waiting to login")
         setWaitingForLogin(true);
       }
+    };
+
+    const handleKioskLogin = (payload: KioskLoginPayload) => {
+      const username =
+        payload?.user?.username ||
+        payload?.username ||
+        payload?.user?.email ||
+        payload?.email ||
+        "User";
+
+      setLoggedInUsername(username);
+      setIsLoggedIn(true);
+      setWaitingForLogin(false);
     };
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("kiosk_registered", handleKioskRegistered);
     socket.on("kiosk_scanning", handleKioskScanning);
+    socket.on("kiosk_login", handleKioskLogin);
 
     socket.connect();
 
@@ -53,10 +77,18 @@ export function useKioskSocket() {
       socket.off("disconnect", handleDisconnect);
       socket.off("kiosk_registered", handleKioskRegistered);
       socket.off("kiosk_scanning", handleKioskScanning);
-      socket.disconnect();
+      socket.off("kiosk_login", handleKioskLogin);
+      // Keep the kiosk connected across route changes so it stays in its room.
     };
   }, [kioskId]);
 
-  return { kioskId, isConnected, isRegistered, waitingForLogin };
+  return {
+    kioskId,
+    isConnected,
+    isRegistered,
+    waitingForLogin,
+    isLoggedIn,
+    loggedInUsername,
+  };
 }
 

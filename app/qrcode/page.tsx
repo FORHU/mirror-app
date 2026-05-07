@@ -6,8 +6,14 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function QrCodePage() {
-  const { kioskId, isConnected, isRegistered, waitingForLogin } =
-    useKioskSocket();
+  const {
+    kioskId,
+    isConnected,
+    isRegistered,
+    waitingForLogin,
+    isLoggedIn,
+    loggedInUsername,
+  } = useKioskSocket();
   const router = useRouter();
 
   useEffect(() => {
@@ -15,6 +21,14 @@ export default function QrCodePage() {
       router.push("/waiting-login");
     }
   }, [waitingForLogin, router]);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push(
+        `/kiosk-logged-in?username=${encodeURIComponent(loggedInUsername || "User")}`,
+      );
+    }
+  }, [isLoggedIn, loggedInUsername, router]);
 
   return (
     <main className="min-h-screen bg-background-primary text-text-primary flex items-center justify-center px-6">
