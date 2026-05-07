@@ -29,13 +29,13 @@ export const metadata: Metadata = {
   description:
     "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    process.env.NEXT_PUBLIC_SITE_URL || "",
   ),
   openGraph: {
     title: "Mirror App",
     description:
       "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: process.env.NEXT_PUBLIC_SITE_URL,
     siteName: "Mirror App",
     images: [
       {
