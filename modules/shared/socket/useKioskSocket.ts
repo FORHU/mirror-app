@@ -11,6 +11,7 @@ export function useKioskSocket() {
   const kioskId = useMemo(() => crypto.randomUUID(), []);
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [waitingForLogin, setWaitingForLogin] = useState(false);
 
   useEffect(() => {
     const socket = getSocketClient();
@@ -32,9 +33,18 @@ export function useKioskSocket() {
       }
     };
 
+    const handleKioskScanning = (payload: { status?: string }) => {
+      console.log("Waiting to login")
+      if (payload?.status === "pending_login") {
+        console.log("Waiting to login")
+        setWaitingForLogin(true);
+      }
+    };
+
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("kiosk_registered", handleKioskRegistered);
+    socket.on("kiosk_scanning", handleKioskScanning);
 
     socket.connect();
 
@@ -42,10 +52,11 @@ export function useKioskSocket() {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("kiosk_registered", handleKioskRegistered);
+      socket.off("kiosk_scanning", handleKioskScanning);
       socket.disconnect();
     };
   }, [kioskId]);
 
-  return { kioskId, isConnected, isRegistered };
+  return { kioskId, isConnected, isRegistered, waitingForLogin };
 }
 
