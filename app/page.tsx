@@ -113,6 +113,14 @@ export default function LandingPage() {
               >
                 Start Now
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push("/capture")}
+                className="w-full sm:w-auto px-10 py-5 rounded-2xl border border-white/30 text-white font-semibold text-lg hover:bg-white/10 transition-all"
+              >
+                Gesture Capture
+              </motion.button>
             </div>
           </motion.div>
         </section>
