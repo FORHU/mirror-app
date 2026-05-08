@@ -8,6 +8,15 @@ import {
   RegisterKioskPayload,
 } from "./socket-events";
 
+const getMirrorName = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+
+  return `Mirror ${String.fromCharCode(65 + (hash % 26))}`;
+};
+
 export function useKioskSocket() {
   const kioskId = useMemo(() => {
     if (typeof window === "undefined") return crypto.randomUUID();
@@ -19,6 +28,7 @@ export function useKioskSocket() {
     window.sessionStorage.setItem("kiosk_id", created);
     return created;
   }, []);
+  const kioskName = useMemo(() => getMirrorName(kioskId), [kioskId]);
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
@@ -30,7 +40,10 @@ export function useKioskSocket() {
 
     const handleConnect = () => {
       setIsConnected(true);
-      const payload: RegisterKioskPayload = { kioskId };
+      const payload: RegisterKioskPayload = {
+        kioskId,
+        name: kioskName,
+      };
       socket.emit("register_kiosk", payload);
     };
 
@@ -80,10 +93,11 @@ export function useKioskSocket() {
       socket.off("kiosk_login", handleKioskLogin);
       // Keep the kiosk connected across route changes so it stays in its room.
     };
-  }, [kioskId]);
+  }, [kioskId, kioskName]);
 
   return {
     kioskId,
+    kioskName,
     isConnected,
     isRegistered,
     waitingForLogin,

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 export default function QrCodePage() {
   const {
     kioskId,
+    kioskName,
     isConnected,
     isRegistered,
     waitingForLogin,
@@ -41,6 +42,7 @@ export default function QrCodePage() {
           <QRCode value={"http://192.168.1.24:3000/" + kioskId} size={220} />
         </div>
         <p className="mt-4 text-sm text-text-secondary break-all">{kioskId}</p>
+        <p className="mt-4 text-sm text-text-secondary break-all">{kioskName}</p>
         <p className="mt-2 text-sm">
           Socket: {isConnected ? "Connected" : "Connecting..."} | Kiosk:{" "}
           {isRegistered ? "Registered" : "Registering..."}
