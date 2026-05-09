@@ -2,6 +2,7 @@
 
 export interface RegisterKioskPayload {
   kioskId: string;
+  name: string;
 }
 
 export interface KioskRegisteredPayload {

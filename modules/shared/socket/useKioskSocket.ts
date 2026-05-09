@@ -7,28 +7,24 @@ import {
   KioskRegisteredPayload,
   RegisterKioskPayload,
 } from "./socket-events";
+import { MIRRORS, MirrorKey } from "../constants/mirrors";
 
-const getMirrorName = (id: string) => {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-
-  return `Mirror ${String.fromCharCode(65 + (hash % 26))}`;
-};
-
-export function useKioskSocket() {
+export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
   const kioskId = useMemo(() => {
-    if (typeof window === "undefined") return crypto.randomUUID();
+    if (typeof window === "undefined") return mirrorIdOverride ?? "mirror-a";
 
-    const existing = window.sessionStorage.getItem("kiosk_id");
-    if (existing) return existing;
+    if (mirrorIdOverride) {
+      window.sessionStorage.setItem("kiosk_id", mirrorIdOverride);
+      return mirrorIdOverride;
+    }
 
-    const created = crypto.randomUUID();
-    window.sessionStorage.setItem("kiosk_id", created);
-    return created;
-  }, []);
-  const kioskName = useMemo(() => getMirrorName(kioskId), [kioskId]);
+    return (window.sessionStorage.getItem("kiosk_id") as MirrorKey) ?? "mirror-a";
+  }, [mirrorIdOverride]);
+
+  const kioskName = useMemo(
+    () => MIRRORS[kioskId as MirrorKey]?.name ?? kioskId,
+    [kioskId],
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
