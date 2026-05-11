@@ -6,17 +6,19 @@ import { motion, AnimatePresence } from "motion/react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+
 export default function MirrorAQrPage() {
   const { kioskId, kioskName, waitingForLogin, isLoggedIn, loggedInUsername } =
     useKioskSocket("mirror-a");
   const router = useRouter();
 
   useEffect(() => {
-    if (waitingForLogin) router.push("/waiting-login");
+    if (!BYPASS_AUTH && waitingForLogin) router.push("/waiting-login");
   }, [waitingForLogin, router]);
 
   useEffect(() => {
-    if (isLoggedIn)
+    if (!BYPASS_AUTH && isLoggedIn)
       router.push(`/kiosk-logged-in?username=${encodeURIComponent(loggedInUsername || "User")}`);
   }, [isLoggedIn, loggedInUsername, router]);
 

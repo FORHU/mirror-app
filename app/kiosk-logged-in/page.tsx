@@ -234,6 +234,18 @@ export default function KioskLoggedInPage() {
               className="camera-feed -scale-x-100"
             />
           </motion.div>
+
+          {/* Build Outfit shortcut */}
+          <motion.button
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => router.push("/outfit-builder")}
+            className="w-full py-4 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl rounded-2xl shadow-lg shadow-purple-300/40"
+          >
+            Build Outfit
+          </motion.button>
         </motion.div>
       </AnimatePresence>
     </main>
