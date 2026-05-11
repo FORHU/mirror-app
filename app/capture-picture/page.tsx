@@ -215,8 +215,8 @@ function ArcCarousel<T extends object>({
         return (
           <motion.button
             key={vi}
-            className="absolute focus:outline-none"
-            style={{ top: 0, left: "50%", marginLeft: -iconBasePx / 2 }}
+            className="absolute focus:outline-none flex items-start justify-center"
+            style={{ top: 0, left: "50%", width: iconBasePx, marginLeft: -iconBasePx / 2 }}
             animate={{ x, y, scale, opacity }}
             transition={
               isDragging.current
