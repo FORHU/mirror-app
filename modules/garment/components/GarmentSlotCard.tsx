@@ -90,9 +90,6 @@ export function GarmentSlotCard({
               alt={slot.garment.name}
               className="w-full h-full object-contain"
             />
-            <div className="absolute bottom-0 inset-x-0 py-1.5 text-center text-xs text-white/80 bg-gradient-to-t from-black/60 to-transparent">
-              {slot.garment.name}
-            </div>
           </motion.div>
 
         /* ── Covered by a full-body garment ── */

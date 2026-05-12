@@ -38,8 +38,8 @@ export function GarmentSlotGrid({
   const s = (key: FittingSlot): GarmentSlot =>
     slots[key] ?? { slot: key, label: key, garment: null };
 
-  const rEar = earringRight ?? { slot: FittingSlot.Earrings, label: "R. Earring", garment: null, side: "right" as const };
-  const lEar = earringLeft  ?? { slot: FittingSlot.Earrings, label: "L. Earring", garment: null, side: "left"  as const };
+  const rEar = earringRight ?? { ...s(FittingSlot.Earrings), label: "R. Earring", side: "right" as const };
+  const lEar = earringLeft  ?? { ...s(FittingSlot.Earrings), label: "L. Earring", side: "left"  as const };
 
   // When a FullGarment is selected it surfaces in the UpperGarment slot and
   // marks LowerGarment as covered rather than requiring a separate slot.
@@ -55,10 +55,10 @@ export function GarmentSlotGrid({
 
       {/* ── HEAD ── */}
       <ZoneLabel label="Head" />
-      <div className="flex flex-col gap-1.5" style={{ height: "22%" }}>
+      <div className="flex flex-col gap-1.5" style={{ height: "45%" }}>
 
         {/* HeadGarment — same width as Glasses (earring-width spacers) */}
-        <div className="flex flex-row gap-1.5 flex-[1.4]">
+        <div className="flex flex-row gap-1.5 flex-3">
           <div className="flex-none w-[14%]" />
           <div className="flex flex-row gap-1 flex-1">
             <div className="flex-none w-[22%]" />
@@ -69,7 +69,7 @@ export function GarmentSlotGrid({
         </div>
 
         {/* Glasses row: R.Earring + Glasses + L.Earring */}
-        <div className="flex flex-row gap-1.5 flex-1">
+        <div className="flex flex-row gap-1.5 flex-3">
           <div className="flex-none w-[14%]" />
           <div className="flex flex-row gap-1 flex-1">
             <GarmentSlotCard slot={rEar}                    isActive={isA(FittingSlot.Earrings)} index={1} onPress={onSlotPress} className="flex-none w-[22%]" />
@@ -80,7 +80,7 @@ export function GarmentSlotGrid({
         </div>
 
         {/* Neck row — same width as Glasses */}
-        <div className="flex flex-row gap-1.5 flex-[0.8]">
+        <div className="flex flex-row gap-1.5 flex-3" >
           <div className="flex-none w-[14%]" />
           <div className="flex flex-row gap-1 flex-1">
             <div className="flex-none w-[22%]" />
@@ -104,13 +104,7 @@ export function GarmentSlotGrid({
         />
         <div className="flex flex-col gap-1.5 flex-1">
           <GarmentSlotCard slot={upperSlot}                      isActive={isA(FittingSlot.UpperGarment) || isA(FittingSlot.FullGarment)} index={6} onPress={onSlotPress} className="flex-[2.2]" />
-          <GarmentSlotCard slot={s(FittingSlot.WaistAccessory)} isActive={isA(FittingSlot.WaistAccessory)} index={7} onPress={onSlotPress} className="flex-none h-20" />
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="h-px flex-1 bg-white/15" />
-            <span className="text-xs text-white/40 uppercase tracking-[0.18em] font-semibold px-1">Lower Body</span>
-            <div className="h-px flex-1 bg-white/15" />
-          </div>
-          <GarmentSlotCard slot={s(FittingSlot.LowerGarment)} isActive={isA(FittingSlot.LowerGarment)} coveredBy={fullGarment} index={8} onPress={onSlotPress} className="flex-[1.4]" />
+          <GarmentSlotCard slot={s(FittingSlot.WaistAccessory)} isActive={isA(FittingSlot.WaistAccessory)} index={7} onPress={onSlotPress} className="flex-[0.55]" />
         </div>
         <GarmentSlotCard
           slot={s(FittingSlot.LeftHandAccessory)}
@@ -119,6 +113,17 @@ export function GarmentSlotGrid({
           onPress={onSlotPress}
           className="flex-none w-[14%] h-full"
         />
+        <div className="flex-none w-[14%]" />
+      </div>
+
+      <ZoneLabel label="Lower Body" />
+      <div className="flex flex-row gap-1.5" style={{ height: "35%" }}>
+        <div className="flex-none w-[14%]" />
+        <div className="flex flex-row gap-1 flex-1">
+          <div className="flex-none w-[22%]" />
+          <GarmentSlotCard slot={s(FittingSlot.LowerGarment)} isActive={isA(FittingSlot.LowerGarment)} coveredBy={fullGarment} index={8} onPress={onSlotPress} className="flex-[1.4]" />
+          <div className="flex-none w-[22%]" />
+        </div>
         <div className="flex-none w-[14%]" />
       </div>
 
