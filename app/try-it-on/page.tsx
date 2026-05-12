@@ -3,12 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, RefreshCw, Download } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { FittingSlot, type SlotMap } from "@/modules/garment/types";
 
-// Canvas: 500 × 780 px (same as mirror-admin)
-const W = 500;
-const H = 780;
 
 const SLOT_TO_PART: Record<FittingSlot, string> = {
   [FittingSlot.HeadGarment]:        "head",
@@ -26,35 +23,44 @@ const SLOT_TO_PART: Record<FittingSlot, string> = {
 };
 
 const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
-  head:       [200,  10, 100,  95],
-  glasses:    [210,  56,  80,  32],
-  earrings:   [190,  62, 120,  44],
-  torso:      [148, 138, 204, 255],
-  legs:       [172, 390, 156, 300],
-  full:       [145, 138, 210, 558],
-  feet:       [172, 668, 156,  58],
-  leftHand:   [182, 368,  48,  88],
-  rightHand:  [270, 368,  48,  88],
-  neck:       [220, 103,  60,  46],
-  waist:      [188, 378, 124,  42],
+  head:       [175,  -50, 150, 143],
+  glasses:    [190,  70, 120,  48],
+  earrings:   [190,  62, 180,  66],
+  torso:      [100, 120, 306, 383],
+  legs:       [135, 360, 234, 370],
+  full:       [145, 138, 315, 630],
+  feet:       [120, 700, 234,  87],
+  leftHand:   [140, 320,  72, 132],
+  rightHand:  [295, 320,  72, 132],
+  neck:       [210, 110,  90,  69],
+  waist:      [188, 378, 186,  63],
 };
 
 const DRAW_ORDER = ["full", "torso", "legs", "feet", "head", "glasses", "earrings", "neck", "waist", "leftHand", "rightHand"];
-
-function proxied(src: string): string {
-  if (src.startsWith("http://") || src.startsWith("https://")) {
-    return `/api/proxy-image?url=${encodeURIComponent(src)}`;
-  }
-  return src;
-}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = proxied(src);
+    img.src = src;
   });
+}
+
+// Try proxy first (keeps canvas clean for toDataURL), fall back to direct load.
+async function loadGarmentImage(src: string): Promise<HTMLImageElement> {
+  if (!src.startsWith("http://") && !src.startsWith("https://")) {
+    return loadImage(src);
+  }
+  try {
+    const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(src)}`);
+    if (res.ok) {
+      const blobUrl = URL.createObjectURL(await res.blob());
+      try { return await loadImage(blobUrl); } finally { URL.revokeObjectURL(blobUrl); }
+    }
+  } catch { /* proxy failed — fall through */ }
+  // Direct fallback (canvas will be tainted, Save may not work)
+  return loadImage(src);
 }
 
 function getVisibleBounds(img: HTMLImageElement): { x: number; y: number; width: number; height: number } {
@@ -94,69 +100,54 @@ function drawContained(
   ctx.drawImage(img, b.x, b.y, b.width, b.height, tx + (tw - dw) / 2, ty + (th - dh) / 2, dw, dh);
 }
 
-async function buildReferenceImage(
+// Draws directly onto the provided canvas element — never calls toDataURL,
+// so CORS taint from fallback direct-loads doesn't prevent display.
+async function drawOutfit(
+  canvas: HTMLCanvasElement,
   slotMap: SlotMap,
-  outlineImg: HTMLImageElement,
-): Promise<{ dataUrl: string; outfitItems: { part: string; name: string }[] }> {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 768;
+): Promise<void> {
+  canvas.width  = 500;
+  canvas.height = 780;
   const ctx = canvas.getContext("2d")!;
 
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#fbfcff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw mannequin outline
-  ctx.drawImage(outlineImg, (-400 / W) * canvas.width, (8 / H) * canvas.height, (1300 / W) * canvas.width, (750 / H) * canvas.height);
-
-  const scaleX = canvas.width / W;
-  const scaleY = canvas.height / H;
-
-  // Collect filled garment slots
   const filledSlots = Object.values(slotMap).filter(s => s?.garment?.imageUrl);
 
-  // Load all garment images in parallel
   const loaded = await Promise.all(
     filledSlots.map(async (s) => {
       try {
-        const img = await loadImage(s!.garment!.imageUrl);
-        return { part: SLOT_TO_PART[s!.slot], name: s!.garment!.name, img };
+        const img = await loadGarmentImage(s!.garment!.imageUrl);
+        return { part: SLOT_TO_PART[s!.slot], img };
       } catch {
         return null;
       }
     })
   );
 
-  const validItems = loaded.filter(Boolean) as { part: string; name: string; img: HTMLImageElement }[];
+  const items = loaded.filter(Boolean) as { part: string; img: HTMLImageElement }[];
 
-  // Draw in correct layering order
   DRAW_ORDER.forEach(part => {
-    const item = validItems.find(i => i.part === part);
+    const item = items.find(i => i.part === part);
     if (!item) return;
     const pos = BODY_POSITIONS[part];
     if (!pos) return;
     const [x, y, w, h] = pos;
-    drawContained(ctx, item.img, x * scaleX, y * scaleY, w * scaleX, h * scaleY);
+    drawContained(ctx, item.img, x, y, w, h);
   });
-
-  return {
-    dataUrl: canvas.toDataURL("image/jpeg", 0.85),
-    outfitItems: validItems.map(i => ({ part: i.part, name: i.name })),
-  };
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Phase = "building" | "generating" | "done" | "error";
+type Phase = "building" | "done" | "error";
 
 export default function TryItOnPage() {
-  const router = useRouter();
-  const [phase, setPhase]         = useState<Phase>("building");
-  const [result, setResult]       = useState<string | null>(null);
-  const [errorMsg, setErrorMsg]   = useState<string>("");
-  const [elapsed, setElapsed]     = useState(0);
-  const timerRef                  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hasStarted                = useRef(false);
+  const router     = useRouter();
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const hasStarted = useRef(false);
+  const [phase,    setPhase]    = useState<Phase>("building");
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -167,12 +158,8 @@ export default function TryItOnPage() {
 
   async function generate() {
     setPhase("building");
-    setResult(null);
     setErrorMsg("");
-    setElapsed(0);
-
     try {
-      // Read slotMap from localStorage
       const raw = localStorage.getItem("mirror_outfit_slots");
       const slotMap: SlotMap = raw ? JSON.parse(raw) : {};
 
@@ -183,53 +170,29 @@ export default function TryItOnPage() {
         return;
       }
 
-      // Load human outline
-      const outlineImg = await loadImage("/human-outline.png");
+      // Canvas is always mounted (hidden), so canvasRef is always available
+      const canvas = canvasRef.current;
+      if (!canvas) throw new Error("Canvas not ready");
 
-      // Build reference image
-      const { dataUrl, outfitItems } = await buildReferenceImage(slotMap, outlineImg);
-
-      if (outfitItems.length === 0) {
-        setErrorMsg("Could not load garment images. Please try again.");
-        setPhase("error");
-        return;
-      }
-
-      setPhase("generating");
-      const start = Date.now();
-      timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
-
-      const res = await fetch("/api/generate-outfit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ referenceImage: dataUrl, outfit: outfitItems }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Generation failed");
-
-      setResult(json.image);
+      await drawOutfit(canvas, slotMap);
       setPhase("done");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Generation failed");
       setPhase("error");
-    } finally {
-      if (timerRef.current) clearInterval(timerRef.current);
     }
   }
 
-  function handleRetry() {
-    hasStarted.current = false;
-    generate();
-    hasStarted.current = true;
-  }
-
   function handleDownload() {
-    if (!result) return;
-    const a = document.createElement("a");
-    a.href = result;
-    a.download = "outfit.png";
-    a.click();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "outfit.png";
+      a.click();
+    } catch {
+      // Canvas tainted — can't export
+    }
   }
 
   return (
@@ -252,10 +215,33 @@ export default function TryItOnPage() {
 
       {/* ── Main content ── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
+
+        {/* Canvas — always mounted so ref is available before phase turns "done" */}
+        <div className={`flex flex-col items-center gap-6 w-full ${phase === "done" ? "" : "hidden"}`}>
+          <div
+            className="relative w-full rounded-3xl overflow-hidden shadow-[0_8px_64px_rgba(168,85,247,0.25)] border border-white/10"
+            style={{ maxHeight: "65vh", aspectRatio: "2/3" }}
+          >
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full object-contain"
+              style={{ background: "#fbfcff" }}
+            />
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleDownload}
+            className="w-full py-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-base flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Save
+          </motion.button>
+        </div>
+
         <AnimatePresence mode="wait">
 
           {/* Loading / Building */}
-          {(phase === "building" || phase === "generating") && (
+          {phase === "building" && (
             <motion.div
               key="loading"
               initial={{ opacity: 0, y: 20 }}
@@ -263,7 +249,6 @@ export default function TryItOnPage() {
               exit={{ opacity: 0, y: -20 }}
               className="flex flex-col items-center gap-8 w-full"
             >
-              {/* Animated spinner ring */}
               <div className="relative w-28 h-28 flex items-center justify-center">
                 <div className="absolute inset-0 rounded-full border-4 border-white/10" />
                 <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-purple-400 border-r-pink-400 animate-spin" />
@@ -271,67 +256,9 @@ export default function TryItOnPage() {
                   <span className="text-2xl">✨</span>
                 </div>
               </div>
-
               <div className="flex flex-col items-center gap-2">
-                <span className="text-white font-semibold text-xl">
-                  {phase === "building" ? "Preparing outfit…" : "Generating your look…"}
-                </span>
-                <span className="text-white/40 text-sm">
-                  {phase === "generating"
-                    ? `This takes about 30–60 seconds · ${elapsed}s`
-                    : "Loading garment images"}
-                </span>
-              </div>
-
-              {phase === "generating" && (
-                <div className="w-full max-w-xs h-1.5 rounded-full bg-white/10 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-pink-400"
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${Math.min((elapsed / 55) * 100, 95)}%` }}
-                    transition={{ ease: "linear", duration: 1 }}
-                  />
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Result */}
-          {phase === "done" && result && (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: "spring", stiffness: 260, damping: 22 }}
-              className="flex flex-col items-center gap-6 w-full"
-            >
-              <div className="relative w-full rounded-3xl overflow-hidden shadow-[0_8px_64px_rgba(168,85,247,0.25)] border border-white/10"
-                style={{ maxHeight: "65vh", aspectRatio: "2/3" }}
-              >
-                <img
-                  src={result}
-                  alt="Your generated outfit"
-                  className="w-full h-full object-contain bg-white"
-                />
-              </div>
-
-              <div className="flex gap-3 w-full">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleDownload}
-                  className="flex-1 py-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-base flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Save
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleRetry}
-                  className="flex-1 py-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-base flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Regenerate
-                </motion.button>
+                <span className="text-white font-semibold text-xl">Building your outfit…</span>
+                <span className="text-white/40 text-sm">Loading garment images</span>
               </div>
             </motion.div>
           )}
@@ -354,10 +281,9 @@ export default function TryItOnPage() {
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={handleRetry}
-                className="px-10 py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold text-base flex items-center gap-2"
+                onClick={() => { hasStarted.current = false; generate(); hasStarted.current = true; }}
+                className="px-10 py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold text-base"
               >
-                <RefreshCw className="w-4 h-4" />
                 Try Again
               </motion.button>
             </motion.div>
