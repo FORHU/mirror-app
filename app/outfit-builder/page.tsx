@@ -133,7 +133,10 @@ export default function OutfitBuilderPage() {
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push("/capture-picture")}
+            onClick={() => {
+              localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+              router.push("/try-it-on");
+            }}
             className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl shadow-lg"
           >
             Try It On
