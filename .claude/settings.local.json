@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/app/calendar/page.tsx)",
+      "Read(//tmp/**)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/.env.example)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/app/api/webhooks/calendar/route.ts)",
+      "Bash(curl -s \"https://api.github.com/repos/FORHU/law-ph/contents/supabase/migrations\")",
+      "Bash(find /tmp -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -5)",
+      "Read(//c/tmp/**)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/supabase/schema_dump.sql)",
+      "Bash(curl -s https://api.github.com/repos/FORHU/law-ph/contents/supabase/migrations)",
+      "Bash(python3 -c \"import sys, json; data = json.load\\(sys.stdin\\); [print\\(f[1]['name'], f[1]['download_url']\\) for f in enumerate\\(data\\) if 'event' in f[1]['name'].lower\\(\\)]\")",
+      "Bash(python3)",
+      "Bash(curl -s \"https://github.com/FORHU/law-ph/tree/main/app/api\")",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/lib/calendar-api.ts)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/lib/google-token.ts)",
+      "Bash(curl -s https://raw.githubusercontent.com/FORHU/law-ph/main/next.config.ts)",
+      "Bash(curl -s \"https://github.com/FORHU/law-ph\")"
+    ]
+  }
+}
