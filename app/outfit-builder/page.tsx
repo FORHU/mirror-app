@@ -15,13 +15,14 @@ import { garmentService, type RemoteGarment } from "@/modules/shared/api/garment
 const NONE: ModalItem = { id: "none", label: "None", imageUrl: null, garment: null };
 
 function toModalItem(g: RemoteGarment, slot: GarmentSlot["slot"]): ModalItem {
-  const name     = g.name.replace(/^"|"$/g, "");
-  const imageUrl = g.file?.fileUrl ?? g.imageUrl ?? null;
+  const name        = g.name.replace(/^"|"$/g, "");
+  const imageUrl    = g.file?.fileUrl ?? g.imageUrl ?? null;
+  const garmentType = (g.garmentType?.[0] ?? "").toLowerCase();
   return {
     id: g.id,
     label: name,
     imageUrl,
-    garment: { id: g.id, name, imageUrl, slot },
+    garment: { id: g.id, name, imageUrl, slot, garmentType },
   };
 }
 
