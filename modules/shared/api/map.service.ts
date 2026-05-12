@@ -37,12 +37,17 @@ export interface DirectionsResponse {
 }
 
 export const mapService = {
-  search: async (query: string): Promise<GeocodingFeature[]> => {
+  search: async (query: string, proximity?: [number, number] | null): Promise<GeocodingFeature[]> => {
     if (!query) return [];
+    
+    const params: any = { q: query };
+    if (proximity) {
+      params.proximity = proximity.join(",");
+    }
     
     const response = await api.get<GeocodingResponse>(
       "/mirror/map/search",
-      { q: query }
+      params
     );
     
     if (response.ok && response.data?.success) {
@@ -51,18 +56,20 @@ export const mapService = {
     return [];
   },
 
-  getDirections: async (origin: [number, number], destination: [number, number]): Promise<DirectionsResponse["data"] | null> => {
-    const response = await api.get<DirectionsResponse>(
-      "/mirror/map/directions",
-      { 
-        origin: origin.join(","), 
-        destination: destination.join(",") 
-      }
-    );
+  getDirections: async (origin: [number, number], destination: [number, number], profile: string = "driving"): Promise<any | null> => {
+    try {
+      const response = await api.get<any>("/mirror/map/directions", {
+        origin: origin.join(","),
+        destination: destination.join(","),
+        profile,
+      });
 
     if (response.ok && response.data?.success) {
       return response.data.data;
     }
     return null;
+    } catch (e) {
+      return null;
+    }
   }
 };

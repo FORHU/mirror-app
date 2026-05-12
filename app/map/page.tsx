@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function MapPage() {
   return (
-    <main className="w-screen h-screen bg-black relative">
+    <main className="w-screen h-dvh bg-black relative overflow-hidden">
       <MapScene />
       <MapDashboard />
     </main>

@@ -1,16 +1,16 @@
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
 export const INITIAL_VIEW_STATE = {
-  longitude: -0.0865,
-  latitude: 51.5048,
-  zoom: 16,
+  longitude: 120.5933, // Baguio area from image
+  latitude: 16.4089,
+  zoom: 16.5,
   pitch: 60,
   bearing: -17.6,
 };
 
 export const MAP_STYLES = {
-  dark: "mapbox://styles/mapbox/standard",
-  light: "mapbox://styles/mapbox/standard",
+  dark: "mapbox://styles/mapbox/dark-v11",
+  light: "mapbox://styles/mapbox/light-v11",
   satellite: "mapbox://styles/mapbox/satellite-streets-v12",
 };
 

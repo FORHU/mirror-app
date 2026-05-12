@@ -4,6 +4,7 @@ export * from "./components/MapProvider";
 export * from "./components/MapViewport";
 export * from "./components/MapSearch";
 export * from "./components/NavigationHUD";
+export * from "./components/ExploreHUD";
 export * from "./hooks/useMapCamera";
 export * from "./store/useMapStore";
 export * from "./constants/config";
