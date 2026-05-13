@@ -125,7 +125,7 @@ export default function WelcomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.85, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => router.push("/qrcode")}
+          onClick={() => router.push("/qrcode/mirror-a")}
         >
           Start Now
         </motion.button>

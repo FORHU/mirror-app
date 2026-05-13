@@ -69,6 +69,7 @@ export default function KioskLoggedInPage() {
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(3);
   const [isFlashActive, setIsFlashActive]   = useState(false);
+  const [previewUrl,    setPreviewUrl]      = useState<string | null>(null);
 
   useEffect(() => { isCountingDownRef.current = isCountingDown; }, [isCountingDown]);
 
@@ -89,9 +90,23 @@ export default function KioskLoggedInPage() {
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
 
-    localStorage.setItem("mirror_captured_photo", canvas.toDataURL("image/jpeg", 0.92));
-    window.setTimeout(() => router.push("/capture-picture"), 450);
-  }, [router]);
+    setIsCountingDown(false);
+    isCountingDownRef.current = false;
+    setPreviewUrl(canvas.toDataURL("image/jpeg", 0.92));
+  }, []);
+
+  const confirmPhoto = useCallback(() => {
+    if (!previewUrl) return;
+    localStorage.setItem("mirror_captured_photo", previewUrl);
+    router.push("/outfit-builder");
+  }, [previewUrl, router]);
+
+  const retakePhoto = useCallback(() => {
+    setPreviewUrl(null);
+    setIsCountingDown(false);
+    isCountingDownRef.current = false;
+    setCountdownValue(3);
+  }, []);
 
   const startCountdown = useCallback(() => {
     if (isCountingDownRef.current) return;
@@ -248,6 +263,96 @@ export default function KioskLoggedInPage() {
           Build Outfit
         </motion.button>
       </footer>
+
+      {/* ── Photo confirmation modal ── */}
+      <AnimatePresence>
+        {previewUrl && (
+          <motion.div
+            key="photo-confirm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 z-40 flex items-center justify-center"
+            style={{ background: "rgba(10,4,24,0.82)", backdropFilter: "blur(12px)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 32 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="flex flex-col items-center"
+              style={{ width: 560 }}
+            >
+              {/* Photo preview */}
+              <div
+                className="w-full overflow-hidden"
+                style={{
+                  borderRadius: "28px",
+                  border: "1.5px solid rgba(255,255,255,0.14)",
+                  boxShadow: "0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)",
+                  marginBottom: 32,
+                  aspectRatio: "3/4",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Captured photo preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* Label */}
+              <p
+                className="font-semibold text-white text-center"
+                style={{ fontSize: "34px", marginBottom: 10, letterSpacing: "-0.01em" }}
+              >
+                Use this photo?
+              </p>
+              <p
+                className="text-center"
+                style={{ fontSize: "22px", color: "rgba(255,255,255,0.45)", marginBottom: 36 }}
+              >
+                Looks good, or strike a new pose
+              </p>
+
+              {/* Actions */}
+              <div className="flex gap-4 w-full">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={retakePhoto}
+                  className="flex-1 font-semibold text-white/80"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1.5px solid rgba(255,255,255,0.14)",
+                    borderRadius: "18px",
+                    padding: "22px 0",
+                    fontSize: "26px",
+                  }}
+                >
+                  Retake
+                </motion.button>
+
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={confirmPhoto}
+                  className="flex-1 font-semibold text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)",
+                    boxShadow: "0 16px 48px rgba(167,139,250,0.35)",
+                    borderRadius: "18px",
+                    padding: "22px 0",
+                    fontSize: "26px",
+                  }}
+                >
+                  Use Photo →
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </main>
   );
