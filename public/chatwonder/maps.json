@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "feature": "maps",
+  "description": "Contract for the kiosk Maps feature. ChatWonder uses this to understand how to preview event locations, show directions, and what context the Maps page sends back.",
+  "locationShape": {
+    "query": "string — human-readable address or place name as spoken by the user",
+    "label": "string — display label shown on the map pin (usually eventName)",
+    "resolvedAddress": "string | null — geocoded address; null until resolved by Maps feature",
+    "coordinates": {
+      "lat": "number | null",
+      "lng": "number | null"
+    }
+  },
+  "actions": [
+    {
+      "type": "maps_preview_location",
+      "description": "Pin the event location on the map and center the view on it. Triggered automatically after event-setup confirmation.",
+      "triggeredBy": "confirm_event intent",
+      "payload": {
+        "query": "string — location as spoken by the user in event-setup",
+        "label": "string — eventName used as the map pin label"
+      }
+    },
+    {
+      "type": "maps_get_directions",
+      "description": "Display turn-by-turn or overview directions from the kiosk to the event location",
+      "payload": {
+        "destination": "string — destination location query",
+        "mode": "driving | walking | transit (optional, default: driving)"
+      }
+    },
+    {
+      "type": "maps_clear",
+      "description": "Reset the map to its default state (remove all pins and directions)",
+      "payload": {}
+    }
+  ],
+  "pageContext": {
+    "description": "Fields sent as collectedData / pageContext from the Maps page with every chatwonder_input",
+    "fields": {
+      "pinnedLocation": "locationShape | null — the currently pinned location, or null if no pin is set",
+      "directionsActive": "boolean — true if a directions route is currently displayed on the map"
+    }
+  },
+  "dataFlow": {
+    "source": "event-setup page (location field)",
+    "trigger": "confirm_event intent",
+    "action": "maps_preview_location dispatched by ChatWonder → Maps feature geocodes the query and pins it on the map"
+  }
+}

@@ -17,7 +17,7 @@ export default function WaitingLoginPage() {
   useEffect(() => {
     if (!BYPASS_AUTH && isLoggedIn) {
       router.push(
-        `/kiosk-logged-in?username=${encodeURIComponent(loggedInUsername || "User")}`,
+        `/event-setup?username=${encodeURIComponent(loggedInUsername || "User")}`,
       );
     }
   }, [isLoggedIn, loggedInUsername, router]);
