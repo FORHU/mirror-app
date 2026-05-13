@@ -15,8 +15,8 @@ const SLOT_TO_PART: Record<FittingSlot, string> = {
   [FittingSlot.LowerGarment]:       "legs",
   [FittingSlot.FullGarment]:        "full",
   [FittingSlot.FootGarment]:        "feet",
-  [FittingSlot.LeftHandAccessory]:  "leftHand",
-  [FittingSlot.RightHandAccessory]: "rightHand",
+  [FittingSlot.RightHandAccessory]:  "leftHand",
+  [FittingSlot.LeftHandAccessory]: "rightHand",
   [FittingSlot.NeckAccessory]:      "neck",
   [FittingSlot.WaistAccessory]:     "waist",
   [FittingSlot.None]:               "accessory",
@@ -30,10 +30,10 @@ const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
   legs:       [135, 360, 234, 370],
   full:       [145, 138, 315, 630],
   feet:       [120, 700, 234,  87],
-  leftHand:   [140, 320,  72, 132],
-  rightHand:  [295, 320,  72, 132],
+  leftHand:   [50, 400,  72, 132],
+  rightHand:  [350, 400,  72, 132],
   neck:       [210, 110,  90,  69],
-  waist:      [188, 378, 186,  63],
+  waist:      [150, 378, 186,  63],
 };
 
 const DRAW_ORDER = ["full", "torso", "legs", "feet", "head", "glasses", "earrings", "neck", "waist", "leftHand", "rightHand"];
@@ -102,24 +102,26 @@ function drawContained(
 
 // Draws directly onto the provided canvas element — never calls toDataURL,
 // so CORS taint from fallback direct-loads doesn't prevent display.
+// dpr scales the canvas to the screen's physical pixel density so output is crisp on HiDPI screens.
 async function drawOutfit(
   canvas: HTMLCanvasElement,
   slotMap: SlotMap,
+  dpr: number = 1,
 ): Promise<void> {
-  canvas.width  = 500;
-  canvas.height = 780;
+  const W = 500, H = 780;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d")!;
-
-  ctx.fillStyle = "#fbfcff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(dpr, dpr);
 
   const filledSlots = Object.values(slotMap).filter(s => s?.garment?.imageUrl);
 
   const loaded = await Promise.all(
     filledSlots.map(async (s) => {
       try {
+        const part = SLOT_TO_PART[s!.slot];
         const img = await loadGarmentImage(s!.garment!.imageUrl);
-        return { part: SLOT_TO_PART[s!.slot], img };
+        return { part, img };
       } catch {
         return null;
       }
@@ -174,7 +176,7 @@ export default function TryItOnPage() {
       const canvas = canvasRef.current;
       if (!canvas) throw new Error("Canvas not ready");
 
-      await drawOutfit(canvas, slotMap);
+      await drawOutfit(canvas, slotMap, window.devicePixelRatio || 1);
       setPhase("done");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Generation failed");
