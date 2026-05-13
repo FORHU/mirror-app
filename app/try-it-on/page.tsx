@@ -23,17 +23,33 @@ const SLOT_TO_PART: Record<FittingSlot, string> = {
 };
 
 const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
-  head:       [175,  -50, 150, 143],
-  glasses:    [190,  70, 120,  48],
-  earrings:   [190,  62, 180,  66],
+  //      vertical   horizontal
+  head:       [175,  -20, 150, 143],
+  glasses:    [190,  90, 120,  48],
+  earrings:   [80,  80, 180,  66],
+  neck:       [210, 150,  90,  69],
   torso:      [100, 120, 306, 383],
-  legs:       [135, 360, 234, 370],
-  full:       [145, 138, 315, 630],
-  feet:       [120, 700, 234,  87],
-  leftHand:   [50, 400,  72, 132],
-  rightHand:  [350, 400,  72, 132],
-  neck:       [210, 110,  90,  69],
-  waist:      [150, 378, 186,  63],
+  leftHand:   [120, 400,  72, 132],
+  rightHand:  [320, 400,  72, 132],
+  waist:      [160, 390, 186,  63],
+  legs:       [140, 360, 234, 370],
+  feet:       [140, 680, 234,  87],
+  full:       [0, 138, 315, 630],
+};
+
+// Scale multiplier per part — 1.0 = fills the slot box exactly, >1 grows beyond it, <1 shrinks.
+const GARMENT_SCALE: Record<string, number> = {
+  head:       0.8,
+  glasses:    0.6,
+  earrings:   0.5,
+  neck:       1.5,
+  torso:      .8,
+  leftHand:   0.7,
+  rightHand:  0.7,
+  waist:      .8,
+  legs:       .8,
+  feet:       1.3,
+  full:       1.0,
 };
 
 const DRAW_ORDER = ["full", "torso", "legs", "feet", "head", "glasses", "earrings", "neck", "waist", "leftHand", "rightHand"];
@@ -136,7 +152,9 @@ async function drawOutfit(
     const pos = BODY_POSITIONS[part];
     if (!pos) return;
     const [x, y, w, h] = pos;
-    drawContained(ctx, item.img, x, y, w, h);
+    const s = GARMENT_SCALE[part] ?? 1;
+    const sw = w * s, sh = h * s;
+    drawContained(ctx, item.img, x - (sw - w) / 2, y - (sh - h) / 2, sw, sh);
   });
 }
 
