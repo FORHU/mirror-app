@@ -2,91 +2,55 @@
 
 import React, { useEffect } from "react";
 import mapboxgl from "mapbox-gl";
-import { useMap } from "./MapProvider";
 import { useMapStore } from "../store/useMapStore";
 
-export const RouteLayer = () => {
-  const { map } = useMap();
-  const { activeRoute } = useMapStore();
+interface RouteLayerProps {
+  map: mapboxgl.Map;
+}
+
+const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
+  const activeRoute = useMapStore((state) => state.activeRoute);
 
   useEffect(() => {
-    if (!map || !activeRoute) return;
+    if (!map) return;
 
-    const route = activeRoute?.routes?.[0]?.geometry;
-    if (!route) return;
-    
-    const sourceId = "route-source";
-    const layerIds = ["route-glow", "route-casing", "route-core"];
-
-    const data: any = {
-      type: "Feature",
-      properties: {},
-      geometry: route,
-    };
-
-    if (!map.getSource(sourceId)) {
-      map.addSource(sourceId, { type: "geojson", data });
-      
-      // 1. Wide Outer Glow (Waze Style)
-      map.addLayer({
-        id: "route-glow",
-        type: "line",
-        source: sourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#ffeb3b",
-          "line-width": 18,
-          "line-opacity": 0.4,
-          "line-blur": 12
+    if (!map.getSource("route")) {
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
         },
       });
 
-      // 2. High-Contrast Casing
       map.addLayer({
-        id: "route-casing",
+        id: "route",
         type: "line",
-        source: sourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
         paint: {
-          "line-color": "#ffffff",
-          "line-width": 10,
+          "line-color": "#4fc3f7",
+          "line-width": 5,
           "line-opacity": 0.9,
+          "line-blur": 2,
         },
       });
+    }
 
-      // 3. Vibrant Core Path
-      map.addLayer({
-        id: "route-core",
-        type: "line",
-        source: sourceId,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#facc15",
-          "line-width": 6,
-        },
-      });
+    if (activeRoute && activeRoute.geojson) {
+      (map.getSource("route") as mapboxgl.GeoJSONSource).setData(activeRoute.geojson);
     } else {
-      const source = map.getSource(sourceId) as mapboxgl.GeoJSONSource;
-      source.setData(data);
-    }
-
-    // Zoom to fit route
-    const coordinates = (route as any).coordinates;
-    const bounds = new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]);
-    coordinates.forEach((coord: [number, number]) => bounds.extend(coord));
-
-    const camera = map.cameraForBounds(bounds, { padding: 100 });
-    if (camera) {
-      map.easeTo({ ...camera, duration: 2000, essential: true });
-    }
-
-    return () => {
-      layerIds.forEach(id => {
-        if (map.getLayer(id)) map.removeLayer(id);
+      (map.getSource("route") as mapboxgl.GeoJSONSource).setData({
+        type: "FeatureCollection",
+        features: [],
       });
-      if (map.getSource(sourceId)) map.removeSource(sourceId);
-    };
+    }
   }, [map, activeRoute]);
 
   return null;
 };
+
+export default RouteLayer;

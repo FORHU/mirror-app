@@ -1,217 +1,109 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useMapStore } from "../store/useMapStore";
 import mapboxgl from "mapbox-gl";
-import { point } from "@turf/helpers";
-import distance from "@turf/distance";
-import nearestPointOnLine from "@turf/nearest-point-on-line";
+import { useMapStore } from "../store/useMapStore";
 
-export const useMapCamera = () => {
-  const {
-    map, isNavigating, userLocation, activeRoute,
-    cameraMode, remainingDistance, deviceType, gpsStatus
-  } = useMapStore();
-  
-  const lastCoordsRef = useRef<[number, number] | null>(null);
-  const lastBearingRef = useRef<number>(0);
-  const isTransitioningRef = useRef(false);
-
-  // User's provided bearing logic
-  const calculateBearing = (prev: [number, number], curr: [number, number]): number => {
-    const toRad = (d: number) => d * Math.PI / 180;
-    const toDeg = (r: number) => r * 180 / Math.PI;
-    const dLng = toRad(curr[0] - prev[0]);
-    const lat1 = toRad(prev[1]);
-    const lat2 = toRad(curr[1]);
-    const y = Math.sin(dLng) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-    return (toDeg(Math.atan2(y, x)) + 360) % 360;
-  };
+export function useMapCamera(map: mapboxgl.Map | null) {
+  const isNavigating  = useMapStore((state) => state.isNavigating);
+  const activeRoute   = useMapStore((state) => state.activeRoute);
+  const cameraMode    = useMapStore((state) => state.cameraMode);
+  const homeLocation  = useMapStore((state) => state.homeLocation);
+  const idleRotRef    = useRef<number | null>(null);
 
   const lerpBearing = (current: number, target: number, factor: number): number => {
-    let delta = ((target - current + 540) % 360) - 180;
+    const delta = ((target - current + 540) % 360) - 180;
     return current + delta * factor;
   };
 
-  // Helper to find point at distance along route
-  const getPointAtDistance = (line: any, dist: number): [number, number] => {
-    const coords = line.coordinates;
-    let accumulated = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const p1 = coords[i];
-      const p2 = coords[i+1];
-      const d = distance(point(p1), point(p2), { units: 'meters' });
-      if (accumulated + d >= dist) {
-        const remaining = dist - accumulated;
-        const ratio = remaining / d;
-        return [
-          p1[0] + (p2[0] - p1[0]) * ratio,
-          p1[1] + (p2[1] - p1[1]) * ratio
-        ];
-      }
-      accumulated += d;
-    }
-    return coords[coords.length - 1];
-  };
-
-  // 1. Initial Transition on Start Navigation — only fires when isNavigating flips to true
   useEffect(() => {
-    if (!isNavigating || !map || !activeRoute) return;
+    if (!map) return;
 
-    // Read location from store directly so GPS updates don't re-trigger this effect
-    const { origin, userLocation: currentLoc } = useMapStore.getState();
-    const startLoc = currentLoc || origin;
-    if (!startLoc) return;
+    if (!isNavigating) {
+      if (idleRotRef.current) {
+        cancelAnimationFrame(idleRotRef.current);
+        idleRotRef.current = null;
+      }
+      return;
+    }
 
-    isTransitioningRef.current = true;
+    if (!activeRoute) return;
 
-    const route = activeRoute.routes[0];
-    const startCoord = route.geometry.coordinates[0];
-    const nextCoord = route.geometry.coordinates[1];
-    const initialBearing = calculateBearing(startCoord, nextCoord);
+    // ── OVERVIEW ────────────────────────────────────────────────────
+    if (cameraMode === "overview") {
+      const coords: [number, number][] =
+        activeRoute.geojson?.features?.[0]?.geometry?.coordinates ?? [];
+      if (coords.length === 0) return;
+
+      const bounds = coords.reduce(
+        (b, c) => b.extend(c),
+        new mapboxgl.LngLatBounds(coords[0], coords[0])
+      );
+      map.stop();
+      map.fitBounds(bounds, {
+        padding: { top: 80, bottom: 120, left: 60, right: 60 },
+        pitch: 20, bearing: 0, duration: 1800, essential: true,
+      });
+      return;
+    }
+
+    // ── FOLLOW / FPV ─────────────────────────────────────────────────
+
+    // Center on homeLocation (where the puck is) — NOT coords[0] which is road-snapped
+    const center: [number, number] | null = homeLocation
+      ? [homeLocation.lng, homeLocation.lat]
+      : null;
+    if (!center) return;
+
+    // Bearing: prefer Mapbox API value (already road-aligned, accepts 0 = north as valid)
+    // API now returns undefined when missing (not 0), so null-check is clean
+    const apiBearing: number | undefined = activeRoute.steps?.[0]?.maneuver?.bearing_after;
+    const bearing = apiBearing != null ? apiBearing : 0;
+
+    console.log("[Camera] FPV | center:", center, "| bearing:", bearing,
+      "| source:", apiBearing != null ? "API" : "default-0");
+
+    if (idleRotRef.current) {
+      cancelAnimationFrame(idleRotRef.current);
+      idleRotRef.current = null;
+    }
 
     map.stop();
-    map.flyTo({
-      center: startLoc,
-      zoom: 20,
-      pitch: 60,
-      bearing: initialBearing,
-      duration: 2200,
-      essential: true,
-      easing: (t: number) => t * (2 - t)
-    });
-
-    map.once('moveend', () => {
-      isTransitioningRef.current = false;
-      lastBearingRef.current = initialBearing;
-      useMapStore.getState().setCameraMode('follow');
-    });
-  }, [isNavigating, map, activeRoute]);
-
-  // 2. Continuous Follow Logic
-  useEffect(() => {
-    if (!isNavigating || !map || cameraMode !== 'follow' || isTransitioningRef.current) return;
-    if (gpsStatus === 'lost' && deviceType === 'phone') return;
-
-    let targetLocation: [number, number] | null = null;
-    let targetBearing: number | null = null;
-
-    if (deviceType === 'mirror' && activeRoute) {
-      const routeLine = activeRoute.routes[0].geometry;
-      const totalDist = activeRoute.routes[0].distance;
-      const progress = Math.max(0, totalDist - remainingDistance);
-      
-      targetLocation = getPointAtDistance(routeLine, progress);
-      const lookAhead = getPointAtDistance(routeLine, progress + 10);
-      targetBearing = calculateBearing(targetLocation, lookAhead);
-    } else if (userLocation && activeRoute) {
-      const routeLine = activeRoute.routes[0].geometry;
-      const nearest = nearestPointOnLine(routeLine, point(userLocation), { units: 'meters' });
-      targetLocation = nearest.geometry.coordinates as [number, number];
-
-      // Use remainingDistance (already tracked in store) to find progress
-      // along the route and look 30 m ahead — no deprecated turf properties.
-      const totalDist = activeRoute.routes[0].distance;
-      const progress = Math.max(0, totalDist - remainingDistance);
-      const lookAhead = getPointAtDistance(routeLine, progress + 30);
-      targetBearing = calculateBearing(targetLocation, lookAhead);
-    }
-
-    if (targetLocation) {
-      if (targetBearing !== null) {
-        const smoothedBearing = lerpBearing(lastBearingRef.current, targetBearing, 0.25);
-        lastBearingRef.current = smoothedBearing;
-        
-        map.easeTo({
-          center: targetLocation,
-          bearing: smoothedBearing,
-          pitch: 60,
-          zoom: 20,
-          duration: 1000,
-          essential: true,
-          easing: (t: number) => t
-        });
-        
-        useMapStore.setState({ cameraBearing: smoothedBearing });
-      } else {
-        map.easeTo({
-          center: targetLocation,
-          pitch: 60,
-          zoom: 20,
-          duration: 1000,
-          essential: true,
-          easing: (t: number) => t
-        });
-      }
-      
-      lastCoordsRef.current = targetLocation;
-    }
-  }, [isNavigating, userLocation, remainingDistance, cameraMode, map, deviceType, gpsStatus]);
-
-  // 3. Overview Mode Handling
-  useEffect(() => {
-    if (isNavigating && map && cameraMode === 'overview' && activeRoute) {
-      const routeLine = activeRoute.routes[0].geometry;
-      const coordinates = routeLine.coordinates;
-      const bounds = coordinates.reduce((acc: any, coord: any) => acc.extend(coord), new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
-      
-      map.fitBounds(bounds, {
-        padding: 80,
-        pitch: 45,
-        bearing: 0,
-        duration: 1000
+    setTimeout(() => {
+      map.easeTo({
+        center,
+        zoom: 20,
+        pitch: 80,
+        bearing,
+        duration: 3000,
+        essential: true,
+        // Push map content upward so puck appears at bottom-center (Waze/Google Maps style)
+        padding: { top: 500, bottom: 0, left: 0, right: 0 },
       });
-    }
-  }, [cameraMode, isNavigating, map, activeRoute]);
+    }, 100);
 
-  // 4. Mirror Mode Simulation Loop
-  useEffect(() => {
-    if (!isNavigating || deviceType !== 'mirror' || !activeRoute) return;
+    return () => {
+      if (idleRotRef.current) cancelAnimationFrame(idleRotRef.current);
+    };
+  }, [map, isNavigating, activeRoute, cameraMode, homeLocation]);
 
-    const SIMULATED_SPEED_MPS = 15; // ~33 mph
-    const INTERVAL_MS = 1000;
+  const flyToFPV = (center: [number, number], bearing: number) => {
+    if (!map) return;
+    map.flyTo({ center, zoom: 18.5, pitch: 70, bearing, duration: 2200, easing: (t) => t * (2 - t) });
+  };
 
-    const interval = setInterval(() => {
-      const { remainingDistance, updateNavigationProgress, setUserLocation } = useMapStore.getState();
-      
-      if (remainingDistance <= 0) {
-        clearInterval(interval);
-        return;
-      }
+  const easeToFPV = (center: [number, number], targetBearing: number) => {
+    if (!map) return;
+    map.stop();
+    map.easeTo({
+      center,
+      bearing: lerpBearing(map.getBearing(), targetBearing, 0.25),
+      pitch: 70,
+      zoom: 18.5,
+      duration: 800,
+      easing: (t) => t,
+    });
+  };
 
-      const newRemainingDist = Math.max(0, remainingDistance - SIMULATED_SPEED_MPS);
-      const routeLine = activeRoute.routes[0].geometry;
-      const totalDist = activeRoute.routes[0].distance;
-      const progress = totalDist - newRemainingDist;
-      
-      const currentPos = getPointAtDistance(routeLine, progress);
-      const nextPos = getPointAtDistance(routeLine, progress + 5);
-      const heading = calculateBearing(currentPos, nextPos);
-
-      // Update store so puck and camera follow
-      setUserLocation(currentPos);
-      useMapStore.setState({ userBearing: heading });
-      updateNavigationProgress(currentPos, SIMULATED_SPEED_MPS, heading);
-      
-    }, INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [isNavigating, deviceType, activeRoute]);
-
-  // 5. Reset on Stop
-  useEffect(() => {
-    if (!isNavigating && map) {
-      map.flyTo({
-        pitch: 0,
-        bearing: 0,
-        zoom: 14,
-        duration: 1500,
-        easing: (t: number) => t * (2 - t)
-      });
-      lastCoordsRef.current = null;
-    }
-  }, [isNavigating, map]);
-
-  return null;
-};
+  return { flyToFPV, easeToFPV, lerpBearing };
+}

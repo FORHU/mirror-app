@@ -2,9 +2,9 @@
 
 import React from "react";
 import { MapProvider } from "./MapProvider";
-import { MapViewport } from "./MapViewport";
+import MapViewport from "./MapViewport";
 import { useMapCamera } from "../hooks/useMapCamera";
-import { RouteLayer } from "./RouteLayer";
+import RouteLayer from "./RouteLayer";
 
 const SceneLogic = () => {
   useMapCamera();

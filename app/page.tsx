@@ -31,7 +31,7 @@ export default function LandingPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary selection:bg-brand-vibrant/30 overflow-x-hidden">
+    <div className="min-h-screen bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary selection:bg-brand-vibrant/30 overflow-x-hidden">
 
       <div className="relative z-10">
 
@@ -43,7 +43,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8 }}
           >
 
-            <h1 className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1] tracking-tight bg-gradient-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent">
+            <h1 className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1] tracking-tight bg-linear-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent">
               Welcome to <br />
               Smart Mirror.
             </h1>
@@ -55,12 +55,33 @@ export default function LandingPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                type="submit"
                 onClick={() => router.push("/qrcode")}
-                className="w-full py-4 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] shadow-lg shadow-purple-300/40 text-[#2d2d3a] font-semibold rounded-xl shadow-lg hover:shadow-purple-400/60 transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-linear-to-r from-[#8b7fc7] to-[#ffa07a] shadow-lg shadow-purple-300/40 text-[#2d2d3a] font-semibold rounded-xl hover:shadow-purple-400/60 transition-all flex items-center justify-center gap-2"
               >
                 Start Now
               </motion.button>
+
+              {process.env.NODE_ENV === 'development' && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/mirror/dev/token`);
+                      const { token } = await res.json();
+                      if (token) {
+                        localStorage.setItem('token', token);
+                        router.push("/map");
+                      }
+                    } catch (err) {
+                      alert("Dev bypass failed. Make sure mirror-api is running and seeded.");
+                    }
+                  }}
+                  className="w-full py-4 border border-white/20 text-white/60 font-semibold rounded-xl hover:bg-white/5 transition-all"
+                >
+                  Dev: Skip to Map
+                </motion.button>
+              )}
             </div>
           </motion.div>
         </section>

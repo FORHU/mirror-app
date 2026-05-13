@@ -1,36 +1,38 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, MapPin, Navigation, X, Loader2 } from "lucide-react";
+import { Search, MapPin, Navigation, X, Loader2, Car, Footprints, Bike } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
-import { Card } from "@/modules/shared/components/Card";
 import { motion, AnimatePresence } from "framer-motion";
 
-export const MapSearch = () => {
+export default function MapSearch() {
   const [query, setQuery] = useState("");
-  const isSelectingRef = React.useRef(false);
-  const { searchLocations, searchResults, isSearching, setDestination, clearNavigation } = useMapStore();
+  const { 
+    searchLocations, 
+    searchResults, 
+    isSearching, 
+    setDestination, 
+    clearNavigation,
+    activeRoute,
+    selectedDestination,
+    activeProfile,
+    setActiveProfile,
+    startNavigation,
+    isNavigating
+  } = useMapStore();
 
   useEffect(() => {
-    if (isSelectingRef.current) {
-      isSelectingRef.current = false;
-      return;
-    }
-
     const timer = setTimeout(() => {
-      if (query.length > 2) {
+      if (query.length > 2 && !selectedDestination) {
         searchLocations(query);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [query, searchLocations]);
+  }, [query, searchLocations, selectedDestination]);
 
   const handleSelect = (result: any) => {
-    isSelectingRef.current = true;
     setDestination(result);
-    setQuery(result.place_name);
-    // Explicitly clear results in case store update is async
-    useMapStore.setState({ searchResults: [] });
+    setQuery(result.name);
   };
 
   const handleClear = () => {
@@ -38,68 +40,111 @@ export const MapSearch = () => {
     clearNavigation();
   };
 
-  return (
-    <div className="w-full max-w-md pointer-events-none">
-      <div 
-        className="relative p-2 rounded-[2rem] overflow-visible pointer-events-auto"
-        style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
-      >
-        <div className="flex items-center gap-3 px-4">
-          {isSearching ? (
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--ghost-panel-text)" }} />
-          ) : (
-            <Search className="w-6 h-6" style={{ color: "var(--ghost-panel-text)" }} />
-          )}
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search destination..."
-            className="flex-1 bg-transparent border-none outline-none py-4 text-lg"
-            style={{ color: "var(--ghost-panel-text)" }}
-          />
-          {query && (
-            <button onClick={handleClear} className="p-2 rounded-full" style={{ background: "transparent", border: "var(--ghost-panel-border)" }}>
-              <X className="w-5 h-5" style={{ color: "var(--ghost-panel-text)" }} />
-            </button>
-          )}
-        </div>
+  if (isNavigating) return null;
 
-        {/* Results Dropdown */}
-        <AnimatePresence>
-          {searchResults.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute left-0 right-0 top-full mt-2 z-50"
-            >
-              <div className="p-2 overflow-hidden shadow-2xl rounded-3xl mt-2 pointer-events-auto" style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}>
-                {searchResults.map((result) => (
-                  <button
-                    key={result.id}
-                    onClick={() => handleSelect(result)}
-                    className="w-full flex items-start gap-4 p-4 rounded-xl transition-colors text-left"
-                    style={{ borderBottom: "var(--ghost-panel-border)" }}
-                  >
-                    <div className="mt-1 p-2 rounded-lg" style={{ border: "var(--ghost-btn-border)" }}>
-                      <MapPin className="w-5 h-5" style={{ color: "var(--ghost-panel-text)" }} />
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <div className="text-lg font-medium truncate" style={{ color: "var(--ghost-panel-text)" }}>
-                        {result.place_name.split(",")[0]}
-                      </div>
-                      <div className="text-sm truncate" style={{ color: "var(--ghost-panel-text)", opacity: 0.7 }}>
-                        {result.place_name.split(",").slice(1).join(",").trim()}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+  return (
+    <div className="w-[400px] flex flex-col gap-4">
+      {/* Search Bar */}
+      <div className="relative bg-transparent border border-white/20 rounded-2xl p-2 flex items-center gap-3 backdrop-blur-md">
+        <div className="pl-3">
+          {isSearching ? <Loader2 className="w-5 h-5 animate-spin text-white/50" /> : <Search className="w-5 h-5 text-white/50" />}
+        </div>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Where to?"
+          className="flex-1 bg-transparent border-none outline-none py-3 text-white text-lg placeholder:text-white/20"
+        />
+        {query && (
+          <button onClick={handleClear} className="p-2 text-white/40 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
+
+      {/* Results Dropdown */}
+      <AnimatePresence>
+        {searchResults.length > 0 && !selectedDestination && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-black/60 border border-white/10 rounded-2xl overflow-hidden divide-y divide-white/5 backdrop-blur-xl"
+          >
+            {searchResults.map((result) => (
+              <button
+                key={result.placeId}
+                onClick={() => handleSelect(result)}
+                className="w-full flex items-start gap-4 p-4 hover:bg-white/5 text-left transition-colors"
+              >
+                <MapPin className="w-5 h-5 mt-1 text-white/40" />
+                <div className="flex-1">
+                  <div className="text-white font-medium">{result.name}</div>
+                  <div className="text-sm text-white/40 truncate">{result.address}</div>
+                </div>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Route Preview Card */}
+      <AnimatePresence>
+        {selectedDestination && activeRoute && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-black/40 border border-white/20 rounded-3xl p-6 backdrop-blur-2xl flex flex-col gap-6"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1 pr-4">
+                <h3 className="text-2xl font-bold text-white leading-tight">{selectedDestination.name}</h3>
+                <p className="text-white/40 mt-1">{Math.round(activeRoute.distance / 1000 * 10) / 10} km away</p>
+              </div>
+              <div className="text-right">
+                <div className="text-4xl font-light text-white tracking-tighter">
+                  {Math.round(activeRoute.duration / 60)}
+                </div>
+                <div className="text-xs uppercase tracking-widest text-white/30 font-bold">min</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: 'car', icon: Car, label: 'Car' },
+                { id: 'motorcycle', icon: Bike, label: 'Moto' },
+                { id: 'bicycle', icon: Bike, label: 'Bike' },
+                { id: 'walking', icon: Footprints, label: 'Walk' },
+              ].map((mode) => {
+                const Icon = mode.icon;
+                const active = activeProfile === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    onClick={() => setActiveProfile(mode.id as any)}
+                    className={`flex flex-col items-center gap-2 py-3 rounded-2xl transition-all border ${
+                      active 
+                        ? 'bg-white/10 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                        : 'bg-transparent border-white/10 text-white/30 hover:border-white/30'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-[8px] uppercase tracking-wider font-black">{mode.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={startNavigation}
+              className="w-full py-5 bg-transparent border border-white text-white rounded-2xl font-black text-xl uppercase tracking-[0.3em] hover:bg-white hover:text-black active:scale-[0.98] transition-all duration-300"
+            >
+              Start Trip
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-};
+}
