@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { MapDashboard, MapScene } from "@/modules/map";
+import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { Loader2 } from "lucide-react";
 import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
@@ -45,7 +45,6 @@ export default function MapPage() {
 
   return (
     <main className="w-screen h-dvh bg-black relative overflow-hidden">
-      <MapScene />
       <MapDashboard />
     </main>
   );

@@ -120,14 +120,16 @@ export const useMapStore = create<MapStore>((set, get) => ({
   searchLocations: async (query: string) => {
     set({ isSearching: true });
     try {
-      const data = await mapService.geocode(query);
+      const { userLocation, homeLocation } = get();
+      const proximity = userLocation ?? homeLocation ?? undefined;
+      const data = await mapService.geocode(query, proximity ?? undefined);
       set({ searchResults: data.results, isSearching: false });
     } catch (error) {
       set({ isSearching: false });
     }
   },
 
-  fetchRoute: async (force = false) => {
+  fetchRoute: async (_force = false) => {
     const { selectedDestination, homeLocation, activeProfile } = get();
     if (!selectedDestination || !homeLocation) return;
     
@@ -193,7 +195,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
     });
   },
 
-  updateNavigationProgress: (location) => {
+  updateNavigationProgress: (_location) => {
     // Placeholder for real GPS updates
   },
 }));

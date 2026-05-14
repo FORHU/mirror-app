@@ -45,13 +45,16 @@ export const mapService = {
     return response.json();
   },
 
-  geocode: async (query: string): Promise<{ results: GeocodeResult[] }> => {
+  geocode: async (query: string, userLocation?: { lat: number; lng: number }): Promise<{ results: GeocodeResult[] }> => {
+    const body: Record<string, any> = { query };
+    if (userLocation) {
+      body.lat = userLocation.lat;
+      body.lng = userLocation.lng;
+    }
     const response = await fetch(`${API_URL}/api/mirror/map/geocode`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error('Geocoding failed');
     return response.json();
