@@ -8,6 +8,9 @@ import {
   RegisterKioskPayload,
 } from "./socket-events";
 import { MIRRORS, MirrorKey } from "../constants/mirrors";
+import { setCachedAccessToken } from "../api/api-client";
+import { setStorageData } from "../utils/storage";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants/storage-keys";
 
 export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
   const kioskId = useMemo(() => {
@@ -67,6 +70,14 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
         payload?.user?.email ||
         payload?.email ||
         "User";
+
+      if (payload?.accessToken) {
+        setCachedAccessToken(payload.accessToken);
+        setStorageData(ACCESS_TOKEN, payload.accessToken);
+      }
+      if (payload?.refreshToken) {
+        setStorageData(REFRESH_TOKEN, payload.refreshToken);
+      }
 
       setLoggedInUsername(username);
       setIsLoggedIn(true);

@@ -17,6 +17,8 @@ export interface KioskLoginPayload {
   };
   username?: string;
   email?: string;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 // ─── ChatWonder events ────────────────────────────────────────────────────────

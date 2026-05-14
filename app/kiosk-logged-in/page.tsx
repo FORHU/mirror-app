@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { tryOnModelService } from "@/modules/shared/api/try-on.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export default function KioskLoggedInPage() {
   const confirmPhoto = useCallback(() => {
     if (!previewUrl) return;
     localStorage.setItem("mirror_captured_photo", previewUrl);
+    tryOnModelService.uploadModel(previewUrl).catch(() => {});
     router.push("/outfit-builder");
   }, [previewUrl, router]);
 

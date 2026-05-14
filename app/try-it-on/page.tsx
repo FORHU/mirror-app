@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Download } from "lucide-react";
 import { FittingSlot, type SlotMap } from "@/modules/garment/types";
+import { outfitService } from "@/modules/shared/api/outfit.service";
 
 
 const SLOT_TO_PART: Record<FittingSlot, string> = {
@@ -195,6 +196,23 @@ export default function TryItOnPage() {
       if (!canvas) throw new Error("Canvas not ready");
 
       await drawOutfit(canvas, slotMap, window.devicePixelRatio || 1);
+
+      // Build outfit items from the selected garments
+      const items = Object.values(slotMap)
+        .filter(s => s?.garment)
+        .map(s => ({ garmentId: s!.garment!.id, slot: s!.slot as string }));
+
+      // Extract the rendered PNG (transparent background, full DPR resolution)
+      let pngBlob: Blob | null = null;
+      try {
+        pngBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+      } catch { /* tainted canvas — upload without image */ }
+
+      // Create outfit in background; don't block showing the result
+      outfitService.create({ name: "My Outfit", items, pngBlob })
+        .then(() => console.log("[outfit] created successfully"))
+        .catch((err) => console.error("[outfit] creation failed", err));
+
       setPhase("done");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Generation failed");
