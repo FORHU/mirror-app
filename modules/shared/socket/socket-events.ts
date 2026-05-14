@@ -11,14 +11,21 @@ export interface KioskRegisteredPayload {
 }
 
 export interface KioskLoginPayload {
+  accessToken?:  string;
+  refreshToken?: string;
   user?: {
+    id?:       string;
     username?: string;
-    email?: string;
+    email?:    string;
   };
   username?: string;
+<<<<<<< Updated upstream
   email?: string;
   accessToken?: string;
   refreshToken?: string;
+=======
+  email?:    string;
+>>>>>>> Stashed changes
 }
 
 // ─── ChatWonder events ────────────────────────────────────────────────────────

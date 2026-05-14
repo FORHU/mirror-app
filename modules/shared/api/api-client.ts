@@ -26,6 +26,7 @@ export const api = create({
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
+    "x-platform": "kiosk",
   },
   timeout: 30000,
 });
@@ -54,21 +55,25 @@ api.axiosInstance.interceptors.response.use(
       if (rt) {
         try {
           const refreshRes = await fetch(
-            `${API_BASE_URL}/api/v1/auth/refresh-token`,
+            `${API_BASE_URL}/api/remote/auth/refresh-token`,
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", "x-platform": "kiosk" },
               body: JSON.stringify({ refreshToken: rt }),
             },
           );
 
           if (refreshRes.ok) {
-            const data = await refreshRes.json();
-            if (data?.accessToken) {
-              await setStorageData(ACCESS_TOKEN, data.accessToken);
-              _cachedAccessToken = data.accessToken;
+            const resBody = await refreshRes.json();
+            const authData = resBody?.data;
+            if (resBody?.status === "success" && authData?.accessToken) {
+              await setStorageData(ACCESS_TOKEN, authData.accessToken);
+              if (authData.refreshToken) {
+                await setStorageData(REFRESH_TOKEN, authData.refreshToken);
+              }
+              _cachedAccessToken = authData.accessToken;
 
-              originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+              originalRequest.headers.Authorization = `Bearer ${authData.accessToken}`;
               return api.axiosInstance(originalRequest);
             }
           }
