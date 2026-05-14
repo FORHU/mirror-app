@@ -3,6 +3,7 @@
 export interface RegisterKioskPayload {
   kioskId: string;
   name: string;
+  secret: string;
 }
 
 export interface KioskRegisteredPayload {
