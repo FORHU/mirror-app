@@ -23,19 +23,31 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         },
       });
 
+      // Outer glow bloom
+      map.addLayer({
+        id: "route-glow",
+        type: "line",
+        source: "route",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#FFD700",
+          "line-width": 16,
+          "line-opacity": 0.25,
+          "line-blur": 8,
+        },
+      });
+
+      // Core line
       map.addLayer({
         id: "route",
         type: "line",
         source: "route",
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
+        layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#4fc3f7",
+          "line-color": "#FFD700",
           "line-width": 5,
-          "line-opacity": 0.9,
-          "line-blur": 2,
+          "line-opacity": 1,
+          "line-blur": 0,
         },
       });
     }

@@ -3,10 +3,10 @@
 import React from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
-import { 
-  Navigation, 
-  Car, Footprints, Bike, MoreHorizontal, MessageSquare, Mic, Loader2,
-  Settings, Share2, LocateFixed, CloudRain, X, Compass, Bike as Motorcycle
+import {
+  Navigation,
+  Car, Footprints, Bike, MoreHorizontal, Mic,
+  Settings, LocateFixed, CloudRain, X, Bike as Motorcycle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,7 +14,7 @@ export const ExploreHUD = () => {
   const { 
     isNavigating, startNavigation, activeRoute, fetchRoute, isRouting,
     selectedPOI, setSelectedPOI, setDestination, selectedDestination, userLocation,
-    cameraMode, setCameraMode, activeProfile,
+    activeProfile,
     toggleTraffic, showTraffic, toggleTerrain, showTerrain,
     map, origin, setUserLocation
   } = useMapStore();
@@ -158,14 +158,14 @@ export const ExploreHUD = () => {
                 className="flex flex-col items-end gap-4 sm:gap-6 pointer-events-auto"
               >
                 {/* Route Stats */}
-                {activeRoute && activeRoute.routes && activeRoute.routes[0] && (
-                  <div 
+                {activeRoute && (
+                  <div
                     className="p-4 sm:p-6 rounded-2xl sm:rounded-4xl flex gap-6 sm:gap-8"
                     style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
                   >
                     <div className="flex flex-col items-end">
                       <span className="text-3xl sm:text-5xl font-bold leading-none" style={{ color: "var(--ghost-panel-text)" }}>
-                        {Math.ceil(activeRoute.routes[0].duration / 60)}<span className="text-lg sm:text-2xl ml-1">min</span>
+                        {Math.ceil(activeRoute.duration / 60)}<span className="text-lg sm:text-2xl ml-1">min</span>
                       </span>
                       <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest mt-1 sm:mt-2" style={{ color: "var(--ghost-panel-text)", opacity: 0.6 }}>
                         Duration
@@ -173,7 +173,7 @@ export const ExploreHUD = () => {
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-3xl sm:text-5xl font-bold leading-none" style={{ color: "var(--ghost-panel-text)" }}>
-                        {(activeRoute.routes[0].distance * 0.000621371).toFixed(1)}<span className="text-lg sm:text-2xl ml-1">mi</span>
+                        {(activeRoute.distance * 0.000621371).toFixed(1)}<span className="text-lg sm:text-2xl ml-1">mi</span>
                       </span>
                       <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest mt-1 sm:mt-2" style={{ color: "var(--ghost-panel-text)", opacity: 0.6 }}>
                         Distance

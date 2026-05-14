@@ -21,7 +21,7 @@ export default function WaitingLoginPage() {
   }, [isLoggedIn, loggedInUsername, router]);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary flex items-center justify-center px-6">
+    <main className="min-h-dvh bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary flex items-center justify-center px-6">
       <AnimatePresence mode="wait">
           <motion.div
             key="waiting"
@@ -37,7 +37,7 @@ export default function WaitingLoginPage() {
               transition={{ delay: 0.2 }}
               className="text-center space-y-4"
             >
-              <h1 className="text-6xl font-bold bg-gradient-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent pb-5">
+              <h1 className="text-6xl font-bold bg-linear-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent pb-5">
                 Waiting to Connect
               </h1>
               <p className="text-2xl text-[#6b5b95]">Your mirror has been scanned. Please complete the onboarding process on the other device.</p>
@@ -56,7 +56,7 @@ export default function WaitingLoginPage() {
                   opacity: [0.5, 1, 0.5]
                 }}
                 transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
-                className="w-3 h-3 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
+                className="w-3 h-3 bg-linear-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
               />
               <motion.div
                 animate={{
@@ -64,7 +64,7 @@ export default function WaitingLoginPage() {
                   opacity: [0.5, 1, 0.5]
                 }}
                 transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                className="w-3 h-3 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
+                className="w-3 h-3 bg-linear-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
               />
               <motion.div
                 animate={{
@@ -72,7 +72,7 @@ export default function WaitingLoginPage() {
                   opacity: [0.5, 1, 0.5]
                 }}
                 transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                className="w-3 h-3 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
+                className="w-3 h-3 bg-linear-to-r from-[#8b7fc7] to-[#ffa07a] rounded-full"
               />
             </motion.div>
           </motion.div>

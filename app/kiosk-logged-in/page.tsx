@@ -2,13 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from 'motion/react';
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 
 async function resolveEmeetCamera(): Promise<MediaStreamConstraints["video"]> {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter(d => d.kind === "videoinput");
-    // Emeet Pixy wide-angle is the first device whose label matches
     const wide = cameras.find(d => /emeet|pixy/i.test(d.label));
     if (wide?.deviceId) {
       return { deviceId: { exact: wide.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } };
@@ -17,7 +16,7 @@ async function resolveEmeetCamera(): Promise<MediaStreamConstraints["video"]> {
   return { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" };
 }
 
-export default function KioskLoggedInPage() {
+function KioskLoggedInContent() {
   const searchParams = useSearchParams();
   const username = searchParams.get("username") || "User";
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -45,7 +44,7 @@ export default function KioskLoggedInPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary flex flex-col items-center justify-center px-6 gap-6">
+    <main className="min-h-dvh bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary flex flex-col items-center justify-center px-6 gap-6">
       <AnimatePresence mode="wait">
         <motion.div
           key="logged-in"
@@ -61,7 +60,7 @@ export default function KioskLoggedInPage() {
             transition={{ delay: 0.2 }}
             className="text-center space-y-4"
           >
-            <h1 className="text-6xl font-bold bg-gradient-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent pb-3">
+            <h1 className="text-6xl font-bold bg-linear-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent pb-3">
               Strike a Pose!
             </h1>
             <p className="text-2xl text-[#6b5b95]">
@@ -88,5 +87,13 @@ export default function KioskLoggedInPage() {
         </motion.div>
       </AnimatePresence>
     </main>
+  );
+}
+
+export default function KioskLoggedInPage() {
+  return (
+    <Suspense fallback={null}>
+      <KioskLoggedInContent />
+    </Suspense>
   );
 }

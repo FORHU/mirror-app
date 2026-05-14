@@ -1,21 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import {
-  Sparkles,
-  Code,
-  Globe,
-  Layout,
-  Cpu,
-  ShieldCheck,
-  Zap,
-  Moon,
-  Sun,
-  ArrowRight,
-} from "lucide-react";
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
@@ -23,20 +10,17 @@ export default function LandingPage() {
     setMounted(true);
   }, []);
 
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = mounted ? resolvedTheme === "dark" : true;
-  const toggleTheme = () => setTheme(isDark ? "light" : "dark");
   const router = useRouter();
 
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary selection:bg-brand-vibrant/30 overflow-x-hidden">
+    <div className="min-h-dvh bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] text-text-primary selection:bg-brand-vibrant/30 overflow-x-hidden">
 
       <div className="relative z-10">
 
         {/* Hero Section */}
-        <section className="pt-24 pb-16 px-6 text-center max-w-5xl mx-auto flex items-center justify-center h-screen">
+        <section className="pt-24 pb-16 px-6 text-center max-w-5xl mx-auto flex items-center justify-center h-dvh">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}

@@ -8,6 +8,7 @@ import { useMapStore } from "../store/useMapStore";
 import { applyMirrorStyle } from "../utils/mirrorStyle";
 import RouteLayer from "./RouteLayer";
 import UserPuck from "./UserPuck";
+import DestinationPin from "./DestinationPin";
 import { useMapCamera } from "../hooks/useMapCamera";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -15,7 +16,7 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, mapStyle, setSelectedPOI, showTraffic, showTerrain, setMap } = useMapStore();
+  const { homeLocation, setSelectedPOI, showTraffic, showTerrain, setMap } = useMapStore();
   
   // Use camera hook
   useMapCamera(map);
@@ -34,7 +35,6 @@ const MapViewport = () => {
     });
 
     mapInstance.on("load", () => {
-      // Add 3D buildings layer
       mapInstance.addLayer({
         id: "3d-buildings",
         source: "composite",
@@ -42,7 +42,7 @@ const MapViewport = () => {
         filter: ["==", "extrude", "true"],
         type: "fill-extrusion",
         paint: {
-          "fill-extrusion-color": "#111",
+          "fill-extrusion-color": "#141414",
           "fill-extrusion-height": ["get", "height"],
           "fill-extrusion-base": ["get", "min_height"],
           "fill-extrusion-opacity": 0.6,
@@ -64,7 +64,7 @@ const MapViewport = () => {
             name,
             category: namedFeature.properties?.type || namedFeature.properties?.class || "Location",
             location: { lng: e.lngLat.lng, lat: e.lngLat.lat },
-            layerId: namedFeature.layer.id
+            layerId: namedFeature.layer?.id
           });
         } else {
           setSelectedPOI(null);
@@ -80,9 +80,12 @@ const MapViewport = () => {
     });
 
     mapInstance.on("style.load", () => {
-      if (mapStyle === 'mirror') {
-        applyMirrorStyle(mapInstance);
-      }
+      applyMirrorStyle(mapInstance);
+    });
+
+    // Re-apply after first idle so all sprite/tiles are loaded
+    mapInstance.once("idle", () => {
+      applyMirrorStyle(mapInstance);
     });
 
     return () => {
@@ -130,6 +133,7 @@ const MapViewport = () => {
         <>
           <RouteLayer map={map} />
           <UserPuck map={map} />
+          <DestinationPin map={map} />
         </>
       )}
     </div>
