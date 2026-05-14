@@ -101,7 +101,10 @@ export default function KioskLoggedInPage() {
   const confirmPhoto = useCallback(() => {
     if (!previewUrl) return;
     localStorage.setItem("mirror_captured_photo", previewUrl);
-    tryOnModelService.uploadModel(previewUrl).catch(() => {});
+    console.log("[try-on-model] Uploading model image...");
+    tryOnModelService.uploadModel(previewUrl)
+      .then(() => console.log("[try-on-model] Model uploaded successfully"))
+      .catch((err) => console.error("[try-on-model] Model upload failed:", err));
     router.push("/outfit-builder");
   }, [previewUrl, router]);
 

@@ -10,7 +10,7 @@ import {
   removeStorageData,
 } from "@/modules/shared/utils/storage";
 import { authService } from "@/modules/shared/api/auth.service";
-import { User, RegisterRequest } from "@/modules/shared/api/api.types";
+import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
 
 interface AuthState {
@@ -24,7 +24,6 @@ interface AuthState {
 
   // Public actions
   login: (email: string, username?: string, kioskId?: string) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
@@ -47,12 +46,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         setCachedAccessToken(token);
         set({ user: storedUser, isAuthenticated: true });
 
-        // Try to refresh user data in the background
+        // Try to refresh user data in the background.
+        // If getCurrentUser() returns 401, the response interceptor will clear
+        // _cachedAccessToken. Restore it afterwards so concurrent requests
+        // (e.g. outfit creation → try-on) don't lose their auth header.
         try {
           const freshUser = await authService.getCurrentUser();
           await setStorageData(USER, freshUser);
           set({ user: freshUser });
         } catch (e) {
+          setCachedAccessToken(token);
           console.warn("[useAuthStore] Background user refresh failed", e);
         }
       }
@@ -78,15 +81,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ]);
       setCachedAccessToken(res.accessToken);
       set({ user: res.user, isAuthenticated: true });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  async register(data) {
-    set({ isLoading: true });
-    try {
-      await authService.register(data);
     } finally {
       set({ isLoading: false });
     }

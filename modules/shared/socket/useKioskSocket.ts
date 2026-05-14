@@ -9,6 +9,7 @@ import {
 } from "./socket-events";
 import { MIRRORS, MirrorKey } from "../constants/mirrors";
 import { setCachedAccessToken } from "../api/api-client";
+import { useAuthStore } from "../store/useAuthStore";
 import { setStorageData } from "../utils/storage";
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
 
@@ -83,6 +84,13 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       if (payload?.user) {
         setStorageData(USER, payload.user);
       }
+
+      // Sync into the auth store so RouteGuard and other consumers see the
+      // user as authenticated (socket login bypasses the normal _init flow).
+      useAuthStore.setState({
+        isAuthenticated: true,
+        user: payload.user as any ?? null,
+      });
 
       setLoggedInUsername(username);
       setIsLoggedIn(true);
