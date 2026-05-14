@@ -1,53 +1,52 @@
 import { api } from "./api-client";
-import { AuthResponse, RegisterRequest, User } from "./api.types";
-
-export interface StandardResponse<T> {
-  data: T;
-  message?: string;
-  success: boolean;
-}
+import { AuthResponse, User } from "./api.types";
+import { StandardResponse } from "./api.types";
 
 export const authService = {
-  login: async (email: string, password: string): Promise<AuthResponse> => {
+  /**
+   * Unified login — email + optional username and kioskId (no password).
+   * Matches the companion-app and mirror-api /api/remote/auth/login contract.
+   */
+  login: async (email: string, username?: string, kioskId?: string): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/v1/auth/login",
-      { email, password },
+      "/api/remote/auth/login",
+      { email, username, kioskId },
     );
-    if (response.ok && response.data?.success) {
+    if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }
     throw new Error(response.data?.message || "Login failed");
   },
 
-  register: async (data: RegisterRequest): Promise<AuthResponse> => {
+  googleLogin: async (idToken: string, kioskId?: string): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/v1/auth/register",
-      data,
+      "/api/remote/auth/google",
+      { idToken, kioskId },
     );
-    if (response.ok && response.data?.success) {
+    if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }
-    throw new Error(response.data?.message || "Registration failed");
+    throw new Error(response.data?.message || "Google authentication failed");
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const response = await api.get<StandardResponse<User>>("/api/v1/users/me");
-    if (response.ok && response.data?.success) {
+    const response = await api.get<StandardResponse<User>>("/api/remote/users/me");
+    if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }
     throw new Error(response.data?.message || "Failed to fetch user");
   },
 
   logout: async (refreshToken: string): Promise<void> => {
-    await api.post("/api/v1/auth/logout", { refreshToken });
+    await api.post("/api/remote/auth/logout", { refreshToken });
   },
 
   refreshAccessToken: async (refreshToken: string): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/v1/auth/refresh-token",
+      "/api/remote/auth/refresh-token",
       { refreshToken },
     );
-    if (response.ok && response.data?.success) {
+    if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }
     throw new Error(response.data?.message || "Refresh token failed");

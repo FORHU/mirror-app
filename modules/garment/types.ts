@@ -18,6 +18,7 @@ export interface Garment {
   name: string;
   imageUrl: string;
   slot: FittingSlot;
+  garmentType?: string;
 }
 
 export interface GarmentSlot {

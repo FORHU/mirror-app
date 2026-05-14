@@ -42,18 +42,30 @@ export default function GarmentCarouselModal({
   const centerVIRef = useRef(0);
   const slotPxRef   = useRef(slotPx);
 
+  // Reset position when the slot changes
   useEffect(() => {
     const sp = window.innerWidth * CARD_RATIO + CARD_GAP;
     slotPxRef.current = sp;
     dragPxRef.current = 0;
     setDragPx(0);
     setSlotPx(sp);
-
-    const selectedId = activeSlot?.garment?.id ?? "none";
-    const startVI = Math.max(0, items.findIndex(item => item.id === selectedId));
-    centerVIRef.current = startVI;
-    setCenterVI(startVI);
+    centerVIRef.current = 0;
+    setCenterVI(0);
   }, [activeSlot?.slot]);
+
+  // Jump to the already-selected item once items finish loading
+  useEffect(() => {
+    if (items.length === 0) return;
+    const selectedId = activeSlot?.garment?.id ?? "none";
+    const idx = items.findIndex(item => item.id === selectedId);
+    if (idx > 0) {
+      centerVIRef.current = idx;
+      dragPxRef.current = 0;
+      setCenterVI(idx);
+      setDragPx(0);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const n    = items.length;
   const wrap = (vi: number) => items[((vi % n) + n) % n];

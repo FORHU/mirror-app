@@ -15,13 +15,14 @@ import { garmentService, type RemoteGarment } from "@/modules/shared/api/garment
 const NONE: ModalItem = { id: "none", label: "None", imageUrl: null, garment: null };
 
 function toModalItem(g: RemoteGarment, slot: GarmentSlot["slot"]): ModalItem {
-  const name     = g.name.replace(/^"|"$/g, "");
-  const imageUrl = g.file?.fileUrl ?? g.imageUrl ?? null;
+  const name        = g.name.replace(/^"|"$/g, "");
+  const imageUrl    = g.file?.fileUrl ?? g.imageUrl ?? null;
+  const garmentType = (g.garmentType?.[0] ?? "").toLowerCase();
   return {
     id: g.id,
     label: name,
     imageUrl,
-    garment: { id: g.id, name, imageUrl, slot },
+    garment: { id: g.id, name, imageUrl, slot, garmentType },
   };
 }
 
@@ -133,7 +134,10 @@ export default function OutfitBuilderPage() {
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push("/capture-picture")}
+            onClick={() => {
+              localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+              router.push("/try-it-on");
+            }}
             className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl shadow-lg"
           >
             Try It On

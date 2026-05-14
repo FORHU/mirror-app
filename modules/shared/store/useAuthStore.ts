@@ -23,7 +23,7 @@ interface AuthState {
   _forceLogout: () => void;
 
   // Public actions
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, username?: string, kioskId?: string) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
@@ -67,10 +67,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: null, isAuthenticated: false });
   },
 
-  async login(email, password) {
+  async login(email, username?, kioskId?) {
     set({ isLoading: true });
     try {
-      const res = await authService.login(email, password);
+      const res = await authService.login(email, username, kioskId);
       await Promise.all([
         setStorageData(ACCESS_TOKEN, res.accessToken),
         setStorageData(REFRESH_TOKEN, res.refreshToken),
