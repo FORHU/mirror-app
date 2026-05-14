@@ -9,16 +9,16 @@ const QK = ['calendar-events'] as const;
 export function useCalendarEvents() {
   return useQuery({
     queryKey: QK,
-    queryFn: calendarService.getAll.bind(calendarService),
-    staleTime: 0,
+    queryFn: () => calendarService.getAll(),
+    staleTime: 30_000,
+    retry: 2,
   });
 }
 
 export function useCreateEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateEventInput) =>
-      Promise.resolve(calendarService.create(input)),
+    mutationFn: (input: CreateEventInput) => calendarService.create(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
   });
 }
@@ -26,8 +26,7 @@ export function useCreateEvent() {
 export function useUpdateEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateEventInput) =>
-      Promise.resolve(calendarService.update(input)),
+    mutationFn: (input: UpdateEventInput) => calendarService.update(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
   });
 }
@@ -35,8 +34,7 @@ export function useUpdateEvent() {
 export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      Promise.resolve(calendarService.delete(id)),
+    mutationFn: (id: string) => calendarService.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
   });
 }

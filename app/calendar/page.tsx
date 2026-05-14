@@ -223,7 +223,7 @@ export default function CalendarPage() {
   const { viewYear, viewMonth, selectedDate, setSelectedDate, prevMonth, nextMonth } =
     useCalendarView();
 
-  const { data: storedEvents = [] } = useCalendarEvents();
+  const { data: storedEvents = [], isLoading, isError } = useCalendarEvents();
   const allEvents = [...HARDCODED_EVENTS, ...storedEvents];
 
   const createEvent = useCreateEvent();
@@ -308,7 +308,7 @@ export default function CalendarPage() {
   return (
     <div className="h-screen bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca] flex flex-col p-3 gap-3 overflow-hidden">
 
-      {/* Top card — calendar + Google Calendar status bar */}
+      {/* Top card — calendar grid */}
       <div className="flex-1 min-h-0 bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg shadow-purple-200/40 overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-hidden">
           {topCard}
@@ -317,22 +317,21 @@ export default function CalendarPage() {
         {/* Google Calendar status bar */}
         <div className="shrink-0 border-t border-gray-100 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Google "G" badge */}
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
               style={{ background: 'conic-gradient(#4285f4 90deg, #34a853 90deg 180deg, #fbbc05 180deg 270deg, #ea4335 270deg)' }}>
-              <span className="text-white text-xs font-bold leading-none">G</span>
+              <span className="text-white text-[10px] font-bold leading-none">G</span>
             </div>
-            <div>
-              <p className="text-base font-semibold text-gray-700 leading-tight">Google Calendar</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-red-400" />
-                <span className="text-sm text-red-400 font-medium">Not connected</span>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold text-gray-600">Google Calendar</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                <span className="text-sm text-red-400">Not connected</span>
               </div>
             </div>
           </div>
           <button
             onClick={() => setShowGoogleNotice(true)}
-            className="px-5 py-2 rounded-full bg-[#ffa07a]/10 text-[#6b5b95] text-base font-semibold hover:bg-[#ffa07a]/20 transition-colors"
+            className="px-4 py-1.5 rounded-full bg-[#8b7fc7]/10 text-[#8b7fc7] text-sm font-semibold hover:bg-[#8b7fc7]/20 transition-colors"
           >
             Connect
           </button>
@@ -341,7 +340,17 @@ export default function CalendarPage() {
 
       {/* Bottom card — scrollable, no scrollbar */}
       <div className="flex-1 min-h-0 bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg shadow-purple-200/40 mirror-scroll">
-        {bottomCard}
+        {isLoading ? (
+          <div className="h-full flex flex-col items-center justify-center gap-4">
+            <div className="w-10 h-10 rounded-full border-4 border-[#8b7fc7]/20 border-t-[#8b7fc7] animate-spin" />
+            <p className="text-lg text-gray-400 font-medium">Loading events…</p>
+          </div>
+        ) : isError ? (
+          <div className="h-full flex flex-col items-center justify-center gap-3 px-8 text-center">
+            <p className="text-xl font-semibold text-gray-500">Could not load events</p>
+            <p className="text-base text-gray-400">Check your connection and try again</p>
+          </div>
+        ) : bottomCard}
       </div>
 
       {/* Google Calendar notice */}
@@ -352,7 +361,6 @@ export default function CalendarPage() {
             onClick={() => setShowGoogleNotice(false)}
           />
           <div className="fixed inset-x-4 bottom-6 z-50 bg-white rounded-3xl shadow-2xl p-8">
-            {/* Google icon + title */}
             <div className="flex items-center gap-4 mb-5">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
                 style={{ background: 'conic-gradient(#4285f4 90deg, #34a853 90deg 180deg, #fbbc05 180deg 270deg, #ea4335 270deg)' }}>
@@ -363,13 +371,11 @@ export default function CalendarPage() {
                 <p className="text-lg text-gray-400 mt-0.5">Sync your events automatically</p>
               </div>
             </div>
-
             <p className="text-xl text-gray-600 leading-relaxed mb-8">
               To connect Google Calendar, you need to{' '}
               <span className="font-semibold text-[#8b7fc7]">sign in using your Google Account</span>.
               {' '}Google login is required to access your calendar and sync events to this mirror.
             </p>
-
             <button
               onClick={() => setShowGoogleNotice(false)}
               className="w-full py-5 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white text-xl font-bold rounded-2xl shadow-md active:scale-[0.98] transition-transform"

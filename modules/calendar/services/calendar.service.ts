@@ -1,56 +1,33 @@
+import { api } from '@/modules/shared/api/api-client';
 import type { CalendarEvent, CreateEventInput, UpdateEventInput } from '../types';
 
-const STORAGE_KEY = 'mirror_calendar_events';
-
-function load(): CalendarEvent[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-  } catch {
-    return [];
-  }
-}
-
-function persist(events: CalendarEvent[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
 }
 
 export const calendarService = {
-  getAll(): CalendarEvent[] {
-    return load();
+  async getAll(): Promise<CalendarEvent[]> {
+    const res = await api.get<ApiResponse<CalendarEvent[]>>('/api/v1/events');
+    if (res.ok && res.data?.success) return res.data.data;
+    throw new Error(res.data?.message ?? 'Failed to fetch events');
   },
 
-  create(input: CreateEventInput): CalendarEvent {
-    const events = load();
-    const event: CalendarEvent = {
-      ...input,
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    persist([...events, event]);
-    return event;
+  async create(input: CreateEventInput): Promise<CalendarEvent> {
+    const res = await api.post<ApiResponse<CalendarEvent>>('/api/v1/events', input);
+    if (res.ok && res.data?.success) return res.data.data;
+    throw new Error(res.data?.message ?? 'Failed to create event');
   },
 
-  update(input: UpdateEventInput): CalendarEvent {
-    const events = load();
-    const idx = events.findIndex(e => e.id === input.id);
-    if (idx === -1) throw new Error('Event not found');
-    const updated: CalendarEvent = {
-      ...events[idx],
-      ...input,
-      updatedAt: new Date().toISOString(),
-    };
-    events[idx] = updated;
-    persist(events);
-    return updated;
+  async update({ id, ...data }: UpdateEventInput): Promise<CalendarEvent> {
+    const res = await api.put<ApiResponse<CalendarEvent>>(`/api/v1/events/${id}`, data);
+    if (res.ok && res.data?.success) return res.data.data;
+    throw new Error(res.data?.message ?? 'Failed to update event');
   },
 
-  delete(id: string): void {
-    persist(load().filter(e => e.id !== id));
-  },
-
-  getByDate(date: string): CalendarEvent[] {
-    return load().filter(e => e.date === date);
+  async delete(id: string): Promise<void> {
+    const res = await api.delete<ApiResponse<null>>(`/api/v1/events/${id}`);
+    if (!res.ok) throw new Error(res.data?.message ?? 'Failed to delete event');
   },
 };

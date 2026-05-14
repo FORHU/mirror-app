@@ -132,25 +132,27 @@ export function CalendarGrid({
             >
               <span
                 className={[
-                  'w-14 h-14 flex items-center justify-center rounded-full text-xl font-semibold transition-colors',
-                  highlight
-                    ? 'bg-gradient-to-br from-[#8b7fc7] to-[#ffa07a] text-white font-bold shadow-md'
-                    : inMonth
-                      ? 'text-gray-800 hover:bg-purple-50'
-                      : 'text-gray-300',
+                  'w-14 h-14 flex items-center justify-center rounded-full text-xl font-semibold transition-all',
+                  isToday
+                    ? 'bg-gradient-to-br from-[#e879f9] to-[#a855f7] text-white font-bold shadow-lg shadow-purple-400/40'
+                    : isSelected
+                      ? 'border-2 border-[#8b7fc7]/50 text-gray-800'
+                      : inMonth
+                        ? 'text-gray-800 hover:bg-gray-100'
+                        : 'text-gray-300',
                 ].join(' ')}
               >
                 {dayNum}
               </span>
 
-              {/* Event dots — always visible; white on highlighted cells */}
+              {/* Event dots — white on today, colored otherwise */}
               <div className="flex gap-1 mt-1 h-2.5 items-center">
                 {dayEvents.slice(0, 3).map(e => (
                   <span
                     key={e.id}
                     className={[
                       'w-2 h-2 rounded-full',
-                      highlight ? 'bg-white/80' : OCCASION_COLORS[e.occasion].dot,
+                      isToday ? 'bg-white/80' : OCCASION_COLORS[e.occasion].dot,
                     ].join(' ')}
                   />
                 ))}
