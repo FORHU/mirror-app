@@ -42,6 +42,7 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       const payload: RegisterKioskPayload = {
         kioskId,
         name: kioskName,
+        secret: process.env.NEXT_PUBLIC_KIOSK_DEVICE_SECRET ?? "", // Include the secret for authentication
       };
       socket.emit("register_kiosk", payload);
     };
