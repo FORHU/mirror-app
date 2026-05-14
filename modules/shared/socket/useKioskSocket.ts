@@ -10,11 +10,7 @@ import {
 import { MIRRORS, MirrorKey } from "../constants/mirrors";
 import { setCachedAccessToken } from "../api/api-client";
 import { setStorageData } from "../utils/storage";
-<<<<<<< Updated upstream
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants/storage-keys";
-=======
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
->>>>>>> Stashed changes
 
 export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
   const kioskId = useMemo(() => {
@@ -75,10 +71,7 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
         payload?.email ||
         "User";
 
-<<<<<<< Updated upstream
-=======
       // Store auth tokens so the kiosk can make authenticated API calls
->>>>>>> Stashed changes
       if (payload?.accessToken) {
         setCachedAccessToken(payload.accessToken);
         setStorageData(ACCESS_TOKEN, payload.accessToken);
@@ -86,12 +79,9 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       if (payload?.refreshToken) {
         setStorageData(REFRESH_TOKEN, payload.refreshToken);
       }
-<<<<<<< Updated upstream
-=======
       if (payload?.user) {
         setStorageData(USER, payload.user);
       }
->>>>>>> Stashed changes
 
       setLoggedInUsername(username);
       setIsLoggedIn(true);

@@ -64,6 +64,7 @@ export default function KioskLoggedInPage() {
   const streamRef         = useRef<MediaStream | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
   const isCountingDownRef = useRef(false);
+  const hasPreviewRef     = useRef(false);
   const isSendingRef      = useRef(false);
   const frameTimerRef     = useRef<number | null>(null);
 
@@ -73,6 +74,7 @@ export default function KioskLoggedInPage() {
   const [previewUrl,    setPreviewUrl]      = useState<string | null>(null);
 
   useEffect(() => { isCountingDownRef.current = isCountingDown; }, [isCountingDown]);
+  useEffect(() => { hasPreviewRef.current = previewUrl !== null; }, [previewUrl]);
 
   const takePhoto = useCallback(() => {
     const video = videoRef.current;
@@ -148,7 +150,7 @@ export default function KioskLoggedInPage() {
       });
       hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
       hands.onResults((results) => {
-        if (isCountingDownRef.current) return;
+        if (isCountingDownRef.current || hasPreviewRef.current) return;
         const hand = results.multiHandLandmarks?.[0];
         if (!hand) return;
         if (hand[8].y < hand[6].y && hand[12].y < hand[10].y && hand[16].y > hand[14].y && hand[20].y > hand[18].y) {

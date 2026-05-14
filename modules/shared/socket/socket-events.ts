@@ -19,13 +19,7 @@ export interface KioskLoginPayload {
     email?:    string;
   };
   username?: string;
-<<<<<<< Updated upstream
-  email?: string;
-  accessToken?: string;
-  refreshToken?: string;
-=======
   email?:    string;
->>>>>>> Stashed changes
 }
 
 // ─── ChatWonder events ────────────────────────────────────────────────────────
