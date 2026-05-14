@@ -7,8 +7,22 @@ import { ArrowLeft, Download } from "lucide-react";
 import { type SlotMap } from "@/modules/garment/types";
 import { outfitService } from "@/modules/shared/api/outfit.service";
 import { tryOnService, type TryOnRunResult } from "@/modules/shared/api/try-on.service";
+import { getSocketClient } from "@/modules/shared/socket/socket-client";
 
-type Phase = "building" | "done" | "error";
+type Phase = "building" | "waiting" | "done" | "error";
+
+interface TryOnCompletedPayload {
+  predictionId: string;
+  fileId?: string;
+  media?: "image" | "video";
+  imageUrl?: string;
+  videoUrl?: string;
+}
+
+interface TryOnFailedPayload {
+  predictionId?: string;
+  error?: string;
+}
 
 function getResultImageUrl(result: TryOnRunResult): string | null {
   if (result.output) {
@@ -21,9 +35,10 @@ function getResultImageUrl(result: TryOnRunResult): string | null {
 export default function TryItOnPage() {
   const router     = useRouter();
   const hasStarted = useRef(false);
-  const [phase,       setPhase]       = useState<Phase>("building");
-  const [errorMsg,    setErrorMsg]    = useState("");
-  const [tryOnResult, setTryOnResult] = useState<TryOnRunResult | null>(null);
+  const [phase,         setPhase]         = useState<Phase>("building");
+  const [errorMsg,      setErrorMsg]      = useState("");
+  const [tryOnResult,   setTryOnResult]   = useState<TryOnRunResult | null>(null);
+  const [predictionId,  setPredictionId]  = useState<string | null>(null);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -32,10 +47,46 @@ export default function TryItOnPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Subscribe to FASHN completion events once we know the predictionId.
+  // The kickoff REST call returns immediately (202 Accepted) — the actual
+  // image arrives later via the kiosk's socket room as `tryon_completed`.
+  useEffect(() => {
+    if (!predictionId) return;
+    const socket = getSocketClient();
+
+    const onCompleted = (payload: TryOnCompletedPayload) => {
+      if (payload.predictionId !== predictionId) return;
+      console.log("[try-it-on] tryon_completed", payload);
+      setTryOnResult({
+        predictionId: payload.predictionId,
+        fileId: payload.fileId,
+        media: payload.media,
+        imageUrl: payload.imageUrl,
+        output: payload.imageUrl ?? payload.videoUrl,
+      });
+      setPhase("done");
+    };
+
+    const onFailed = (payload: TryOnFailedPayload) => {
+      if (payload.predictionId && payload.predictionId !== predictionId) return;
+      console.error("[try-it-on] tryon_failed", payload);
+      setErrorMsg(payload.error || "Try-on failed");
+      setPhase("error");
+    };
+
+    socket.on("tryon_completed", onCompleted);
+    socket.on("tryon_failed", onFailed);
+    return () => {
+      socket.off("tryon_completed", onCompleted);
+      socket.off("tryon_failed", onFailed);
+    };
+  }, [predictionId]);
+
   async function generate() {
     setPhase("building");
     setErrorMsg("");
     setTryOnResult(null);
+    setPredictionId(null);
     try {
       const raw = localStorage.getItem("mirror_outfit_slots");
       const slotMap: SlotMap = raw ? JSON.parse(raw) : {};
@@ -62,7 +113,8 @@ export default function TryItOnPage() {
         throw err;
       }
 
-      // Step 2: run try-on
+      // Step 2: kick off try-on. Server returns 202 with predictionId; the
+      // image itself arrives later via the `tryon_completed` socket event.
       const kioskId =
         typeof window !== "undefined"
           ? (window.sessionStorage.getItem("kiosk_id") ?? undefined)
@@ -71,14 +123,16 @@ export default function TryItOnPage() {
       let result;
       try {
         result = await tryOnService.runByOutfit(outfit.id, kioskId);
-        console.log("[try-it-on] Try-on result:", result);
+        console.log("[try-it-on] Try-on kicked off:", result);
       } catch (err) {
         console.error("[try-it-on] Try-on request failed:", err);
         throw err;
       }
 
-      setTryOnResult(result);
-      setPhase("done");
+      const pid = (result.predictionId ?? result.id) as string | undefined;
+      if (!pid) throw new Error("Try-on response missing predictionId");
+      setPredictionId(pid);
+      setPhase("waiting");
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Generation failed");
       setPhase("error");
@@ -162,7 +216,7 @@ export default function TryItOnPage() {
         <AnimatePresence mode="wait">
 
           {/* Loading */}
-          {phase === "building" && (
+          {(phase === "building" || phase === "waiting") && (
             <motion.div
               key="loading"
               initial={{ opacity: 0, y: 20 }}
@@ -178,8 +232,12 @@ export default function TryItOnPage() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-white font-semibold text-xl">Generating your look…</span>
-                <span className="text-white/40 text-sm">Creating outfit and running try-on</span>
+                <span className="text-white font-semibold text-xl">
+                  {phase === "waiting" ? "Running try-on…" : "Generating your look…"}
+                </span>
+                <span className="text-white/40 text-sm">
+                  {phase === "waiting" ? "Waiting for AI to finish" : "Creating outfit and running try-on"}
+                </span>
               </div>
             </motion.div>
           )}

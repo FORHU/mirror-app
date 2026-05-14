@@ -16,9 +16,12 @@ export const tryOnModelService = {
 
 export interface TryOnRunResult {
   id?: string;
+  predictionId?: string;
   status?: string;
   output?: string | string[];
   imageUrl?: string;
+  fileId?: string;
+  media?: "image" | "video";
   [key: string]: unknown;
 }
 
