@@ -42,9 +42,9 @@ export default function CapturePicturePage() {
             key="empty"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
+            className="absolute inset-0 flex items-center justify-center bg-[#0c0b18]"
           >
-            <p className="text-[#6b5b95] text-2xl">No photo found. Go back and strike a pose! ✌️</p>
+            <p style={{ color: "#8a87b0", fontSize: 24 }}>No photo found. Go back and strike a pose! ✌️</p>
           </motion.div>
         )}
       </AnimatePresence>

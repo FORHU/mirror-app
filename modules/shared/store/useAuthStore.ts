@@ -10,7 +10,7 @@ import {
   removeStorageData,
 } from "@/modules/shared/utils/storage";
 import { authService } from "@/modules/shared/api/auth.service";
-import { User, RegisterRequest } from "@/modules/shared/api/api.types";
+import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
 
 interface AuthState {
@@ -24,7 +24,6 @@ interface AuthState {
 
   // Public actions
   login: (email: string, username?: string, kioskId?: string) => Promise<void>;
-  register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
@@ -78,15 +77,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       ]);
       setCachedAccessToken(res.accessToken);
       set({ user: res.user, isAuthenticated: true });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  async register(data) {
-    set({ isLoading: true });
-    try {
-      await authService.register(data);
     } finally {
       set({ isLoading: false });
     }

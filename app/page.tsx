@@ -38,24 +38,34 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <div
-      className="relative flex flex-col w-screen h-screen overflow-hidden bg-[#f0e6ff]"
-    >
+    <div className="relative flex flex-col w-screen h-screen overflow-hidden bg-[#0c0b18]">
       <AnimatedBackground />
 
-      {/* ── Header zone ─────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <header
         className="mirror-header relative z-10 flex items-center justify-between shrink-0"
         style={{ paddingLeft: 44, paddingRight: 44 }}
       >
-        <motion.span
-          style={{ fontSize: 15, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6b5b95" }}
+        {/* ● SMART MIRROR badge */}
+        <motion.div
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "#1e1c35",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 999,
+            padding: "8px 18px",
+          }}
         >
-          StyleOS
-        </motion.span>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10d49a", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#f0eeff" }}>
+            Smart Mirror
+          </span>
+        </motion.div>
 
         <motion.div
           className="text-right"
@@ -63,15 +73,13 @@ export default function WelcomePage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p style={{ fontSize: 26, fontWeight: 600, color: "#3d2f5f", lineHeight: 1.1 }}>{time}</p>
-          <p style={{ fontSize: 13, color: "#9e93c8", letterSpacing: "0.03em", marginTop: 3 }}>{date}</p>
+          <p style={{ fontSize: 26, fontWeight: 600, color: "#f0eeff", lineHeight: 1.1 }}>{time}</p>
+          <p style={{ fontSize: 13, color: "#8a87b0", letterSpacing: "0.03em", marginTop: 3 }}>{date}</p>
         </motion.div>
       </header>
 
-      {/* ── Main zone — cycling taglines ─────────────────────────────────── */}
-      <main
-        className="mirror-main relative z-10 flex items-center justify-center shrink-0"
-      >
+      {/* ── Main — cycling taglines ── */}
+      <main className="mirror-main relative z-10 flex items-center justify-center shrink-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeIndex}
@@ -82,18 +90,19 @@ export default function WelcomePage() {
             exit={{ opacity: 0, y: -18 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           >
-            <span style={{ fontSize: 96, fontWeight: 800, color: "#3d2f5f", display: "block", letterSpacing: "-0.03em", lineHeight: 1.05 }}>
+            <span style={{ fontSize: 96, fontWeight: 800, color: "#f0eeff", display: "block", letterSpacing: "-0.03em", lineHeight: 1.05 }}>
               {TAGLINES[activeIndex].line1}
             </span>
             <span
               style={{
                 fontSize: 96,
                 fontWeight: 800,
+                fontStyle: "italic",
                 display: "block",
                 letterSpacing: "-0.03em",
                 lineHeight: 1.05,
                 paddingBottom: "0.2em",
-                background: "linear-gradient(135deg, #c4b5fd 0%, #a78bfa 45%, #fb7185 100%)",
+                background: "linear-gradient(135deg, #7c6ff7 0%, #a78bfa 50%, #10d49a 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -105,7 +114,7 @@ export default function WelcomePage() {
         </AnimatePresence>
       </main>
 
-      {/* ── Footer zone — CTA ────────────────────────────────────────────── */}
+      {/* ── Footer — CTA ── */}
       <footer
         className="mirror-footer relative z-10 flex items-center shrink-0"
         style={{ paddingLeft: 44, paddingRight: 44 }}
@@ -113,11 +122,11 @@ export default function WelcomePage() {
         <motion.button
           className="w-full font-bold text-white"
           style={{
-            background: "linear-gradient(135deg, #7c3aed 0%, #a78bfa 50%, #fb7185 100%)",
+            background: "linear-gradient(135deg, #7c6ff7 0%, #5c55f0 50%, #10d49a 100%)",
             borderRadius: 20,
             padding: "26px 0",
             fontSize: 26,
-            boxShadow: "0 8px 48px rgba(124,58,237,0.40)",
+            boxShadow: "0 8px 48px rgba(124,111,247,0.40)",
             border: "none",
             cursor: "pointer",
           }}

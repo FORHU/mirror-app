@@ -1,35 +1,41 @@
 import Link from "next/link";
-import { Button } from "@/modules/shared/components/Button";
-import { Navbar } from "@/modules/shared/components/Navbar";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col bg-background-primary text-text-primary">
-      <Navbar />
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center" style={{ background: "#0c0b18" }}>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-[120px] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-brand-core to-brand-vibrant opacity-20 select-none">
-          404
-        </h1>
+      <h1
+        className="select-none"
+        style={{
+          fontSize: 160,
+          fontWeight: 900,
+          letterSpacing: "-0.04em",
+          lineHeight: 1,
+          background: "linear-gradient(135deg, #7c6ff7 0%, #a78bfa 50%, #10d49a 100%)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          opacity: 0.25,
+        }}
+      >
+        404
+      </h1>
 
-        <div className="space-y-4 -mt-12 relative z-10">
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Lost in Space
-          </h2>
-          <p className="text-text-secondary max-w-md mx-auto">
-            We couldn&apos;t find the page you&apos;re looking for. It might
-            have been moved or deleted.
-          </p>
+      <div style={{ marginTop: -40, position: "relative", zIndex: 10 }}>
+        <h2 style={{ fontSize: 36, fontWeight: 800, color: "#f0eeff", marginBottom: 12 }}>Lost in Space</h2>
+        <p style={{ fontSize: 18, color: "#8a87b0", maxWidth: 360, lineHeight: 1.6, marginBottom: 40 }}>
+          We couldn&apos;t find the page you&apos;re looking for. It might have been moved or deleted.
+        </p>
+        <Link href="/">
+          <button
+            className="font-semibold transition-transform active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, #7c6ff7, #5c55f0)", color: "#fff", fontSize: 18, borderRadius: 14, padding: "16px 40px", border: "none", boxShadow: "0 4px 20px rgba(124,111,247,0.30)", cursor: "pointer" }}
+          >
+            Return Home
+          </button>
+        </Link>
+      </div>
 
-          <div className="pt-8">
-            <Link href="/">
-              <Button size="lg" className="w-full sm:w-auto">
-                Return Home
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }

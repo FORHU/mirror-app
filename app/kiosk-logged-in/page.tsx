@@ -343,8 +343,8 @@ export default function KioskLoggedInPage() {
                   onClick={confirmPhoto}
                   className="flex-1 font-semibold text-white"
                   style={{
-                    background: "linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)",
-                    boxShadow: "0 16px 48px rgba(167,139,250,0.35)",
+                    background: "linear-gradient(135deg, #7c6ff7 0%, #5c55f0 100%)",
+                    boxShadow: "0 16px 48px rgba(124,111,247,0.40)",
                     borderRadius: "18px",
                     padding: "22px 0",
                     fontSize: "26px",

@@ -430,7 +430,7 @@ function EventSetupInner() {
     assistantState === "responding" ? "Speaking…"               :
     assistantState === "summary"    ? `Say "looks good" or tap` : "";
 
-  const statusColor = assistantState === "listening" ? "#6b5b95" : "#9e93c8";
+  const statusColor = assistantState === "listening" ? "#7c6ff7" : "#4a4870";
 
   const summaryRows = [
     data.eventName ? { icon: "🎉", label: "Occasion",   value: data.eventName } : null,
@@ -442,7 +442,7 @@ function EventSetupInner() {
 
   return (
     <motion.main
-      className="relative w-screen h-screen overflow-hidden bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
+      className="relative w-screen h-screen overflow-hidden bg-[#0c0b18]"
       animate={{ opacity: assistantState === "done" ? 0 : 1 }}
       transition={{ duration: 0.6 }}
     >
@@ -451,7 +451,7 @@ function EventSetupInner() {
         className="absolute top-0 inset-x-0 z-20 pointer-events-none"
         style={{
           height: "var(--zone-header)",
-          background: "linear-gradient(180deg, rgba(216,180,254,0.92) 0%, transparent 100%)",
+          background: "linear-gradient(180deg, rgba(12,11,24,0.95) 0%, transparent 100%)",
         }}
       />
 
@@ -480,7 +480,7 @@ function EventSetupInner() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
                       className="text-center font-medium"
-                      style={{ fontSize: "22px", color: "#6b5b95" }}
+                      style={{ fontSize: "22px", color: "#8a87b0" }}
                     >
                       {lastUserMsg.text}
                     </motion.p>
@@ -490,14 +490,14 @@ function EventSetupInner() {
 
               <p
                 className="font-semibold text-center"
-                style={{ fontSize: "46px", maxWidth: 580, lineHeight: 1.3, marginBottom: 36, color: "#3d2f5f" }}
+                style={{ fontSize: "46px", maxWidth: 580, lineHeight: 1.3, marginBottom: 36, color: "#f0eeff" }}
               >
                 {displayText}
                 <motion.span
                   animate={{ opacity: [1, 0, 1] }}
                   transition={{ duration: 0.85, repeat: Infinity }}
                   className="inline-block align-middle ml-1 rounded-sm"
-                  style={{ width: 2, height: 32, background: "#a78bfa" }}
+                  style={{ width: 2, height: 32, background: "#7c6ff7" }}
                 />
               </p>
 
@@ -536,7 +536,7 @@ function EventSetupInner() {
             >
               <p
                 className="font-semibold text-center"
-                style={{ fontSize: "32px", marginBottom: 22, color: "#3d2f5f" }}
+                style={{ fontSize: "32px", marginBottom: 22, color: "#f0eeff" }}
               >
                 {displayText}
               </p>
@@ -544,12 +544,10 @@ function EventSetupInner() {
               <div
                 className="w-full"
                 style={{
-                  background: "rgba(255,255,255,0.95)",
-                  backdropFilter: "blur(20px)",
-                  WebkitBackdropFilter: "blur(20px)",
-                  border: "1px solid rgba(255,255,255,0.9)",
+                  background: "#1d1a38",
+                  border: "1px solid rgba(255,255,255,0.08)",
                   borderRadius: "28px",
-                  boxShadow: "0 30px 80px rgba(107,91,149,0.18), 0 4px 16px rgba(107,91,149,0.08)",
+                  boxShadow: "0 30px 80px rgba(0,0,0,0.4)",
                   overflow: "hidden",
                   marginBottom: "20px",
                 }}
@@ -562,15 +560,15 @@ function EventSetupInner() {
                       alignItems: "center",
                       gap: 16,
                       padding: "20px 28px",
-                      borderBottom: i < summaryRows.length - 1 ? "1px solid rgba(139,127,199,0.08)" : "none",
+                      borderBottom: i < summaryRows.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none",
                     }}
                   >
                     <span style={{ fontSize: "22px", width: 32, flexShrink: 0 }}>{row.icon}</span>
                     <div>
-                      <p style={{ fontSize: "12px", color: "#9e93c8", marginBottom: 3, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <p style={{ fontSize: "12px", color: "#4a4870", marginBottom: 3, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                         {row.label}
                       </p>
-                      <p style={{ fontSize: "20px", color: "#2d2d3a", fontWeight: 500 }}>{row.value}</p>
+                      <p style={{ fontSize: "20px", color: "#f0eeff", fontWeight: 500 }}>{row.value}</p>
                     </div>
                   </div>
                 ))}
@@ -581,8 +579,8 @@ function EventSetupInner() {
                 onClick={finish}
                 className="w-full font-semibold text-white"
                 style={{
-                  background: "linear-gradient(to right, #a78bfa, #fb7185)",
-                  boxShadow: "0 18px 50px rgba(168,85,247,0.28)",
+                  background: "linear-gradient(135deg, #7c6ff7, #5c55f0)",
+                  boxShadow: "0 18px 50px rgba(124,111,247,0.30)",
                   borderRadius: "16px",
                   padding: "20px 0",
                   fontSize: "22px",
@@ -595,7 +593,7 @@ function EventSetupInner() {
               <button
                 onClick={resetFlow}
                 className="w-full text-center font-medium"
-                style={{ fontSize: "18px", color: "#6b5b95" }}
+                style={{ fontSize: "18px", color: "#8a87b0" }}
               >
                 Edit
               </button>
@@ -610,8 +608,8 @@ function EventSetupInner() {
         className="absolute bottom-0 inset-x-0 z-20 flex items-center justify-between px-12"
         style={{
           height: "var(--zone-footer)",
-          borderTop: "1px solid rgba(107,91,149,0.1)",
-          background: "linear-gradient(0deg, rgba(254,202,202,0.92) 0%, transparent 100%)",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          background: "linear-gradient(0deg, rgba(12,11,24,0.95) 0%, transparent 100%)",
         }}
       >
         <span className="font-medium" style={{ fontSize: "20px", color: statusColor }}>
@@ -622,7 +620,7 @@ function EventSetupInner() {
           whileTap={{ scale: 0.96 }}
           onClick={finish}
           className="font-medium"
-          style={{ fontSize: "20px", color: "#6b5b95" }}
+          style={{ fontSize: "20px", color: "#8a87b0" }}
         >
           Skip
         </motion.button>

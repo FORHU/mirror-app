@@ -101,7 +101,7 @@ export default function OutfitBuilderPage() {
               opacity: { duration: 0.5 },
               filter:  { duration: 0.4, ease: "easeInOut" },
             }}
-            className="absolute inset-0 bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
+            className="absolute inset-0 bg-[#0c0b18]"
           />
         )}
       </AnimatePresence>
@@ -138,7 +138,8 @@ export default function OutfitBuilderPage() {
               localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
               router.push("/try-it-on");
             }}
-            className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl shadow-lg"
+            className="flex-[2] py-5 rounded-2xl text-white font-bold text-xl"
+            style={{ background: "linear-gradient(135deg, #7c6ff7 0%, #10d49a 100%)", boxShadow: "0 6px 24px rgba(124,111,247,0.30)" }}
           >
             Try It On
           </motion.button>
