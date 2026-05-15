@@ -1,14 +1,70 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
 import {
   Navigation,
-  Car, Footprints, Bike, MoreHorizontal, Mic,
-  Settings, LocateFixed, CloudRain, X, Bike as Motorcycle
+  Car, Footprints, Bike, MoreHorizontal, Mic, MicOff, Loader2, Volume2,
+  Settings, LocateFixed, X, Bike as Motorcycle,
+  Sun, Cloud, CloudSun, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
+
+const WEATHER_ICONS: Record<number, { icon: React.ReactNode; color: string }> = {
+  0:  { icon: <Sun           className="w-5 h-5" />, color: "#fbbf24" },
+  1:  { icon: <CloudSun      className="w-5 h-5" />, color: "#fbbf24" },
+  2:  { icon: <CloudSun      className="w-5 h-5" />, color: "#94a3b8" },
+  3:  { icon: <Cloud         className="w-5 h-5" />, color: "#94a3b8" },
+  45: { icon: <CloudFog      className="w-5 h-5" />, color: "#94a3b8" },
+  48: { icon: <CloudFog      className="w-5 h-5" />, color: "#94a3b8" },
+  51: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
+  53: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
+  55: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
+  61: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
+  63: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
+  65: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
+  71: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
+  73: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
+  75: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
+  95: { icon: <CloudLightning className="w-5 h-5" />, color: "#a78bfa" },
+};
+
+function getWeatherIcon(code: number) {
+  return WEATHER_ICONS[code] ?? { icon: <Cloud className="w-5 h-5" />, color: "#94a3b8" };
+}
+
+interface DayWeather { high: number; low: number; code: number }
+
+function useDayWeather(lat?: number, lng?: number): DayWeather | null {
+  const [data, setData] = useState<DayWeather | null>(null);
+
+  useEffect(() => {
+    if (lat === undefined || lng === undefined) return;
+    const params = new URLSearchParams({
+      latitude:  String(lat),
+      longitude: String(lng),
+      daily:     "temperature_2m_max,temperature_2m_min,weathercode",
+      timezone:  "auto",
+      forecast_days: "1",
+    });
+    fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const d = json.daily;
+        if (!d) return;
+        setData({
+          high: Math.round(d.temperature_2m_max[0]),
+          low:  Math.round(d.temperature_2m_min[0]),
+          code: d.weathercode[0],
+        });
+      })
+      .catch(() => {});
+  }, [lat, lng]);
+
+  return data;
+}
 
 export const ExploreHUD = () => {
   const {
@@ -16,8 +72,21 @@ export const ExploreHUD = () => {
     selectedPOI, setSelectedPOI, setDestination, selectedDestination, userLocation,
     activeProfile,
     toggleTraffic, showTraffic, toggleTerrain, showTerrain,
-    map, origin, setUserLocation
+    map, origin, setUserLocation, homeLocation,
   } = useMapStore();
+
+  const loc = userLocation ?? homeLocation;
+  const dayWeather = useDayWeather(loc?.lat, loc?.lng);
+
+  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
+
+  const micIcon = isListening
+    ? <MicOff className="w-5 h-5" style={{ color: "#ef4444" }} />
+    : isProcessing
+      ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#4fc3f7" }} />
+      : isSpeaking
+        ? <Volume2 className="w-5 h-5" style={{ color: "#4fc3f7" }} />
+        : <Mic className="w-5 h-5" style={{ color: "var(--ghost-btn-icon)" }} />;
 
   const handleRecenter = () => {
     const target = userLocation || origin;
@@ -42,7 +111,7 @@ export const ExploreHUD = () => {
     <div className="fixed inset-0 pointer-events-none z-40 p-6 font-sans">
 
       {/* ── Top-left: Weather ───────────────────────────────────────── */}
-      {!isNavigating && (
+      {!isNavigating && dayWeather && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -53,9 +122,11 @@ export const ExploreHUD = () => {
             className="flex items-center gap-3 rounded-2xl px-5 py-3"
             style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
           >
-            <CloudRain className="w-5 h-5 shrink-0" style={{ color: "var(--ghost-weather-text)" }} />
+            <span style={{ color: getWeatherIcon(dayWeather.code).color }}>
+              {getWeatherIcon(dayWeather.code).icon}
+            </span>
             <span className="text-base font-bold" style={{ color: "var(--ghost-weather-text)" }}>
-              H: 83° L: 67°
+              H: {dayWeather.high}° L: {dayWeather.low}°
             </span>
           </div>
         </motion.div>
@@ -70,10 +141,45 @@ export const ExploreHUD = () => {
           className="absolute top-0 right-0 flex flex-col gap-3 pointer-events-auto"
         >
           <IconButton onClick={handleRecenter} icon={<LocateFixed className="w-5 h-5" style={{ color: "var(--ghost-btn-icon)" }} />} />
-          <IconButton onClick={() => {}} icon={<Mic className="w-5 h-5" style={{ color: "var(--ghost-btn-icon)" }} />} />
+          <IconButton onClick={toggle} active={isListening || isProcessing || isSpeaking} icon={micIcon} />
           <IconButton onClick={toggleTraffic} active={showTraffic} icon={<Settings className="w-5 h-5" style={{ color: "var(--ghost-btn-icon)" }} />} />
         </motion.div>
       )}
+
+      {/* ── Voice transcript bubble ─────────────────────────────────── */}
+      <AnimatePresence>
+        {!isNavigating && (transcript || reply || error) && (
+          <motion.div
+            key="voice-bubble"
+            initial={{ opacity: 0, y: 12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.95 }}
+            className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[340px] pointer-events-none"
+          >
+            <div
+              className="rounded-2xl px-4 py-3"
+              style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
+            >
+              {error ? (
+                <p className="text-xs" style={{ color: "#ef4444" }}>{error}</p>
+              ) : (
+                <>
+                  {transcript && (
+                    <p className="text-xs opacity-60 leading-tight mb-1" style={{ color: "var(--ghost-panel-text)" }}>
+                      <span className="font-semibold opacity-80">You:</span> {transcript}
+                    </p>
+                  )}
+                  {reply && (
+                    <p className="text-sm leading-snug" style={{ color: "var(--ghost-panel-text)" }}>
+                      <span className="font-semibold" style={{ color: "#4fc3f7" }}>AI:</span> {reply}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Bottom-right: Route stats + Start Navigation ────────────── */}
       {!isNavigating && (

@@ -96,19 +96,44 @@ const MapViewport = () => {
   // Handle Traffic and Terrain toggles
   useEffect(() => {
     if (!map) return;
-    
-    // Traffic
-    if (map.getSource('mapbox-traffic')) {
-      const visibility = showTraffic ? 'visible' : 'none';
-      map.getStyle().layers?.forEach(layer => {
-        if (layer.id.includes('traffic')) {
-          map.setLayoutProperty(layer.id, 'visibility', visibility);
-        }
-      });
-    } else if (showTraffic) {
-      // Add traffic source if it doesn't exist
-      // Note: This requires a style that supports traffic or adding the source manually
-      // For now, we assume the dark-v11 has traffic layers we can toggle
+
+    // Traffic — add Mapbox traffic tileset on demand, hide/show without removing
+    const TRAFFIC_SRC   = 'mapbox-traffic-v1';
+    const TRAFFIC_LAYER = 'traffic-congestion';
+
+    if (showTraffic) {
+      if (!map.getSource(TRAFFIC_SRC)) {
+        map.addSource(TRAFFIC_SRC, {
+          type: 'vector',
+          url:  'mapbox://mapbox.mapbox-traffic-v1',
+        });
+      }
+      if (!map.getLayer(TRAFFIC_LAYER)) {
+        map.addLayer({
+          id:           TRAFFIC_LAYER,
+          type:         'line',
+          source:       TRAFFIC_SRC,
+          'source-layer': 'traffic',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.5, 16, 4],
+            'line-color': [
+              'match', ['get', 'congestion'],
+              'low',      '#4ade80',
+              'moderate', '#fbbf24',
+              'heavy',    '#f97316',
+              'severe',   '#ef4444',
+              '#4ade80',
+            ],
+          },
+        });
+      } else {
+        map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', 'visible');
+      }
+    } else {
+      if (map.getLayer(TRAFFIC_LAYER)) {
+        map.setLayoutProperty(TRAFFIC_LAYER, 'visibility', 'none');
+      }
     }
 
     // Terrain

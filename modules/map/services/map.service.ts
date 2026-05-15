@@ -77,4 +77,46 @@ export const mapService = {
 
     return response.json();
   },
+
+  voice: async (
+    pcmBuffer: ArrayBuffer,
+    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string },
+    history?: Array<{ user: string; assistant: string }>,
+  ): Promise<{
+    audio: ArrayBuffer;
+    transcript: string;
+    reply: string;
+    intent: string;
+    destination: string;
+    profile: string;
+  }> => {
+    const params = new URLSearchParams();
+    if (ctx?.lat               !== undefined) params.set("lat",               String(ctx.lat));
+    if (ctx?.lng               !== undefined) params.set("lng",               String(ctx.lng));
+    if (ctx?.traffic           !== undefined) params.set("traffic",           String(ctx.traffic));
+    if (ctx?.navigating        !== undefined) params.set("navigating",        String(ctx.navigating));
+    if (ctx?.profile)                         params.set("profile",           ctx.profile);
+    if (ctx?.remainingDistance !== undefined) params.set("remainingDistance", String(ctx.remainingDistance));
+    if (ctx?.remainingDuration !== undefined) params.set("remainingDuration", String(ctx.remainingDuration));
+    if (ctx?.destinationName)                 params.set("destinationName",   encodeURIComponent(ctx.destinationName));
+    if (history?.length)                      params.set("history",           JSON.stringify(history.slice(-4)));
+
+    const url = `${API_URL}/api/mirror/voice/process?${params}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: pcmBuffer,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Voice processing failed' }));
+      throw new Error(err.error ?? 'Voice processing failed');
+    }
+    const audio       = await response.arrayBuffer();
+    const transcript  = decodeURIComponent(response.headers.get('X-Transcript')  ?? '');
+    const reply       = decodeURIComponent(response.headers.get('X-Reply')        ?? '');
+    const intent      = response.headers.get('X-Intent') ?? 'other';
+    const destination = decodeURIComponent(response.headers.get('X-Destination') ?? '');
+    const profile     = decodeURIComponent(response.headers.get('X-Profile')     ?? '');
+    return { audio, transcript, reply, intent, destination, profile };
+  },
 };
