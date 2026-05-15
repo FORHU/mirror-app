@@ -2,8 +2,10 @@
 
 import React, { useMemo } from "react";
 import { useMapStore } from "../store/useMapStore";
-import { X, Map, Compass, MapPin } from "lucide-react";
+import { X, Map, Compass, MapPin, Mic, MicOff, Loader2, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
+import { useNavigationAnnouncements } from "../hooks/useNavigationAnnouncements";
 
 // Returns color + label based on how close the user is
 function getProximity(distanceM: number) {
@@ -22,6 +24,17 @@ const NavigationHUD = () => {
     setCameraMode,
     activeRoute,
   } = useMapStore();
+
+  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
+  useNavigationAnnouncements();
+
+  const micIcon = isListening
+    ? <MicOff className="w-5 h-5" style={{ color: "#ef4444" }} />
+    : isProcessing
+      ? <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#4fc3f7" }} />
+      : isSpeaking
+        ? <Volume2 className="w-5 h-5" style={{ color: "#4fc3f7" }} />
+        : <Mic className="w-5 h-5 text-white/70" />;
 
   const eta = new Date(Date.now() + remainingDuration * 1000).toLocaleTimeString([], {
     hour: '2-digit',
@@ -133,6 +146,41 @@ const NavigationHUD = () => {
           <MapPin className="w-3.5 h-3.5" style={{ color: proximity.color }} />
         </div>
 
+        {/* Voice bubble */}
+        <AnimatePresence>
+          {(transcript || reply || error) && (
+            <motion.div
+              key="nav-voice-bubble"
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              className="pointer-events-none"
+            >
+              <div
+                className="rounded-2xl px-4 py-3"
+                style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
+              >
+                {error ? (
+                  <p className="text-xs" style={{ color: "#ef4444" }}>{error}</p>
+                ) : (
+                  <>
+                    {transcript && (
+                      <p className="text-xs opacity-60 leading-tight mb-1" style={{ color: "var(--ghost-panel-text)" }}>
+                        <span className="font-semibold opacity-80">You:</span> {transcript}
+                      </p>
+                    )}
+                    {reply && (
+                      <p className="text-sm leading-snug" style={{ color: "var(--ghost-panel-text)" }}>
+                        <span className="font-semibold" style={{ color: "#4fc3f7" }}>AI:</span> {reply}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Control buttons */}
         <div className="flex justify-center items-center gap-4">
           {/* Camera Mode Toggle */}
@@ -147,6 +195,19 @@ const NavigationHUD = () => {
             <span className="text-[9px] text-white/40 uppercase tracking-widest">
               {cameraMode === 'follow' ? 'Overview' : 'Follow'}
             </span>
+          </button>
+
+          {/* Mic button */}
+          <button
+            onClick={toggle}
+            className="pointer-events-auto flex flex-col items-center justify-center w-16 h-16 rounded-full transition-colors gap-1"
+            style={{
+              background: (isListening || isProcessing || isSpeaking) ? "rgba(79,195,247,0.15)" : "rgba(255,255,255,0.08)",
+              border: (isListening || isProcessing || isSpeaking) ? "1px solid rgba(79,195,247,0.5)" : "1px solid rgba(255,255,255,0.2)",
+            }}
+          >
+            {micIcon}
+            <span className="text-[9px] text-white/40 uppercase tracking-widest">Ask AI</span>
           </button>
 
           {/* Stop Navigation */}

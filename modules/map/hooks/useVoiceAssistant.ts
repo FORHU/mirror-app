@@ -111,9 +111,12 @@ export const useVoiceAssistant = () => {
         traffic:           store.showTraffic,
         navigating:        store.isNavigating,
         profile:           store.activeProfile,
-        remainingDistance: store.isNavigating ? store.remainingDistance : undefined,
-        remainingDuration: store.isNavigating ? store.remainingDuration : undefined,
-        destinationName:   store.selectedDestination?.name ?? store.selectedDestination?.address ?? undefined,
+        remainingDistance:    store.isNavigating ? store.remainingDistance    : undefined,
+        remainingDuration:    store.isNavigating ? store.remainingDuration    : undefined,
+        destinationName:      store.selectedDestination?.name ?? store.selectedDestination?.address ?? undefined,
+        currentInstruction:   store.isNavigating ? store.activeRoute?.steps?.[store.currentStepIndex]?.instruction    : undefined,
+        nextManeuverDistance: store.isNavigating ? store.distanceToNextManeuver                                        : undefined,
+        nextInstruction:      store.isNavigating ? store.activeRoute?.steps?.[store.currentStepIndex + 1]?.instruction : undefined,
       };
 
       const { audio, transcript: t, reply: r, intent, destination, profile } = await mapService.voice(combined.buffer, ctx, historyRef.current);

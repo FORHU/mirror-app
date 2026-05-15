@@ -78,9 +78,19 @@ export const mapService = {
     return response.json();
   },
 
+  tts: async (text: string): Promise<ArrayBuffer> => {
+    const response = await fetch(`${API_URL}/api/mirror/voice/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) throw new Error('TTS failed');
+    return response.arrayBuffer();
+  },
+
   voice: async (
     pcmBuffer: ArrayBuffer,
-    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string },
+    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string },
     history?: Array<{ user: string; assistant: string }>,
   ): Promise<{
     audio: ArrayBuffer;
@@ -98,7 +108,10 @@ export const mapService = {
     if (ctx?.profile)                         params.set("profile",           ctx.profile);
     if (ctx?.remainingDistance !== undefined) params.set("remainingDistance", String(ctx.remainingDistance));
     if (ctx?.remainingDuration !== undefined) params.set("remainingDuration", String(ctx.remainingDuration));
-    if (ctx?.destinationName)                 params.set("destinationName",   encodeURIComponent(ctx.destinationName));
+    if (ctx?.destinationName)                    params.set("destinationName",        encodeURIComponent(ctx.destinationName));
+    if (ctx?.currentInstruction)                 params.set("currentInstruction",     encodeURIComponent(ctx.currentInstruction));
+    if (ctx?.nextManeuverDistance !== undefined)  params.set("nextManeuverDistance",   String(ctx.nextManeuverDistance));
+    if (ctx?.nextInstruction)                    params.set("nextInstruction",        encodeURIComponent(ctx.nextInstruction));
     if (history?.length)                      params.set("history",           JSON.stringify(history.slice(-4)));
 
     const url = `${API_URL}/api/mirror/voice/process?${params}`;
