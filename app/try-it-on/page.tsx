@@ -25,20 +25,20 @@ interface TryOnFailedPayload {
 }
 
 function getResultImageUrl(result: TryOnRunResult): string | null {
+  if (typeof result.imageUrl === "string") return result.imageUrl;
   if (result.output) {
     return Array.isArray(result.output) ? (result.output[0] ?? null) : result.output;
   }
-  if (typeof result.imageUrl === "string") return result.imageUrl;
   return null;
 }
 
 export default function TryItOnPage() {
   const router     = useRouter();
   const hasStarted = useRef(false);
-  const [phase,         setPhase]         = useState<Phase>("building");
-  const [errorMsg,      setErrorMsg]      = useState("");
-  const [tryOnResult,   setTryOnResult]   = useState<TryOnRunResult | null>(null);
-  const [predictionId,  setPredictionId]  = useState<string | null>(null);
+  const [phase,        setPhase]        = useState<Phase>("building");
+  const [predictionId, setPredictionId] = useState<string | null>(null);
+  const [errorMsg,     setErrorMsg]     = useState("");
+  const [tryOnResult,  setTryOnResult]  = useState<TryOnRunResult | null>(null);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -84,9 +84,9 @@ export default function TryItOnPage() {
 
   async function generate() {
     setPhase("building");
+    setPredictionId(null);
     setErrorMsg("");
     setTryOnResult(null);
-    setPredictionId(null);
     try {
       const raw = localStorage.getItem("mirror_outfit_slots");
       const slotMap: SlotMap = raw ? JSON.parse(raw) : {};
@@ -113,27 +113,28 @@ export default function TryItOnPage() {
         throw err;
       }
 
-      // Step 2: kick off try-on. Server returns 202 with predictionId; the
-      // image itself arrives later via the `tryon_completed` socket event.
+      // Step 2: kick off try-on (202 Accepted — result arrives via socket)
       const kioskId =
         typeof window !== "undefined"
           ? (window.sessionStorage.getItem("kiosk_id") ?? undefined)
           : undefined;
-      console.log("[try-it-on] Running try-on — outfitId:", outfit.id, "kioskId:", kioskId ?? "(none)");
-      let result;
+      console.log("[try-it-on] Starting try-on — outfitId:", outfit.id, "kioskId:", kioskId ?? "(none)");
+      let kickoff;
       try {
-        result = await tryOnService.runByOutfit(outfit.id, kioskId);
-        console.log("[try-it-on] Try-on kicked off:", result);
+        kickoff = await tryOnService.runByOutfit(outfit.id, kioskId);
+        console.log("[try-it-on] Try-on kicked off:", kickoff);
       } catch (err) {
         console.error("[try-it-on] Try-on request failed:", err);
         throw err;
       }
 
-      const pid = (result.predictionId ?? result.id) as string | undefined;
-      if (!pid) throw new Error("Try-on response missing predictionId");
-      setPredictionId(pid);
-      setPhase("waiting");
+      // Track predictionId so the socket listener can match the response
+      const pid = (kickoff.id ?? (kickoff as any).predictionId) as string | undefined;
+      if (pid) setPredictionId(pid);
+
+      // Stay in "building" — the image will arrive via tryon_completed socket event
     } catch (err: unknown) {
+      console.error("[try-it-on] Failed:", err);
       setErrorMsg(err instanceof Error ? err.message : "Generation failed");
       setPhase("error");
     }
@@ -172,48 +173,51 @@ export default function TryItOnPage() {
       {/* ── Main content ── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
 
-        {/* Result */}
-        {phase === "done" && (
-          <div className="flex flex-col items-center gap-6 w-full">
-            {resultImageUrl ? (
-              <>
-                <div
-                  className="relative w-full rounded-3xl overflow-hidden shadow-[0_8px_64px_rgba(168,85,247,0.25)] border border-white/10"
-                  style={{ maxHeight: "65vh", aspectRatio: "2/3" }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resultImageUrl}
-                    alt="Try-on result"
-                    className="w-full h-full object-contain"
-                    style={{ background: "#fbfcff" }}
-                  />
-                </div>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleDownload}
-                  className="w-full py-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-base flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Save
-                </motion.button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-4 text-center w-full">
-                <div className="w-20 h-20 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center justify-center">
-                  <span className="text-3xl">✨</span>
-                </div>
-                <span className="text-white font-semibold text-xl">Try-on started!</span>
-                <span className="text-white/50 text-sm">Your look is being generated</span>
-                <pre className="text-white/30 text-xs text-left bg-white/5 rounded-xl p-4 w-full overflow-auto max-h-48">
-                  {JSON.stringify(tryOnResult, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        )}
-
         <AnimatePresence mode="wait">
+
+          {/* Result */}
+          {phase === "done" && (
+            <motion.div
+              key="done"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-6 w-full"
+            >
+              {resultImageUrl ? (
+                <>
+                  <div
+                    className="relative w-full rounded-3xl overflow-hidden shadow-[0_8px_64px_rgba(168,85,247,0.25)] border border-white/10"
+                    style={{ maxHeight: "65vh", aspectRatio: "2/3" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={resultImageUrl}
+                      alt="Try-on result"
+                      className="w-full h-full object-contain"
+                      style={{ background: "#fbfcff" }}
+                    />
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleDownload}
+                    className="w-full py-4 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-base flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Save
+                  </motion.button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-4 text-center w-full">
+                  <div className="w-20 h-20 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center justify-center">
+                    <span className="text-3xl">✨</span>
+                  </div>
+                  <span className="text-white font-semibold text-xl">Try-on started!</span>
+                  <span className="text-white/50 text-sm">Your look is being generated</span>
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Loading */}
           {(phase === "building" || phase === "waiting") && (
@@ -232,12 +236,8 @@ export default function TryItOnPage() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-white font-semibold text-xl">
-                  {phase === "waiting" ? "Running try-on…" : "Generating your look…"}
-                </span>
-                <span className="text-white/40 text-sm">
-                  {phase === "waiting" ? "Waiting for AI to finish" : "Creating outfit and running try-on"}
-                </span>
+                <span className="text-white font-semibold text-xl">Generating your look…</span>
+                <span className="text-white/40 text-sm">Creating outfit and running try-on</span>
               </div>
             </motion.div>
           )}
@@ -260,7 +260,7 @@ export default function TryItOnPage() {
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => { hasStarted.current = false; generate(); hasStarted.current = true; }}
+                onClick={() => generate()}
                 className="px-10 py-4 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold text-base"
               >
                 Try Again
