@@ -5,6 +5,7 @@ import { AuthInitializer } from "@/components/AuthInitializer";
 import { ThemeProvider } from "@/modules/shared/components/ThemeProvider";
 import { QueryProvider } from "@/modules/shared/providers/QueryProvider";
 import { VoiceProvider } from "@/modules/shared/voice/VoiceProvider";
+import { VoiceController } from "@/modules/shared/voice/VoiceController";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -79,6 +80,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             <VoiceProvider>
+              <VoiceController />
               <AuthInitializer>{children}</AuthInitializer>
             </VoiceProvider>
           </QueryProvider>
