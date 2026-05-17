@@ -136,7 +136,7 @@ export default function VirtualMirror() {
 
         <div
           className={`absolute top-0 left-0 h-full w-[384px] transition-all duration-300 ease-out ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
-          style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(24px)', borderRight: '1px solid rgba(255,255,255,0.15)' }}
+          style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(5px)', borderRight: '1px solid rgba(255,255,255,0.15)' }}
         >
           <div className="flex flex-col h-full w-full p-6">
 
@@ -207,7 +207,7 @@ export default function VirtualMirror() {
               {garments.map(garment => (
                 <button
                   key={garment.id}
-                  style={{ aspectRatio: '3/4', borderRadius: '12px', overflow: 'hidden', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', display: 'block' }}
+                  style={{ aspectRatio: '3/4', borderRadius: '12px', overflow: 'hidden', background: 'transparent', display: 'block' }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

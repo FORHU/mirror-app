@@ -136,6 +136,16 @@ export default function OutfitBuilderPage() {
             whileTap={{ scale: 0.95 }}
             onClick={() => {
               localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+              router.push("/save-outfit");
+            }}
+            className="flex-1 py-5 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-xl"
+          >
+            View Outfit
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
               router.push("/try-it-on");
             }}
             className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl shadow-lg"
