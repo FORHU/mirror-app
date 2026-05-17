@@ -253,15 +253,16 @@ export const ExploreHUD = () => {
             exit={{ y: 50, opacity: 0 }}
             className="absolute left-0 bottom-0 w-[380px] pointer-events-auto"
           >
-            <div className="bg-black/60 backdrop-blur-3xl border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+            <div className="relative">
               <button
                 onClick={() => setSelectedPOI(null)}
-                className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 p-2 rounded-full text-white z-10 transition-colors"
+                className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 p-2 rounded-full text-white z-10 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="w-full h-44 bg-white/5 rounded-2xl overflow-hidden mb-4 relative">
+              {/* Image with text overlaid — no panel background */}
+              <div className="w-full h-44 rounded-2xl overflow-hidden relative mb-3">
                 <img
                   src={`https://loremflickr.com/800/600/${encodeURIComponent(selectedPOI.category || 'place')}`}
                   alt={selectedPOI.name}
@@ -285,8 +286,8 @@ export const ExploreHUD = () => {
                     setSelectedPOI(null);
                   }
                 }}
-                className="w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-95 text-black"
-                style={{ background: "#4fc3f7", boxShadow: "0 0 20px rgba(79,195,247,0.3)" }}
+                className="w-full py-4 text-base font-bold flex items-center justify-center gap-2 transition-all active:scale-95 text-white"
+                style={{ background: "none" }}
               >
                 <Navigation className="w-4 h-4 fill-current" />
                 GO TO THIS PLACE

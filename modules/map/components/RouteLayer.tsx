@@ -23,17 +23,45 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         },
       });
 
-      // Outer glow bloom
+      // Outermost diffuse bloom
+      map.addLayer({
+        id: "route-glow-outer",
+        type: "line",
+        source: "route",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#00cfff",
+          "line-width": 60,
+          "line-opacity": 0.18,
+          "line-blur": 30,
+        },
+      });
+
+      // Mid glow
       map.addLayer({
         id: "route-glow",
         type: "line",
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#FFD700",
-          "line-width": 16,
-          "line-opacity": 0.25,
-          "line-blur": 8,
+          "line-color": "#00d4ff",
+          "line-width": 28,
+          "line-opacity": 0.55,
+          "line-blur": 10,
+        },
+      });
+
+      // Inner bright halo
+      map.addLayer({
+        id: "route-glow-inner",
+        type: "line",
+        source: "route",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#7ee8ff",
+          "line-width": 10,
+          "line-opacity": 0.9,
+          "line-blur": 3,
         },
       });
 
@@ -44,8 +72,8 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#FFD700",
-          "line-width": 5,
+          "line-color": "#ffffff",
+          "line-width": 4,
           "line-opacity": 1,
           "line-blur": 0,
         },
