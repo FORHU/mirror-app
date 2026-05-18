@@ -3,7 +3,6 @@
 import { ShirtIcon, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import '../../styles/glow.css';
-import LiquidGlass from 'liquid-glass-react'
 
 export default function LoggedInPage() {
   const router = useRouter();
