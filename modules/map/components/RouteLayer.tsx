@@ -10,9 +10,31 @@ interface RouteLayerProps {
 
 const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
   const activeRoute = useMapStore((state) => state.activeRoute);
+  const lastTripGeojson = useMapStore((state) => state.lastTripGeojson);
 
   useEffect(() => {
     if (!map) return;
+
+    if (!map.getSource("last-trip")) {
+      map.addSource("last-trip", {
+        type: "geojson",
+        data: lastTripGeojson ?? { type: "FeatureCollection", features: [] },
+      });
+
+      // Ghost overlay of the previous trip
+      map.addLayer({
+        id: "last-trip-line",
+        type: "line",
+        source: "last-trip",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 2,
+          "line-opacity": 0.18,
+          "line-dasharray": [4, 4],
+        },
+      });
+    }
 
     if (!map.getSource("route")) {
       map.addSource("route", {
@@ -80,15 +102,18 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
       });
     }
 
-    if (activeRoute && activeRoute.geojson) {
+    if (activeRoute?.geojson) {
       (map.getSource("route") as mapboxgl.GeoJSONSource).setData(activeRoute.geojson);
     } else {
-      (map.getSource("route") as mapboxgl.GeoJSONSource).setData({
-        type: "FeatureCollection",
-        features: [],
-      });
+      (map.getSource("route") as mapboxgl.GeoJSONSource).setData({ type: "FeatureCollection", features: [] });
     }
-  }, [map, activeRoute]);
+
+    if (map.getSource("last-trip")) {
+      (map.getSource("last-trip") as mapboxgl.GeoJSONSource).setData(
+        lastTripGeojson ?? { type: "FeatureCollection", features: [] }
+      );
+    }
+  }, [map, activeRoute, lastTripGeojson]);
 
   return null;
 };

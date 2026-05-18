@@ -105,6 +105,7 @@ export const useVoiceAssistant = () => {
     try {
       const store   = useMapStore.getState();
       const userLoc = store.userLocation ?? store.homeLocation;
+      const now     = new Date();
       const ctx = {
         lat:               userLoc?.lat,
         lng:               userLoc?.lng,
@@ -117,6 +118,9 @@ export const useVoiceAssistant = () => {
         currentInstruction:   store.isNavigating ? store.activeRoute?.steps?.[store.currentStepIndex]?.instruction    : undefined,
         nextManeuverDistance: store.isNavigating ? store.distanceToNextManeuver                                        : undefined,
         nextInstruction:      store.isNavigating ? store.activeRoute?.steps?.[store.currentStepIndex + 1]?.instruction : undefined,
+        currentTime: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+        currentDate: now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+        currentPage: "map",
       };
 
       const { audio, transcript: t, reply: r, intent, destination, profile } = await mapService.voice(combined.buffer, ctx, historyRef.current);

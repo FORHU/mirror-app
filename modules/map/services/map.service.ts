@@ -90,7 +90,7 @@ export const mapService = {
 
   voice: async (
     pcmBuffer: ArrayBuffer,
-    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string },
+    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string; currentTime?: string; currentDate?: string; schedules?: string; currentPage?: string },
     history?: Array<{ user: string; assistant: string }>,
   ): Promise<{
     audio: ArrayBuffer;
@@ -112,7 +112,11 @@ export const mapService = {
     if (ctx?.currentInstruction)                 params.set("currentInstruction",     encodeURIComponent(ctx.currentInstruction));
     if (ctx?.nextManeuverDistance !== undefined)  params.set("nextManeuverDistance",   String(ctx.nextManeuverDistance));
     if (ctx?.nextInstruction)                    params.set("nextInstruction",        encodeURIComponent(ctx.nextInstruction));
-    if (history?.length)                      params.set("history",           JSON.stringify(history.slice(-4)));
+    if (ctx?.currentTime)                        params.set("currentTime",            encodeURIComponent(ctx.currentTime));
+    if (ctx?.currentDate)                        params.set("currentDate",            encodeURIComponent(ctx.currentDate));
+    if (ctx?.schedules)                          params.set("schedules",              encodeURIComponent(ctx.schedules));
+    if (ctx?.currentPage)                        params.set("currentPage",            encodeURIComponent(ctx.currentPage));
+    if (history?.length)                         params.set("history",                JSON.stringify(history.slice(-4)));
 
     const url = `${API_URL}/api/mirror/voice/process?${params}`;
     const response = await fetch(url, {

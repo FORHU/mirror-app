@@ -6,6 +6,8 @@ import { X, Map, Compass, MapPin, Mic, MicOff, Loader2, Volume2 } from "lucide-r
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
 import { useNavigationAnnouncements } from "../hooks/useNavigationAnnouncements";
+import { useAmbientPOI } from "../hooks/useAmbientPOI";
+import AmbientPOICard from "./AmbientPOICard";
 
 // Returns color + label based on how close the user is
 function getProximity(distanceM: number) {
@@ -27,6 +29,7 @@ const NavigationHUD = () => {
 
   const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
   useNavigationAnnouncements();
+  const { ambientPOI, dismissAmbientPOI } = useAmbientPOI();
 
   const micIcon = isListening
     ? <MicOff className="w-5 h-5" style={{ color: "#ef4444" }} />
@@ -90,6 +93,9 @@ const NavigationHUD = () => {
 
       {/* ── Bottom HUD ── */}
       <div className="flex flex-col gap-3">
+
+        {/* Ambient POI card — proactive nearby place announcements */}
+        <AmbientPOICard poi={ambientPOI} onDismiss={dismissAmbientPOI} />
 
         {/* Proximity Banner — only when we have real distance data AND close enough */}
         <AnimatePresence>

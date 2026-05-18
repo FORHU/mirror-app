@@ -1,70 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
 import {
   Navigation,
   Car, Footprints, Bike, MoreHorizontal, Mic, MicOff, Loader2, Volume2,
   Settings, LocateFixed, X, Bike as Motorcycle,
-  Sun, Cloud, CloudSun, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
+  Briefcase, Home,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
-
-const WEATHER_ICONS: Record<number, { icon: React.ReactNode; color: string }> = {
-  0:  { icon: <Sun           className="w-5 h-5" />, color: "#fbbf24" },
-  1:  { icon: <CloudSun      className="w-5 h-5" />, color: "#fbbf24" },
-  2:  { icon: <CloudSun      className="w-5 h-5" />, color: "#94a3b8" },
-  3:  { icon: <Cloud         className="w-5 h-5" />, color: "#94a3b8" },
-  45: { icon: <CloudFog      className="w-5 h-5" />, color: "#94a3b8" },
-  48: { icon: <CloudFog      className="w-5 h-5" />, color: "#94a3b8" },
-  51: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
-  53: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
-  55: { icon: <CloudDrizzle  className="w-5 h-5" />, color: "#7dd3fc" },
-  61: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
-  63: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
-  65: { icon: <CloudRain     className="w-5 h-5" />, color: "#60a5fa" },
-  71: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
-  73: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
-  75: { icon: <CloudSnow     className="w-5 h-5" />, color: "#e2e8f0" },
-  95: { icon: <CloudLightning className="w-5 h-5" />, color: "#a78bfa" },
-};
-
-function getWeatherIcon(code: number) {
-  return WEATHER_ICONS[code] ?? { icon: <Cloud className="w-5 h-5" />, color: "#94a3b8" };
-}
-
-interface DayWeather { high: number; low: number; code: number }
-
-function useDayWeather(lat?: number, lng?: number): DayWeather | null {
-  const [data, setData] = useState<DayWeather | null>(null);
-
-  useEffect(() => {
-    if (lat === undefined || lng === undefined) return;
-    const params = new URLSearchParams({
-      latitude:  String(lat),
-      longitude: String(lng),
-      daily:     "temperature_2m_max,temperature_2m_min,weathercode",
-      timezone:  "auto",
-      forecast_days: "1",
-    });
-    fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
-      .then((r) => r.json())
-      .then((json) => {
-        const d = json.daily;
-        if (!d) return;
-        setData({
-          high: Math.round(d.temperature_2m_max[0]),
-          low:  Math.round(d.temperature_2m_min[0]),
-          code: d.weathercode[0],
-        });
-      })
-      .catch(() => {});
-  }, [lat, lng]);
-
-  return data;
-}
 
 export const ExploreHUD = () => {
   const {
@@ -72,11 +18,12 @@ export const ExploreHUD = () => {
     selectedPOI, setSelectedPOI, setDestination, selectedDestination, userLocation,
     activeProfile,
     toggleTraffic, showTraffic, toggleTerrain, showTerrain,
-    map, origin, setUserLocation, homeLocation,
+    map, origin, setUserLocation, homeLocation, workLocation,
   } = useMapStore();
 
-  const loc = userLocation ?? homeLocation;
-  const dayWeather = useDayWeather(loc?.lat, loc?.lng);
+  const hour = new Date().getHours();
+  const isMorning = hour >= 6 && hour < 11;
+  const isEvening = hour >= 17 && hour < 22;
 
   const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
 
@@ -110,28 +57,6 @@ export const ExploreHUD = () => {
   return (
     <div className="fixed inset-0 pointer-events-none z-40 p-6 font-sans">
 
-      {/* ── Top-left: Weather ───────────────────────────────────────── */}
-      {!isNavigating && dayWeather && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="absolute top-0 left-0 pointer-events-auto"
-        >
-          <div
-            className="flex items-center gap-3 rounded-2xl px-5 py-3"
-            style={{ background: "var(--ghost-bg)", border: "var(--ghost-panel-border)" }}
-          >
-            <span style={{ color: getWeatherIcon(dayWeather.code).color }}>
-              {getWeatherIcon(dayWeather.code).icon}
-            </span>
-            <span className="text-base font-bold" style={{ color: "var(--ghost-weather-text)" }}>
-              H: {dayWeather.high}° L: {dayWeather.low}°
-            </span>
-          </div>
-        </motion.div>
-      )}
-
       {/* ── Top-right: Action buttons ───────────────────────────────── */}
       {!isNavigating && (
         <motion.div
@@ -145,6 +70,32 @@ export const ExploreHUD = () => {
           <IconButton onClick={toggleTraffic} active={showTraffic} icon={<Settings className="w-5 h-5" style={{ color: "var(--ghost-btn-icon)" }} />} />
         </motion.div>
       )}
+
+      {/* ── Time-aware suggestion banner ────────────────────────────── */}
+      <AnimatePresence>
+        {!isNavigating && !selectedDestination && (isMorning || isEvening) && (
+          <motion.div
+            key="suggestion"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="absolute top-16 left-1/2 -translate-x-1/2 pointer-events-auto"
+          >
+            <button
+              onClick={() => {
+                const dest = isMorning ? workLocation : homeLocation;
+                if (dest) setDestination({ name: isMorning ? "Work" : "Home", ...dest });
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white transition-all active:scale-95"
+              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(8px)" }}
+            >
+              {isMorning
+                ? <><Briefcase className="w-4 h-4" /> {workLocation ? "Navigate to work?" : "Set work location first"}</>
+                : <><Home className="w-4 h-4" /> Head home?</>}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Voice transcript bubble ─────────────────────────────────── */}
       <AnimatePresence>

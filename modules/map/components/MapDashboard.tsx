@@ -5,6 +5,8 @@ import { useMapStore } from "../store/useMapStore";
 import NavigationHUD from "./NavigationHUD";
 import { ExploreHUD } from "./ExploreHUD";
 import MapViewport from "./MapViewport";
+import CommuteWidget from "./CommuteWidget";
+import WeatherWidget from "./WeatherWidget";
 
 export default function MapDashboard() {
   const { isNavigating } = useMapStore();
@@ -65,6 +67,14 @@ export default function MapDashboard() {
       <div className="absolute inset-0" style={{ mixBlendMode: "screen" }}>
         <MapViewport />
       </div>
+
+      {/* Top-left cluster: weather + commute — stacked, no overlap */}
+      {!isNavigating && (
+        <div className="absolute top-6 left-6 z-50 pointer-events-auto flex flex-col gap-1">
+          <WeatherWidget />
+          <CommuteWidget />
+        </div>
+      )}
 
       {isNavigating && <NavigationHUD />}
       <ExploreHUD />
