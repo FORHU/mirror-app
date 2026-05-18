@@ -18,14 +18,14 @@ type Category = {
 
 const categories: Category[] = [
   {
-    name: 'Upper Garments',
+    name: 'Tops',
     path: 'upper-garment',
     icon: Shirt,
     slots: [FittingSlot.UpperGarment, FittingSlot.FullGarment],
     available: true,
   },
   {
-    name: 'Lower Garments',
+    name: 'Bottoms',
     path: 'lower-garment',
     icon: Layers,
     slots: [FittingSlot.LowerGarment],
@@ -71,11 +71,19 @@ export default function VirtualMirror() {
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [garments, setGarments] = useState<RemoteGarment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedGarmentId, setSelectedGarmentId] = useState<string | null>(null);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [detailGarment, setDetailGarment] = useState<RemoteGarment | null>(null);
+
+  const garmentTypes = Array.from(new Set(garments.flatMap(g => g.garmentType).filter(Boolean)));
+  const visibleGarments = selectedType ? garments.filter(g => g.garmentType.includes(selectedType)) : garments;
 
   async function selectCategory(category: Category) {
     if (!category.available) return;
     setIsMenuOpen(false);
     setActiveCategory(category);
+    setSelectedGarmentId(null);
+    setSelectedType(null);
     setGarments([]);
     setLoading(true);
     try {
@@ -88,21 +96,21 @@ export default function VirtualMirror() {
     }
   }
 
-  useEffect(() => {
-    async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
-        });
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch {
-        // camera unavailable — mirror shows black
-      }
-    }
-    startCamera();
-    return () => { streamRef.current?.getTracks().forEach(t => t.stop()); };
-  }, []);
+  // useEffect(() => {
+  //   async function startCamera() {
+  //     try {
+  //       const stream = await navigator.mediaDevices.getUserMedia({
+  //         video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+  //       });
+  //       streamRef.current = stream;
+  //       if (videoRef.current) videoRef.current.srcObject = stream;
+  //     } catch {
+  //       // camera unavailable — mirror shows black
+  //     }
+  //   }
+  //   startCamera();
+  //   return () => { streamRef.current?.getTracks().forEach(t => t.stop()); };
+  // }, []);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
@@ -175,12 +183,12 @@ export default function VirtualMirror() {
 
       {/* Category full-screen overlay */}
       <div
-        className={`absolute inset-0 z-40 flex flex-col transition-opacity duration-300 ${activeCategory ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`absolute inset-0 z-40 flex flex-col transition-opacity duration-300 ${activeCategory && !detailGarment ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         style={{ background: 'rgba(0,0,0,0.55)' }}
       >
         {/* Top bar */}
         <div
-          className="flex items-center justify-between shrink-0 py-4 px-10"
+          className="flex items-center justify-between shrink-0 py-4 px-4"
           style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
         >
           <button onClick={() => setActiveCategory(null)} className="p-4 transition-all hover:scale-105 active:scale-95">
@@ -194,6 +202,49 @@ export default function VirtualMirror() {
 
         {/* Garment grid */}
         <div className="flex-1 overflow-y-auto px-6 pb-8">
+          {/* Type filter chips */}
+          {!loading && garmentTypes.length > 0 && (
+            <div className="flex gap-2 flex-wrap pt-5 pb-1">
+              <button
+                onClick={() => setSelectedType(null)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '999px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  border: selectedType === null ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.25)',
+                  background: selectedType === null ? 'rgba(255,255,255,0.15)' : 'transparent',
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                All
+              </button>
+              {garmentTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(selectedType === type ? null : type)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: '999px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    border: selectedType === type ? '1.5px solid white' : '1.5px solid rgba(255,255,255,0.25)',
+                    background: selectedType === type ? 'rgba(255,255,255,0.15)' : 'transparent',
+                    color: 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-12 h-12 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -204,22 +255,119 @@ export default function VirtualMirror() {
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', paddingTop: '24px' }}>
-              {garments.map(garment => (
-                <button
-                  key={garment.id}
-                  style={{ aspectRatio: '3/4', borderRadius: '12px', overflow: 'hidden', background: 'transparent', display: 'block' }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={+garment.imageUrl}
-                    alt={garment.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                  />
-                </button>
-              ))}
+              {visibleGarments.map(garment => {
+                const isSelected = selectedGarmentId === garment.id;
+                return (
+                  <button
+                    key={garment.id}
+                    onClick={() => { setSelectedGarmentId(garment.id); setDetailGarment(garment); }}
+                    style={{
+                      aspectRatio: '3/4',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      background: 'transparent',
+                      display: 'block',
+                      border: isSelected ? '2.5px solid white' : '2.5px solid transparent',
+                      transform: isSelected ? 'scale(1.04)' : 'scale(1)',
+                      transition: 'border-color 0.15s, transform 0.15s',
+                      outline: 'none',
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={garment.imageUrl}
+                      alt={garment.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                    />
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
+      </div>
+
+      {/* Garment detail overlay */}
+      <div
+        className={`absolute inset-0 z-50 flex flex-col transition-opacity duration-300 ${detailGarment ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(0,0,0,0.55)' }}
+      >
+        {/* Top bar — same design as category header */}
+        <div
+          className="flex items-center justify-between shrink-0 py-4 px-4"
+          style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
+        >
+          <button onClick={() => setDetailGarment(null)} className="p-4 transition-all hover:scale-105 active:scale-95">
+            <ArrowLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="w-14" />
+        </div>
+
+        {detailGarment && (
+          <div className="flex flex-1 min-h-0 px-10 gap-6">
+            {/* Left — image, name, description */}
+            <div className="w-2 shrink-0 flex flex-col overflow-y-auto pt-4 gap-4" style={{ height: '356px', width: '400px'}}>
+              {detailGarment.name && (
+                <p className="text-white font-semibold text-xl leading-snug shrink-0">
+                  {detailGarment.name.replace(/^"+|"+$/g, '')}
+                </p>
+              )}
+              {detailGarment.description && (
+                <p className="text-white/55 text-sm leading-relaxed shrink-0">
+                  {detailGarment.description.replace(/^"+|"+$/g, '')}
+                </p>
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <div className="flex flex-row items-center justify-center" style={{width: '400px', height:'250px' }}>
+                <img
+                  src={detailGarment.imageUrl}
+                  alt={detailGarment.name}
+                  style={{ width: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '16px', flexShrink: 0 }}
+                />
+              </div>
+            </div>
+
+            {/* Right — type, category, tags */}
+            <div className="w-1/5 overflow-y-auto flex flex-col pt-4 pb-10 gap-6" style={{ height: '356px'}}>
+
+              {/* Garment type */}
+              {detailGarment.garmentType.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-white/40 text-xs uppercase tracking-widest">Type</span>
+                  <div className="flex flex-wrap gap-2">
+                    {detailGarment.garmentType.map(t => (
+                      <span key={t} style={{ padding: '4px 14px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, border: '1.5px solid rgba(255,255,255,0.3)', color: 'white' }}>{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Category */}
+              {detailGarment.category.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-white/40 text-xs uppercase tracking-widest">Category</span>
+                  <div className="flex flex-wrap gap-2">
+                    {detailGarment.category.map(c => (
+                      <span key={c} style={{ padding: '4px 14px', borderRadius: '999px', fontSize: '13px', fontWeight: 500, border: '1.5px solid rgba(255,255,255,0.3)', color: 'white' }}>{c}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {detailGarment.tags?.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-white/40 text-xs uppercase tracking-widest">Tags</span>
+                  <div className="flex flex-wrap gap-2">
+                    {detailGarment.tags.map(tag => (
+                      <span key={tag.id} style={{ padding: '4px 14px', borderRadius: '999px', fontSize: '13px', border: '1.5px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.55)' }}>#{tag.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

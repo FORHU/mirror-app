@@ -34,7 +34,7 @@ export default function LoggedInPage() {
 
         {/* Check a fit */}
         <button
-          onClick={() => router.push('/virtual-mirror')}
+          onClick={() => router.push('/virtual-mirror-v2')}
           className="glass-card-strong neon-border-white glow-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
         >
           <div className="icon-spotlight">

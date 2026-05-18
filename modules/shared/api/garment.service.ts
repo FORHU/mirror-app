@@ -9,6 +9,11 @@ export interface RemoteGarmentFile {
   originalName: string;
 }
 
+export interface RemoteGarmentTag {
+  id: string;
+  name: string;
+}
+
 export interface RemoteGarment {
   id: string;
   name: string;
@@ -17,6 +22,10 @@ export interface RemoteGarment {
   fittingSlot: string[];
   garmentType: string[];
   category: string[];
+  tags: RemoteGarmentTag[];
+  gender: string | null;
+  silhouette: string | null;
+  layerLevel: string | null;
   file: RemoteGarmentFile | null;
 }
 
