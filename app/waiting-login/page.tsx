@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from 'motion/react';
 
+const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
+
 export default function WaitingLoginPage() {
   const {
     isLoggedIn,
@@ -13,10 +15,8 @@ export default function WaitingLoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoggedIn) {
-      router.push(
-        `/kiosk-logged-in?username=${encodeURIComponent(loggedInUsername || "User")}`,
-      );
+    if (!BYPASS_AUTH && isLoggedIn) {
+      router.push("/kiosk-logged-in");
     }
   }, [isLoggedIn, loggedInUsername, router]);
 
