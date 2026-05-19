@@ -44,7 +44,7 @@ function VoiceUI() {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0,  scale: 1    }}
             exit={{    opacity: 0, y: 16, scale: 0.95 }}
-            className="fixed bottom-28 right-5 z-[9999] w-72 pointer-events-none"
+            className="fixed bottom-28 right-5 z-9999 w-72 pointer-events-none"
           >
             <div
               className="rounded-2xl px-4 py-3 shadow-2xl"
@@ -78,7 +78,7 @@ function VoiceUI() {
       {/* Floating mic button — bottom-right */}
       <motion.button
         onClick={toggle}
-        className="fixed bottom-6 right-5 z-[9999] flex items-center justify-center rounded-full shadow-2xl transition-all"
+        className="fixed bottom-6 right-5 z-9999 flex items-center justify-center rounded-full shadow-2xl transition-all"
         style={{
           width: 60,
           height: 60,

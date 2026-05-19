@@ -66,7 +66,7 @@ const NavigationHUD = () => {
       <div className="flex justify-between items-start">
         {/* Distance remaining */}
         <div className="flex flex-col gap-1">
-          <span className="text-[var(--hud-text-label)] text-xs uppercase tracking-widest" style={{ textShadow: 'var(--hud-text-shadow)' }}>
+          <span className="text-(--hud-text-label) text-xs uppercase tracking-widest" style={{ textShadow: 'var(--hud-text-shadow)' }}>
             Distance
           </span>
           <motion.span
@@ -82,10 +82,10 @@ const NavigationHUD = () => {
 
         {/* ETA */}
         <div className="flex flex-col items-end gap-1">
-          <span className="text-[var(--hud-text-label)] text-xs uppercase tracking-widest" style={{ textShadow: 'var(--hud-text-shadow)' }}>
+          <span className="text-(--hud-text-label) text-xs uppercase tracking-widest" style={{ textShadow: 'var(--hud-text-shadow)' }}>
             ETA
           </span>
-          <span className="text-[var(--hud-text-secondary)] text-3xl font-light" style={{ textShadow: 'var(--hud-text-shadow)' }}>
+          <span className="text-(--hud-text-secondary) text-3xl font-light" style={{ textShadow: 'var(--hud-text-shadow)' }}>
             {eta}
           </span>
         </div>
@@ -111,7 +111,7 @@ const NavigationHUD = () => {
               <motion.div
                 animate={proximity.pulse ? { scale: [1, 1.18, 1] } : {}}
                 transition={{ repeat: Infinity, duration: 0.7 }}
-                className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0"
+                className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
                 style={{
                   background: `${proximity.color}22`,
                   border: `2px solid ${proximity.color}`,
