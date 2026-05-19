@@ -5,6 +5,30 @@ export interface OutfitItem {
   slot?: string;
 }
 
+export interface RemoteOutfitGarment {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  garmentType: string[];
+  fittingSlot: string[];
+}
+
+export interface RemoteOutfitItem {
+  id: string;
+  slot: string;
+  garment: RemoteOutfitGarment;
+}
+
+export interface RemoteOutfit {
+  id: string;
+  name: string;
+  description: string | null;
+  file: { fileUrl: string };
+  items: RemoteOutfitItem[];
+  metaData: { category: string; categoryMix: Record<string, number> } | null;
+}
+
 export interface CreateOutfitParams {
   name: string;
   items: OutfitItem[];
@@ -19,6 +43,16 @@ export interface CreatedOutfit {
 }
 
 export const outfitService = {
+  getAll: async (): Promise<RemoteOutfit[]> => {
+    const response = await api.get<any>("/api/remote/outfits");
+    if (!response.ok) {
+      throw new Error(response.problem ?? "Failed to fetch outfits");
+    }
+    const items = response.data?.data?.items;
+    if (Array.isArray(items)) return items;
+    throw new Error("Unexpected response shape");
+  },
+
   create: async ({ name, items, pngBlob, isPublic = false }: CreateOutfitParams): Promise<CreatedOutfit> => {
     const form = new FormData();
     form.append("name", name);
