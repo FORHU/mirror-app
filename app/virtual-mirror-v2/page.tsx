@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Shirt, Watch, Footprints, Sparkles, Trash2, Camera, Compass } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import "../../styles/glow.css";
 import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment.service';
@@ -33,6 +33,17 @@ export default function VirtualMirrorV2() {
     const now = useClock();
     const pageSize = 12;
     const accessoryPageSize = 6;
+
+    // Selection States
+    const [selectedTop, setSelectedTop] = useState<RemoteGarment | null>(null);
+    const [selectedBottom, setSelectedBottom] = useState<RemoteGarment | null>(null);
+    const [selectedShoes, setSelectedShoes] = useState<RemoteGarment | null>(null);
+    const [selectedHead, setSelectedHead] = useState<RemoteGarment | null>(null);
+    const [selectedGlasses, setSelectedGlasses] = useState<RemoteGarment | null>(null);
+    const [selectedEarrings, setSelectedEarrings] = useState<RemoteGarment | null>(null);
+    const [selectedNeck, setSelectedNeck] = useState<RemoteGarment | null>(null);
+    const [selectedWaist, setSelectedWaist] = useState<RemoteGarment | null>(null);
+    const [selectedHand, setSelectedHand] = useState<RemoteGarment | null>(null);
 
     const [tops, setTops] = useState<RemoteGarment[]>([]);
     const [topsPage, setTopsPage] = useState(0);
@@ -227,10 +238,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedHeadGarments[i];
+                                const isSelected = selectedHead?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedHead(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -247,10 +271,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedGlasses[i];
+                                const isSelected = selectedGlasses?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedGlasses(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -267,10 +304,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedEarrings[i];
+                                const isSelected = selectedEarrings?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedEarrings(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -288,10 +338,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedNeck[i];
+                                const isSelected = selectedNeck?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedNeck(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -309,10 +372,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedWaist[i];
+                                const isSelected = selectedWaist?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedWaist(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -330,10 +406,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedHand[i];
+                                const isSelected = selectedHand?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedHand(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -371,10 +460,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedTops[i];
+                                const isSelected = selectedTop?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedTop(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -404,10 +506,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedBottoms[i];
+                                const isSelected = selectedBottom?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedBottom(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -436,10 +551,23 @@ export default function VirtualMirrorV2() {
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedShoes[i];
+                                const isSelected = selectedShoes?.id === g?.id;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
+                                    <button
+                                        key={i}
+                                        onClick={() => g && setSelectedShoes(isSelected ? null : g)}
+                                        className="rounded-md overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border outline-none"
+                                        style={{
+                                            aspectRatio: '1/1',
+                                            borderRadius: '4px',
+                                            borderColor: isSelected ? '#a855f7' : 'rgba(255, 255, 255, 0.1)',
+                                            boxShadow: isSelected ? '0 0 10px rgba(168, 85, 247, 0.6)' : 'none',
+                                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                            cursor: g ? 'pointer' : 'default',
+                                        }}
+                                    >
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -458,18 +586,152 @@ export default function VirtualMirrorV2() {
                 </div>
             </div>
         </div>
-        <footer className="flex items-center justify-center" style={{ height: '150px'}}>
-                <button 
-                className="logout-btn px-8 py-3 text-white text-lg font-medium"
-                style={{
-                    padding: '14px 32px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    letterSpacing: '0.5px',
-                }}>
-                    Create Outfit
+        {/* Glassmorphic Action Dock Footer */}
+        <footer 
+            className="flex items-center justify-between px-8 shrink-0 relative z-30" 
+            style={{ 
+                height: '150px', 
+                background: 'rgba(255, 255, 255, 0.04)', 
+                backdropFilter: 'blur(16px)', 
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.5)'
+            }}
+        >
+            {/* Left: Selected Outfit Preview */}
+            <div className="flex flex-col gap-2 flex-1">
+                <span className="text-white/40 text-[10px] font-bold tracking-widest uppercase">Current Selections</span>
+                
+                {!(selectedTop || selectedBottom || selectedShoes || selectedHead || selectedGlasses || selectedEarrings || selectedNeck || selectedWaist || selectedHand) ? (
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-white/30 animate-pulse" />
+                        <span className="text-white/30 text-sm italic select-none">Select items from the grids above to build your look...</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3 overflow-x-auto py-1 max-w-[70vw] scrollbar-hide">
+                        {selectedHead && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">🎩</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedHead.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedGlasses && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">🕶️</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedGlasses.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedEarrings && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">💎</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedEarrings.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedNeck && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">📿</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedNeck.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedTop && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <Shirt className="w-3.5 h-3.5 text-white/70" strokeWidth={2} />
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedTop.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedWaist && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">🎗️</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedWaist.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedHand && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <Watch className="w-3.5 h-3.5 text-white/70" strokeWidth={2} />
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedHand.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedBottom && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <span className="text-xs">👖</span>
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedBottom.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                        {selectedShoes && (
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 shrink-0">
+                                <Footprints className="w-3.5 h-3.5 text-white/70" strokeWidth={2} />
+                                <span className="text-white text-xs font-medium max-w-[80px] truncate">{selectedShoes.name.replace(/^"|"$/g, "")}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-3 shrink-0">
+                {(selectedTop || selectedBottom || selectedShoes || selectedHead || selectedGlasses || selectedEarrings || selectedNeck || selectedWaist || selectedHand) && (
+                    <button
+                        onClick={() => {
+                            setSelectedTop(null);
+                            setSelectedBottom(null);
+                            setSelectedShoes(null);
+                            setSelectedHead(null);
+                            setSelectedGlasses(null);
+                            setSelectedEarrings(null);
+                            setSelectedNeck(null);
+                            setSelectedWaist(null);
+                            setSelectedHand(null);
+                        }}
+                        className="px-6 py-4 rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-white/20 active:scale-95 transition-all flex items-center gap-2 font-medium"
+                    >
+                        <Trash2 className="w-4 h-4 text-white/60" />
+                        <span>Clear All</span>
+                    </button>
+                )}
+                
+                <button
+                    disabled={!(selectedTop || selectedBottom || selectedShoes || selectedHead || selectedGlasses || selectedEarrings || selectedNeck || selectedWaist || selectedHand)}
+                    onClick={() => {
+                        const mapGarment = (g: RemoteGarment | null, slot: FittingSlot) => {
+                            if (!g) return null;
+                            const cleanName = g.name.replace(/^"|"$/g, "");
+                            const url = g.file?.fileUrl ?? g.imageUrl ?? "";
+                            const gType = (g.garmentType?.[0] ?? "").toLowerCase();
+                            return {
+                                id: g.id,
+                                name: cleanName,
+                                imageUrl: url,
+                                slot,
+                                garmentType: gType,
+                            };
+                        };
+
+                        const slotMap = {
+                            [FittingSlot.HeadGarment]:        { slot: FittingSlot.HeadGarment,        label: "Head",         garment: mapGarment(selectedHead, FittingSlot.HeadGarment) },
+                            [FittingSlot.Glasses]:            { slot: FittingSlot.Glasses,            label: "Glasses",      garment: mapGarment(selectedGlasses, FittingSlot.Glasses) },
+                            [FittingSlot.Earrings]:           { slot: FittingSlot.Earrings,           label: "Earrings",     garment: mapGarment(selectedEarrings, FittingSlot.Earrings) },
+                            [FittingSlot.UpperGarment]:       { slot: FittingSlot.UpperGarment,       label: "Upper",        garment: mapGarment(selectedTop, FittingSlot.UpperGarment) },
+                            [FittingSlot.LowerGarment]:       { slot: FittingSlot.LowerGarment,       label: "Lower",        garment: mapGarment(selectedBottom, FittingSlot.LowerGarment) },
+                            [FittingSlot.FullGarment]:        { slot: FittingSlot.FullGarment,        label: "Full",         garment: null },
+                            [FittingSlot.FootGarment]:        { slot: FittingSlot.FootGarment,        label: "Footwear",     garment: mapGarment(selectedShoes, FittingSlot.FootGarment) },
+                            [FittingSlot.LeftHandAccessory]:  { slot: FittingSlot.LeftHandAccessory,  label: "L. Hand",      garment: mapGarment(selectedHand, FittingSlot.LeftHandAccessory) },
+                            [FittingSlot.RightHandAccessory]: { slot: FittingSlot.RightHandAccessory, label: "R. Hand",      garment: null },
+                            [FittingSlot.NeckAccessory]:      { slot: FittingSlot.NeckAccessory,      label: "Neck",         garment: mapGarment(selectedNeck, FittingSlot.NeckAccessory) },
+                            [FittingSlot.WaistAccessory]:     { slot: FittingSlot.WaistAccessory,     label: "Waist",        garment: mapGarment(selectedWaist, FittingSlot.WaistAccessory) },
+                        };
+
+                        localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+                        router.push("/try-it-on");
+                    }}
+                    className={`px-8 py-4 rounded-xl font-bold transition-all duration-300 flex items-center gap-2 select-none ${
+                        (selectedTop || selectedBottom || selectedShoes || selectedHead || selectedGlasses || selectedEarrings || selectedNeck || selectedWaist || selectedHand)
+                            ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-[0_4px_20px_rgba(168,85,247,0.4)] hover:brightness-110 hover:shadow-[0_4px_25px_rgba(168,85,247,0.6)] cursor-pointer active:scale-95"
+                            : "bg-white/5 border border-white/5 text-white/20 cursor-not-allowed"
+                    }`}
+                >
+                    <Sparkles className="w-5 h-5" />
+                    <span>Try On Outfit</span>
                 </button>
+            </div>
         </footer>
     </div>
     );
