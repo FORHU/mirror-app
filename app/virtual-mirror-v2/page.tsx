@@ -7,6 +7,28 @@ import "../../styles/glow.css";
 import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment.service';
 import { FittingSlot } from '@/modules/garment/types';
 
+function useSwipe(onLeft: () => void, onRight: () => void) {
+    const startX = useRef<number | null>(null);
+    return {
+        onTouchStart: (e: React.TouchEvent) => { startX.current = e.touches[0].clientX; },
+        onTouchEnd: (e: React.TouchEvent) => {
+            if (startX.current === null) return;
+            const delta = e.changedTouches[0].clientX - startX.current;
+            startX.current = null;
+            if (delta < -40) onLeft();
+            else if (delta > 40) onRight();
+        },
+        onMouseDown: (e: React.MouseEvent) => { startX.current = e.clientX; },
+        onMouseUp: (e: React.MouseEvent) => {
+            if (startX.current === null) return;
+            const delta = e.clientX - startX.current;
+            startX.current = null;
+            if (delta < -40) onLeft();
+            else if (delta > 40) onRight();
+        },
+        onMouseLeave: () => { startX.current = null; },
+    };
+}
 
 function SectionTitle({ label }: { label: string }) {
     return (
@@ -38,129 +60,83 @@ export default function VirtualMirrorV2() {
     const [topsPage, setTopsPage] = useState(0);
     const totalTopsPages = Math.ceil(tops.length / pageSize);
     const pagedTops = tops.slice(topsPage * pageSize, (topsPage + 1) * pageSize);
-    const topsSwipeStart = useRef<number | null>(null);
-    const handleTopsTouchStart = (e: React.TouchEvent) => { topsSwipeStart.current = e.touches[0].clientX; };
-    const handleTopsTouchEnd = (e: React.TouchEvent) => {
-        if (topsSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - topsSwipeStart.current;
-        topsSwipeStart.current = null;
-        if (delta < -40) setTopsPage((p) => Math.min(p + 1, totalTopsPages - 1));
-        else if (delta > 40) setTopsPage((p) => Math.max(p - 1, 0));
-    };
+    const topsSwipe = useSwipe(
+        () => setTopsPage((p) => Math.min(p + 1, totalTopsPages - 1)),
+        () => setTopsPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [shoes, setShoes] = useState<RemoteGarment[]>([]);
     const [shoesPage, setShoesPage] = useState(0);
     const totalShoesPages = Math.ceil(shoes.length / pageSize);
     const pagedShoes = shoes.slice(shoesPage * pageSize, (shoesPage + 1) * pageSize);
-    const shoesSwipeStart = useRef<number | null>(null);
-    const handleShoesTouchStart = (e: React.TouchEvent) => { shoesSwipeStart.current = e.touches[0].clientX; };
-    const handleShoesTouchEnd = (e: React.TouchEvent) => {
-        if (shoesSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - shoesSwipeStart.current;
-        shoesSwipeStart.current = null;
-        if (delta < -40) setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1));
-        else if (delta > 40) setShoesPage((p) => Math.max(p - 1, 0));
-    };
+    const shoesSwipe = useSwipe(
+        () => setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1)),
+        () => setShoesPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
     const [bottomsPage, setBottomsPage] = useState(0);
     const totalBottomsPages = Math.ceil(bottoms.length / pageSize);
     const pagedBottoms = bottoms.slice(bottomsPage * pageSize, (bottomsPage + 1) * pageSize);
-    const bottomsSwipeStart = useRef<number | null>(null);
-    const handleBottomsTouchStart = (e: React.TouchEvent) => { bottomsSwipeStart.current = e.touches[0].clientX; };
-    const handleBottomsTouchEnd = (e: React.TouchEvent) => {
-        if (bottomsSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - bottomsSwipeStart.current;
-        bottomsSwipeStart.current = null;
-        if (delta < -40) setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1));
-        else if (delta > 40) setBottomsPage((p) => Math.max(p - 1, 0));
-    };
+    const bottomsSwipe = useSwipe(
+        () => setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1)),
+        () => setBottomsPage((p) => Math.max(p - 1, 0)),
+    );
 
-    // Accessories — 6 categories (left + right hand combined)
-    const [headGarments,    setHeadGarments]    = useState<RemoteGarment[]>([]);
-    const [glasses,         setGlasses]         = useState<RemoteGarment[]>([]);
-    const [earrings,        setEarrings]        = useState<RemoteGarment[]>([]);
-    const [neckAccessories, setNeckAccessories] = useState<RemoteGarment[]>([]);
-    const [waistAccessories,setWaistAccessories]= useState<RemoteGarment[]>([]);
-    const [handAccessories, setHandAccessories] = useState<RemoteGarment[]>([]);
+    const [headGarments,     setHeadGarments]     = useState<RemoteGarment[]>([]);
+    const [glasses,          setGlasses]          = useState<RemoteGarment[]>([]);
+    const [earrings,         setEarrings]         = useState<RemoteGarment[]>([]);
+    const [neckAccessories,  setNeckAccessories]  = useState<RemoteGarment[]>([]);
+    const [waistAccessories, setWaistAccessories] = useState<RemoteGarment[]>([]);
+    const [handAccessories,  setHandAccessories]  = useState<RemoteGarment[]>([]);
 
     const [headGarmentsPage, setHeadGarmentsPage] = useState(0);
     const totalHeadGarmentsPages = Math.ceil(headGarments.length / accessoryPageSize);
     const pagedHeadGarments = headGarments.slice(headGarmentsPage * accessoryPageSize, (headGarmentsPage + 1) * accessoryPageSize);
-    const headGarmentsSwipeStart = useRef<number | null>(null);
-    const handleHeadGarmentsTouchStart = (e: React.TouchEvent) => { headGarmentsSwipeStart.current = e.touches[0].clientX; };
-    const handleHeadGarmentsTouchEnd = (e: React.TouchEvent) => {
-        if (headGarmentsSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - headGarmentsSwipeStart.current;
-        headGarmentsSwipeStart.current = null;
-        if (delta < -40) setHeadGarmentsPage((p) => Math.min(p + 1, totalHeadGarmentsPages - 1));
-        else if (delta > 40) setHeadGarmentsPage((p) => Math.max(p - 1, 0));
-    };
+    const headSwipe = useSwipe(
+        () => setHeadGarmentsPage((p) => Math.min(p + 1, totalHeadGarmentsPages - 1)),
+        () => setHeadGarmentsPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [glassesPage, setGlassesPage] = useState(0);
     const totalGlassesPages = Math.ceil(glasses.length / accessoryPageSize);
     const pagedGlasses = glasses.slice(glassesPage * accessoryPageSize, (glassesPage + 1) * accessoryPageSize);
-    const glassesSwipeStart = useRef<number | null>(null);
-    const handleGlassesTouchStart = (e: React.TouchEvent) => { glassesSwipeStart.current = e.touches[0].clientX; };
-    const handleGlassesTouchEnd = (e: React.TouchEvent) => {
-        if (glassesSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - glassesSwipeStart.current;
-        glassesSwipeStart.current = null;
-        if (delta < -40) setGlassesPage((p) => Math.min(p + 1, totalGlassesPages - 1));
-        else if (delta > 40) setGlassesPage((p) => Math.max(p - 1, 0));
-    };
+    const glassesSwipe = useSwipe(
+        () => setGlassesPage((p) => Math.min(p + 1, totalGlassesPages - 1)),
+        () => setGlassesPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [earringsPage, setEarringsPage] = useState(0);
     const totalEarringsPages = Math.ceil(earrings.length / accessoryPageSize);
     const pagedEarrings = earrings.slice(earringsPage * accessoryPageSize, (earringsPage + 1) * accessoryPageSize);
-    const earringsSwipeStart = useRef<number | null>(null);
-    const handleEarringsTouchStart = (e: React.TouchEvent) => { earringsSwipeStart.current = e.touches[0].clientX; };
-    const handleEarringsTouchEnd = (e: React.TouchEvent) => {
-        if (earringsSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - earringsSwipeStart.current;
-        earringsSwipeStart.current = null;
-        if (delta < -40) setEarringsPage((p) => Math.min(p + 1, totalEarringsPages - 1));
-        else if (delta > 40) setEarringsPage((p) => Math.max(p - 1, 0));
-    };
+    const earringsSwipe = useSwipe(
+        () => setEarringsPage((p) => Math.min(p + 1, totalEarringsPages - 1)),
+        () => setEarringsPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [neckPage, setNeckPage] = useState(0);
     const totalNeckPages = Math.ceil(neckAccessories.length / accessoryPageSize);
     const pagedNeck = neckAccessories.slice(neckPage * accessoryPageSize, (neckPage + 1) * accessoryPageSize);
-    const neckSwipeStart = useRef<number | null>(null);
-    const handleNeckTouchStart = (e: React.TouchEvent) => { neckSwipeStart.current = e.touches[0].clientX; };
-    const handleNeckTouchEnd = (e: React.TouchEvent) => {
-        if (neckSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - neckSwipeStart.current;
-        neckSwipeStart.current = null;
-        if (delta < -40) setNeckPage((p) => Math.min(p + 1, totalNeckPages - 1));
-        else if (delta > 40) setNeckPage((p) => Math.max(p - 1, 0));
-    };
+    const neckSwipe = useSwipe(
+        () => setNeckPage((p) => Math.min(p + 1, totalNeckPages - 1)),
+        () => setNeckPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [waistPage, setWaistPage] = useState(0);
     const totalWaistPages = Math.ceil(waistAccessories.length / accessoryPageSize);
     const pagedWaist = waistAccessories.slice(waistPage * accessoryPageSize, (waistPage + 1) * accessoryPageSize);
-    const waistSwipeStart = useRef<number | null>(null);
-    const handleWaistTouchStart = (e: React.TouchEvent) => { waistSwipeStart.current = e.touches[0].clientX; };
-    const handleWaistTouchEnd = (e: React.TouchEvent) => {
-        if (waistSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - waistSwipeStart.current;
-        waistSwipeStart.current = null;
-        if (delta < -40) setWaistPage((p) => Math.min(p + 1, totalWaistPages - 1));
-        else if (delta > 40) setWaistPage((p) => Math.max(p - 1, 0));
-    };
+    const waistSwipe = useSwipe(
+        () => setWaistPage((p) => Math.min(p + 1, totalWaistPages - 1)),
+        () => setWaistPage((p) => Math.max(p - 1, 0)),
+    );
 
     const [handPage, setHandPage] = useState(0);
     const totalHandPages = Math.ceil(handAccessories.length / accessoryPageSize);
     const pagedHand = handAccessories.slice(handPage * accessoryPageSize, (handPage + 1) * accessoryPageSize);
-    const handSwipeStart = useRef<number | null>(null);
-    const handleHandTouchStart = (e: React.TouchEvent) => { handSwipeStart.current = e.touches[0].clientX; };
-    const handleHandTouchEnd = (e: React.TouchEvent) => {
-        if (handSwipeStart.current === null) return;
-        const delta = e.changedTouches[0].clientX - handSwipeStart.current;
-        handSwipeStart.current = null;
-        if (delta < -40) setHandPage((p) => Math.min(p + 1, totalHandPages - 1));
-        else if (delta > 40) setHandPage((p) => Math.max(p - 1, 0));
-    };
+    const handSwipe = useSwipe(
+        () => setHandPage((p) => Math.min(p + 1, totalHandPages - 1)),
+        () => setHandPage((p) => Math.max(p - 1, 0)),
+    );
 
     useEffect(() => {
         garmentService.getBySlot(FittingSlot.UpperGarment)
@@ -172,8 +148,6 @@ export default function VirtualMirrorV2() {
         garmentService.getBySlot(FittingSlot.FootGarment)
             .then((items) => setShoes(items))
             .catch((err) => console.error('[Shoes] fetch error:', err));
-
-        // Accessories
         garmentService.getBySlot(FittingSlot.HeadGarment)
             .then(setHeadGarments)
             .catch((err) => console.error('[HeadGarment] fetch error:', err));
@@ -189,8 +163,7 @@ export default function VirtualMirrorV2() {
         garmentService.getBySlot(FittingSlot.WaistAccessory)
             .then(setWaistAccessories)
             .catch((err) => console.error('[WaistAccessory] fetch error:', err));
-        // Left + Right hand combined
-            garmentService.getBySlot(FittingSlot.RightHandAccessory)
+        garmentService.getBySlot(FittingSlot.RightHandAccessory)
             .then(setHandAccessories)
             .catch((err) => console.error('[HandAccessory] fetch error:', err));
     }, []);
@@ -218,12 +191,12 @@ export default function VirtualMirrorV2() {
             </button>
         </header>
         <div className="flex flex-1" style={{ height: '546px'}}>
-            {/* Black container — Accessories / Shoes */}
+            {/* Left panel — Accessories */}
             <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Accessories" />
 
-                    <div onTouchStart={handleHeadGarmentsTouchStart} onTouchEnd={handleHeadGarmentsTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedHeadGarments[i];
@@ -243,7 +216,7 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
 
-                    <div onTouchStart={handleGlassesTouchStart} onTouchEnd={handleGlassesTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedGlasses[i];
@@ -263,7 +236,7 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
 
-                    <div onTouchStart={handleEarringsTouchStart} onTouchEnd={handleEarringsTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedEarrings[i];
@@ -283,8 +256,7 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
 
-
-                    <div onTouchStart={handleNeckTouchStart} onTouchEnd={handleNeckTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedNeck[i];
@@ -304,8 +276,7 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
 
-
-                    <div onTouchStart={handleWaistTouchStart} onTouchEnd={handleWaistTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...waistSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedWaist[i];
@@ -325,8 +296,7 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
 
-                    {/* HandAccessory = Left + Right combined */}
-                    <div onTouchStart={handleHandTouchStart} onTouchEnd={handleHandTouchEnd} style={{ touchAction: 'pan-y', userSelect: 'none' }}>
+                    <div {...handSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedHand[i];
@@ -346,10 +316,9 @@ export default function VirtualMirrorV2() {
                         )}
                     </div>
                 </div>
-
             </div>
 
-            {/* Blue center panel */}
+            {/* Center panel */}
             <div className="flex-1 h-full flex flex-col items-center justify-start pt-8 gap-1">
                 <span className="text-white font-thin select-none" style={{ fontSize: '3rem', lineHeight: 1 }}>{time}</span>
                 <span className="text-white/80 text-xl font-light select-none mb-4">{day}, {date}</span>
@@ -357,17 +326,11 @@ export default function VirtualMirrorV2() {
                 </div>
             </div>
 
-            {/* Green container — Tops / Bottoms rows, 3×3 each */}
+            {/* Right panel — Tops / Bottoms / Shoes */}
             <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
-                {/* Tops — real garment images with pagination */}
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Tops" />
-                    {/* Swipe container — touchAction pan-y lets browser scroll vertically but passes horizontal swipes to JS */}
-                    <div
-                        onTouchStart={handleTopsTouchStart}
-                        onTouchEnd={handleTopsTouchEnd}
-                        style={{ touchAction: 'pan-y', userSelect: 'none' }}
-                    >
+                    <div {...topsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedTops[i];
@@ -378,29 +341,19 @@ export default function VirtualMirrorV2() {
                                 );
                             })}
                         </div>
-                        {/* Pagination dots — swipe-only indicators */}
                         {totalTopsPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalTopsPages }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="rounded-full transition-all duration-300"
-                                        style={{ width: i === topsPage ? 20 : 6, height: 6, background: i === topsPage ? 'white' : 'rgba(255,255,255,0.3)' }}
-                                    />
+                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsPage ? 20 : 6, height: 6, background: i === topsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
                                 ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Bottoms */}
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Bottoms" />
-                    <div
-                        onTouchStart={handleBottomsTouchStart}
-                        onTouchEnd={handleBottomsTouchEnd}
-                        style={{ touchAction: 'pan-y', userSelect: 'none' }}
-                    >
+                    <div {...bottomsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedBottoms[i];
@@ -414,25 +367,16 @@ export default function VirtualMirrorV2() {
                         {totalBottomsPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalBottomsPages }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="rounded-full transition-all duration-300"
-                                        style={{ width: i === bottomsPage ? 20 : 6, height: 6, background: i === bottomsPage ? 'white' : 'rgba(255,255,255,0.3)' }}
-                                    />
+                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === bottomsPage ? 20 : 6, height: 6, background: i === bottomsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
                                 ))}
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Shoes */}
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Shoes" />
-                    <div
-                        onTouchStart={handleShoesTouchStart}
-                        onTouchEnd={handleShoesTouchEnd}
-                        style={{ touchAction: 'pan-y', userSelect: 'none' }}
-                    >
+                    <div {...shoesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedShoes[i];
@@ -446,11 +390,7 @@ export default function VirtualMirrorV2() {
                         {totalShoesPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalShoesPages }).map((_, i) => (
-                                    <div
-                                        key={i}
-                                        className="rounded-full transition-all duration-300"
-                                        style={{ width: i === shoesPage ? 20 : 6, height: 6, background: i === shoesPage ? 'white' : 'rgba(255,255,255,0.3)' }}
-                                    />
+                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === shoesPage ? 20 : 6, height: 6, background: i === shoesPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
                                 ))}
                             </div>
                         )}
@@ -458,14 +398,21 @@ export default function VirtualMirrorV2() {
                 </div>
             </div>
         </div>
-        <div className="flex" style={{ height: '150px'}}>
-                <div style={{background: 'red'}}>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                </div>
-        </div>
+        <footer className="flex items-center justify-center" style={{ height: '150px'}}>
+            <button style={{
+                padding: '14px 32px',
+                backgroundColor: '#000',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+            }}>
+                Create Outfit
+            </button>
+        </footer>
     </div>
     );
 }
