@@ -210,7 +210,7 @@ export default function VirtualMirrorV2() {
                         {totalHeadGarmentsPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalHeadGarmentsPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 20 : 6, height: 6, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 20 : 6, height: 6, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
@@ -230,7 +230,7 @@ export default function VirtualMirrorV2() {
                         {totalGlassesPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalGlassesPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 20 : 6, height: 6, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 20 : 6, height: 6, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
@@ -250,7 +250,7 @@ export default function VirtualMirrorV2() {
                         {totalEarringsPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalEarringsPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 20 : 6, height: 6, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 20 : 6, height: 6, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
@@ -270,7 +270,7 @@ export default function VirtualMirrorV2() {
                         {totalNeckPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalNeckPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 20 : 6, height: 6, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 20 : 6, height: 6, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
@@ -290,7 +290,7 @@ export default function VirtualMirrorV2() {
                         {totalWaistPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalWaistPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === waistPage ? 20 : 6, height: 6, background: i === waistPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setWaistPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === waistPage ? 20 : 6, height: 6, background: i === waistPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
@@ -310,7 +310,7 @@ export default function VirtualMirrorV2() {
                         {totalHandPages > 1 && (
                             <div className="flex justify-center gap-1.5 pt-2">
                                 {Array.from({ length: totalHandPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === handPage ? 20 : 6, height: 6, background: i === handPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                                    <button key={i} type="button" onClick={() => setHandPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === handPage ? 20 : 6, height: 6, background: i === handPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
                                 ))}
                             </div>
                         )}
