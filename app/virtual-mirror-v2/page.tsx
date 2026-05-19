@@ -54,7 +54,7 @@ export default function VirtualMirrorV2() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const now = useClock();
     const pageSize = 12;
-    const accessoryPageSize = 6;
+    const accessoryPageSize = 3;
 
     const [tops, setTops] = useState<RemoteGarment[]>([]);
     const [topsPage, setTopsPage] = useState(0);
@@ -88,7 +88,9 @@ export default function VirtualMirrorV2() {
     const [earrings,         setEarrings]         = useState<RemoteGarment[]>([]);
     const [neckAccessories,  setNeckAccessories]  = useState<RemoteGarment[]>([]);
     const [waistAccessories, setWaistAccessories] = useState<RemoteGarment[]>([]);
-    const [handAccessories,  setHandAccessories]  = useState<RemoteGarment[]>([]);
+    const [bracelets,        setBracelets]        = useState<RemoteGarment[]>([]);
+    const [watches,          setWatches]          = useState<RemoteGarment[]>([]);
+    const [bags,             setBags]             = useState<RemoteGarment[]>([]);
 
     const [headGarmentsPage, setHeadGarmentsPage] = useState(0);
     const totalHeadGarmentsPages = Math.ceil(headGarments.length / accessoryPageSize);
@@ -130,12 +132,28 @@ export default function VirtualMirrorV2() {
         () => setWaistPage((p) => Math.max(p - 1, 0)),
     );
 
-    const [handPage, setHandPage] = useState(0);
-    const totalHandPages = Math.ceil(handAccessories.length / accessoryPageSize);
-    const pagedHand = handAccessories.slice(handPage * accessoryPageSize, (handPage + 1) * accessoryPageSize);
-    const handSwipe = useSwipe(
-        () => setHandPage((p) => Math.min(p + 1, totalHandPages - 1)),
-        () => setHandPage((p) => Math.max(p - 1, 0)),
+    const [braceletsPage, setBraceletsPage] = useState(0);
+    const totalBraceletsPages = Math.ceil(bracelets.length / accessoryPageSize);
+    const pagedBracelets = bracelets.slice(braceletsPage * accessoryPageSize, (braceletsPage + 1) * accessoryPageSize);
+    const braceletSwipe = useSwipe(
+        () => setBraceletsPage((p) => Math.min(p + 1, totalBraceletsPages - 1)),
+        () => setBraceletsPage((p) => Math.max(p - 1, 0)),
+    );
+
+    const [watchesPage, setWatchesPage] = useState(0);
+    const totalWatchesPages = Math.ceil(watches.length / accessoryPageSize);
+    const pagedWatches = watches.slice(watchesPage * accessoryPageSize, (watchesPage + 1) * accessoryPageSize);
+    const watchSwipe = useSwipe(
+        () => setWatchesPage((p) => Math.min(p + 1, totalWatchesPages - 1)),
+        () => setWatchesPage((p) => Math.max(p - 1, 0)),
+    );
+
+    const [bagsPage, setBagsPage] = useState(0);
+    const totalBagsPages = Math.ceil(bags.length / accessoryPageSize);
+    const pagedBags = bags.slice(bagsPage * accessoryPageSize, (bagsPage + 1) * accessoryPageSize);
+    const bagSwipe = useSwipe(
+        () => setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1)),
+        () => setBagsPage((p) => Math.max(p - 1, 0)),
     );
 
     useEffect(() => {
@@ -163,9 +181,15 @@ export default function VirtualMirrorV2() {
         garmentService.getBySlot(FittingSlot.WaistAccessory)
             .then(setWaistAccessories)
             .catch((err) => console.error('[WaistAccessory] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.RightHandAccessory)
-            .then(setHandAccessories)
-            .catch((err) => console.error('[HandAccessory] fetch error:', err));
+        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bracelet')
+            .then(setBracelets)
+            .catch((err) => console.error('[Bracelet] fetch error:', err));
+        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Watch')
+            .then(setWatches)
+            .catch((err) => console.error('[Watch] fetch error:', err));
+        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bag')
+            .then(setBags)
+            .catch((err) => console.error('[Bag] fetch error:', err));
     }, []);
 
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -196,130 +220,102 @@ export default function VirtualMirrorV2() {
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Accessories" />
 
+                    <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedHeadGarments[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalHeadGarmentsPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 12 : 4, height: 4, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedGlasses[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalGlassesPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 12 : 4, height: 4, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedEarrings[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalEarringsPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 12 : 4, height: 4, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedNeck[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalNeckPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 12 : 4, height: 4, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <SectionTitle label="Outfit" />
                     <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
                                 const g = pagedHeadGarments[i];
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
                                         {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
                                     </div>
                                 );
                             })}
                         </div>
-                        {totalHeadGarmentsPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalHeadGarmentsPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 20 : 6, height: 6, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedGlasses[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalHeadGarmentsPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 20 : 6, height: 6, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
                         </div>
-                        {totalGlassesPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalGlassesPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 20 : 6, height: 6, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedEarrings[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {totalEarringsPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalEarringsPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 20 : 6, height: 6, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedNeck[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {totalNeckPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalNeckPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 20 : 6, height: 6, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div {...waistSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedWaist[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {totalWaistPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalWaistPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setWaistPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === waistPage ? 20 : 6, height: 6, background: i === waistPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div {...handSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedHand[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        {totalHandPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalHandPages }).map((_, i) => (
-                                    <button key={i} type="button" onClick={() => setHandPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === handPage ? 20 : 6, height: 6, background: i === handPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                                ))}
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
 
             {/* Center panel */}
-            <div className="flex-1 h-full flex flex-col items-center justify-start pt-8 gap-1">
+            <div className="flex-[2] h-full flex flex-col items-center justify-start pt-8 gap-1" style={{background: 'red'}}>
                 <span className="text-white font-thin select-none" style={{ fontSize: '3rem', lineHeight: 1 }}>{time}</span>
                 <span className="text-white/80 text-xl font-light select-none mb-4">{day}, {date}</span>
                 <div className="flex gap-2 mt-3">
@@ -329,9 +325,68 @@ export default function VirtualMirrorV2() {
             {/* Right panel — Tops / Bottoms / Shoes */}
             <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
                 <div className="flex flex-col gap-1">
+                    
+                    <SectionTitle label="Accessories" />
+                     {/* bracelet */}
+                    <div {...braceletSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedBracelets[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalBraceletsPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setBraceletsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === braceletsPage ? 12 : 4, height: 4, background: i === braceletsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* watch */}
+                    <div {...watchSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedWatches[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalWatchesPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setWatchesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === watchesPage ? 12 : 4, height: 4, background: i === watchesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* bag */}
+                    <div {...bagSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
+                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                const g = pagedBags[i];
+                                return (
+                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
+                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalBagsPages) }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setBagsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === bagsPage ? 12 : 4, height: 4, background: i === bagsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            ))}
+                        </div>
+                    </div>
+
                     <SectionTitle label="Tops" />
                     <div {...topsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedTops[i];
                                 return (
@@ -341,20 +396,18 @@ export default function VirtualMirrorV2() {
                                 );
                             })}
                         </div>
-                        {totalTopsPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalTopsPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsPage ? 20 : 6, height: 6, background: i === topsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalTopsPages) }).map((_, i) => (
+                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsPage ? 12 : 4, height: 4, background: i === topsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Bottoms" />
                     <div {...bottomsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedBottoms[i];
                                 return (
@@ -364,20 +417,18 @@ export default function VirtualMirrorV2() {
                                 );
                             })}
                         </div>
-                        {totalBottomsPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalBottomsPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === bottomsPage ? 20 : 6, height: 6, background: i === bottomsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalBottomsPages) }).map((_, i) => (
+                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === bottomsPage ? 12 : 4, height: 4, background: i === bottomsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                            ))}
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
                     <SectionTitle label="Shoes" />
                     <div {...shoesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
                             {Array.from({ length: pageSize }).map((_, i) => {
                                 const g = pagedShoes[i];
                                 return (
@@ -387,18 +438,16 @@ export default function VirtualMirrorV2() {
                                 );
                             })}
                         </div>
-                        {totalShoesPages > 1 && (
-                            <div className="flex justify-center gap-1.5 pt-2">
-                                {Array.from({ length: totalShoesPages }).map((_, i) => (
-                                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === shoesPage ? 20 : 6, height: 6, background: i === shoesPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex justify-center gap-1.5 pt-2">
+                            {Array.from({ length: Math.max(1, totalShoesPages) }).map((_, i) => (
+                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === shoesPage ? 12 : 4, height: 4, background: i === shoesPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <footer className="flex items-center justify-center" style={{ height: '150px'}}>
+        <footer className="flex items-center justify-center" style={{ height: '70px', background: 'blue'}}>
             <button style={{
                 padding: '14px 32px',
                 backgroundColor: '#000',
@@ -408,7 +457,7 @@ export default function VirtualMirrorV2() {
                 fontSize: '16px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                letterSpacing: '0.5px',
+                letterSpacing: '0.5px'
             }}>
                 Create Outfit
             </button>
