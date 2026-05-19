@@ -305,29 +305,26 @@ export default function VirtualMirrorV2() {
                 </div>
                 <div className="flex flex-col gap-1" style={{ flex: 1, minHeight: 0 }}>
                     <SectionTitle label="Outfit" />
-                    <div {...outfitSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', flex: 1, minHeight: 0, position: 'relative' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: '10px', columnGap: '6px', alignContent: 'start', height: '100%' }}>
-                            {Array.from({ length: outfitPageSize }).map((_, i) => {
-                                const outfit = pagedOutfits[i];
+                    <div {...outfitSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: '10px', columnGap: '6px' }}>
+                            {pagedOutfits.map((outfit, i) => {
                                 const globalIdx = outfitPage * outfitPageSize + i;
                                 return (
-                                    <div key={i} onClick={() => outfit && setSelectedOutfitIdx(globalIdx)} style={{ position: 'relative', aspectRatio: '3/5', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', cursor: outfit ? 'pointer' : 'default', border: selectedOutfitIdx === globalIdx ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', transition: 'border-color 0.2s' }}>
-                                        {outfit?.file?.fileUrl
+                                    <div key={outfit.id} onClick={() => setSelectedOutfitIdx(globalIdx)} style={{ position: 'relative', aspectRatio: '3/5', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', border: selectedOutfitIdx === globalIdx ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', transition: 'border-color 0.2s' }}>
+                                        {outfit.file?.fileUrl
                                             ? <img src={outfit.file.fileUrl} alt={outfit.name} draggable={false} className="w-full h-full object-cover pointer-events-none" />
-                                            : outfit && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{outfit.name}</span></div>
+                                            : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{outfit.name}</span></div>
                                         }
-                                        {outfit && (
-                                            <button onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                                                </svg>
-                                            </button>
-                                        )}
+                                        <button onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 );
                             })}
                         </div>
-                        <div className="flex justify-center gap-1.5" style={{ position: 'absolute', bottom: '6px', left: 0, right: 0 }}>
+                        <div className="flex justify-center gap-1.5 pt-2">
                             {Array.from({ length: totalOutfitPages }).map((_, i) => (
                                 <button key={i} type="button" onClick={() => setOutfitPage(i)} style={{ width: i === outfitPage ? 12 : 4, height: 4, borderRadius: '9999px', border: 'none', padding: 0, cursor: 'pointer', background: i === outfitPage ? 'white' : 'rgba(255,255,255,0.3)', transition: 'all 0.3s' }} />
                             ))}
