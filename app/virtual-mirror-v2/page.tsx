@@ -189,7 +189,7 @@ export default function VirtualMirrorV2() {
         garmentService.getBySlot(FittingSlot.WaistAccessory)
             .then(setWaistAccessories)
             .catch((err) => console.error('[WaistAccessory] fetch error:', err));
-        // Left + Right hand combined
+        // Right Hand Accessory
             garmentService.getBySlot(FittingSlot.RightHandAccessory)
             .then(setHandAccessories)
             .catch((err) => console.error('[HandAccessory] fetch error:', err));
@@ -458,14 +458,19 @@ export default function VirtualMirrorV2() {
                 </div>
             </div>
         </div>
-        <div className="flex" style={{ height: '150px'}}>
-                <div style={{background: 'red'}}>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                </div>
-        </div>
+        <footer className="flex items-center justify-center" style={{ height: '150px'}}>
+                <button 
+                className="logout-btn px-8 py-3 text-white text-lg font-medium"
+                style={{
+                    padding: '14px 32px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    letterSpacing: '0.5px',
+                }}>
+                    Create Outfit
+                </button>
+        </footer>
     </div>
     );
 }
