@@ -35,7 +35,16 @@ export const garmentService = {
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }
-    // Actual shape: { status, data: { data: [...], total, page, limit } }
+    const garments = response.data?.data?.data;
+    if (Array.isArray(garments)) return garments;
+    throw new Error("Unexpected response shape");
+  },
+
+  getBySlotAndType: async (fittingSlot: FittingSlot, garmentType: string): Promise<RemoteGarment[]> => {
+    const response = await api.get<any>("/api/remote/garments", { fittingSlot, garmentType });
+    if (!response.ok) {
+      throw new Error(response.problem ?? "Failed to fetch garments");
+    }
     const garments = response.data?.data?.data;
     if (Array.isArray(garments)) return garments;
     throw new Error("Unexpected response shape");
