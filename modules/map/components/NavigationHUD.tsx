@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { X, Map, Compass, MapPin, Mic, MicOff, Loader2, Volume2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useNavigationAnnouncements } from "../hooks/useNavigationAnnouncements";
 import { useAmbientPOI } from "../hooks/useAmbientPOI";
 import AmbientPOICard from "./AmbientPOICard";
@@ -27,7 +27,7 @@ const NavigationHUD = () => {
     activeRoute,
   } = useMapStore();
 
-  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
+  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
   useNavigationAnnouncements();
   const { ambientPOI, dismissAmbientPOI } = useAmbientPOI();
 

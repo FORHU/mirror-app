@@ -4,7 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Loader2, Volume2, X } from "lucide-react";
-import { useGlobalVoice } from "@/hooks/useGlobalVoice";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 // Pages that already have their own voice UI — don't show the global overlay there
 const EXCLUDED_PATHS = ["/map"];
@@ -19,7 +19,7 @@ export default function GlobalVoiceOverlay() {
 }
 
 function VoiceUI() {
-  const { voiceState, transcript, reply, error, toggle } = useGlobalVoice();
+  const { voiceState, transcript, reply, error, toggle } = useVoiceContext();
 
   const isListening  = voiceState === "recording";
   const isProcessing = voiceState === "processing";

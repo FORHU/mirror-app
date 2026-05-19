@@ -1,4 +1,5 @@
 import { API_URL } from "@/modules/shared/config/device.config";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 
 export interface GeocodeResult {
   name: string;
@@ -96,9 +97,7 @@ export const mapService = {
     audio: ArrayBuffer;
     transcript: string;
     reply: string;
-    intent: string;
-    destination: string;
-    profile: string;
+    action: ChatWonderAction | null;
   }> => {
     const params = new URLSearchParams();
     if (ctx?.lat               !== undefined) params.set("lat",               String(ctx.lat));
@@ -108,15 +107,15 @@ export const mapService = {
     if (ctx?.profile)                         params.set("profile",           ctx.profile);
     if (ctx?.remainingDistance !== undefined) params.set("remainingDistance", String(ctx.remainingDistance));
     if (ctx?.remainingDuration !== undefined) params.set("remainingDuration", String(ctx.remainingDuration));
-    if (ctx?.destinationName)                    params.set("destinationName",        encodeURIComponent(ctx.destinationName));
-    if (ctx?.currentInstruction)                 params.set("currentInstruction",     encodeURIComponent(ctx.currentInstruction));
-    if (ctx?.nextManeuverDistance !== undefined)  params.set("nextManeuverDistance",   String(ctx.nextManeuverDistance));
-    if (ctx?.nextInstruction)                    params.set("nextInstruction",        encodeURIComponent(ctx.nextInstruction));
-    if (ctx?.currentTime)                        params.set("currentTime",            encodeURIComponent(ctx.currentTime));
-    if (ctx?.currentDate)                        params.set("currentDate",            encodeURIComponent(ctx.currentDate));
-    if (ctx?.schedules)                          params.set("schedules",              encodeURIComponent(ctx.schedules));
-    if (ctx?.currentPage)                        params.set("currentPage",            encodeURIComponent(ctx.currentPage));
-    if (history?.length)                         params.set("history",                JSON.stringify(history.slice(-4)));
+    if (ctx?.destinationName)                   params.set("destinationName",       encodeURIComponent(ctx.destinationName));
+    if (ctx?.currentInstruction)                params.set("currentInstruction",    encodeURIComponent(ctx.currentInstruction));
+    if (ctx?.nextManeuverDistance !== undefined) params.set("nextManeuverDistance",  String(ctx.nextManeuverDistance));
+    if (ctx?.nextInstruction)                   params.set("nextInstruction",       encodeURIComponent(ctx.nextInstruction));
+    if (ctx?.currentTime)                       params.set("currentTime",           encodeURIComponent(ctx.currentTime));
+    if (ctx?.currentDate)                       params.set("currentDate",           encodeURIComponent(ctx.currentDate));
+    if (ctx?.schedules)                         params.set("schedules",             encodeURIComponent(ctx.schedules));
+    if (ctx?.currentPage)                       params.set("currentPage",           encodeURIComponent(ctx.currentPage));
+    if (history?.length)                        params.set("history",               JSON.stringify(history.slice(-4)));
 
     const url = `${API_URL}/api/mirror/voice/process?${params}`;
     const response = await fetch(url, {
@@ -128,12 +127,14 @@ export const mapService = {
       const err = await response.json().catch(() => ({ error: 'Voice processing failed' }));
       throw new Error(err.error ?? 'Voice processing failed');
     }
-    const audio       = await response.arrayBuffer();
-    const transcript  = decodeURIComponent(response.headers.get('X-Transcript')  ?? '');
-    const reply       = decodeURIComponent(response.headers.get('X-Reply')        ?? '');
-    const intent      = response.headers.get('X-Intent') ?? 'other';
-    const destination = decodeURIComponent(response.headers.get('X-Destination') ?? '');
-    const profile     = decodeURIComponent(response.headers.get('X-Profile')     ?? '');
-    return { audio, transcript, reply, intent, destination, profile };
+    const audio      = await response.arrayBuffer();
+    const transcript = decodeURIComponent(response.headers.get('X-Transcript') ?? '');
+    const reply      = decodeURIComponent(response.headers.get('X-Reply')      ?? '');
+    let action: ChatWonderAction | null = null;
+    try {
+      const raw = response.headers.get('X-Action');
+      if (raw) action = JSON.parse(decodeURIComponent(raw)) as ChatWonderAction;
+    } catch { /* malformed action — ignore */ }
+    return { audio, transcript, reply, action };
   },
 };

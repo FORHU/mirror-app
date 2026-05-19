@@ -10,7 +10,7 @@ import {
   Briefcase, Home,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useVoiceAssistant } from "../hooks/useVoiceAssistant";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 export const ExploreHUD = () => {
   const {
@@ -25,7 +25,7 @@ export const ExploreHUD = () => {
   const isMorning = hour >= 6 && hour < 11;
   const isEvening = hour >= 17 && hour < 22;
 
-  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceAssistant();
+  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
 
   const micIcon = isListening
     ? <MicOff className="w-5 h-5" style={{ color: "#ef4444" }} />

@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
+import { API_URL } from "@/modules/shared/config/device.config";
 import type { ChatWonderAction, EventSetupData } from "@/modules/shared/ai/chatwonder.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,7 +46,35 @@ declare global {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MOCK_WEATHER = { temp: "22°C", condition: "Partly Cloudy", icon: "⛅" } as const;
+type WeatherResult = { temp: string; condition: string; icon: string };
+
+async function fetchWeather(location: string | null): Promise<WeatherResult> {
+  try {
+    let lat: number | undefined;
+    let lng: number | undefined;
+
+    // Try to resolve coordinates from map store
+    const { useMapStore } = await import("@/modules/map/store/useMapStore");
+    const s = useMapStore.getState();
+    const loc = s.userLocation ?? s.homeLocation;
+    lat = loc?.lat;
+    lng = loc?.lng;
+
+    if (!lat || !lng) throw new Error("no location");
+
+    const res = await fetch(`${API_URL}/api/mirror/weather?lat=${lat}&lng=${lng}`);
+    if (!res.ok) throw new Error("weather fetch failed");
+    const data = await res.json();
+    return {
+      temp:      `${Math.round(data.temperature)}°C`,
+      condition: data.condition,
+      icon:      data.icon ?? "⛅",
+    };
+  } catch {
+    return { temp: "—", condition: location ? `Near ${location}` : "Weather unavailable", icon: "⛅" };
+  }
+}
+
 const STEP_ORDER: ConversationStep[] = ["event", "event_type", "datetime", "location", "weather", "confirm"];
 const EMPTY_DATA: EventSetupData = { eventName: null, eventType: null, dateTime: null, location: null };
 
@@ -139,6 +169,8 @@ function EventSetupInner() {
   const searchParams = useSearchParams();
   const username     = searchParams.get("username") || "there";
 
+  const addCalendarEvent = useCalendarStore((s) => s.addEvent);
+
   const [assistantState, setAssistantState] = useState<AssistantState>("awakening");
   const [step,        setStep]        = useState<ConversationStep>("event");
   const [data,        setData]        = useState<EventSetupData>({ ...EMPTY_DATA });
@@ -146,6 +178,7 @@ function EventSetupInner() {
   const [displayText, setDisplayText] = useState("");
   const [localTranscript, setLocalTranscript] = useState("");
   const [showWeather, setShowWeather] = useState(false);
+  const [weather, setWeather]         = useState<WeatherResult | null>(null);
 
   // Stable refs for use inside async callbacks
   const stateRef      = useRef<AssistantState>("awakening");
@@ -272,7 +305,8 @@ function EventSetupInner() {
         setStep("weather");
         stepRef.current = "weather";
         speak(wp, () => {
-          setTimeout(() => {
+          fetchWeather(curData.location).then((w) => {
+            setWeather(w);
             setShowWeather(true);
             const cp = getPrompt("confirm", curData, username);
             setStep("confirm");
@@ -283,7 +317,7 @@ function EventSetupInner() {
               setAssistantState("summary");
               stateRef.current = "summary";
             });
-          }, 1000);
+          });
         });
       } else {
         setStep(next);
@@ -330,13 +364,33 @@ function EventSetupInner() {
       }
     }
 
-    if (
-      action.type === "calendar_save_event" ||
-      action.type === "maps_preview_location" ||
-      action.type === "maps_get_directions"
-    ) {
-      // Store for downstream Calendar/Maps pages (future integration)
-      console.log("[event-setup] downstream action:", action);
+    if (action.type === "calendar_save_event") {
+      addCalendarEvent({
+        title:     action.title,
+        eventType: action.eventType,
+        dateTime:  action.dateTime,
+        location:  action.location,
+      });
+    }
+
+    if (action.type === "maps_preview_location") {
+      try {
+        localStorage.setItem(
+          "mirror_pending_map_location",
+          JSON.stringify({ query: action.query, label: action.label }),
+        );
+      } catch {}
+      router.push("/map");
+    }
+
+    if (action.type === "maps_get_directions") {
+      try {
+        localStorage.setItem(
+          "mirror_pending_map_directions",
+          JSON.stringify({ destination: action.destination, mode: action.mode ?? "driving" }),
+        );
+      } catch {}
+      router.push("/map");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -437,12 +491,12 @@ function EventSetupInner() {
     data.eventType ? { icon: "👔", label: "Event Type", value: data.eventType } : null,
     data.dateTime  ? { icon: "📅", label: "Date & Time", value: data.dateTime }  : null,
     data.location  ? { icon: "📍", label: "Location",   value: data.location }  : null,
-    showWeather    ? { icon: MOCK_WEATHER.icon, label: "Weather", value: `${MOCK_WEATHER.temp} · ${MOCK_WEATHER.condition}` } : null,
+    showWeather && weather ? { icon: weather.icon, label: "Weather", value: `${weather.temp} · ${weather.condition}` } : null,
   ].filter(Boolean) as { icon: string; label: string; value: string }[];
 
   return (
     <motion.main
-      className="relative w-screen h-screen overflow-hidden bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
+      className="relative w-screen h-screen overflow-hidden bg-linear-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
       animate={{ opacity: assistantState === "done" ? 0 : 1 }}
       transition={{ duration: 0.6 }}
     >
