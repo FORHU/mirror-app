@@ -90,6 +90,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
   /* Theme tokens (shadcn-ish naming) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -165,6 +167,7 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-poppins);
     -webkit-font-smoothing: antialiased;
     width: 100vw;
     height: 100vh;
