@@ -7,6 +7,7 @@ import "../../styles/glow.css";
 import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment.service';
 import { outfitService, type RemoteOutfit } from '@/modules/shared/api/outfit.service';
 import { FittingSlot } from '@/modules/garment/types';
+import WeatherWidget from '@/components/WeatherWidget';
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
     const startX = useRef<number | null>(null);
@@ -52,7 +53,6 @@ function useClock() {
 
 export default function VirtualMirrorV2() {
     const router = useRouter();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const now = useClock();
 
     const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
@@ -227,13 +227,7 @@ export default function VirtualMirrorV2() {
             className={'flex items-center justify-between shrink-0 py-4 px-4'}
             style={{ background: 'rgba(0,0,0,0.85)' }}
         >
-            <button onClick={() => setIsMenuOpen(true)} className="p-4 transition-all hover:scale-105 active:scale-95">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                    <path d="M12 4a2 2 0 0 1 2 2v.5L20.5 14H3.5L10 6.5V6a2 2 0 0 1 2-2z" />
-                    <line x1="3" y1="14" x2="21" y2="14" />
-                    <path d="M3 14c0 3 1.5 5 9 5s9-2 9-5" />
-                </svg>
-            </button>
+            <WeatherWidget iconSize={32} />
             <span className="text-white font-semibold text-3xl tracking-wide select-none">Virtual Mirror</span>
             <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
                 <ArrowLeft className="w-6 h-6 text-white" />

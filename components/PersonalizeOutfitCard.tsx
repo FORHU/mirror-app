@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Sparkles } from 'lucide-react';
 import '../styles/personalize-outfit.css';
 
 export default function PersonalizeOutfitCard() {
+    const router = useRouter();
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
     const [location, setLocation] = useState('');
@@ -91,8 +93,8 @@ export default function PersonalizeOutfitCard() {
 
                 {/* Buttons */}
                 <div className="flex gap-3">
-                    <button className="pz-btn-skip">Skip</button>
-                    <button className="pz-btn-continue">Continue</button>
+                    <button className="pz-btn-skip" onClick={() => router.push('/recommendation-outfit')}>Skip</button>
+                    <button className="pz-btn-continue" onClick={() => router.push('/recommendation-outfit')}>Continue</button>
                 </div>
             </div>
     );

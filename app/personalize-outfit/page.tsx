@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import PersonalizeOutfitCard from '@/components/PersonalizeOutfitCard';
 import "../../styles/glow.css";
 
+
 export default function PersonalizeOutfit() {
     const router = useRouter();
 

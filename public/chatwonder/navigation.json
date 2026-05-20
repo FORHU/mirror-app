@@ -15,9 +15,9 @@
       "triggers": ["set up event", "event setup", "what's the occasion", "plan my event"]
     },
     {
-      "route": "/kiosk-logged-in",
-      "name": "kiosk",
-      "description": "Main kiosk experience with camera and hand tracking after login",
+      "route": "/logged-in",
+      "name": "logged-in",
+      "description": "Main screen after login with access to mirror features",
       "triggers": ["go to kiosk", "show mirror", "open kiosk", "main screen"]
     },
     {

@@ -226,7 +226,7 @@ function EventSetupInner() {
     stateRef.current = "done";
     window.speechSynthesis?.cancel();
     try { recRef.current?.stop(); } catch { /* ignore */ }
-    setTimeout(() => router.push("/kiosk-logged-in"), 600);
+    setTimeout(() => router.push("/logged-in"), 600);
   }
 
   // ── Local mic (fallback when socket/ChatWonder is offline) ──

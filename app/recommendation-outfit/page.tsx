@@ -7,6 +7,7 @@ import "../../styles/glow.css";
 import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment.service';
 import { outfitService, type RemoteOutfit } from '@/modules/shared/api/outfit.service';
 import { FittingSlot } from '@/modules/garment/types';
+import WeatherWidget from '@/components/WeatherWidget';
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
     const startX = useRef<number | null>(null);
@@ -219,25 +220,7 @@ export default function VirtualMirrorV2() {
         <header
             className={'flex items-center justify-between shrink-0 py-4 px-4'}
         >
-            {/* Weather widget — mock data */}
-            <div className="flex items-center gap-2 px-1">
-                <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
-                    {/* Sun */}
-                    <circle cx="26" cy="22" r="8" fill="#f6c90e" opacity="0.9"/>
-                    {/* Cloud */}
-                    <ellipse cx="36" cy="34" rx="16" ry="10" fill="rgba(180,190,210,0.85)"/>
-                    <ellipse cx="26" cy="36" rx="10" ry="8" fill="rgba(180,190,210,0.85)"/>
-                    <ellipse cx="28" cy="30" rx="10" ry="9" fill="rgba(200,210,225,0.9)"/>
-                    {/* Rain drops */}
-                    <line x1="26" y1="46" x2="24" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
-                    <line x1="34" y1="46" x2="32" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
-                    <line x1="42" y1="46" x2="40" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
-                </svg>
-                <div className="flex flex-col leading-tight">
-                    <span style={{ color: 'white', fontSize: '16px', fontWeight: 600, lineHeight: 1.2 }}>22°C</span>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>Seoul</span>
-                </div>
-            </div>
+            <WeatherWidget iconSize={32} />
             <span className="text-white font-semibold text-3xl tracking-wide select-none"> AI Recommendation</span>
             <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
                 <ArrowLeft className="w-6 h-6 text-white" />
