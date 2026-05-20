@@ -56,7 +56,7 @@ export default function VirtualMirrorV2() {
     const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
     const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(null);
     const selectedOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
-    const outfitPageSize = 8;
+    const outfitPageSize = 10;
     const [outfitPage, setOutfitPage] = useState(0);
     const totalOutfitPages = Math.max(1, Math.ceil(outfits.length / outfitPageSize));
     const pagedOutfits = outfits.slice(outfitPage * outfitPageSize, (outfitPage + 1) * outfitPageSize);

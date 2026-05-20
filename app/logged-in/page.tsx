@@ -3,9 +3,12 @@
 import { ShirtIcon, Calendar, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import '../../styles/glow.css';
+import { useAuthStore } from '@/modules/shared/store/useAuthStore';
 
 export default function LoggedInPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const displayName = user?.displayName || user?.username || user?.email || 'User';
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
@@ -13,7 +16,7 @@ export default function LoggedInPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-10 shrink-0 py-4">
         <div>
-          <h2 className="text-white font-bold text-3xl tracking-tight">Hi, Demo User!</h2>
+          <h2 className="text-white font-bold text-3xl tracking-tight">Hi, {displayName}!</h2>
         </div>
         <button className="logout-btn px-8 py-3 text-white text-lg font-medium">
           Logout
