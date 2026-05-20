@@ -61,10 +61,10 @@ export default function MapDashboard() {
       <canvas ref={mirrorCanvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* Tint layer */}
-      <div className="absolute inset-0 bg-black/50" />
+      <div className="absolute inset-0 bg-black/88" />
 
       {/* Map — screen blend: black areas become transparent, roads/labels float over reflection */}
-      <div className="absolute inset-0" style={{ mixBlendMode: "screen" }}>
+      <div className="absolute inset-0 opacity-30" style={{ mixBlendMode: "screen" }}>
         <MapViewport />
       </div>
 
