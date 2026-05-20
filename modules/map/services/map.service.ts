@@ -1,5 +1,6 @@
 import { API_URL } from "@/modules/shared/config/device.config";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 
 export interface GeocodeResult {
   name: string;
@@ -26,7 +27,7 @@ export const mapService = {
   getHomeLocation: async () => {
     const response = await fetch(`${API_URL}/api/mirror/map/home-location`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`, // Placeholder for auth
+        'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`, // Placeholder for auth
       },
     });
     if (!response.ok) throw new Error('Failed to fetch home location');
@@ -38,7 +39,7 @@ export const mapService = {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
       },
       body: JSON.stringify(coords),
     });
@@ -66,7 +67,7 @@ export const mapService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
       },
       body: JSON.stringify({ origin, destination, profile }),
     });
