@@ -344,57 +344,61 @@ export default function VirtualMirrorV2() {
                 position: 'absolute', bottom: 0, right: 0, height: '75%', width: '220px',
                 background: 'rgba(0,0,0,0.35)',
                 backdropFilter: 'blur(16px)',
-                display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px',
+                display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px',
                 transform: selectedOutfitIdx === null ? 'translateX(100%)' : 'translateX(0)',
                 transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
-                zIndex: 20, overflowY: 'auto',
+                zIndex: 20, overflow: 'hidden',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                {/* Header — fixed */}
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <SectionTitle label="Outfit Details" />
                     <button onClick={() => setSelectedOutfitIdx(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}>✕</button>
                 </div>
-                {(selectedOutfit?.items ?? []).slice().sort((a, b) => {
-                    const UPPER  = ['Shirt','TShirt','Polo','Blouse','Hoodie','Sweater','Jacket','Coat','Blazer'];
-                    const LOWER  = ['Pants','Jeans','Shorts','Skirt'];
-                    const FOOT   = ['Shoes','Sneakers','Sandals','Boots','Heels','Socks'];
-                    const HEAD   = ['Hat','Beanie','Cap','Headband'];
-                    const rank = (types: string[]) => {
-                        const t = types[0] ?? '';
-                        if (UPPER.includes(t)) return 0;
-                        if (LOWER.includes(t)) return 1;
-                        if (FOOT.includes(t))  return 2;
-                        if (HEAD.includes(t))  return 3;
-                        return 4;
-                    };
-                    return rank(a.garment.garmentType) - rank(b.garment.garmentType);
-                }).map((item) => (
-                    <div key={item.id} className='flex glass-card-garment' style={{ minHeight: '90px', width: '100%', flexShrink: 0, alignItems: 'stretch' }}>
-                        <div style={{ flex: '0 0 40%', minHeight: '90px', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px 0 0 8px', overflow: 'hidden' }}>
-                            {item.garment.imageUrl
-                                ? <img src={item.garment.imageUrl} alt={item.garment.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
-                                : <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px' }}>Img</span>
-                            }
+                {/* Garment cards — proportional flex, each shares available space equally */}
+                <div style={{ flex: '3 1 0', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                    {(selectedOutfit?.items ?? []).slice().sort((a, b) => {
+                        const UPPER  = ['Shirt','TShirt','Polo','Blouse','Hoodie','Sweater','Jacket','Coat','Blazer'];
+                        const LOWER  = ['Pants','Jeans','Shorts','Skirt'];
+                        const FOOT   = ['Shoes','Sneakers','Sandals','Boots','Heels','Socks'];
+                        const HEAD   = ['Hat','Beanie','Cap','Headband'];
+                        const rank = (types: string[]) => {
+                            const t = types[0] ?? '';
+                            if (UPPER.includes(t)) return 0;
+                            if (LOWER.includes(t)) return 1;
+                            if (FOOT.includes(t))  return 2;
+                            if (HEAD.includes(t))  return 3;
+                            return 4;
+                        };
+                        return rank(a.garment.garmentType) - rank(b.garment.garmentType);
+                    }).map((item) => (
+                        <div key={item.id} className='flex glass-card-garment' style={{ flex: '1 1 0', minHeight: 0, width: '100%', alignItems: 'stretch', overflow: 'hidden' }}>
+                            <div style={{ flex: '0 0 40%', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px 0 0 8px', overflow: 'hidden' }}>
+                                {item.garment.imageUrl
+                                    ? <img src={item.garment.imageUrl} alt={item.garment.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                                    : <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px' }}>Img</span>
+                                }
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, padding: '5px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px', overflow: 'hidden' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', overflow: 'hidden', whiteSpace: 'nowrap' }}>{item.garment.garmentType[0]}</span>
+                                <span style={{ color: 'white', fontSize: '10px', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden' }}>{item.garment.name}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', lineHeight: 1.4, overflow: 'hidden' }}>{item.garment.description}</span>
+                            </div>
                         </div>
-                        <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px' }}>
-                            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.garment.garmentType[0]}</span>
-                            <span style={{ color: 'white', fontSize: '11px', fontWeight: 600, lineHeight: 1.3 }}>{item.garment.name}</span>
-                            <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', lineHeight: 1.4 }}>{item.garment.description}</span>
-                        </div>
-                    </div>
-                ))}
-                {/* Why this look? */}
-                <div className='glass-card-garment' style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em' }}>Why This Look?</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    ))}
+                </div>
+                {/* Why this look? — fixed at bottom */}
+                <div className='glass-card-garment' style={{ flex: '1 1 0', minHeight: 0, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>Why This Look?</span>
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
                         {[
                             'Light and breathable for high humidity',
                             'Neutral tones that don\'t trap heat',
                             'Easy to move in for daily activities',
                             'Effortless style with trendy touches',
                         ].map((reason) => (
-                            <div key={reason} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', lineHeight: 1, paddingTop: '2px' }}>✓</span>
-                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', lineHeight: 1.5 }}>{reason}</span>
+                            <div key={reason} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flex: '1 1 0', minHeight: 0, overflow: 'hidden' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', lineHeight: 1, paddingTop: '2px', flexShrink: 0 }}>✓</span>
+                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', lineHeight: 1.4, overflow: 'hidden' }}>{reason}</span>
                             </div>
                         ))}
                     </div>

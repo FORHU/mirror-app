@@ -35,7 +35,7 @@ export const garmentService = {
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }
-    const garments = response.data?.data?.data;
+    const garments = response.data?.data?.items;
     if (Array.isArray(garments)) return garments;
     throw new Error("Unexpected response shape");
   },
@@ -45,7 +45,7 @@ export const garmentService = {
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }
-    const garments = response.data?.data?.data;
+    const garments = response.data?.data?.items;
     if (Array.isArray(garments)) return garments;
     throw new Error("Unexpected response shape");
   },
