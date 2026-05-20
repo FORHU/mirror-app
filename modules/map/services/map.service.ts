@@ -93,6 +93,7 @@ export const mapService = {
     pcmBuffer: ArrayBuffer,
     ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string; currentTime?: string; currentDate?: string; schedules?: string; currentPage?: string; userOutlineId?: string },
     history?: Array<{ user: string; assistant: string }>,
+    sampleRate?: number,
   ): Promise<{
     audio: ArrayBuffer;
     transcript: string;
@@ -117,6 +118,7 @@ export const mapService = {
     if (ctx?.currentPage)                       params.set("currentPage",           encodeURIComponent(ctx.currentPage));
     if (ctx?.userOutlineId)                     params.set("userOutlineId",         ctx.userOutlineId);
     if (history?.length)                        params.set("history",               JSON.stringify(history.slice(-4)));
+    if (sampleRate)                             params.set("sampleRate",            String(sampleRate));
 
     const url = `/api/mirror/voice/process?${params}`;
     const response = await fetch(url, {

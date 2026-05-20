@@ -49,13 +49,19 @@ const UserPuck: React.FC<UserPuckProps> = ({ map }) => {
       el.style.boxShadow = "none";
     } else {
       // Standard standby dot
-      el.innerHTML = "";
-      el.style.width = "14px";
-      el.style.height = "14px";
-      el.style.backgroundColor = "#ffffff";
-      el.style.borderRadius = "50%";
-      el.style.border = "2px solid #4fc3f7";
-      el.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.6)";
+      el.innerHTML = `
+        <div style="position:relative;width:24px;height:24px;display:flex;align-items:center;justify-content:center;">
+          <div style="position:absolute;width:40px;height:40px;border-radius:50%;background:rgba(79,195,247,0.2);animation:puckPing 1.6s ease-out infinite;"></div>
+          <div style="width:18px;height:18px;border-radius:50%;background:#ffffff;border:3px solid #4fc3f7;box-shadow:0 0 10px #4fc3f7, 0 0 20px rgba(79,195,247,0.6);position:relative;z-index:1;"></div>
+        </div>
+        <style>@keyframes puckPing{0%{transform:scale(0.8);opacity:0.8;}100%{transform:scale(2.2);opacity:0;}}</style>
+      `;
+      el.style.width = "24px";
+      el.style.height = "24px";
+      el.style.backgroundColor = "transparent";
+      el.style.borderRadius = "0";
+      el.style.border = "none";
+      el.style.boxShadow = "none";
     }
 
     markerRef.current.setLngLat([homeLocation.lng, homeLocation.lat]);

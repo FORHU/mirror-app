@@ -17,8 +17,6 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
 
-export type VoiceState = "idle" | "recording" | "processing" | "speaking";
-
 function float32ToInt16(f: Float32Array): Int16Array {
   const out = new Int16Array(f.length);
   for (let n = 0; n < f.length; n++) {
@@ -27,6 +25,8 @@ function float32ToInt16(f: Float32Array): Int16Array {
   }
   return out;
 }
+
+export type VoiceState = "idle" | "recording" | "processing" | "speaking";
 
 export interface VoiceContextValue {
   voiceState:     VoiceState;
@@ -96,7 +96,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       router.push(action.route);
 
     } else if (action.type === "speak") {
-      // Polly audio already playing — no-op
+      // audio already playing — no-op
 
     } else if (action.type === "maps_navigate") {
       const loc = map.userLocation ?? map.homeLocation ?? undefined;
