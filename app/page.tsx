@@ -19,6 +19,26 @@ export default function WelcomePage() {
   const [date, setDate] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
+  // Request location permission early so WeatherWidget has real coords by the
+  // time the user reaches virtual-mirror-v2. Coords are cached in localStorage
+  // using the same key that useWeather reads from.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        try {
+          localStorage.setItem('mirror_weather_coords', JSON.stringify({
+            lat: coords.latitude,
+            lon: coords.longitude,
+            at: Date.now(),
+          }));
+        } catch {}
+      },
+      () => {}, // silent on denial — useWeather falls back to IP geo
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+    );
+  }, []);
+
   useEffect(() => {
     function tick() {
       const now = new Date();
