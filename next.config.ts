@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
+// Strip /api suffix so rewrites don't double it: http://host:3007/api/ → http://host:3007
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? '')
+  .replace(/\/api\/?$/, '')
+  .replace(/\/$/, '');
 
 const nextConfig = {
   reactStrictMode: true,
