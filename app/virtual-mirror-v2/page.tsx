@@ -42,6 +42,12 @@ function SectionTitle({ label }: { label: string }) {
     );
 }
 
+function SkeletonCell({ ratio = '1/1', style }: { ratio?: string; style?: React.CSSProperties }) {
+    return (
+        <div className="animate-pulse" style={{ aspectRatio: ratio, background: 'rgba(255,255,255,0.1)', borderRadius: '4px', ...style }} />
+    );
+}
+
 function useClock() {
     const [now, setNow] = useState(new Date());
     useEffect(() => {
@@ -62,10 +68,12 @@ export default function VirtualMirrorV2() {
     const [selectedTop,    setSelectedTop]    = useState<RemoteGarment | null>(null);
     const [selectedBottom, setSelectedBottom] = useState<RemoteGarment | null>(null);
     const [selectedShoe,   setSelectedShoe]   = useState<RemoteGarment | null>(null);
+    const [loadingGarments, setLoadingGarments] = useState(true);
+    const [loadingOutfits,  setLoadingOutfits]  = useState(true);
 
     const clearSlots = () => { setSelectedHat(null); setSelectedBag(null); setSelectedTop(null); setSelectedBottom(null); setSelectedShoe(null); };
     const selectOutfit = (idx: number) => { setSelectedOutfitIdx(idx); clearSlots(); };
-    const outfitPageSize = 12;
+    const outfitPageSize = 10;
     const [outfitPage, setOutfitPage] = useState(0);
     const totalOutfitPages = Math.max(1, Math.ceil(outfits.length / outfitPageSize));
     const pagedOutfits = outfits.slice(outfitPage * outfitPageSize, (outfitPage + 1) * outfitPageSize);
@@ -179,42 +187,25 @@ export default function VirtualMirrorV2() {
     );
 
     useEffect(() => {
-        garmentService.getBySlot(FittingSlot.UpperGarment)
-            .then((items) => setTops(items))
-            .catch((err) => console.error('[Tops] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.LowerGarment)
-            .then((items) => setBottoms(items))
-            .catch((err) => console.error('[Bottoms] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.FootGarment)
-            .then((items) => setShoes(items))
-            .catch((err) => console.error('[Shoes] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.HeadGarment)
-            .then(setHeadGarments)
-            .catch((err) => console.error('[HeadGarment] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.Glasses)
-            .then(setGlasses)
-            .catch((err) => console.error('[Glasses] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.Earrings)
-            .then(setEarrings)
-            .catch((err) => console.error('[Earrings] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.NeckAccessory)
-            .then(setNeckAccessories)
-            .catch((err) => console.error('[NeckAccessory] fetch error:', err));
-        garmentService.getBySlot(FittingSlot.WaistAccessory)
-            .then(setWaistAccessories)
-            .catch((err) => console.error('[WaistAccessory] fetch error:', err));
-        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bracelet')
-            .then(setBracelets)
-            .catch((err) => console.error('[Bracelet] fetch error:', err));
-        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Watch')
-            .then(setWatches)
-            .catch((err) => console.error('[Watch] fetch error:', err));
-        garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bag')
-            .then(setBags)
-            .catch((err) => console.error('[Bag] fetch error:', err));
+        // Garment grids resolve independently from the outfit grid
+        Promise.allSettled([
+            garmentService.getBySlot(FittingSlot.UpperGarment).then(setTops).catch((err) => console.error('[Tops] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.LowerGarment).then(setBottoms).catch((err) => console.error('[Bottoms] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.FootGarment).then(setShoes).catch((err) => console.error('[Shoes] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.HeadGarment).then(setHeadGarments).catch((err) => console.error('[HeadGarment] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.Glasses).then(setGlasses).catch((err) => console.error('[Glasses] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.Earrings).then(setEarrings).catch((err) => console.error('[Earrings] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.NeckAccessory).then(setNeckAccessories).catch((err) => console.error('[NeckAccessory] fetch error:', err)),
+            garmentService.getBySlot(FittingSlot.WaistAccessory).then(setWaistAccessories).catch((err) => console.error('[WaistAccessory] fetch error:', err)),
+            garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bracelet').then(setBracelets).catch((err) => console.error('[Bracelet] fetch error:', err)),
+            garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Watch').then(setWatches).catch((err) => console.error('[Watch] fetch error:', err)),
+            garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bag').then(setBags).catch((err) => console.error('[Bag] fetch error:', err)),
+        ]).finally(() => setLoadingGarments(false));
+
         outfitService.getAll()
             .then(setOutfits)
-            .catch((err) => console.error('[Outfits] fetch error:', err));
+            .catch((err) => console.error('[Outfits] fetch error:', err))
+            .finally(() => setLoadingOutfits(false));
     }, []);
 
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -224,14 +215,20 @@ export default function VirtualMirrorV2() {
     return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
         <header
-            className={'flex items-center justify-between shrink-0 py-4 px-4'}
+            className={'flex items-center shrink-0 py-4 px-4'}
             style={{ background: 'rgba(0,0,0,0.85)' }}
         >
-            <WeatherWidget iconSize={32} />
-            <span className="text-white font-semibold text-3xl tracking-wide select-none">Virtual Mirror</span>
-            <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
-                <ArrowLeft className="w-6 h-6 text-white" />
-            </button>
+            <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', alignItems: 'center' }}>
+                <WeatherWidget iconSize={32} />
+            </div>
+            <div style={{ flex: '0 0 50%', width: '50%', display: 'flex', justifyContent: 'center' }}>
+                <span className="text-white font-semibold text-3xl tracking-wide select-none">Virtual Mirror</span>
+            </div>
+            <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
+                    <ArrowLeft className="w-6 h-6 text-white" />
+                </button>
+            </div>
         </header>
         <div className="flex flex-1" style={{ height: '546px'}}>
             {/* Left panel — Accessories */}
@@ -242,6 +239,7 @@ export default function VirtualMirrorV2() {
                     <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                if (loadingGarments) return <SkeletonCell key={i} style={{ marginTop: '5px', marginBottom: '5px' }} />;
                                 const g = pagedHeadGarments[i];
                                 return (
                                     <div key={i} onClick={() => g && (setSelectedHat(g), setSelectedOutfitIdx(null))} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px', cursor: g ? 'pointer' : 'default', border: (g && selectedHat?.id === g.id) ? '1.5px solid rgba(255,255,255,0.6)' : '1.5px solid transparent' }}>
@@ -353,6 +351,7 @@ export default function VirtualMirrorV2() {
                     <div {...bagSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
                             {Array.from({ length: accessoryPageSize }).map((_, i) => {
+                                if (loadingGarments) return <SkeletonCell key={i} style={{ marginTop: '5px', marginBottom: '5px' }} />;
                                 const g = pagedBags[i];
                                 return (
                                     <div key={i} onClick={() => g && (setSelectedBag(g), setSelectedOutfitIdx(null))} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px', cursor: g ? 'pointer' : 'default', border: (g && selectedBag?.id === g.id) ? '1.5px solid rgba(255,255,255,0.6)' : '1.5px solid transparent' }}>
@@ -372,17 +371,22 @@ export default function VirtualMirrorV2() {
                     <SectionTitle label="Outfit" />
                     <div {...outfitSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: '10px', columnGap: '6px' }}>
-                            {pagedOutfits.map((outfit, i) => {
-                                const globalIdx = outfitPage * outfitPageSize + i;
-                                return (
-                                    <div key={outfit.id} onClick={() => selectOutfit(globalIdx)} style={{ position: 'relative', aspectRatio: '3/5', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.01)', cursor: 'pointer', border: selectedOutfitIdx === globalIdx ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', transition: 'border-color 0.2s' }}>
-                                        {outfit.file?.fileUrl
-                                            ? <img src={outfit.file.fileUrl} alt={outfit.name} draggable={false} className="w-full h-full object-cover pointer-events-none" />
-                                            : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{outfit.name}</span></div>
-                                        }
-                                    </div>
-                                );
-                            })}
+                            {loadingOutfits
+                                ? Array.from({ length: 4 }).map((_, i) => (
+                                    <SkeletonCell key={i} ratio="3/5" style={{ borderRadius: '10px' }} />
+                                  ))
+                                : pagedOutfits.map((outfit, i) => {
+                                    const globalIdx = outfitPage * outfitPageSize + i;
+                                    return (
+                                        <div key={outfit.id} onClick={() => selectOutfit(globalIdx)} style={{ position: 'relative', aspectRatio: '3/5', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.01)', cursor: 'pointer', border: selectedOutfitIdx === globalIdx ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', transition: 'border-color 0.2s' }}>
+                                            {outfit.file?.fileUrl
+                                                ? <img src={outfit.file.fileUrl} alt={outfit.name} draggable={false} className="w-full h-full object-cover pointer-events-none" />
+                                                : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{outfit.name}</span></div>
+                                            }
+                                        </div>
+                                    );
+                                })
+                            }
                         </div>
                         <div className="flex justify-center gap-1.5 pt-2">
                             {Array.from({ length: totalOutfitPages }).map((_, i) => (
@@ -505,6 +509,7 @@ export default function VirtualMirrorV2() {
                     <div {...topsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
+                                if (loadingGarments) return <SkeletonCell key={i} />;
                                 const g = pagedTops[i];
                                 return (
                                     <div key={i} onClick={() => g && (setSelectedTop(g), setSelectedOutfitIdx(null))} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', cursor: g ? 'pointer' : 'default', border: (g && selectedTop?.id === g.id) ? '1.5px solid rgba(255,255,255,0.6)' : '1.5px solid transparent' }}>
@@ -526,6 +531,7 @@ export default function VirtualMirrorV2() {
                     <div {...bottomsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                             {Array.from({ length: pageSize }).map((_, i) => {
+                                if (loadingGarments) return <SkeletonCell key={i} />;
                                 const g = pagedBottoms[i];
                                 return (
                                     <div key={i} onClick={() => g && (setSelectedBottom(g), setSelectedOutfitIdx(null))} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', cursor: g ? 'pointer' : 'default', border: (g && selectedBottom?.id === g.id) ? '1.5px solid rgba(255,255,255,0.6)' : '1.5px solid transparent' }}>
@@ -547,6 +553,7 @@ export default function VirtualMirrorV2() {
                     <div {...shoesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }}>
                             {Array.from({ length: shoesPageSize }).map((_, i) => {
+                                if (loadingGarments) return <SkeletonCell key={i} />;
                                 const g = pagedShoes[i];
                                 return (
                                     <div key={i} onClick={() => g && (setSelectedShoe(g), setSelectedOutfitIdx(null))} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', cursor: g ? 'pointer' : 'default', border: (g && selectedShoe?.id === g.id) ? '1.5px solid rgba(255,255,255,0.6)' : '1.5px solid transparent' }}>

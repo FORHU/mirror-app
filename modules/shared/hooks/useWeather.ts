@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export interface WeatherData {
-  temp: number;
+  temp: number | null;
   city: string;
   code: number;
 }
@@ -13,30 +13,31 @@ export function useWeather() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchWeather() {
-      try {
-        // IP-based location — no permission required, works on HTTP
-        const ipRes = await fetch('https://ipapi.co/json/');
-        const ipData = await ipRes.json();
-        const { latitude: lat, longitude: lon, city } = ipData;
-
-        const meteoRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&temperature_unit=celsius`,
-        );
-        const meteo = await meteoRes.json();
-
-        setWeather({
-          temp: Math.round(meteo.current.temperature_2m),
-          code: meteo.current.weather_code,
-          city: city ?? 'Unknown',
-        });
-      } catch {
-        // silently fail — widget stays hidden
-      } finally {
-        setLoading(false);
-      }
+    function fetchWithCoords(lat: number, lon: number) {
+      fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+        .then(r => r.json())
+        .then((d: WeatherData) => setWeather(d))
+        .catch(() => setWeather({ temp: null, code: 0, city: '---' }))
+        .finally(() => setLoading(false));
     }
-    fetchWeather();
+
+    function fetchFromServer() {
+      fetch('/api/weather')
+        .then(r => r.json())
+        .then((d: WeatherData) => setWeather(d))
+        .catch(() => setWeather({ temp: null, code: 0, city: '---' }))
+        .finally(() => setLoading(false));
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => fetchWithCoords(coords.latitude, coords.longitude),
+        () => fetchFromServer(),    // denied or unavailable → server-side IP geo
+        { timeout: 8000 },
+      );
+    } else {
+      fetchFromServer();
+    }
   }, []);
 
   return { weather, loading };

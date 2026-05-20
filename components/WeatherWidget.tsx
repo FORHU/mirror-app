@@ -76,7 +76,9 @@ export default function WeatherWidget({ iconSize = 32 }: { iconSize?: number }) 
     <div className="flex items-center gap-2 px-1">
       <WeatherIcon code={weather.code} size={iconSize} />
       <div className="flex flex-col leading-tight">
-        <span style={{ color: 'white', fontSize: '16px', fontWeight: 600, lineHeight: 1.2 }}>{weather.temp}°C</span>
+        <span style={{ color: 'white', fontSize: '16px', fontWeight: 600, lineHeight: 1.2 }}>
+          {weather.temp !== null ? `${weather.temp}°C` : '--°C'}
+        </span>
         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>{weather.city}</span>
       </div>
     </div>
