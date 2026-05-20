@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import '../styles/glow.css';
 import WeatherWidget from '@/components/WeatherWidget';
+import { detectMirrorId } from "@/modules/shared/constants/mirrors";
 
 const TAGLINES = [
   { line1: "The mirror",    line2: "has opinions."  },
@@ -97,7 +98,7 @@ export default function WelcomePage() {
       <div className="flex flex-col gap-4 shrink-0">
         <button
           className="w-full glass-card-strong neon-border-white rounded-3xl py-8 text-white font-bold text-2xl transition-all active:scale-95"
-          onClick={() => router.push("/qrcode/mirror-a")}
+          onClick={() => router.push(`/qrcode/${detectMirrorId()}`)}
         >
           Start Now
         </button>
