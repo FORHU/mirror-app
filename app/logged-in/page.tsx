@@ -1,6 +1,6 @@
 "use client";
 
-import { ShirtIcon, Calendar } from 'lucide-react';
+import { ShirtIcon, Calendar, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import '../../styles/glow.css';
 
@@ -62,6 +62,23 @@ export default function LoggedInPage() {
           <div className="text-center">
             <h3 className="text-white font-bold text-2xl mb-2">Dress for the vibe</h3>
             <p className="text-white/45 text-lg">Outfit matched to your mood and location</p>
+          </div>
+        </button>
+
+        {/* Explore the map */}
+        <button
+          onClick={() => router.push('/map')}
+          className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
+          style={{height: '250px'}}
+        >
+          <div className="icon-spotlight">
+            <div className="icon-box">
+              <MapPin className="w-11 h-11 text-white" strokeWidth={1.5} />
+            </div>
+          </div>
+          <div className="text-center">
+            <h3 className="text-white font-bold text-2xl mb-2">Explore the map</h3>
+            <p className="text-white/45 text-lg">Navigate, check weather, and discover nearby places</p>
           </div>
         </button>
 
