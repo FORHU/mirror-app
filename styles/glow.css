@@ -75,6 +75,12 @@
     border-radius: 3px;
 }
 
+.glass-card-garment {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+    border-radius: 3px;
+}
+
 .glass-card-strong {
     background: rgba(255, 255, 255, 0.02);
     backdrop-filter: blur(16px);

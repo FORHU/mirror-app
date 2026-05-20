@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import "../../styles/glow.css";
 import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment.service';
+import { outfitService, type RemoteOutfit } from '@/modules/shared/api/outfit.service';
 import { FittingSlot } from '@/modules/garment/types';
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
@@ -51,7 +52,20 @@ function useClock() {
 
 export default function VirtualMirrorV2() {
     const router = useRouter();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
+    const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(null);
+    const selectedOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+    const outfitPageSize = 8;
+    const [outfitPage, setOutfitPage] = useState(0);
+    const totalOutfitPages = Math.max(1, Math.ceil(outfits.length / outfitPageSize));
+    const pagedOutfits = outfits.slice(outfitPage * outfitPageSize, (outfitPage + 1) * outfitPageSize);
+    const outfitSwipe = useSwipe(
+        () => setOutfitPage((p) => Math.min(p + 1, totalOutfitPages - 1)),
+        () => setOutfitPage((p) => Math.max(p - 1, 0)),
+    );
+    const [isRecording, setIsRecording] = useState(false);
+    const messages: { role: 'user' | 'ai'; text: string }[] = [{ role: 'ai', text: 'Hi! Ask me anything about your outfit today.' }];
+    const chatEndRef = useRef<HTMLDivElement>(null);
     const now = useClock();
     const pageSize = 8;
     const shoesPageSize = 6;
@@ -191,6 +205,9 @@ export default function VirtualMirrorV2() {
         garmentService.getBySlotAndType(FittingSlot.RightHandAccessory, 'Bag')
             .then(setBags)
             .catch((err) => console.error('[Bag] fetch error:', err));
+        outfitService.getAll()
+            .then(setOutfits)
+            .catch((err) => console.error('[Outfits] fetch error:', err));
     }, []);
 
     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -201,267 +218,194 @@ export default function VirtualMirrorV2() {
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
         <header
             className={'flex items-center justify-between shrink-0 py-4 px-4'}
-            style={{ background: 'rgba(0,0,0,0.85)' }}
         >
-            <button onClick={() => setIsMenuOpen(true)} className="p-4 transition-all hover:scale-105 active:scale-95">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                    <path d="M12 4a2 2 0 0 1 2 2v.5L20.5 14H3.5L10 6.5V6a2 2 0 0 1 2-2z" />
-                    <line x1="3" y1="14" x2="21" y2="14" />
-                    <path d="M3 14c0 3 1.5 5 9 5s9-2 9-5" />
+            {/* Weather widget — mock data */}
+            <div className="flex items-center gap-2 px-1">
+                <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+                    {/* Sun */}
+                    <circle cx="26" cy="22" r="8" fill="#f6c90e" opacity="0.9"/>
+                    {/* Cloud */}
+                    <ellipse cx="36" cy="34" rx="16" ry="10" fill="rgba(180,190,210,0.85)"/>
+                    <ellipse cx="26" cy="36" rx="10" ry="8" fill="rgba(180,190,210,0.85)"/>
+                    <ellipse cx="28" cy="30" rx="10" ry="9" fill="rgba(200,210,225,0.9)"/>
+                    {/* Rain drops */}
+                    <line x1="26" y1="46" x2="24" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
+                    <line x1="34" y1="46" x2="32" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
+                    <line x1="42" y1="46" x2="40" y2="52" stroke="#7fb3d3" strokeWidth="2.5" strokeLinecap="round"/>
                 </svg>
-            </button>
-            <span className="text-white font-semibold text-3xl tracking-wide select-none">Virtual Mirror</span>
+                <div className="flex flex-col leading-tight">
+                    <span style={{ color: 'white', fontSize: '16px', fontWeight: 600, lineHeight: 1.2 }}>22°C</span>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>Seoul</span>
+                </div>
+            </div>
+            <span className="text-white font-semibold text-3xl tracking-wide select-none"> AI Recommendation</span>
             <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
                 <ArrowLeft className="w-6 h-6 text-white" />
             </button>
         </header>
-        <div className="flex flex-1" style={{ height: '546px'}}>
-            {/* Left panel — Accessories */}
+        <div className="flex flex-1 relative" style={{ height: '546px'}}>
+            {/* Left panel — AI chat + Outfit grid */}
             <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
-                <div className="flex flex-col gap-1">
-                    <SectionTitle label="Accessories" />
-
-                    <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedHeadGarments[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalHeadGarmentsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 12 : 4, height: 4, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
+                {/* AI Voice Chat */}
+                <div className="flex flex-col glass-card-garment" style={{ height: '180px', overflow: 'hidden' }}>
+                    {/* Messages */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {messages.map((msg, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                                <span style={{
+                                    maxWidth: '85%',
+                                    padding: '6px 10px',
+                                    borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                                    background: msg.role === 'user' ? 'rgba(130,90,255,0.35)' : 'rgba(255,255,255,0.08)',
+                                    color: 'rgba(255,255,255,0.85)',
+                                    fontSize: '11px',
+                                    lineHeight: 1.5,
+                                }}>
+                                    {msg.text}
+                                </span>
+                            </div>
+                        ))}
+                        <div ref={chatEndRef} />
                     </div>
-
-                    {/* <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedGlasses[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalGlassesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 12 : 4, height: 4, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-                    {/* <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedEarrings[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalEarringsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 12 : 4, height: 4, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-                    {/* <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedNeck[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalNeckPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 12 : 4, height: 4, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-                    {/* bracelet */}
-                    {/* <div {...braceletSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedBracelets[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalBraceletsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setBraceletsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === braceletsPage ? 12 : 4, height: 4, background: i === braceletsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-                    {/* watch */}
-                    {/* <div {...watchSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedWatches[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalWatchesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setWatchesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === watchesPage ? 12 : 4, height: 4, background: i === watchesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-                    {/* bag */}
-                    <div {...bagSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedBags[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalBagsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setBagsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === bagsPage ? 12 : 4, height: 4, background: i === bagsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
+                    {/* Record button */}
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ flex: 1, color: isRecording ? 'rgba(255,140,140,0.8)' : 'rgba(255,255,255,0.3)', fontSize: '11px', transition: 'color 0.2s' }}>
+                            {isRecording ? 'Listening...' : 'Tap mic to ask AI'}
+                        </span>
+                        <div style={{ position: 'relative', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {/* Ripple rings */}
+                            {isRecording && (<>
+                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.35)', animationDuration: '1s' }} />
+                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.2)', animationDuration: '1s', animationDelay: '0.3s' }} />
+                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.1)', animationDuration: '1s', animationDelay: '0.6s' }} />
+                            </>)}
+                            <button
+                                onClick={() => setIsRecording((r) => !r)}
+                                style={{
+                                    position: 'relative', zIndex: 1,
+                                    width: '36px', height: '36px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                                    background: isRecording ? 'rgba(255,80,80,0.85)' : 'rgba(130,90,255,0.5)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    transition: 'background 0.2s',
+                                }}
+                            >
+                                {isRecording ? (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                                ) : (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                        <line x1="12" y1="19" x2="12" y2="23"/>
+                                        <line x1="8" y1="23" x2="16" y2="23"/>
+                                    </svg>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1" style={{ flex: 1, minHeight: 0 }}>
                     <SectionTitle label="Outfit" />
-                    <div {...headSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedHeadGarments[i];
+                    <div {...outfitSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', rowGap: '10px', columnGap: '6px' }}>
+                            {pagedOutfits.map((outfit, i) => {
+                                const globalIdx = outfitPage * outfitPageSize + i;
                                 return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                                    <div key={outfit.id} onClick={() => setSelectedOutfitIdx(globalIdx)} style={{ position: 'relative', aspectRatio: '3/5', borderRadius: '10px', overflow: 'hidden', background: 'rgba(255,255,255,0.02)', cursor: 'pointer', border: selectedOutfitIdx === globalIdx ? '2px solid rgba(255,255,255,0.6)' : '2px solid transparent', transition: 'border-color 0.2s' }}>
+                                        {outfit.file?.fileUrl
+                                            ? <img src={outfit.file.fileUrl} alt={outfit.name} draggable={false} className="w-full h-full object-cover pointer-events-none" />
+                                            : <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>{outfit.name}</span></div>
+                                        }
+                                        <button onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.35)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 );
                             })}
                         </div>
                         <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalHeadGarmentsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setHeadGarmentsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === headGarmentsPage ? 20 : 6, height: 6, background: i === headGarmentsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
+                            {Array.from({ length: totalOutfitPages }).map((_, i) => (
+                                <button key={i} type="button" onClick={() => setOutfitPage(i)} style={{ width: i === outfitPage ? 12 : 4, height: 4, borderRadius: '9999px', border: 'none', padding: 0, cursor: 'pointer', background: i === outfitPage ? 'white' : 'rgba(255,255,255,0.3)', transition: 'all 0.3s' }} />
                             ))}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Center panel */}
-            <div className="flex-[2] h-full flex flex-col items-center justify-start pt-8 gap-1" style={{background: 'red'}}>
+            {/* Center panel — wider now */}
+            <div className="flex-[2] h-full flex flex-col items-center justify-start pt-8 gap-1">
                 <span className="text-white font-thin select-none" style={{ fontSize: '3rem', lineHeight: 1 }}>{time}</span>
                 <span className="text-white/80 text-xl font-light select-none mb-4">{day}, {date}</span>
-                <div className="flex gap-2 mt-3">
-                </div>
             </div>
 
-            {/* Right panel — Tops / Bottoms / Shoes */}
-            <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
-                <div className="flex flex-col gap-1">
-
-                    <SectionTitle label="Tops" />
-                    <div {...topsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: pageSize }).map((_, i) => {
-                                const g = pagedTops[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalTopsPages) }).map((_, i) => (
-                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsPage ? 12 : 4, height: 4, background: i === topsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    <SectionTitle label="Bottoms" />
-                    <div {...bottomsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: pageSize }).map((_, i) => {
-                                const g = pagedBottoms[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalBottomsPages) }).map((_, i) => (
-                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === bottomsPage ? 12 : 4, height: 4, background: i === bottomsPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                    <SectionTitle label="Shoes" />
-                    <div {...shoesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: shoesPageSize }).map((_, i) => {
-                                const g = pagedShoes[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalShoesPages) }).map((_, i) => (
-                                <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === shoesPage ? 12 : 4, height: 4, background: i === shoesPage ? 'white' : 'rgba(255,255,255,0.3)' }} />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <footer className="flex items-center justify-center" style={{ height: '70px', background: 'blue'}}>
-            <button style={{
-                padding: '14px 32px',
-                backgroundColor: '#000',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                letterSpacing: '0.5px'
+            {/* Outfit Details sidebar — slides in from right */}
+            <div style={{
+                position: 'absolute', bottom: 0, right: 0, height: '75%', width: '220px',
+                background: 'rgba(0,0,0,0.35)',
+                backdropFilter: 'blur(16px)',
+                display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px',
+                transform: selectedOutfitIdx === null ? 'translateX(100%)' : 'translateX(0)',
+                transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+                zIndex: 20, overflow: 'hidden',
             }}>
-                Create Outfit
-            </button>
-        </footer>
+                {/* Header — fixed */}
+                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <SectionTitle label="Outfit Details" />
+                    <button onClick={() => setSelectedOutfitIdx(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}>✕</button>
+                </div>
+                {/* Garment cards — proportional flex, each shares available space equally */}
+                <div style={{ flex: '3 1 0', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                    {(selectedOutfit?.items ?? []).slice().sort((a, b) => {
+                        const UPPER  = ['Shirt','TShirt','Polo','Blouse','Hoodie','Sweater','Jacket','Coat','Blazer'];
+                        const LOWER  = ['Pants','Jeans','Shorts','Skirt'];
+                        const FOOT   = ['Shoes','Sneakers','Sandals','Boots','Heels','Socks'];
+                        const HEAD   = ['Hat','Beanie','Cap','Headband'];
+                        const rank = (types: string[]) => {
+                            const t = types[0] ?? '';
+                            if (UPPER.includes(t)) return 0;
+                            if (LOWER.includes(t)) return 1;
+                            if (FOOT.includes(t))  return 2;
+                            if (HEAD.includes(t))  return 3;
+                            return 4;
+                        };
+                        return rank(a.garment.garmentType) - rank(b.garment.garmentType);
+                    }).map((item) => (
+                        <div key={item.id} className='flex glass-card-garment' style={{ flex: '1 1 0', minHeight: 0, width: '100%', alignItems: 'stretch', overflow: 'hidden' }}>
+                            <div style={{ flex: '0 0 40%', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px 0 0 8px', overflow: 'hidden' }}>
+                                {item.garment.imageUrl
+                                    ? <img src={item.garment.imageUrl} alt={item.garment.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                                    : <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '10px' }}>Img</span>
+                                }
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, padding: '5px 8px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '2px', overflow: 'hidden' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', overflow: 'hidden', whiteSpace: 'nowrap' }}>{item.garment.garmentType[0]}</span>
+                                <span style={{ color: 'white', fontSize: '10px', fontWeight: 600, lineHeight: 1.3, overflow: 'hidden' }}>{item.garment.name}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '9px', lineHeight: 1.4, overflow: 'hidden' }}>{item.garment.description}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {/* Why this look? — fixed at bottom */}
+                <div className='glass-card-garment' style={{ flex: '1 1 0', minHeight: 0, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', flexShrink: 0 }}>Why This Look?</span>
+                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
+                        {[
+                            'Light and breathable for high humidity',
+                            'Neutral tones that don\'t trap heat',
+                            'Easy to move in for daily activities',
+                            'Effortless style with trendy touches',
+                        ].map((reason) => (
+                            <div key={reason} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', flex: '1 1 0', minHeight: 0, overflow: 'hidden' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '10px', lineHeight: 1, paddingTop: '2px', flexShrink: 0 }}>✓</span>
+                                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', lineHeight: 1.4, overflow: 'hidden' }}>{reason}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
     );
 }
