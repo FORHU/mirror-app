@@ -11,8 +11,13 @@ import {
 } from "@/modules/shared/utils/storage";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 
+// In the browser, use relative URLs so requests go through the Next.js proxy
+// (next.config.ts rewrites /api/remote/** → backend). This avoids CORS preflight
+// failures caused by the x-platform header the backend doesn't whitelist.
 const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+  typeof window !== "undefined"
+    ? ""
+    : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
 // In-memory token cache to avoid hitting localStorage on every request
 let _cachedAccessToken: string | null = null;

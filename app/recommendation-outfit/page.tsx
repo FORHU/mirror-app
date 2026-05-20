@@ -229,63 +229,7 @@ export default function VirtualMirrorV2() {
         <div className="flex flex-1 relative" style={{ height: '546px'}}>
             {/* Left panel — AI chat + Outfit grid */}
             <div className="flex-1 h-full flex flex-col p-2 gap-2 min-h-0">
-                {/* AI Voice Chat */}
-                <div className="flex flex-col glass-card-garment" style={{ height: '180px', overflow: 'hidden' }}>
-                    {/* Messages */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {messages.map((msg, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                                <span style={{
-                                    maxWidth: '85%',
-                                    padding: '6px 10px',
-                                    borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                                    background: msg.role === 'user' ? 'rgba(130,90,255,0.35)' : 'rgba(255,255,255,0.08)',
-                                    color: 'rgba(255,255,255,0.85)',
-                                    fontSize: '11px',
-                                    lineHeight: 1.5,
-                                }}>
-                                    {msg.text}
-                                </span>
-                            </div>
-                        ))}
-                        <div ref={chatEndRef} />
-                    </div>
-                    {/* Record button */}
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ flex: 1, color: isRecording ? 'rgba(255,140,140,0.8)' : 'rgba(255,255,255,0.3)', fontSize: '11px', transition: 'color 0.2s' }}>
-                            {isRecording ? 'Listening...' : 'Tap mic to ask AI'}
-                        </span>
-                        <div style={{ position: 'relative', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {/* Ripple rings */}
-                            {isRecording && (<>
-                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.35)', animationDuration: '1s' }} />
-                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.2)', animationDuration: '1s', animationDelay: '0.3s' }} />
-                                <span className="animate-ping" style={{ position: 'absolute', width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,80,80,0.1)', animationDuration: '1s', animationDelay: '0.6s' }} />
-                            </>)}
-                            <button
-                                onClick={() => setIsRecording((r) => !r)}
-                                style={{
-                                    position: 'relative', zIndex: 1,
-                                    width: '36px', height: '36px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-                                    background: isRecording ? 'rgba(255,80,80,0.85)' : 'rgba(130,90,255,0.5)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    transition: 'background 0.2s',
-                                }}
-                            >
-                                {isRecording ? (
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                                ) : (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                                        <line x1="12" y1="19" x2="12" y2="23"/>
-                                        <line x1="8" y1="23" x2="16" y2="23"/>
-                                    </svg>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                
                 <div className="flex flex-col gap-1" style={{ flex: 1, minHeight: 0 }}>
                     <SectionTitle label="Outfit" />
                     <div {...outfitSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab' }}>
