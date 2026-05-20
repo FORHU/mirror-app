@@ -11,6 +11,10 @@ const nextConfig = {
         source: '/api/remote/:path*',
         destination: `${API_BASE_URL}/api/remote/:path*`,
       },
+      {
+        source: '/api/mirror/:path*',
+        destination: `${API_BASE_URL}/api/mirror/:path*`,
+      },
     ];
   },
 };
