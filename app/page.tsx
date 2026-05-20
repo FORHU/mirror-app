@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
-import { AnimatedBackground } from "@/components/AnimatedBackground";
+import '../styles/glow.css';
+import WeatherWidget from '@/components/WeatherWidget';
 
 const TAGLINES = [
   { line1: "The mirror",    line2: "has opinions."  },
@@ -19,9 +20,6 @@ export default function WelcomePage() {
   const [date, setDate] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  // Request location permission early so WeatherWidget has real coords by the
-  // time the user reaches virtual-mirror-v2. Coords are cached in localStorage
-  // using the same key that useWeather reads from.
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -34,7 +32,7 @@ export default function WelcomePage() {
           }));
         } catch {}
       },
-      () => {}, // silent on denial — useWeather falls back to IP geo
+      () => {},
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   }, []);
@@ -58,103 +56,59 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <div className="relative flex flex-col w-screen h-screen overflow-hidden bg-[#f0e6ff]">
-      <AnimatedBackground />
+    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
 
-      {/* ── Header zone ─────────────────────────────────────────────────────── */}
-      <header
-        className="mirror-header relative z-10 flex items-center justify-between shrink-0"
-        style={{ paddingLeft: 44, paddingRight: 44 }}
-      >
-        <motion.span
-          style={{ fontSize: 15, fontWeight: 500, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6b5b95" }}
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
-          StyleOS
-        </motion.span>
+      {/* Header */}
+      <div className="flex items-center shrink-0 py-4 px-4 mb-6">
+        <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', alignItems: 'center' }}>
+          <WeatherWidget iconSize={32} />
+        </div>
+        <div style={{ flex: '0 0 50%', width: '50%', display: 'flex', justifyContent: 'center' }}>
+          <span className="text-white font-semibold text-3xl tracking-wide select-none">StyleOS</span>
+        </div>
+        <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <p className="text-white font-semibold text-2xl leading-tight">{time}</p>
+          <p className="text-white/40 text-sm mt-0.5">{date}</p>
+        </div>
+      </div>
 
-        <motion.div
-          className="text-right"
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <p style={{ fontSize: 26, fontWeight: 600, color: "#3d2f5f", lineHeight: 1.1 }}>{time}</p>
-          <p style={{ fontSize: 13, color: "#9e93c8", letterSpacing: "0.03em", marginTop: 3 }}>{date}</p>
-        </motion.div>
-      </header>
-
-      {/* ── Main zone — cycling taglines ─────────────────────────────────── */}
-      <main className="mirror-main relative z-10 flex items-center justify-center shrink-0">
+      {/* Taglines */}
+      <div className="flex-1 flex items-center justify-center min-h-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeIndex}
-            className="flex flex-col items-center"
-            style={{ paddingLeft: 44, paddingRight: 44 }}
+            className="flex flex-col"
             initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -18 }}
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           >
-            <span style={{ fontSize: 96, fontWeight: 800, color: "#3d2f5f", display: "block", letterSpacing: "-0.03em", lineHeight: 1.05 }}>
+            <span className="text-white font-extrabold tracking-tight leading-none select-none" style={{ fontSize: 96 }}>
               {TAGLINES[activeIndex].line1}
             </span>
-            <span
-              style={{
-                fontSize: 96,
-                fontWeight: 800,
-                display: "block",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.05,
-                paddingBottom: "0.2em",
-                background: "linear-gradient(135deg, #c4b5fd 0%, #a78bfa 45%, #fb7185 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
+            <span className="text-white/30 font-extrabold tracking-tight leading-none select-none" style={{ fontSize: 96 }}>
               {TAGLINES[activeIndex].line2}
             </span>
           </motion.div>
         </AnimatePresence>
-      </main>
+      </div>
 
-      {/* ── Footer zone — CTA ────────────────────────────────────────────── */}
-      <footer
-        className="mirror-footer relative z-10 flex flex-col items-center gap-3 shrink-0"
-        style={{ paddingLeft: 44, paddingRight: 44 }}
-      >
-        <motion.button
-          className="w-full font-bold text-white"
-          style={{
-            background: "linear-gradient(135deg, #7c3aed 0%, #a78bfa 50%, #fb7185 100%)",
-            borderRadius: 20,
-            padding: "26px 0",
-            fontSize: 26,
-            boxShadow: "0 8px 48px rgba(124,58,237,0.40)",
-            border: "none",
-            cursor: "pointer",
-          }}
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.85, delay: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          whileTap={{ scale: 0.97 }}
+      {/* CTA */}
+      <div className="flex flex-col gap-4 shrink-0">
+        <button
+          className="w-full glass-card-strong neon-border-white rounded-3xl py-8 text-white font-bold text-2xl transition-all active:scale-95"
           onClick={() => router.push("/qrcode/mirror-a")}
         >
           Start Now
-        </motion.button>
+        </button>
 
         {process.env.NODE_ENV === "development" && (
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            whileTap={{ scale: 0.97 }}
+          <button
+            className="w-full rounded-2xl py-4 text-white/30 font-semibold text-lg transition-all active:scale-95"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)" }}
             onClick={async () => {
               try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/mirror/dev/token`);
+                const res = await fetch(`/api/mirror/dev/token`);
                 const { token } = await res.json();
                 if (token) {
                   localStorage.setItem("token", token);
@@ -164,21 +118,12 @@ export default function WelcomePage() {
                 alert("Dev bypass failed. Make sure mirror-api is running and seeded.");
               }
             }}
-            className="w-full font-semibold"
-            style={{
-              background: "rgba(255,255,255,0.08)",
-              border: "1.5px solid rgba(255,255,255,0.14)",
-              borderRadius: 16,
-              padding: "16px 0",
-              fontSize: 18,
-              color: "rgba(107,91,149,0.6)",
-              cursor: "pointer",
-            }}
           >
             Dev: Skip to Map
-          </motion.button>
+          </button>
         )}
-      </footer>
+      </div>
+
     </div>
   );
 }
