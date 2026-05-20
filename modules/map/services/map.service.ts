@@ -91,7 +91,7 @@ export const mapService = {
 
   voice: async (
     pcmBuffer: ArrayBuffer,
-    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string; currentTime?: string; currentDate?: string; schedules?: string; currentPage?: string },
+    ctx?: { lat?: number; lng?: number; traffic?: boolean; navigating?: boolean; profile?: string; remainingDistance?: number; remainingDuration?: number; destinationName?: string; currentInstruction?: string; nextManeuverDistance?: number; nextInstruction?: string; currentTime?: string; currentDate?: string; schedules?: string; currentPage?: string; userOutlineId?: string },
     history?: Array<{ user: string; assistant: string }>,
   ): Promise<{
     audio: ArrayBuffer;
@@ -115,6 +115,7 @@ export const mapService = {
     if (ctx?.currentDate)                       params.set("currentDate",           encodeURIComponent(ctx.currentDate));
     if (ctx?.schedules)                         params.set("schedules",             encodeURIComponent(ctx.schedules));
     if (ctx?.currentPage)                       params.set("currentPage",           encodeURIComponent(ctx.currentPage));
+    if (ctx?.userOutlineId)                     params.set("userOutlineId",         ctx.userOutlineId);
     if (history?.length)                        params.set("history",               JSON.stringify(history.slice(-4)));
 
     const url = `${API_URL}/api/mirror/voice/process?${params}`;

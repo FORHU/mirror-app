@@ -12,6 +12,7 @@ import type { ChatWonderAction, PageContext } from "../ai/chatwonder.types";
 import { mapService } from "@/modules/map/services/map.service";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
+import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -223,6 +224,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         currentDate: now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
         schedules,
         currentPage: pageCtxRef.current?.pageName ?? pathname,
+        userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
       };
 
       const { audio, transcript: t, reply: r, action } = await mapService.voice(combined.buffer, ctx, historyRef.current);
