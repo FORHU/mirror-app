@@ -268,7 +268,7 @@ export default function VirtualMirrorV2() {
 
             {/* Outfit Details sidebar — slides in from right */}
             <div style={{
-                position: 'absolute', bottom: 0, right: 0, height: '75%', width: '220px',
+                position: 'absolute', bottom: 90, right: 0, height: '75%', width: '220px',
                 background: 'rgba(0,0,0,0.35)',
                 backdropFilter: 'blur(16px)',
                 display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px',
