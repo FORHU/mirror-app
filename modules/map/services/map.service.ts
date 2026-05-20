@@ -1,4 +1,3 @@
-import { API_URL } from "@/modules/shared/config/device.config";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 
@@ -25,9 +24,9 @@ export interface DirectionsFormatted {
 
 export const mapService = {
   getHomeLocation: async () => {
-    const response = await fetch(`${API_URL}/api/mirror/map/home-location`, {
+    const response = await fetch(`/api/mirror/map/home-location`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`, // Placeholder for auth
+        'Authorization': `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
       },
     });
     if (!response.ok) throw new Error('Failed to fetch home location');
@@ -35,7 +34,7 @@ export const mapService = {
   },
 
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
-    const response = await fetch(`${API_URL}/api/mirror/map/home-location`, {
+    const response = await fetch(`/api/mirror/map/home-location`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +52,7 @@ export const mapService = {
       body.lat = userLocation.lat;
       body.lng = userLocation.lng;
     }
-    const response = await fetch(`${API_URL}/api/mirror/map/geocode`, {
+    const response = await fetch(`/api/mirror/map/geocode`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -63,7 +62,7 @@ export const mapService = {
   },
 
   directions: async (origin: [number, number], destination: [number, number], profile: 'car' | 'motorcycle' | 'bicycle' | 'walking' = "car"): Promise<DirectionsFormatted> => {
-    const response = await fetch(`${API_URL}/api/mirror/map/directions`, {
+    const response = await fetch(`/api/mirror/map/directions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -81,7 +80,7 @@ export const mapService = {
   },
 
   tts: async (text: string): Promise<ArrayBuffer> => {
-    const response = await fetch(`${API_URL}/api/mirror/voice/tts`, {
+    const response = await fetch(`/api/mirror/voice/tts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -119,7 +118,7 @@ export const mapService = {
     if (ctx?.userOutlineId)                     params.set("userOutlineId",         ctx.userOutlineId);
     if (history?.length)                        params.set("history",               JSON.stringify(history.slice(-4)));
 
-    const url = `${API_URL}/api/mirror/voice/process?${params}`;
+    const url = `/api/mirror/voice/process?${params}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/octet-stream' },
