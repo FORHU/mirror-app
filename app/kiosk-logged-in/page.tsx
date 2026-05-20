@@ -54,7 +54,6 @@ async function resolveEmeetCamera(): Promise<MediaStreamConstraints["video"]> {
   return { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" };
 }
 
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function KioskLoggedInPage() {
@@ -208,7 +207,6 @@ export default function KioskLoggedInPage() {
         )}
       </AnimatePresence>
 
-
       {/* ── Countdown ── */}
       <AnimatePresence>
         {isCountingDown && (
@@ -291,7 +289,6 @@ export default function KioskLoggedInPage() {
               className="flex flex-col items-center"
               style={{ width: 560 }}
             >
-              {/* Photo preview */}
               <div
                 className="w-full overflow-hidden"
                 style={{
@@ -310,7 +307,6 @@ export default function KioskLoggedInPage() {
                 />
               </div>
 
-              {/* Label */}
               <p
                 className="font-semibold text-white text-center"
                 style={{ fontSize: "34px", marginBottom: 10, letterSpacing: "-0.01em" }}
@@ -324,7 +320,6 @@ export default function KioskLoggedInPage() {
                 Looks good, or strike a new pose
               </p>
 
-              {/* Actions */}
               <div className="flex gap-4 w-full">
                 <motion.button
                   whileTap={{ scale: 0.97 }}

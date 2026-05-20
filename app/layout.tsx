@@ -1,9 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
+import "./mirror-theme.css";
 import { AuthInitializer } from "@/components/AuthInitializer";
 import { ThemeProvider } from "@/modules/shared/components/ThemeProvider";
 import { QueryProvider } from "@/modules/shared/providers/QueryProvider";
+import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
 import { VoiceProvider } from "@/modules/shared/voice/VoiceProvider";
 
 const geistSans = Geist({
@@ -80,6 +89,7 @@ export default function RootLayout({
           <QueryProvider>
             <VoiceProvider>
               <AuthInitializer>{children}</AuthInitializer>
+              <GlobalVoiceOverlay />
             </VoiceProvider>
           </QueryProvider>
         </ThemeProvider>

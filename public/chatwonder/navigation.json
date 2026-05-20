@@ -49,6 +49,18 @@
       "name": "qrcode",
       "description": "QR code display for companion app pairing",
       "triggers": ["show qr code", "scan code", "pair with phone", "open companion app"]
+    },
+    {
+      "route": "/map",
+      "name": "map",
+      "description": "Interactive Mapbox map with navigation, voice, weather, and nearby POIs",
+      "triggers": ["open map", "show map", "go to map", "navigate", "directions", "take me to", "get directions"]
+    },
+    {
+      "route": "/schedule",
+      "name": "schedule",
+      "description": "Schedule / calendar page showing all saved events from event setup",
+      "triggers": ["show my schedule", "my schedule", "open calendar", "show events", "upcoming events", "my events", "what's on my calendar"]
     }
   ]
 }

@@ -91,7 +91,7 @@
     {
       "name": "get_directions",
       "page": "*",
-      "description": "Ask for directions to the event location",
+      "description": "Ask for directions to a specific location — navigates to the map page and shows route",
       "slots": [
         {
           "name": "destination",
@@ -99,7 +99,34 @@
           "required": true,
           "prompt": "Where do you need directions to?"
         }
-      ]
+      ],
+      "onTrigger": ["maps_get_directions", "navigate:/map"]
+    },
+    {
+      "name": "get_weather",
+      "page": "*",
+      "description": "Ask about current weather conditions at the user's location. Responds with a speak action.",
+      "triggers": ["what's the weather", "how's the weather", "is it going to rain", "weather today", "how hot is it", "temperature outside"],
+      "slots": [],
+      "responseAction": "speak",
+      "contextRequired": ["lat", "lng", "currentDate"]
+    },
+    {
+      "name": "get_time",
+      "page": "*",
+      "description": "Ask what time or date it is. Responds with a speak action using the currentTime/currentDate context.",
+      "triggers": ["what time is it", "what's the time", "what day is it", "what's today's date", "what's the date"],
+      "slots": [],
+      "responseAction": "speak",
+      "contextRequired": ["currentTime", "currentDate"]
+    },
+    {
+      "name": "get_schedule",
+      "page": "*",
+      "description": "Navigate to the schedule/calendar page to see upcoming events",
+      "triggers": ["show my schedule", "my events", "upcoming events", "open calendar", "what's on my calendar", "show my calendar"],
+      "slots": [],
+      "onTrigger": ["navigate:/schedule"]
     }
   ]
 }

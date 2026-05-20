@@ -4,7 +4,7 @@ import React from "react";
 import { cn } from "@/modules/shared/utils";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "outline";
+  variant?: "primary" | "secondary" | "ghost" | "outline" | "glass";
   size?: "sm" | "md" | "lg";
   children: React.ReactNode;
 }
@@ -28,6 +28,8 @@ export const Button = ({
       "bg-transparent text-text-secondary hover:bg-background-tertiary hover:text-text-primary",
     outline:
       "bg-transparent border border-border-default text-text-primary hover:border-brand-vibrant hover:text-brand-vibrant",
+    glass:
+      "glass border border-white/10 text-text-primary hover:bg-white/10 hover:shadow-xl",
   };
 
   const sizes = {

@@ -1,0 +1,17 @@
+/* Scoped to .hud-container only — does not affect rest of UI */
+.hud-container .mirror-panel,
+.hud-container .glass-morphism {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:root {
+  --hud-text-primary:   rgba(255, 255, 255, 0.95);
+  --hud-text-secondary: rgba(255, 255, 255, 0.55);
+  --hud-text-label:     rgba(255, 255, 255, 0.45);
+  --hud-accent:         rgba(79, 195, 247, 0.85);
+  --hud-icon-stroke:    rgba(255, 255, 255, 0.85);
+  --hud-text-shadow:    0 0 12px rgba(0, 0, 0, 0.8);
+}

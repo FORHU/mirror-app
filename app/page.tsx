@@ -38,9 +38,7 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <div
-      className="relative flex flex-col w-screen h-screen overflow-hidden bg-[#f0e6ff]"
-    >
+    <div className="relative flex flex-col w-screen h-screen overflow-hidden bg-[#f0e6ff]">
       <AnimatedBackground />
 
       {/* ── Header zone ─────────────────────────────────────────────────────── */}
@@ -69,9 +67,7 @@ export default function WelcomePage() {
       </header>
 
       {/* ── Main zone — cycling taglines ─────────────────────────────────── */}
-      <main
-        className="mirror-main relative z-10 flex items-center justify-center shrink-0"
-      >
+      <main className="mirror-main relative z-10 flex items-center justify-center shrink-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeIndex}
@@ -107,7 +103,7 @@ export default function WelcomePage() {
 
       {/* ── Footer zone — CTA ────────────────────────────────────────────── */}
       <footer
-        className="mirror-footer relative z-10 flex items-center shrink-0"
+        className="mirror-footer relative z-10 flex flex-col items-center gap-3 shrink-0"
         style={{ paddingLeft: 44, paddingRight: 44 }}
       >
         <motion.button
@@ -129,6 +125,39 @@ export default function WelcomePage() {
         >
           Start Now
         </motion.button>
+
+        {process.env.NODE_ENV === "development" && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={async () => {
+              try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/mirror/dev/token`);
+                const { token } = await res.json();
+                if (token) {
+                  localStorage.setItem("token", token);
+                  router.push("/map");
+                }
+              } catch {
+                alert("Dev bypass failed. Make sure mirror-api is running and seeded.");
+              }
+            }}
+            className="w-full font-semibold"
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              border: "1.5px solid rgba(255,255,255,0.14)",
+              borderRadius: 16,
+              padding: "16px 0",
+              fontSize: 18,
+              color: "rgba(107,91,149,0.6)",
+              cursor: "pointer",
+            }}
+          >
+            Dev: Skip to Map
+          </motion.button>
+        )}
       </footer>
     </div>
   );
