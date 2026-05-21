@@ -8,6 +8,10 @@ import {
   RegisterKioskPayload,
 } from "./socket-events";
 import { MIRRORS, MirrorKey } from "../constants/mirrors";
+import { setCachedAccessToken } from "../api/api-client";
+import { useAuthStore } from "../store/useAuthStore";
+import { setStorageData } from "../utils/storage";
+import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
 
 export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
   const kioskId = useMemo(() => {
@@ -39,6 +43,7 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       const payload: RegisterKioskPayload = {
         kioskId,
         name: kioskName,
+        secret: process.env.NEXT_PUBLIC_KIOSK_DEVICE_SECRET ?? "", // Include the secret for authentication
       };
       socket.emit("register_kiosk", payload);
     };
@@ -67,6 +72,25 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
         payload?.user?.email ||
         payload?.email ||
         "User";
+
+      // Store auth tokens so the kiosk can make authenticated API calls
+      if (payload?.accessToken) {
+        setCachedAccessToken(payload.accessToken);
+        setStorageData(ACCESS_TOKEN, payload.accessToken);
+      }
+      if (payload?.refreshToken) {
+        setStorageData(REFRESH_TOKEN, payload.refreshToken);
+      }
+      if (payload?.user) {
+        setStorageData(USER, payload.user);
+      }
+
+      // Sync into the auth store so RouteGuard and other consumers see the
+      // user as authenticated (socket login bypasses the normal _init flow).
+      useAuthStore.setState({
+        isAuthenticated: true,
+        user: payload.user as any ?? null,
+      });
 
       setLoggedInUsername(username);
       setIsLoggedIn(true);

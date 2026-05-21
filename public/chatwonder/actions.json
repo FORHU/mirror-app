@@ -1,0 +1,75 @@
+{
+  "version": "1.0",
+  "description": "All actions ChatWonder can dispatch to the mirror-app frontend via the chatwonder_response socket event.",
+  "actions": [
+    {
+      "type": "navigate",
+      "description": "Navigate the kiosk to a specific app route",
+      "payload": {
+        "route": "string — must match a route from navigation.json"
+      }
+    },
+    {
+      "type": "speak",
+      "description": "Speak text to the user via browser TTS. No page state is changed.",
+      "payload": {
+        "text": "string"
+      }
+    },
+    {
+      "type": "page_event",
+      "description": "Dispatch a named event to the currently active page. Used to update page state from ChatWonder.",
+      "payload": {
+        "event": "string — page-defined event name (see knownPageEvents)",
+        "payload": "object — shape defined per event below"
+      },
+      "knownPageEvents": {
+        "event-setup": [
+          {
+            "event": "set_step",
+            "description": "Move the conversation to a specific step",
+            "payload": { "step": "event | event_type | datetime | location | weather | confirm" }
+          },
+          {
+            "event": "set_data",
+            "description": "Set a specific collected data field",
+            "payload": { "field": "eventName | eventType | dateTime | location", "value": "string" }
+          },
+          {
+            "event": "confirm",
+            "description": "Confirm the summary and navigate to the kiosk",
+            "payload": {}
+          }
+        ]
+      }
+    },
+    {
+      "type": "calendar_save_event",
+      "description": "Save the collected event to the kiosk Calendar. Triggered automatically on confirm_event intent.",
+      "triggeredBy": "confirm_event intent",
+      "payload": {
+        "title": "string — eventName from event-setup",
+        "eventType": "string — eventType enum value",
+        "dateTime": "ISO 8601 string — dateTime from event-setup",
+        "location": "string — location from event-setup"
+      }
+    },
+    {
+      "type": "maps_preview_location",
+      "description": "Pin the event location on the kiosk Maps view. Triggered automatically on confirm_event intent.",
+      "triggeredBy": "confirm_event intent",
+      "payload": {
+        "query": "string — location as spoken by user",
+        "label": "string — eventName, used as pin label on the map"
+      }
+    },
+    {
+      "type": "maps_get_directions",
+      "description": "Show directions to the event location on the kiosk Maps view.",
+      "payload": {
+        "destination": "string — location query",
+        "mode": "driving | walking | transit (optional, default: driving)"
+      }
+    }
+  ]
+}

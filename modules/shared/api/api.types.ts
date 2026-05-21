@@ -3,7 +3,7 @@ import { ApiResponse } from "apisauce";
 export interface StandardResponse<T> {
   data: T;
   message?: string;
-  success: boolean;
+  status: "success" | "error";
 }
 
 export type ApiResult<T> = ApiResponse<

@@ -1,0 +1,132 @@
+{
+  "version": "1.0",
+  "description": "All user intents ChatWonder must recognize, with the data slots to collect per intent.",
+  "intents": [
+    {
+      "name": "collect_event_name",
+      "page": "event-setup",
+      "activeStep": "event",
+      "description": "Collect what occasion or event the user is dressing for",
+      "slots": [
+        {
+          "name": "eventName",
+          "type": "string",
+          "required": true,
+          "prompt": "What's the occasion today?",
+          "examples": ["a birthday dinner", "a job interview", "a date", "a wedding", "a party"]
+        }
+      ]
+    },
+    {
+      "name": "collect_event_type",
+      "page": "event-setup",
+      "activeStep": "event_type",
+      "description": "Classify the event into a category used for outfit recommendations",
+      "slots": [
+        {
+          "name": "eventType",
+          "type": "enum",
+          "required": true,
+          "values": ["casual", "formal", "business", "romantic", "outdoor", "party", "sports", "other"],
+          "derivedFrom": "eventName",
+          "prompt": "Is this more of a casual or formal occasion?"
+        }
+      ]
+    },
+    {
+      "name": "collect_datetime",
+      "page": "event-setup",
+      "activeStep": "datetime",
+      "description": "Collect when the event is happening. Normalize to ISO 8601 for the Calendar feature.",
+      "slots": [
+        {
+          "name": "dateTime",
+          "type": "string",
+          "required": true,
+          "prompt": "When is it happening?",
+          "normalizedFormat": "ISO 8601 (e.g. 2026-05-20T19:00:00)",
+          "downstreamFeature": "calendar",
+          "examples": ["this Saturday at 7pm", "tomorrow evening", "May 20 at 7"]
+        }
+      ]
+    },
+    {
+      "name": "collect_location",
+      "page": "event-setup",
+      "activeStep": "location",
+      "description": "Collect where the event is happening. Fed into the Maps feature for preview and directions.",
+      "slots": [
+        {
+          "name": "location",
+          "type": "string",
+          "required": true,
+          "prompt": "Where will it be?",
+          "downstreamFeature": "maps",
+          "examples": ["BGC", "Makati", "The Fort Strip", "SM Mall of Asia", "Shangri-La Hotel"]
+        }
+      ]
+    },
+    {
+      "name": "confirm_event",
+      "page": "event-setup",
+      "activeStep": "confirm",
+      "description": "User confirms all collected event details. Triggers calendar save and map preview.",
+      "slots": [],
+      "confirmKeywords": ["yes", "sure", "looks good", "good", "ok", "okay", "confirm", "perfect", "proceed", "correct"],
+      "onConfirmTriggers": ["calendar_save_event", "maps_preview_location"]
+    },
+    {
+      "name": "navigate",
+      "page": "*",
+      "description": "Navigate to a different page by voice command",
+      "slots": [
+        {
+          "name": "destination",
+          "type": "route",
+          "required": true,
+          "resolvedFrom": "navigation.json routes"
+        }
+      ]
+    },
+    {
+      "name": "get_directions",
+      "page": "*",
+      "description": "Ask for directions to a specific location — navigates to the map page and shows route",
+      "slots": [
+        {
+          "name": "destination",
+          "type": "string",
+          "required": true,
+          "prompt": "Where do you need directions to?"
+        }
+      ],
+      "onTrigger": ["maps_get_directions", "navigate:/map"]
+    },
+    {
+      "name": "get_weather",
+      "page": "*",
+      "description": "Ask about current weather conditions at the user's location. Responds with a speak action.",
+      "triggers": ["what's the weather", "how's the weather", "is it going to rain", "weather today", "how hot is it", "temperature outside"],
+      "slots": [],
+      "responseAction": "speak",
+      "contextRequired": ["lat", "lng", "currentDate"]
+    },
+    {
+      "name": "get_time",
+      "page": "*",
+      "description": "Ask what time or date it is. Responds with a speak action using the currentTime/currentDate context.",
+      "triggers": ["what time is it", "what's the time", "what day is it", "what's today's date", "what's the date"],
+      "slots": [],
+      "responseAction": "speak",
+      "contextRequired": ["currentTime", "currentDate"]
+    },
+    {
+      "name": "get_schedule",
+      "page": "*",
+      "description": "Navigate to the schedule/calendar page to see upcoming events",
+      "triggers": ["show my schedule", "my events", "upcoming events", "open calendar", "what's on my calendar", "show my calendar"],
+      "slots": [],
+      "onTrigger": ["navigate:/schedule"]
+    }
+  ]
+}

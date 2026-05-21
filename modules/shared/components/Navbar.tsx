@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Button } from "./Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { endKioskSession } from "@/modules/shared/utils/end-kiosk-session";
 import { Dropdown, DropdownItem } from "./Dropdown";
 import { useRouter } from "next/navigation";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -87,8 +88,8 @@ export const Navbar = () => {
           <line x1="21" x2="9" y1="12" y2="12" />
         </svg>
       ),
-      onClick: () => {
-        logout();
+      onClick: async () => {
+        await endKioskSession();
         router.push("/");
       },
     },

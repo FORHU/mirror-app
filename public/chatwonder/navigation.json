@@ -1,0 +1,66 @@
+{
+  "version": "1.0",
+  "description": "All navigable routes in the mirror-app kiosk and their voice trigger phrases.",
+  "routes": [
+    {
+      "route": "/",
+      "name": "welcome",
+      "description": "Welcome / home screen shown before a user logs in",
+      "triggers": ["go home", "welcome screen", "home", "start over"]
+    },
+    {
+      "route": "/event-setup",
+      "name": "event-setup",
+      "description": "Voice-driven setup to collect event details (name, type, date, location)",
+      "triggers": ["set up event", "event setup", "what's the occasion", "plan my event"]
+    },
+    {
+      "route": "/logged-in",
+      "name": "logged-in",
+      "description": "Main screen after login with access to mirror features",
+      "triggers": ["go to kiosk", "show mirror", "open kiosk", "main screen"]
+    },
+    {
+      "route": "/outfit-builder",
+      "name": "outfit-builder",
+      "description": "Interactive outfit builder for selecting garments per fitting slot",
+      "triggers": ["build outfit", "outfit builder", "pick clothes", "assemble look"]
+    },
+    {
+      "route": "/capture",
+      "name": "capture",
+      "description": "Photo capture entry page",
+      "triggers": ["take photo", "capture photo", "take a picture"]
+    },
+    {
+      "route": "/capture-picture",
+      "name": "capture-picture",
+      "description": "Live camera capture page",
+      "triggers": ["open camera", "capture picture", "selfie"]
+    },
+    {
+      "route": "/try-it-on",
+      "name": "try-it-on",
+      "description": "Virtual try-on feature",
+      "triggers": ["try it on", "virtual fitting", "wear it", "try on outfit"]
+    },
+    {
+      "route": "/qrcode",
+      "name": "qrcode",
+      "description": "QR code display for companion app pairing",
+      "triggers": ["show qr code", "scan code", "pair with phone", "open companion app"]
+    },
+    {
+      "route": "/map",
+      "name": "map",
+      "description": "Interactive Mapbox map with navigation, voice, weather, and nearby POIs",
+      "triggers": ["open map", "show map", "go to map", "navigate", "directions", "take me to", "get directions"]
+    },
+    {
+      "route": "/schedule",
+      "name": "schedule",
+      "description": "Schedule / calendar page showing all saved events from event setup",
+      "triggers": ["show my schedule", "my schedule", "open calendar", "show events", "upcoming events", "my events", "what's on my calendar"]
+    }
+  ]
+}

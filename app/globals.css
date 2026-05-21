@@ -90,6 +90,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+
   /* Theme tokens (shadcn-ish naming) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -165,9 +167,10 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-poppins);
     -webkit-font-smoothing: antialiased;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
     touch-action: manipulation;
@@ -177,9 +180,8 @@
 
   html {
     font-size: var(--font-size);
-    /* Lock to portrait mirror resolution — Chromium kiosk: --window-size=768,1366 */
-    width: var(--mirror-w);
-    height: var(--mirror-h);
+    width: 100%;
+    height: 100%;
     overflow: hidden;
   }
 
