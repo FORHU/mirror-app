@@ -251,7 +251,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setError(err instanceof Error ? err.message : "Voice processing failed.");
       setVoiceState("idle");
     }
-  }, [voiceState, dispatchAction]);
+  }, [voiceState, dispatchAction, pathname]);
 
   const toggle = useCallback(() => {
     if (voiceState === "idle")      return startListening();
