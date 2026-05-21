@@ -19,9 +19,8 @@ import {
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setMounted(true); }, []);
 
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = mounted ? resolvedTheme === "dark" : true;
@@ -48,7 +47,7 @@ export default function LandingPage() {
               Smart Mirror.
             </h1>
             <p className="text-xl text-[#6b5b95] max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-              Click "Start now" to get started experiencing the future of smart mirrors.
+              Click &quot;Start now&quot; to get started experiencing the future of smart mirrors.
             </p>
 
             <div className= "flex flex-col md:flex-row items-center justify-center gap-6">
