@@ -21,12 +21,6 @@ export default function WelcomePage() {
   const [date, setDate] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-<<<<<<< HEAD
-export default function LandingPage() {
-  const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setMounted(true); }, []);
-=======
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -43,7 +37,6 @@ export default function LandingPage() {
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   }, []);
->>>>>>> f83bacda35d558827b52f988fe63295c55bdfedd
 
   useEffect(() => {
     function tick() {
@@ -69,39 +62,6 @@ export default function LandingPage() {
       onClick={() => router.push(`/qrcode/${detectMirrorId()}`)}
     >
 
-<<<<<<< HEAD
-      <div className="relative z-10">
-
-        {/* Hero Section */}
-        <section className="pt-24 pb-16 px-6 text-center max-w-5xl mx-auto flex items-center justify-center h-screen">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-
-            <h1 className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1] tracking-tight bg-gradient-to-r from-[#6b5b95] via-[#8b7fc7] to-[#6b5b95] bg-clip-text text-transparent">
-              Welcome to <br />
-              Smart Mirror.
-            </h1>
-            <p className="text-xl text-[#6b5b95] max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-              Click &quot;Start now&quot; to get started experiencing the future of smart mirrors.
-            </p>
-
-            <div className= "flex flex-col md:flex-row items-center justify-center gap-6">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                onClick={() => router.push("/qrcode")}
-                className="w-full py-4 bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] shadow-lg shadow-purple-300/40 text-[#2d2d3a] font-semibold rounded-xl shadow-lg hover:shadow-purple-400/60 transition-all flex items-center justify-center gap-2"
-              >
-                Start Now
-              </motion.button>
-            </div>
-          </motion.div>
-        </section>
-=======
       {/* Header */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
         <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', alignItems: 'center' }}>
@@ -114,7 +74,6 @@ export default function LandingPage() {
           <p className="text-white font-semibold text-2xl leading-tight">{time}</p>
           <p className="text-white/40 text-sm mt-0.5">{date}</p>
         </div>
->>>>>>> f83bacda35d558827b52f988fe63295c55bdfedd
       </div>
 
       {/* Taglines */}

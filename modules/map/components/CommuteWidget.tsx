@@ -52,6 +52,7 @@ export default function CommuteWidget() {
   useEffect(() => {
     if (settingWork && selectedDestination) {
       setWorkLocation({ lat: selectedDestination.lat, lng: selectedDestination.lng });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSettingWork(false);
     }
   }, [selectedDestination, settingWork, setWorkLocation]);

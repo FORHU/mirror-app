@@ -20,6 +20,7 @@ export default function CapturePicturePage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("mirror_captured_photo");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setPhoto(stored);
   }, []);
 

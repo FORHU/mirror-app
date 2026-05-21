@@ -14,6 +14,7 @@ const LAYER_LABEL = "nearby-pois-label";
 export default function NearbyPOILayer({ map }: Props) {
   const { nearbyPOIs, setSelectedPOI } = useMapStore();
   const nearbyPOIsRef = useRef(nearbyPOIs);
+  // eslint-disable-next-line react-hooks/refs
   nearbyPOIsRef.current = nearbyPOIs;
 
   useEffect(() => {

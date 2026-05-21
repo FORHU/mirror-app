@@ -27,7 +27,7 @@ const NavigationHUD = () => {
     activeRoute,
   } = useMapStore();
 
-  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
+  const { isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
   useNavigationAnnouncements();
   const { ambientPOI, dismissAmbientPOI } = useAmbientPOI();
 
@@ -39,10 +39,13 @@ const NavigationHUD = () => {
         ? <Volume2 className="w-5 h-5" style={{ color: "#4fc3f7" }} />
         : <Mic className="w-5 h-5 text-white/70" />;
 
-  const eta = new Date(Date.now() + remainingDuration * 1000).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const eta = useMemo(
+    () => new Date(Date.now() + remainingDuration * 1000).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    [remainingDuration],
+  );
 
   // Smart distance formatting
   const distanceFormatted = useMemo(() => {

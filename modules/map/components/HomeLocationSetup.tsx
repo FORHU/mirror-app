@@ -97,7 +97,7 @@ const HomeLocationSetup = () => {
     <div className="fixed inset-0 bg-[#000000] flex flex-col p-10 text-white">
       <div className="mb-12">
         <h1 className="text-4xl font-light mb-2 tracking-tight">System Setup</h1>
-        <p className="text-white/40">Set your mirror's home location to begin</p>
+        <p className="text-white/40">Set your mirror&apos;s home location to begin</p>
       </div>
 
       <div className="flex gap-8 mb-10 border-b border-white/10 pb-4">

@@ -94,6 +94,7 @@ export function ArcCarousel<T extends object>({
             className="absolute focus:outline-none flex items-start justify-center"
             style={{ top: 0, left: "50%", width: iconBasePx, marginLeft: -iconBasePx / 2 }}
             animate={{ x, y, scale, opacity }}
+            // eslint-disable-next-line react-hooks/refs
             transition={
               isDragging.current
                 ? { duration: 0 }
