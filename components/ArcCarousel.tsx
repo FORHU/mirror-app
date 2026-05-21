@@ -76,6 +76,7 @@ export function ArcCarousel<T extends object>({
       onPointerUp={commit}
       onPointerLeave={commit}
     >
+      {/* eslint-disable-next-line react-hooks/refs */}
       {vis.map(vi => {
         const offset    = vi - effectiveVI;
         const absOffset = Math.abs(offset);
@@ -94,7 +95,6 @@ export function ArcCarousel<T extends object>({
             className="absolute focus:outline-none flex items-start justify-center"
             style={{ top: 0, left: "50%", width: iconBasePx, marginLeft: -iconBasePx / 2 }}
             animate={{ x, y, scale, opacity }}
-            // eslint-disable-next-line react-hooks/refs
             transition={
               isDragging.current
                 ? { duration: 0 }
