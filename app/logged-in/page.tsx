@@ -36,7 +36,7 @@ export default function LoggedInPage() {
 
         {/* Check a fit */}
         <button
-          onClick={() => router.push('/virtual-mirror-v2')}
+          onClick={() => router.push('/personalize-outfit')}
           className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{height: '250px'}}
         >

@@ -57,7 +57,10 @@ export default function WelcomePage() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
+    <div
+      className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10 cursor-pointer"
+      onClick={() => router.push(`/qrcode/${detectMirrorId()}`)}
+    >
 
       {/* Header */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
@@ -94,35 +97,13 @@ export default function WelcomePage() {
         </AnimatePresence>
       </div>
 
-      {/* CTA */}
       <div className="flex flex-col gap-4 shrink-0">
         <button
-          className="w-full glass-card-strong neon-border-white rounded-3xl py-8 text-white font-bold text-2xl transition-all active:scale-95"
+          className="w-full py-8 text-white font-bold text-2xl transition-all active:scale-95"
           onClick={() => router.push(`/qrcode/${detectMirrorId()}`)}
         >
-          Start Now
+          Touch to Start Now
         </button>
-
-        {process.env.NODE_ENV === "development" && (
-          <button
-            className="w-full rounded-2xl py-4 text-white/30 font-semibold text-lg transition-all active:scale-95"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)" }}
-            onClick={async () => {
-              try {
-                const res = await fetch(`/api/mirror/dev/token`);
-                const { token } = await res.json();
-                if (token) {
-                  localStorage.setItem("token", token);
-                  router.push("/map");
-                }
-              } catch {
-                alert("Dev bypass failed. Make sure mirror-api is running and seeded.");
-              }
-            }}
-          >
-            Dev: Skip to Map
-          </button>
-        )}
       </div>
 
     </div>

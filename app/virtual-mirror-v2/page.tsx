@@ -221,8 +221,9 @@ export default function VirtualMirrorV2() {
             <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', alignItems: 'center' }}>
                 <WeatherWidget iconSize={32} />
             </div>
-            <div style={{ flex: '0 0 50%', width: '50%', display: 'flex', justifyContent: 'center' }}>
-                <span className="text-white font-semibold text-3xl tracking-wide select-none">Virtual Mirror</span>
+            <div style={{ flex: '0 0 50%', width: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="text-white font-thin select-none shrink-0" style={{ fontSize: '3rem', lineHeight: 1 }}>{time}</span>
+                <span className="text-white/80 text-xl font-light select-none shrink-0">{day}, {date}</span>
             </div>
             <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
@@ -402,8 +403,6 @@ export default function VirtualMirrorV2() {
                 const selectedOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
                 return (
                     <div className="h-full flex flex-col items-center pt-8 gap-1 overflow-hidden" style={{ flex: '0 0 50%', width: '50%', minHeight: 0 }}>
-                        <span className="text-white font-thin select-none shrink-0" style={{ fontSize: '3rem', lineHeight: 1 }}>{time}</span>
-                        <span className="text-white/80 text-xl font-light select-none mb-2 shrink-0">{day}, {date}</span>
 
                         {/* Outfit display */}
                         {selectedOutfit && (
