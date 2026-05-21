@@ -8,6 +8,7 @@ import { garmentService, type RemoteGarment } from '@/modules/shared/api/garment
 import { outfitService, type RemoteOutfit } from '@/modules/shared/api/outfit.service';
 import { FittingSlot } from '@/modules/garment/types';
 import WeatherWidget from '@/components/WeatherWidget';
+import OutfitPreviewCanvas from '@/components/OutfitPreviewCanvas';
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
     const startX = useRef<number | null>(null);
@@ -70,6 +71,7 @@ export default function VirtualMirrorV2() {
     const [selectedShoe,   setSelectedShoe]   = useState<RemoteGarment | null>(null);
     const [loadingGarments, setLoadingGarments] = useState(true);
     const [loadingOutfits,  setLoadingOutfits]  = useState(true);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const clearSlots = () => { setSelectedHat(null); setSelectedBag(null); setSelectedTop(null); setSelectedBottom(null); setSelectedShoe(null); };
     const selectOutfit = (idx: number) => { setSelectedOutfitIdx(idx); clearSlots(); };
@@ -595,9 +597,52 @@ export default function VirtualMirrorV2() {
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
             onMouseDown={e => (e.currentTarget.style.transform = 'translateX(-50%) scale(0.97)')}
             onMouseUp={e => (e.currentTarget.style.transform = 'translateX(-50%) scale(1)')}
+            onClick={() => setShowConfirm(true)}
         >
             Create Outfit
         </button>}
+
+        {/* Confirm modal */}
+        {showConfirm && (
+            <div
+                style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => setShowConfirm(false)}
+            >
+                <div
+                    style={{ background: '#111', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '20px', padding: '32px 28px', width: '360px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <p style={{ color: 'white', fontSize: '20px', fontWeight: '700', textAlign: 'center', margin: 0 }}>Create Outfit?</p>
+                    <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '14px', textAlign: 'center', margin: 0 }}>Save your current selection as a new outfit.</p>
+
+                    {/* Outfit preview */}
+                    <div style={{ width: '100%', aspectRatio: '2/3', borderRadius: '12px', overflow: 'hidden', background: '#f8f9fb', marginTop: '4px' }}>
+                        <OutfitPreviewCanvas
+                            hat={selectedHat}
+                            top={selectedTop}
+                            bottom={selectedBottom}
+                            shoe={selectedShoe}
+                            bag={selectedBag}
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '4px', width: '100%' }}>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '12px', color: 'white', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}
+                            onClick={() => setShowConfirm(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            style={{ flex: 1, padding: '12px', background: '#ffffff', border: 'none', borderRadius: '12px', color: '#000', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}
+                            onClick={() => { setShowConfirm(false); /* TODO: save logic */ }}
+                        >
+                            Confirm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
     );
 }
