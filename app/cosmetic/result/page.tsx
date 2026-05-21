@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import "../../../styles/glow.css";
@@ -109,16 +110,11 @@ function useSwipe(onLeft: () => void, onRight: () => void) {
 export default function CosmeticResultPage() {
     const router = useRouter();
     const now = useClock();
-    const [capturedImage, setCapturedImage] = useState<string | null>(null);
+    const [capturedImage] = useState<string | null>(() => {
+        try { return sessionStorage.getItem("skin_capture"); } catch { return null; }
+    });
     const [productPage, setProductPage] = useState(0);
     const [garmentImages, setGarmentImages] = useState<string[]>([]);
-
-    useEffect(() => {
-        try {
-            const img = sessionStorage.getItem("skin_capture");
-            if (img) setCapturedImage(img);
-        } catch {}
-    }, []);
 
     useEffect(() => {
         garmentService.getBySlot(FittingSlot.UpperGarment)
@@ -177,18 +173,15 @@ export default function CosmeticResultPage() {
                     }}
                 >
                     {capturedImage ? (
-                    <img
+                    <Image
+                        fill
+                        unoptimized
                         src={capturedImage}
                         alt="Skin capture"
                         style={{
-                        width: '100%',
-                        height: '100%',
                         objectFit: 'cover',
                         objectPosition: 'center top',
                         transform: 'scaleX(-1)',
-                        display: 'block',
-                        position: 'absolute',
-                        inset: 0,
                         }}
                     />
                     ) : (
@@ -287,7 +280,7 @@ export default function CosmeticResultPage() {
                                 {/* Left — photo 40% */}
                                 <div style={{ flex: '0 0 40%', background: 'rgba(255,255,255,0.01)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                                     {imgUrl
-                                        ? <img src={imgUrl} alt={product.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                                        ? <Image fill unoptimized src={imgUrl} alt={product.name} draggable={false} className="object-contain pointer-events-none" />
                                         : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '9px' }}>Photo</span>
                                     }
                                 </div>
