@@ -1,4 +1,4 @@
-const raw = process.env.NEXT_PUBLIC_DEVICE_MODE;
+const raw = process.env.NEXT_PUBLIC_DEVICE_MODE ?? 'mirror';
 if (raw !== 'mirror' && raw !== 'phone') {
   throw new Error(`NEXT_PUBLIC_DEVICE_MODE must be 'mirror' or 'phone'. Got: '${raw}'`);
 }
