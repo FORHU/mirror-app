@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import { Sparkles, Code, Globe, Layout } from "lucide-react";
 
@@ -21,16 +20,21 @@ export function SampleContent() {
         className="p-8 rounded-3xl glass-light border border-white/10 relative overflow-hidden group"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-brand-core/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <h2 className="text-3xl font-bold mb-4 text-gradient-pink">Sample Component</h2>
+        <h2 className="text-3xl font-bold mb-4 text-gradient-pink">
+          Sample Component
+        </h2>
         <p className="text-text-secondary leading-relaxed mb-6">
-          This is a sample module component showing how to use the Mirror App's
-          design tokens and shared components. It's fully responsive and
-          supports both dark and light modes.
+          This is a sample module component showing how to use the Mirror
+          App&apos;s design tokens and shared components. It&apos;s fully
+          responsive and supports both dark and light modes.
         </p>
 
         <div className="grid grid-cols-2 gap-4">
           {specs.map((spec, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
+            <div
+              key={i}
+              className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/5"
+            >
               <spec.icon className="w-5 h-5 text-brand-light mt-1" />
               <div>
                 <h4 className="font-semibold text-sm">{spec.title}</h4>

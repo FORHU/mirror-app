@@ -1,7 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Sparkles, Shirt, MessageSquare, Compass, Briefcase } from "lucide-react";
+import {
+  ArrowLeft,
+  Sparkles,
+  Shirt,
+  MessageSquare,
+  Compass,
+  Briefcase,
+} from "lucide-react";
 import { motion } from "motion/react";
 import "../../styles/glow.css";
 
@@ -9,47 +16,51 @@ const templates = [
   {
     id: "fashion",
     title: "1. Interactive Fashion Mode",
-    description: "Symmetrical garment selection grid with Accessories, Outfit Looks, Tops, Outer, Bottoms, and Shoes panels.",
+    description:
+      "Symmetrical garment selection grid with Accessories, Outfit Looks, Tops, Outer, Bottoms, and Shoes panels.",
     path: "/mirror-templates/fashion",
     icon: Shirt,
     color: "from-purple-500/20 to-pink-500/20",
     borderColor: "border-purple-500/30",
     glowColor: "shadow-[0_0_30px_rgba(168,85,247,0.15)]",
-    emoji: "👗"
+    emoji: "👗",
   },
   {
     id: "chat",
     title: "2. Voice Chat Assistant",
-    description: "AI fashion stylist conversational interface with interactive chat history bubbles and a breathing glow microphone widget.",
+    description:
+      "AI fashion stylist conversational interface with interactive chat history bubbles and a breathing glow microphone widget.",
     path: "/mirror-templates/chat",
     icon: MessageSquare,
     color: "from-blue-500/20 to-indigo-500/20",
     borderColor: "border-blue-500/30",
     glowColor: "shadow-[0_0_30px_rgba(59,130,246,0.15)]",
-    emoji: "💬"
+    emoji: "💬",
   },
   {
     id: "outing",
     title: "3. Outing Mode & Map",
-    description: "Multi-panel dashboard featuring side-by-side look comparisons, dynamic calendar timeline, and dark GPS route navigation.",
+    description:
+      "Multi-panel dashboard featuring side-by-side look comparisons, dynamic calendar timeline, and dark GPS route navigation.",
     path: "/mirror-templates/outing",
     icon: Compass,
     color: "from-emerald-500/20 to-teal-500/20",
     borderColor: "border-emerald-500/30",
     glowColor: "shadow-[0_0_30px_rgba(16,185,129,0.15)]",
-    emoji: "🗺️"
+    emoji: "🗺️",
   },
   {
     id: "office",
     title: "4. Professional Office Mode",
-    description: "Sleek office-wear styling template displaying vertical previous pick reels, color palettes, and structured outfit metadata.",
+    description:
+      "Sleek office-wear styling template displaying vertical previous pick reels, color palettes, and structured outfit metadata.",
     path: "/mirror-templates/office",
     icon: Briefcase,
     color: "from-amber-500/20 to-orange-500/20",
     borderColor: "border-amber-500/30",
     glowColor: "shadow-[0_0_30px_rgba(245,158,11,0.15)]",
-    emoji: "💼"
-  }
+    emoji: "💼",
+  },
 ];
 
 export default function TemplatesHome() {
@@ -75,7 +86,9 @@ export default function TemplatesHome() {
               <Sparkles className="w-5 h-5 text-purple-400" />
               Smart Mirror Screen Templates
             </h1>
-            <p className="text-white/40 text-xs mt-0.5">Explore premium layout references inspired by your designs</p>
+            <p className="text-white/40 text-xs mt-0.5">
+              Explore premium layout references inspired by your designs
+            </p>
           </div>
         </div>
       </header>

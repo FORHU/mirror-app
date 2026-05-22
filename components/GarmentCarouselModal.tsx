@@ -21,7 +21,7 @@ interface GarmentCarouselModalProps {
 }
 
 const CARD_RATIO = 0.58;
-const CARD_GAP   = 16;
+const CARD_GAP = 16;
 
 export default function GarmentCarouselModal({
   activeSlot,
@@ -31,22 +31,26 @@ export default function GarmentCarouselModal({
   onConfirm,
 }: GarmentCarouselModalProps) {
   const [centerVI, setCenterVI] = useState(0);
-  const [dragPx,   setDragPx]   = useState(0);
-  const [slotPx,   setSlotPx]   = useState(
-    () => (typeof window !== "undefined" ? window.innerWidth * CARD_RATIO + CARD_GAP : 260)
+  const [dragPx, setDragPx] = useState(0);
+  const [slotPx, setSlotPx] = useState(() =>
+    typeof window !== "undefined"
+      ? window.innerWidth * CARD_RATIO + CARD_GAP
+      : 260,
   );
 
-  const isDragging  = useRef(false);
-  const startX      = useRef(0);
-  const dragPxRef   = useRef(0);
+  const isDragging = useRef(false);
+  const [isDraggingState, setIsDraggingState] = useState(false);
+  const startX = useRef(0);
+  const dragPxRef = useRef(0);
   const centerVIRef = useRef(0);
-  const slotPxRef   = useRef(slotPx);
+  const slotPxRef = useRef(slotPx);
 
   // Reset position when the slot changes
   useEffect(() => {
     const sp = window.innerWidth * CARD_RATIO + CARD_GAP;
     slotPxRef.current = sp;
     dragPxRef.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDragPx(0);
     setSlotPx(sp);
     centerVIRef.current = 0;
@@ -57,26 +61,28 @@ export default function GarmentCarouselModal({
   useEffect(() => {
     if (items.length === 0) return;
     const selectedId = activeSlot?.garment?.id ?? "none";
-    const idx = items.findIndex(item => item.id === selectedId);
+    const idx = items.findIndex((item) => item.id === selectedId);
     if (idx > 0) {
       centerVIRef.current = idx;
       dragPxRef.current = 0;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCenterVI(idx);
       setDragPx(0);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
-  const n    = items.length;
+  const n = items.length;
   const wrap = (vi: number) => items[((vi % n) + n) % n];
 
   const effectiveVI = centerVI - dragPx / slotPx;
-  const lo  = Math.floor(effectiveVI) - 2;
-  const hi  = Math.ceil(effectiveVI)  + 2;
+  const lo = Math.floor(effectiveVI) - 2;
+  const hi = Math.ceil(effectiveVI) + 2;
   const vis = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     isDragging.current = true;
+    setIsDraggingState(true);
     startX.current = e.clientX;
     e.currentTarget.setPointerCapture(e.pointerId);
   }
@@ -89,21 +95,27 @@ export default function GarmentCarouselModal({
   function onPointerUp() {
     if (!isDragging.current) return;
     isDragging.current = false;
-    const snapped = Math.round(centerVIRef.current - dragPxRef.current / slotPxRef.current);
+    setIsDraggingState(false);
+    const snapped = Math.round(
+      centerVIRef.current - dragPxRef.current / slotPxRef.current,
+    );
     centerVIRef.current = snapped;
-    dragPxRef.current   = 0;
+    dragPxRef.current = 0;
     setCenterVI(snapped);
     setDragPx(0);
   }
 
   function handleConfirm() {
-    const item = n > 0
-      ? wrap(Math.round(centerVIRef.current - dragPxRef.current / slotPxRef.current))
-      : items[0];
+    const item =
+      n > 0
+        ? wrap(
+            Math.round(
+              centerVIRef.current - dragPxRef.current / slotPxRef.current,
+            ),
+          )
+        : items[0];
     onConfirm(item);
   }
-
-  const containerH = `calc(${CARD_RATIO * 100}vw + 52px)`;
 
   return (
     <AnimatePresence>
@@ -156,56 +168,72 @@ export default function GarmentCarouselModal({
                 <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
               </div>
             )}
-            {!loading && n > 0 && vis.map(vi => {
-              const offset    = vi - effectiveVI;
-              const absOffset = Math.abs(offset);
-              if (absOffset > 2.2) return null;
+            {!loading &&
+              n > 0 &&
+              vis.map((vi) => {
+                const offset = vi - effectiveVI;
+                const absOffset = Math.abs(offset);
+                if (absOffset > 2.2) return null;
 
-              const item     = wrap(vi);
-              const isCenter = absOffset < 0.5;
-              const x        = offset * slotPx;
-              const opacity  = isCenter ? 1 : Math.max(0, 1 - absOffset * 0.72);
-              const scale    = isCenter ? 1 : 0.88;
+                const item = wrap(vi);
+                const isCenter = absOffset < 0.5;
+                const x = offset * slotPx;
+                const opacity = isCenter
+                  ? 1
+                  : Math.max(0, 1 - absOffset * 0.72);
+                const scale = isCenter ? 1 : 0.88;
 
-              return (
-                <motion.div
-                  key={vi}
-                  className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-3"
-                  style={{
-                    width: `${CARD_RATIO * 100}%`,
-                    left: `${(1 - CARD_RATIO) / 2 * 100}%`,
-                  }}
-                  initial={{ x, opacity, scale }}
-                  animate={{ x, opacity, scale }}
-                  transition={
-                    isDragging.current
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 360, damping: 32, mass: 0.85 }
-                  }
-                >
-                  <div
-                    className={`w-full rounded-3xl flex items-center justify-center ${
-                      item.imageUrl ? "bg-white" : "bg-white/10 border-2 border-white/30"
-                    } ${isCenter ? "shadow-[0_8px_48px_rgba(255,255,255,0.22)] ring-2 ring-white/40" : ""}`}
-                    style={{ width: "100%", aspectRatio: "1 / 1" }}
+                return (
+                  <motion.div
+                    key={vi}
+                    className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center gap-3"
+                    style={{
+                      width: `${CARD_RATIO * 100}%`,
+                      left: `${((1 - CARD_RATIO) / 2) * 100}%`,
+                    }}
+                    initial={{ x, opacity, scale }}
+                    animate={{ x, opacity, scale }}
+                    transition={
+                      isDraggingState
+                        ? { duration: 0 }
+                        : {
+                            type: "spring",
+                            stiffness: 360,
+                            damping: 32,
+                            mass: 0.85,
+                          }
+                    }
                   >
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.label}
-                        draggable={false}
-                        className="w-full h-full object-contain p-5"
-                      />
-                    ) : (
-                      <span className="font-semibold text-white text-xl">None</span>
-                    )}
-                  </div>
-                  <span className={`font-medium text-sm w-full text-center truncate px-2 ${isCenter ? "text-white" : "text-white/30"}`}>
-                    {item.label}
-                  </span>
-                </motion.div>
-              );
-            })}
+                    <div
+                      className={`w-full rounded-3xl flex items-center justify-center ${
+                        item.imageUrl
+                          ? "bg-white"
+                          : "bg-white/10 border-2 border-white/30"
+                      } ${isCenter ? "shadow-[0_8px_48px_rgba(255,255,255,0.22)] ring-2 ring-white/40" : ""}`}
+                      style={{ width: "100%", aspectRatio: "1 / 1" }}
+                    >
+                      {item.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.imageUrl}
+                          alt={item.label}
+                          draggable={false}
+                          className="w-full h-full object-contain p-5"
+                        />
+                      ) : (
+                        <span className="font-semibold text-white text-xl">
+                          None
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`font-medium text-sm w-full text-center truncate px-2 ${isCenter ? "text-white" : "text-white/30"}`}
+                    >
+                      {item.label}
+                    </span>
+                  </motion.div>
+                );
+              })}
           </motion.div>
 
           {/* ── Select button — pinned bottom ── */}

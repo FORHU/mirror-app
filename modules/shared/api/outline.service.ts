@@ -13,7 +13,9 @@ export interface Outline {
 
 export const outlineService = {
   async getActive(): Promise<Outline | null> {
-    const res = await api.get<{ data: Outline | null }>("/api/remote/outlines/active");
+    const res = await api.get<{ data: Outline | null }>(
+      "/api/remote/outlines/active",
+    );
     return res.data?.data ?? null;
   },
 

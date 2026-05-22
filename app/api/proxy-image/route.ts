@@ -8,13 +8,19 @@ export async function GET(req: Request) {
   const url = searchParams.get("url");
 
   if (!url) {
-    return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing url parameter" },
+      { status: 400 },
+    );
   }
 
   try {
     const upstream = await fetch(url, { cache: "no-store" });
     if (!upstream.ok) {
-      return NextResponse.json({ error: "Upstream fetch failed" }, { status: upstream.status });
+      return NextResponse.json(
+        { error: "Upstream fetch failed" },
+        { status: upstream.status },
+      );
     }
 
     const contentType = upstream.headers.get("content-type") ?? "image/png";

@@ -20,7 +20,9 @@ type CameraInstance = { start: () => void; stop?: () => void };
 
 declare global {
   interface Window {
-    Hands: new (config: { locateFile: (file: string) => string }) => HandsInstance;
+    Hands: new (config: {
+      locateFile: (file: string) => string;
+    }) => HandsInstance;
     Camera: new (
       video: HTMLVideoElement,
       config: { onFrame: () => Promise<void>; width: number; height: number },
@@ -56,7 +58,9 @@ export default function CapturePage() {
   const cooldownTimerRef = useRef<number | null>(null);
   const isCountingDownRef = useRef(false);
 
-  const [statusText, setStatusText] = useState("Position your hand and show ✌️");
+  const [statusText, setStatusText] = useState(
+    "Position your hand and show ✌️",
+  );
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(5);
   const [thumbnails, setThumbnails] = useState<string[]>([]);
@@ -69,7 +73,8 @@ export default function CapturePage() {
 
   const takePhoto = useCallback(() => {
     const videoElement = videoRef.current;
-    if (!videoElement || !videoElement.videoWidth || !videoElement.videoHeight) return;
+    if (!videoElement || !videoElement.videoWidth || !videoElement.videoHeight)
+      return;
 
     setIsFlashActive(true);
     window.setTimeout(() => setIsFlashActive(false), 200);
@@ -119,10 +124,12 @@ export default function CapturePage() {
 
     async function initializeCamera() {
       await Promise.all([loadScript(HANDS_CDN), loadScript(CAMERA_UTILS_CDN)]);
-      if (!isMounted || !videoRef.current || !window.Hands || !window.Camera) return;
+      if (!isMounted || !videoRef.current || !window.Hands || !window.Camera)
+        return;
 
       const hands = new window.Hands({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
       });
 
       hands.setOptions({
@@ -164,14 +171,18 @@ export default function CapturePage() {
 
     initializeCamera().catch(() => {
       if (isMounted) {
-        setStatusText("Unable to initialize webcam. Please allow camera access.");
+        setStatusText(
+          "Unable to initialize webcam. Please allow camera access.",
+        );
       }
     });
 
     return () => {
       isMounted = false;
-      if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
-      if (cooldownTimerRef.current) window.clearTimeout(cooldownTimerRef.current);
+      if (countdownTimerRef.current)
+        window.clearInterval(countdownTimerRef.current);
+      if (cooldownTimerRef.current)
+        window.clearTimeout(cooldownTimerRef.current);
       cameraRef.current?.stop?.();
     };
   }, [startCountdown]);
@@ -186,14 +197,17 @@ export default function CapturePage() {
 
       <section className="relative z-10 mx-auto w-full max-w-6xl">
         <div className="mb-6 rounded-2xl border border-border-default glass-light px-6 py-5 text-center">
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Gesture Capture</h1>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">
+            Gesture Capture
+          </h1>
           <p className="mt-2 text-text-secondary">
             Position your hand and show ✌️ to trigger the countdown.
           </p>
         </div>
 
         <div className="mx-auto w-fit rounded-full border border-border-strong bg-background-secondary/80 px-5 py-2 text-sm md:text-base text-text-secondary">
-          <span className="font-semibold text-text-primary">Status:</span> {statusText}
+          <span className="font-semibold text-text-primary">Status:</span>{" "}
+          {statusText}
         </div>
 
         <div
@@ -203,7 +217,9 @@ export default function CapturePage() {
         >
           {!isReady && (
             <div className="absolute inset-0 z-20 grid place-items-center bg-background-primary/70 backdrop-blur-sm">
-              <p className="text-sm md:text-base text-text-secondary">Starting camera...</p>
+              <p className="text-sm md:text-base text-text-secondary">
+                Starting camera...
+              </p>
             </div>
           )}
 
@@ -215,23 +231,33 @@ export default function CapturePage() {
             </div>
           )}
 
-          <video ref={videoRef} autoPlay playsInline className="block w-full -scale-x-100" />
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="block w-full -scale-x-100"
+          />
         </div>
 
         <div className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold text-text-primary">Captured Photos</h2>
+          <h2 className="mb-3 text-lg font-semibold text-text-primary">
+            Captured Photos
+          </h2>
           <div className="flex flex-wrap gap-4">
-          {thumbnails.map((src, idx) => (
-            <img
-              key={`${src.slice(0, 30)}-${idx}`}
-              src={src}
-              alt={`Captured ${idx + 1}`}
-              className="w-[200px] rounded-xl border border-border-strong bg-background-elevated p-1 transition-transform duration-200 hover:scale-105"
-            />
-          ))}
+            {thumbnails.map((src, idx) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={`${src.slice(0, 30)}-${idx}`}
+                src={src}
+                alt={`Captured ${idx + 1}`}
+                className="w-[200px] rounded-xl border border-border-strong bg-background-elevated p-1 transition-transform duration-200 hover:scale-105"
+              />
+            ))}
           </div>
           {thumbnails.length === 0 && (
-            <p className="text-text-tertiary text-sm">No photos yet. Show ✌️ to capture your first shot.</p>
+            <p className="text-text-tertiary text-sm">
+              No photos yet. Show ✌️ to capture your first shot.
+            </p>
           )}
         </div>
       </section>

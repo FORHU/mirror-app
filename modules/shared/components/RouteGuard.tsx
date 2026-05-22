@@ -13,12 +13,12 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
-  if (BYPASS_AUTH) return <>{children}</>;
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    if (BYPASS_AUTH) return;
     if (isLoading) return;
 
     if (requireAuth && !isAuthenticated) {
@@ -28,12 +28,13 @@ export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
     if (
       !requireAuth &&
       isAuthenticated &&
-      (pathname === "/" ||
-        pathname.startsWith("/onboarding"))
+      (pathname === "/" || pathname.startsWith("/onboarding"))
     ) {
       router.replace("/");
     }
   }, [isAuthenticated, isLoading, requireAuth, router, pathname]);
+
+  if (BYPASS_AUTH) return <>{children}</>;
 
   if (isLoading) {
     return (

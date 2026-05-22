@@ -11,7 +11,9 @@ interface MapContextType {
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
 
-export const MapProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MapProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [map, setMap] = useState<Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 

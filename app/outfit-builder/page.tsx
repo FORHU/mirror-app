@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { GarmentSlotGrid } from "@/modules/garment/components/GarmentSlotGrid";
@@ -9,14 +9,24 @@ import {
   type GarmentSlot,
   type SlotMap,
 } from "@/modules/garment/types";
-import GarmentCarouselModal, { type ModalItem } from "@/components/GarmentCarouselModal";
-import { garmentService, type RemoteGarment } from "@/modules/shared/api/garment.service";
+import GarmentCarouselModal, {
+  type ModalItem,
+} from "@/components/GarmentCarouselModal";
+import {
+  garmentService,
+  type RemoteGarment,
+} from "@/modules/shared/api/garment.service";
 
-const NONE: ModalItem = { id: "none", label: "None", imageUrl: null, garment: null };
+const NONE: ModalItem = {
+  id: "none",
+  label: "None",
+  imageUrl: null,
+  garment: null,
+};
 
 function toModalItem(g: RemoteGarment, slot: GarmentSlot["slot"]): ModalItem {
-  const name        = g.name.replace(/^"|"$/g, "");
-  const imageUrl    = g.file?.fileUrl ?? g.imageUrl ?? null;
+  const name = g.name.replace(/^"|"$/g, "");
+  const imageUrl = g.file?.fileUrl ?? g.imageUrl ?? null;
   const garmentType = (g.garmentType?.[0] ?? "").toLowerCase();
   return {
     id: g.id,
@@ -30,16 +40,15 @@ function toModalItem(g: RemoteGarment, slot: GarmentSlot["slot"]): ModalItem {
 
 export default function OutfitBuilderPage() {
   const router = useRouter();
-  const [photo, setPhoto]           = useState<string | null>(null);
-  const [slotMap, setSlotMap]       = useState<SlotMap>(createEmptySlotMap);
+  const [photo] = useState<string | null>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("mirror_captured_photo")
+      : null,
+  );
+  const [slotMap, setSlotMap] = useState<SlotMap>(createEmptySlotMap);
   const [activeSlot, setActiveSlot] = useState<GarmentSlot | null>(null);
-  const [items, setItems]           = useState<ModalItem[]>([]);
+  const [items, setItems] = useState<ModalItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("mirror_captured_photo");
-    if (stored) setPhoto(stored);
-  }, []);
 
   async function handleSlotPress(slot: GarmentSlot) {
     setActiveSlot(slot);
@@ -47,7 +56,7 @@ export default function OutfitBuilderPage() {
     setLoadingItems(true);
     try {
       const data = await garmentService.getBySlot(slot.slot);
-      setItems([NONE, ...data.map(g => toModalItem(g, slot.slot))]);
+      setItems([NONE, ...data.map((g) => toModalItem(g, slot.slot))]);
     } catch {
       setItems([NONE]);
     } finally {
@@ -57,7 +66,7 @@ export default function OutfitBuilderPage() {
 
   function handleConfirm(item: ModalItem) {
     if (activeSlot) {
-      setSlotMap(prev => ({
+      setSlotMap((prev) => ({
         ...prev,
         [activeSlot.slot]: { ...activeSlot, garment: item.garment },
       }));
@@ -67,7 +76,6 @@ export default function OutfitBuilderPage() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black">
-
       {/* ── Background photo ── */}
       <AnimatePresence>
         {photo ? (
@@ -75,13 +83,19 @@ export default function OutfitBuilderPage() {
             key="photo"
             initial={{ opacity: 0, scale: 1.04 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, type: "spring", stiffness: 160, damping: 20 }}
+            transition={{
+              duration: 0.5,
+              type: "spring",
+              stiffness: 160,
+              damping: 20,
+            }}
             className="absolute inset-0"
             style={{
               filter: activeSlot ? "blur(22px) brightness(0.5)" : "none",
               transition: "filter 0.4s ease",
             }}
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo}
               alt="Your captured photo"
@@ -95,11 +109,13 @@ export default function OutfitBuilderPage() {
             initial={{ opacity: 0 }}
             animate={{
               opacity: 1,
-              filter: activeSlot ? "blur(22px) brightness(0.5)" : "blur(0px) brightness(1)",
+              filter: activeSlot
+                ? "blur(22px) brightness(0.5)"
+                : "blur(0px) brightness(1)",
             }}
             transition={{
               opacity: { duration: 0.5 },
-              filter:  { duration: 0.4, ease: "easeInOut" },
+              filter: { duration: 0.4, ease: "easeInOut" },
             }}
             className="absolute inset-0 bg-gradient-to-br from-[#d8b4fe] via-[#f5d0fe] to-[#fecaca]"
           />
@@ -123,7 +139,10 @@ export default function OutfitBuilderPage() {
       </section>
 
       {/* ── FOOTER: nav buttons ── */}
-      <footer className="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end pb-16" style={{ height: "var(--zone-footer)" }}>
+      <footer
+        className="absolute bottom-0 left-0 right-0 z-20 flex flex-col justify-end pb-16"
+        style={{ height: "var(--zone-footer)" }}
+      >
         <div className="flex items-center gap-3 px-6">
           <motion.button
             whileTap={{ scale: 0.95 }}
@@ -135,7 +154,10 @@ export default function OutfitBuilderPage() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+              localStorage.setItem(
+                "mirror_outfit_slots",
+                JSON.stringify(slotMap),
+              );
               router.push("/save-outfit");
             }}
             className="flex-1 py-5 rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white font-semibold text-xl"
@@ -145,7 +167,10 @@ export default function OutfitBuilderPage() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              localStorage.setItem("mirror_outfit_slots", JSON.stringify(slotMap));
+              localStorage.setItem(
+                "mirror_outfit_slots",
+                JSON.stringify(slotMap),
+              );
               router.push("/try-it-on");
             }}
             className="flex-[2] py-5 rounded-2xl bg-gradient-to-r from-[#8b7fc7] to-[#ffa07a] text-white font-bold text-xl shadow-lg"
@@ -163,7 +188,6 @@ export default function OutfitBuilderPage() {
         onClose={() => setActiveSlot(null)}
         onConfirm={handleConfirm}
       />
-
     </main>
   );
 }

@@ -2,16 +2,38 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  Suspense,
+} from "react";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { API_URL } from "@/modules/shared/config/device.config";
-import type { ChatWonderAction, EventSetupData } from "@/modules/shared/ai/chatwonder.types";
+import type {
+  ChatWonderAction,
+  EventSetupData,
+} from "@/modules/shared/ai/chatwonder.types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AssistantState = "awakening" | "responding" | "listening" | "processing" | "summary" | "done";
-type ConversationStep = "event" | "event_type" | "datetime" | "location" | "weather" | "confirm";
+type AssistantState =
+  | "awakening"
+  | "responding"
+  | "listening"
+  | "processing"
+  | "summary"
+  | "done";
+type ConversationStep =
+  | "event"
+  | "event_type"
+  | "datetime"
+  | "location"
+  | "weather"
+  | "confirm";
 
 type Message = { role: "assistant" | "user"; text: string };
 
@@ -27,20 +49,20 @@ interface MirrorSpeechEvent extends Event {
   readonly results: MirrorSpeechResultList;
 }
 interface MirrorSpeechRecognition {
-  continuous:     boolean;
+  continuous: boolean;
   interimResults: boolean;
-  lang:           string;
+  lang: string;
   start(): void;
-  stop():  void;
+  stop(): void;
   onresult: ((e: MirrorSpeechEvent) => void) | null;
-  onend:    (() => void) | null;
-  onerror:  ((e: Event) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: Event) => void) | null;
 }
 
 declare global {
   interface Window {
-    SpeechRecognition:       new() => MirrorSpeechRecognition;
-    webkitSpeechRecognition: new() => MirrorSpeechRecognition;
+    SpeechRecognition: new () => MirrorSpeechRecognition;
+    webkitSpeechRecognition: new () => MirrorSpeechRecognition;
   }
 }
 
@@ -50,72 +72,110 @@ type WeatherResult = { temp: string; condition: string; icon: string };
 
 async function fetchWeather(location: string | null): Promise<WeatherResult> {
   try {
-    let lat: number | undefined;
-    let lng: number | undefined;
-
     // Try to resolve coordinates from map store
     const { useMapStore } = await import("@/modules/map/store/useMapStore");
     const s = useMapStore.getState();
     const loc = s.userLocation ?? s.homeLocation;
-    lat = loc?.lat;
-    lng = loc?.lng;
+    const lat = loc?.lat;
+    const lng = loc?.lng;
 
     if (!lat || !lng) throw new Error("no location");
 
-    const res = await fetch(`${API_URL}/api/mirror/weather?lat=${lat}&lng=${lng}`);
+    const res = await fetch(
+      `${API_URL}/api/mirror/weather?lat=${lat}&lng=${lng}`,
+    );
     if (!res.ok) throw new Error("weather fetch failed");
     const data = await res.json();
     return {
-      temp:      `${Math.round(data.temperature)}°C`,
+      temp: `${Math.round(data.temperature)}°C`,
       condition: data.condition,
-      icon:      data.icon ?? "⛅",
+      icon: data.icon ?? "⛅",
     };
   } catch {
-    return { temp: "—", condition: location ? `Near ${location}` : "Weather unavailable", icon: "⛅" };
+    return {
+      temp: "—",
+      condition: location ? `Near ${location}` : "Weather unavailable",
+      icon: "⛅",
+    };
   }
 }
 
-const STEP_ORDER: ConversationStep[] = ["event", "event_type", "datetime", "location", "weather", "confirm"];
-const EMPTY_DATA: EventSetupData = { eventName: null, eventType: null, dateTime: null, location: null };
+const STEP_ORDER: ConversationStep[] = [
+  "event",
+  "event_type",
+  "datetime",
+  "location",
+  "weather",
+  "confirm",
+];
+const EMPTY_DATA: EventSetupData = {
+  eventName: null,
+  eventType: null,
+  dateTime: null,
+  location: null,
+};
 
-function getPrompt(step: ConversationStep, data: EventSetupData, name: string): string {
+function getPrompt(
+  step: ConversationStep,
+  data: EventSetupData,
+  name: string,
+): string {
   switch (step) {
-    case "event":      return `Hi ${name}! What's the occasion today?`;
-    case "event_type": return `Is it more of a casual or formal event?`;
-    case "datetime":   return `Nice! When is it happening?`;
-    case "location":   return `Got it. Where will it be?`;
-    case "weather":    return `Let me check the weather for ${data.location}…`;
-    case "confirm":    return `Here's what I've got. Everything look right?`;
+    case "event":
+      return `Hi ${name}! What's the occasion today?`;
+    case "event_type":
+      return `Is it more of a casual or formal event?`;
+    case "datetime":
+      return `Nice! When is it happening?`;
+    case "location":
+      return `Got it. Where will it be?`;
+    case "weather":
+      return `Let me check the weather for ${data.location}…`;
+    case "confirm":
+      return `Here's what I've got. Everything look right?`;
   }
 }
 
 // ─── Soft Ring ────────────────────────────────────────────────────────────────
 
 function SoftRing({ state }: { state: AssistantState }) {
-  const isListening  = state === "listening";
+  const isListening = state === "listening";
   const isProcessing = state === "processing";
 
   const ringColor = isListening
     ? "0 0 0 1.5px rgba(255,255,255,0.9)"
     : isProcessing
-    ? "0 0 0 1.5px rgba(255,255,255,0.55)"
-    : state === "summary"
-    ? "0 0 0 1.5px rgba(255,255,255,0.28)"
-    : "0 0 0 1.5px rgba(255,255,255,0.42)";
+      ? "0 0 0 1.5px rgba(255,255,255,0.55)"
+      : state === "summary"
+        ? "0 0 0 1.5px rgba(255,255,255,0.28)"
+        : "0 0 0 1.5px rgba(255,255,255,0.42)";
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: 88, height: 88 }}>
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: 88, height: 88 }}
+    >
       <AnimatePresence>
-        {isListening && [0, 1].map((i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full"
-            style={{ border: "1px solid rgba(255,255,255,0.5)" }}
-            initial={{ width: 88, height: 88, opacity: 0.65 }}
-            animate={{ width: 88 + (i === 0 ? 50 : 78), height: 88 + (i === 0 ? 50 : 78), opacity: 0 }}
-            transition={{ duration: 2.4, repeat: Infinity, delay: i * 1.2, ease: "easeOut" }}
-          />
-        ))}
+        {isListening &&
+          [0, 1].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{ border: "1px solid rgba(255,255,255,0.5)" }}
+              initial={{ width: 88, height: 88, opacity: 0.65 }}
+              animate={{
+                width: 88 + (i === 0 ? 50 : 78),
+                height: 88 + (i === 0 ? 50 : 78),
+                opacity: 0,
+              }}
+              transition={{
+                duration: 2.4,
+                repeat: Infinity,
+                delay: i * 1.2,
+                ease: "easeOut",
+              }}
+            />
+          ))}
       </AnimatePresence>
 
       <motion.div
@@ -123,13 +183,17 @@ function SoftRing({ state }: { state: AssistantState }) {
         style={{ width: 88, height: 88 }}
         animate={{
           boxShadow: ringColor,
-          scale:   isListening  ? [1, 1.05, 1] : 1,
+          scale: isListening ? [1, 1.05, 1] : 1,
           opacity: isProcessing ? [0.5, 1, 0.5] : 1,
         }}
         transition={{
           boxShadow: { duration: 0.45 },
-          scale:   isListening  ? { duration: 2,   repeat: Infinity, ease: "easeInOut" } : { duration: 0.35 },
-          opacity: isProcessing ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" } : { duration: 0.35 },
+          scale: isListening
+            ? { duration: 2, repeat: Infinity, ease: "easeInOut" }
+            : { duration: 0.35 },
+          opacity: isProcessing
+            ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" }
+            : { duration: 0.35 },
         }}
       />
 
@@ -138,7 +202,11 @@ function SoftRing({ state }: { state: AssistantState }) {
         style={{ width: 56, height: 56 }}
         animate={{
           background: isListening
-            ? ["rgba(255,255,255,0.14)", "rgba(255,255,255,0.22)", "rgba(255,255,255,0.14)"]
+            ? [
+                "rgba(255,255,255,0.14)",
+                "rgba(255,255,255,0.22)",
+                "rgba(255,255,255,0.14)",
+              ]
             : "rgba(255,255,255,0.07)",
         }}
         transition={
@@ -152,8 +220,8 @@ function SoftRing({ state }: { state: AssistantState }) {
         className="rounded-full"
         style={{ background: "white" }}
         animate={{
-          width:   isListening ? 10 : 9,
-          height:  isListening ? 10 : 9,
+          width: isListening ? 10 : 9,
+          height: isListening ? 10 : 9,
           opacity: isListening ? 1 : 0.38,
         }}
         transition={{ duration: 0.4 }}
@@ -165,33 +233,42 @@ function SoftRing({ state }: { state: AssistantState }) {
 // ─── Inner page ───────────────────────────────────────────────────────────────
 
 function EventSetupInner() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const username     = searchParams.get("username") || "there";
+  const username = searchParams.get("username") || "there";
 
   const addCalendarEvent = useCalendarStore((s) => s.addEvent);
 
-  const [assistantState, setAssistantState] = useState<AssistantState>("awakening");
-  const [step,        setStep]        = useState<ConversationStep>("event");
-  const [data,        setData]        = useState<EventSetupData>({ ...EMPTY_DATA });
-  const [messages,    setMessages]    = useState<Message[]>([]);
+  const [assistantState, setAssistantState] =
+    useState<AssistantState>("awakening");
+  const [step, setStep] = useState<ConversationStep>("event");
+  const [data, setData] = useState<EventSetupData>({ ...EMPTY_DATA });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [displayText, setDisplayText] = useState("");
   const [localTranscript, setLocalTranscript] = useState("");
   const [showWeather, setShowWeather] = useState(false);
-  const [weather, setWeather]         = useState<WeatherResult | null>(null);
+  const [weather, setWeather] = useState<WeatherResult | null>(null);
 
   // Stable refs for use inside async callbacks
-  const stateRef      = useRef<AssistantState>("awakening");
-  const stepRef       = useRef<ConversationStep>("event");
-  const dataRef       = useRef<EventSetupData>({ ...EMPTY_DATA });
+  const stateRef = useRef<AssistantState>("awakening");
+  const stepRef = useRef<ConversationStep>("event");
+  const dataRef = useRef<EventSetupData>({ ...EMPTY_DATA });
   const transcriptRef = useRef("");
-  const twRef         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recRef        = useRef<MirrorSpeechRecognition | null>(null);
+  const twRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recRef = useRef<MirrorSpeechRecognition | null>(null);
 
-  useEffect(() => { stateRef.current = assistantState; }, [assistantState]);
-  useEffect(() => { stepRef.current = step; },           [step]);
-  useEffect(() => { dataRef.current = data; },           [data]);
-  useEffect(() => { transcriptRef.current = localTranscript; }, [localTranscript]);
+  useEffect(() => {
+    stateRef.current = assistantState;
+  }, [assistantState]);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+  useEffect(() => {
+    transcriptRef.current = localTranscript;
+  }, [localTranscript]);
 
   // ── Typewriter ──
   function typewrite(text: string) {
@@ -201,7 +278,10 @@ function EventSetupInner() {
     twRef.current = setInterval(() => {
       i++;
       setDisplayText(text.slice(0, i));
-      if (i >= text.length) { clearInterval(twRef.current!); twRef.current = null; }
+      if (i >= text.length) {
+        clearInterval(twRef.current!);
+        twRef.current = null;
+      }
     }, 26);
   }
 
@@ -213,9 +293,9 @@ function EventSetupInner() {
     }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate  = 0.92;
+    u.rate = 0.92;
     u.pitch = 1.0;
-    u.onend   = onDone;
+    u.onend = onDone;
     u.onerror = () => setTimeout(onDone, 100);
     window.speechSynthesis.speak(u);
   }
@@ -225,17 +305,27 @@ function EventSetupInner() {
     setAssistantState("done");
     stateRef.current = "done";
     window.speechSynthesis?.cancel();
-    try { recRef.current?.stop(); } catch { /* ignore */ }
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
     setTimeout(() => router.push("/logged-in"), 600);
   }
 
   // ── Local mic (fallback when socket/ChatWonder is offline) ──
   function startLocalListening() {
-    try { recRef.current?.stop(); } catch { /* ignore */ }
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
     setLocalTranscript("");
     transcriptRef.current = "";
 
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const SR =
+      typeof window !== "undefined" &&
+      (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) {
       setAssistantState("listening");
       stateRef.current = "listening";
@@ -243,12 +333,15 @@ function EventSetupInner() {
     }
 
     const rec = new SR();
-    rec.continuous     = false;
+    rec.continuous = false;
     rec.interimResults = true;
-    rec.lang           = "en-US";
+    rec.lang = "en-US";
 
     rec.onresult = (e: MirrorSpeechEvent) => {
-      const t = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join("");
+      const t = Array.from(
+        { length: e.results.length },
+        (_, i) => e.results[i][0].transcript,
+      ).join("");
       setLocalTranscript(t);
       transcriptRef.current = t;
     };
@@ -258,7 +351,9 @@ function EventSetupInner() {
       handleLocalAnswer(transcriptRef.current.trim());
     };
 
-    rec.onerror = () => { /* swallow */ };
+    rec.onerror = () => {
+      /* swallow */
+    };
     recRef.current = rec;
     setAssistantState("listening");
     stateRef.current = "listening";
@@ -280,10 +375,10 @@ function EventSetupInner() {
     const curData = { ...dataRef.current };
 
     setMessages((prev) => [...prev, { role: "user", text: ans }]);
-    if (curStep === "event")      curData.eventName = ans;
+    if (curStep === "event") curData.eventName = ans;
     if (curStep === "event_type") curData.eventType = ans;
-    if (curStep === "datetime")   curData.dateTime  = ans;
-    if (curStep === "location")   curData.location  = ans;
+    if (curStep === "datetime") curData.dateTime = ans;
+    if (curStep === "location") curData.location = ans;
     setData(curData);
     dataRef.current = curData;
 
@@ -293,7 +388,7 @@ function EventSetupInner() {
     transcriptRef.current = "";
 
     setTimeout(() => {
-      const idx  = STEP_ORDER.indexOf(curStep);
+      const idx = STEP_ORDER.indexOf(curStep);
       const next = STEP_ORDER[idx + 1] as ConversationStep;
 
       if (next === "weather") {
@@ -353,7 +448,7 @@ function EventSetupInner() {
         setStep(s);
         stepRef.current = s;
         if (s === "weather") setShowWeather(true);
-        if (s === "confirm" || s === "summary" as string) {
+        if (s === "confirm" || s === ("summary" as string)) {
           setAssistantState("summary");
           stateRef.current = "summary";
         }
@@ -366,10 +461,10 @@ function EventSetupInner() {
 
     if (action.type === "calendar_save_event") {
       addCalendarEvent({
-        title:     action.title,
+        title: action.title,
         eventType: action.eventType,
-        dateTime:  action.dateTime,
-        location:  action.location,
+        dateTime: action.dateTime,
+        location: action.location,
       });
     }
 
@@ -387,26 +482,31 @@ function EventSetupInner() {
       try {
         localStorage.setItem(
           "mirror_pending_map_directions",
-          JSON.stringify({ destination: action.destination, mode: action.mode ?? "driving" }),
+          JSON.stringify({
+            destination: action.destination,
+            mode: action.mode ?? "driving",
+          }),
         );
       } catch {}
       router.push("/map");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Register page context with VoiceProvider ──
-  const pageContext = useMemo(() => ({
-    route:         "/event-setup",
-    pageName:      "event-setup",
-    activeStep:    step,
-    collectedData: data,
-  }), [step, data]);
+  const pageContext = useMemo(
+    () => ({
+      route: "/event-setup",
+      pageName: "event-setup",
+      activeStep: step,
+      collectedData: data,
+    }),
+    [step, data],
+  );
 
   useVoice(pageContext, handleChatWonderAction);
 
   // ── Boot sequence ──
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const t = setTimeout(() => {
       const g = getPrompt("event", dataRef.current, username);
@@ -417,39 +517,56 @@ function EventSetupInner() {
       speak(g, startLocalListening);
     }, 1500);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentional empty deps — boot once
 
   // ── Summary confirmation listener (local fallback) ──
   useEffect(() => {
     if (assistantState !== "summary") return;
-    const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const SR =
+      typeof window !== "undefined" &&
+      (window.SpeechRecognition || window.webkitSpeechRecognition);
     if (!SR) return;
 
     let active = true;
-    const rec  = new SR();
-    rec.continuous     = false;
+    const rec = new SR();
+    rec.continuous = false;
     rec.interimResults = false;
-    rec.lang           = "en-US";
+    rec.lang = "en-US";
 
     rec.onresult = (e: MirrorSpeechEvent) => {
       const t = e.results[0][0].transcript.toLowerCase();
       if (/yes|sure|looks good|good|ok|okay|confirm|perfect|proceed/.test(t)) {
         finish();
       } else if (active) {
-        try { rec.start(); } catch { /* ignore */ }
+        try {
+          rec.start();
+        } catch {
+          /* ignore */
+        }
       }
     };
-    rec.onerror = () => { /* swallow */ };
+    rec.onerror = () => {
+      /* swallow */
+    };
 
-    try { recRef.current?.stop(); } catch { /* ignore */ }
+    try {
+      recRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
     recRef.current = rec;
     rec.start();
 
     return () => {
       active = false;
-      try { rec.stop(); } catch { /* ignore */ }
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assistantState]);
 
   // ── Reset helper ──
@@ -479,19 +596,38 @@ function EventSetupInner() {
   const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
 
   const statusText =
-    assistantState === "listening"  ? "Listening…"              :
-    assistantState === "processing" ? "Thinking…"               :
-    assistantState === "responding" ? "Speaking…"               :
-    assistantState === "summary"    ? `Say "looks good" or tap` : "";
+    assistantState === "listening"
+      ? "Listening…"
+      : assistantState === "processing"
+        ? "Thinking…"
+        : assistantState === "responding"
+          ? "Speaking…"
+          : assistantState === "summary"
+            ? `Say "looks good" or tap`
+            : "";
 
   const statusColor = assistantState === "listening" ? "#6b5b95" : "#9e93c8";
 
   const summaryRows = [
-    data.eventName ? { icon: "🎉", label: "Occasion",   value: data.eventName } : null,
-    data.eventType ? { icon: "👔", label: "Event Type", value: data.eventType } : null,
-    data.dateTime  ? { icon: "📅", label: "Date & Time", value: data.dateTime }  : null,
-    data.location  ? { icon: "📍", label: "Location",   value: data.location }  : null,
-    showWeather && weather ? { icon: weather.icon, label: "Weather", value: `${weather.temp} · ${weather.condition}` } : null,
+    data.eventName
+      ? { icon: "🎉", label: "Occasion", value: data.eventName }
+      : null,
+    data.eventType
+      ? { icon: "👔", label: "Event Type", value: data.eventType }
+      : null,
+    data.dateTime
+      ? { icon: "📅", label: "Date & Time", value: data.dateTime }
+      : null,
+    data.location
+      ? { icon: "📍", label: "Location", value: data.location }
+      : null,
+    showWeather && weather
+      ? {
+          icon: weather.icon,
+          label: "Weather",
+          value: `${weather.temp} · ${weather.condition}`,
+        }
+      : null,
   ].filter(Boolean) as { icon: string; label: string; value: string }[];
 
   return (
@@ -505,18 +641,22 @@ function EventSetupInner() {
         className="absolute top-0 inset-x-0 z-20 pointer-events-none"
         style={{
           height: "var(--zone-header)",
-          background: "linear-gradient(180deg, rgba(216,180,254,0.92) 0%, transparent 100%)",
+          background:
+            "linear-gradient(180deg, rgba(216,180,254,0.92) 0%, transparent 100%)",
         }}
       />
 
       {/* Main zone */}
       <div
         className="absolute inset-x-0 z-10 flex flex-col items-center justify-start px-10"
-        style={{ top: "var(--zone-header)", height: "var(--zone-main)", paddingTop: "14%" }}
+        style={{
+          top: "var(--zone-header)",
+          height: "var(--zone-main)",
+          paddingTop: "14%",
+        }}
       >
         <AnimatePresence mode="wait">
           {assistantState !== "summary" ? (
-
             <motion.div
               key="conversation"
               initial={{ opacity: 0 }}
@@ -544,7 +684,13 @@ function EventSetupInner() {
 
               <p
                 className="font-semibold text-center"
-                style={{ fontSize: "46px", maxWidth: 580, lineHeight: 1.3, marginBottom: 36, color: "#3d2f5f" }}
+                style={{
+                  fontSize: "46px",
+                  maxWidth: 580,
+                  lineHeight: 1.3,
+                  marginBottom: 36,
+                  color: "#3d2f5f",
+                }}
               >
                 {displayText}
                 <motion.span
@@ -568,7 +714,11 @@ function EventSetupInner() {
                       exit={{ opacity: 0, y: 5 }}
                       transition={{ duration: 0.25 }}
                       className="text-center"
-                      style={{ fontSize: "24px", maxWidth: 520, color: "#6b5b95" }}
+                      style={{
+                        fontSize: "24px",
+                        maxWidth: 520,
+                        color: "#6b5b95",
+                      }}
                     >
                       {localTranscript || "Listening…"}
                     </motion.p>
@@ -576,9 +726,7 @@ function EventSetupInner() {
                 </AnimatePresence>
               </div>
             </motion.div>
-
           ) : (
-
             <motion.div
               key="summary"
               initial={{ opacity: 0, y: 24 }}
@@ -603,7 +751,8 @@ function EventSetupInner() {
                   WebkitBackdropFilter: "blur(20px)",
                   border: "1px solid rgba(255,255,255,0.9)",
                   borderRadius: "28px",
-                  boxShadow: "0 30px 80px rgba(107,91,149,0.18), 0 4px 16px rgba(107,91,149,0.08)",
+                  boxShadow:
+                    "0 30px 80px rgba(107,91,149,0.18), 0 4px 16px rgba(107,91,149,0.08)",
                   overflow: "hidden",
                   marginBottom: "20px",
                 }}
@@ -616,15 +765,39 @@ function EventSetupInner() {
                       alignItems: "center",
                       gap: 16,
                       padding: "20px 28px",
-                      borderBottom: i < summaryRows.length - 1 ? "1px solid rgba(139,127,199,0.08)" : "none",
+                      borderBottom:
+                        i < summaryRows.length - 1
+                          ? "1px solid rgba(139,127,199,0.08)"
+                          : "none",
                     }}
                   >
-                    <span style={{ fontSize: "22px", width: 32, flexShrink: 0 }}>{row.icon}</span>
+                    <span
+                      style={{ fontSize: "22px", width: 32, flexShrink: 0 }}
+                    >
+                      {row.icon}
+                    </span>
                     <div>
-                      <p style={{ fontSize: "12px", color: "#9e93c8", marginBottom: 3, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      <p
+                        style={{
+                          fontSize: "12px",
+                          color: "#9e93c8",
+                          marginBottom: 3,
+                          fontWeight: 500,
+                          letterSpacing: "0.05em",
+                          textTransform: "uppercase",
+                        }}
+                      >
                         {row.label}
                       </p>
-                      <p style={{ fontSize: "20px", color: "#2d2d3a", fontWeight: 500 }}>{row.value}</p>
+                      <p
+                        style={{
+                          fontSize: "20px",
+                          color: "#2d2d3a",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {row.value}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -654,7 +827,6 @@ function EventSetupInner() {
                 Edit
               </button>
             </motion.div>
-
           )}
         </AnimatePresence>
       </div>
@@ -665,10 +837,14 @@ function EventSetupInner() {
         style={{
           height: "var(--zone-footer)",
           borderTop: "1px solid rgba(107,91,149,0.1)",
-          background: "linear-gradient(0deg, rgba(254,202,202,0.92) 0%, transparent 100%)",
+          background:
+            "linear-gradient(0deg, rgba(254,202,202,0.92) 0%, transparent 100%)",
         }}
       >
-        <span className="font-medium" style={{ fontSize: "20px", color: statusColor }}>
+        <span
+          className="font-medium"
+          style={{ fontSize: "20px", color: statusColor }}
+        >
           {statusText}
         </span>
 

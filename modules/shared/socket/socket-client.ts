@@ -14,4 +14,3 @@ export function getSocketClient(): Socket {
 
   return socket;
 }
-

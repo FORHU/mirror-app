@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { API_URL } from "@/modules/shared/config/device.config";
 import * as Icons from "lucide-react";
+import type { LucideProps } from "lucide-react";
 
 interface WeatherData {
   temperature: number;
@@ -20,7 +21,9 @@ const WeatherWidget = () => {
   const fetchWeather = async () => {
     if (!homeLocation) return;
     try {
-      const res = await fetch(`${API_URL}/api/mirror/weather?lat=${homeLocation.lat}&lng=${homeLocation.lng}`);
+      const res = await fetch(
+        `${API_URL}/api/mirror/weather?lat=${homeLocation.lat}&lng=${homeLocation.lng}`,
+      );
       const data = await res.json();
       setWeather(data);
     } catch (err) {
@@ -29,23 +32,37 @@ const WeatherWidget = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWeather();
     const interval = setInterval(fetchWeather, 10 * 60 * 1000); // 10 minutes
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeLocation]);
 
   if (!weather) return null;
 
-  const IconComponent = (Icons as any)[weather.icon] || Icons.Cloud;
+  const IconComponent =
+    (Icons as unknown as Record<string, ComponentType<LucideProps>>)[
+      weather.icon
+    ] || Icons.Cloud;
 
   return (
     <div className="flex items-center gap-4 text-white p-4">
-      <IconComponent className="w-8 h-8 text-(--hud-icon-stroke)" style={{ filter: 'drop-shadow(var(--hud-text-shadow))' }} />
+      <IconComponent
+        className="w-8 h-8 text-(--hud-icon-stroke)"
+        style={{ filter: "drop-shadow(var(--hud-text-shadow))" }}
+      />
       <div className="flex flex-col">
-        <span className="text-3xl font-light leading-none" style={{ textShadow: 'var(--hud-text-shadow)' }}>
+        <span
+          className="text-3xl font-light leading-none"
+          style={{ textShadow: "var(--hud-text-shadow)" }}
+        >
           {Math.round(weather.temperature)}°
         </span>
-        <span className="text-xs text-white/50 uppercase tracking-widest mt-1" style={{ textShadow: 'var(--hud-text-shadow)' }}>
+        <span
+          className="text-xs text-white/50 uppercase tracking-widest mt-1"
+          style={{ textShadow: "var(--hud-text-shadow)" }}
+        >
           {weather.condition}
         </span>
       </div>

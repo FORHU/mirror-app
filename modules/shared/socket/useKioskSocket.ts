@@ -10,6 +10,7 @@ import {
 import { MIRRORS, MirrorKey } from "../constants/mirrors";
 import { setCachedAccessToken } from "../api/api-client";
 import { useAuthStore } from "../store/useAuthStore";
+import type { User } from "../api/api.types";
 import { setStorageData } from "../utils/storage";
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
 
@@ -22,7 +23,9 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       return mirrorIdOverride;
     }
 
-    return (window.sessionStorage.getItem("kiosk_id") as MirrorKey) ?? "mirror-a";
+    return (
+      (window.sessionStorage.getItem("kiosk_id") as MirrorKey) ?? "mirror-a"
+    );
   }, [mirrorIdOverride]);
 
   const kioskName = useMemo(
@@ -89,7 +92,7 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       // user as authenticated (socket login bypasses the normal _init flow).
       useAuthStore.setState({
         isAuthenticated: true,
-        user: payload.user as any ?? null,
+        user: (payload.user as User) ?? null,
       });
 
       setLoggedInUsername(username);
@@ -125,4 +128,3 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
     loggedInUsername,
   };
 }
-
