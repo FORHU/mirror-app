@@ -6,13 +6,14 @@ import { cn } from "@/modules/shared/utils";
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-
-  // Avoid hydration mismatch by only rendering after mount
-  React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
+  const mounted = React.useSyncExternalStore(
+    React.useCallback((onStoreChange) => {
+      onStoreChange();
+      return () => {};
+    }, []),
+    () => true,
+    () => false,
+  );
 
   if (!mounted) {
     return (

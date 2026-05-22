@@ -59,12 +59,12 @@ const MapViewport = () => {
         const namedFeature = features.find(f => f.properties?.name || f.properties?.name_en);
 
         if (namedFeature) {
-          const name = namedFeature.properties?.name || namedFeature.properties?.name_en;
+          const name = String(namedFeature.properties?.name || namedFeature.properties?.name_en);
           setSelectedPOI({
             name,
-            category: namedFeature.properties?.type || namedFeature.properties?.class || "Location",
+            category: String(namedFeature.properties?.type || namedFeature.properties?.class || "Location"),
             location: { lng: e.lngLat.lng, lat: e.lngLat.lat },
-            layerId: namedFeature.layer?.id
+            layerId: namedFeature.layer?.id ?? "",
           });
         } else {
           setSelectedPOI(null);

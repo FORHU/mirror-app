@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/modules/shared/utils";
-import { type GarmentSlot, type SlotMap } from "../types";
+import { FittingSlot, type GarmentSlot, type SlotMap } from "../types";
 import { GarmentSlotCard } from "./GarmentSlotCard";
 
 function ZoneLabel({ label }: { label: string }) {

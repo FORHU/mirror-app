@@ -3,17 +3,17 @@ import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 
 export interface GeocodeResult {
   name: string;
-  address: string;
+  address?: string;
   lat: number;
   lng: number;
-  placeId: string;
+  placeId?: string;
 }
 
 export interface DirectionsFormatted {
   geojson: GeoJSON.FeatureCollection;
   steps: Array<{
     instruction: string;
-    maneuver: { type: string; modifier: string };
+    maneuver: { type: string; modifier: string; bearing_after?: number };
     distance: number;
     duration: number;
     name: string;

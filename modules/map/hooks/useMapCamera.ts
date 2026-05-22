@@ -31,8 +31,11 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
     // ── OVERVIEW ────────────────────────────────────────────────────
     if (cameraMode === "overview") {
+      const geometry = activeRoute.geojson?.features?.[0]?.geometry;
       const coords: [number, number][] =
-        activeRoute.geojson?.features?.[0]?.geometry?.coordinates ?? [];
+        geometry?.type === "LineString"
+          ? (geometry.coordinates as [number, number][])
+          : [];
       if (coords.length === 0) return;
 
       const bounds = coords.reduce(

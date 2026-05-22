@@ -8,10 +8,10 @@ interface Props { map: mapboxgl.Map; }
 
 interface POI {
   name: string;
-  address: string;
+  address?: string;
   lat: number;
   lng: number;
-  placeId: string;
+  placeId?: string;
 }
 
 interface POIProperties {
@@ -152,7 +152,7 @@ function buildGeojson(pois: POI[]): GeoJSON.FeatureCollection {
         address: poi.address,
         lat: poi.lat,
         lng: poi.lng,
-        placeId: poi.placeId,
+        placeId: poi.placeId ?? "",
       },
     })),
   };

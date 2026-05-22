@@ -53,7 +53,7 @@ const NavigationHUD = () => {
   }, [remainingDistance]);
 
   // Progress 0→1 from total route distance
-  const totalDistance = activeRoute?.distance || activeRoute?.routes?.[0]?.distance || 0;
+  const totalDistance = activeRoute?.distance || 0;
   const progress = totalDistance > 0
     ? Math.max(0, Math.min(1, 1 - remainingDistance / totalDistance))
     : 0;

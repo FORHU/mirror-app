@@ -96,8 +96,15 @@ export default function CosmeticPage() {
   const [faceAligned,    setFaceAligned]    = useState(false);
   const [capturePhase,   setCapturePhase]   = useState<CapturePhase>("idle");
 
-  useEffect(() => { faceAlignedRef.current  = faceAligned;   }, [faceAligned]);
-  useEffect(() => { capturePhaseRef.current = capturePhase;  }, [capturePhase]);
+  const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
+    faceAlignedRef.current = nextFaceAligned;
+    setFaceAligned(nextFaceAligned);
+  }, []);
+
+  const setCapturePhaseState = useCallback((nextCapturePhase: CapturePhase) => {
+    capturePhaseRef.current = nextCapturePhase;
+    setCapturePhase(nextCapturePhase);
+  }, []);
 
   // ── Capture frame ────────────────────────────────────────────────────────────
   const captureFrame = useCallback(() => {
@@ -114,20 +121,25 @@ export default function CosmeticPage() {
 
     try { sessionStorage.setItem("skin_capture", canvas.toDataURL("image/jpeg", 0.9)); } catch {}
 
-    setCapturePhase("captured");
+    setCapturePhaseState("captured");
     setTimeout(() => router.push("/cosmetic/result"), 1200);
-  }, [router]);
+  }, [router, setCapturePhaseState]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────
-  useEffect(() => {
-    if (faceAligned && capturePhaseRef.current === "idle") {
-      setCapturePhase("holding");
-      holdTimerRef.current = setTimeout(captureFrame, HOLD_MS);
-    } else if (!faceAligned && capturePhaseRef.current === "holding") {
-      if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
-      setCapturePhase("idle");
+  const beginCaptureHold = useCallback(() => {
+    if (capturePhaseRef.current !== "idle") return;
+    setCapturePhaseState("holding");
+    holdTimerRef.current = setTimeout(captureFrame, HOLD_MS);
+  }, [captureFrame, setCapturePhaseState]);
+
+  const cancelCaptureHold = useCallback(() => {
+    if (capturePhaseRef.current !== "holding") return;
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
     }
-  }, [faceAligned, captureFrame]);
+    setCapturePhaseState("idle");
+  }, [setCapturePhaseState]);
 
   // ── FaceMesh results handler ─────────────────────────────────────────────────
   const handleResults = useCallback((results: FaceMeshResults) => {
@@ -139,7 +151,10 @@ export default function CosmeticPage() {
 
     if (!landmarks) {
       alignedFrames.current = 0;
-      if (faceAlignedRef.current) setFaceAligned(false);
+      if (faceAlignedRef.current) {
+        setFaceAlignedState(false);
+        cancelCaptureHold();
+      }
       return;
     }
 
@@ -148,13 +163,17 @@ export default function CosmeticPage() {
     if (allIn) {
       alignedFrames.current += 1;
       if (alignedFrames.current >= ALIGN_THRESHOLD && !faceAlignedRef.current) {
-        setFaceAligned(true);
+        setFaceAlignedState(true);
+        beginCaptureHold();
       }
     } else {
       alignedFrames.current = 0;
-      if (faceAlignedRef.current) setFaceAligned(false);
+      if (faceAlignedRef.current) {
+        setFaceAlignedState(false);
+        cancelCaptureHold();
+      }
     }
-  }, []);
+  }, [beginCaptureHold, cancelCaptureHold, setFaceAlignedState]);
 
   // ── MediaPipe init ────────────────────────────────────────────────────────────
   useEffect(() => {

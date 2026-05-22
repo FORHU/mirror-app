@@ -50,6 +50,7 @@ interface MapStore {
   isSearching: boolean;
   selectedDestination: GeocodeResult | null;
   selectedPOI: SelectedPOI | null;
+  nearbyPOIs: GeocodeResult[];
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
   showTerrain: boolean;
@@ -72,6 +73,7 @@ interface MapStore {
   searchLocations(query: string): Promise<void>;
   setDestination(location: GeocodeResult): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
+  setNearbyPOIs(nearbyPOIs: GeocodeResult[]): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
@@ -189,7 +191,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });
-    if (get().selectedDestination) get().setDestination(get().selectedDestination);
+    const selectedDestination = get().selectedDestination;
+    if (selectedDestination) get().setDestination(selectedDestination);
   },
 
   startNavigation: () => {
