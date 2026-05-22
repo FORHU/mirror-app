@@ -9,8 +9,14 @@ import { ROUTES } from "@/navigation";
 export default function LoggedInPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const displayName =
     user?.displayName || user?.username || user?.email || "User";
+
+  async function handleLogout() {
+    await logout();
+    router.push(ROUTES.WELCOME);
+  }
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
@@ -21,7 +27,7 @@ export default function LoggedInPage() {
             Hi, {displayName}!
           </h2>
         </div>
-        <button className="logout-btn px-8 py-3 text-white text-lg font-medium">
+        <button onClick={handleLogout} className="logout-btn px-8 py-3 text-white text-lg font-medium">
           Logout
         </button>
       </div>

@@ -12,6 +12,7 @@ import {
 import { authService } from "@/modules/shared/api/auth.service";
 import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
+import { setAuthCookie, clearAuthCookie } from "@/modules/shared/utils/auth-cookie";
 
 interface AuthState {
   user: User | null;
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (storedUser && token) {
         setCachedAccessToken(token);
+        setAuthCookie();
         set({ user: storedUser, isAuthenticated: true });
 
         // Try to refresh user data in the background.
@@ -67,6 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   _forceLogout() {
+    clearAuthCookie();
     set({ user: null, isAuthenticated: false });
   },
 
@@ -80,6 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         setStorageData(USER, res.user),
       ]);
       setCachedAccessToken(res.accessToken);
+      setAuthCookie();
       set({ user: res.user, isAuthenticated: true });
     } finally {
       set({ isLoading: false });
@@ -102,6 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         removeStorageData(USER),
       ]);
       setCachedAccessToken(null);
+      clearAuthCookie();
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

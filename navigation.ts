@@ -13,6 +13,7 @@ export const ROUTES = {
   VIRTUAL_MIRROR: "/virtual-mirror",
   VIRTUAL_MIRROR_V2: "/virtual-mirror-v2",
   RECOMMENDATION_OUTFIT: "/recommendation-outfit",
+  AI_RECOMMENDATION_OUTFIT: "/ai-recommendation-outfit",
   MIRROR_TEMPLATES: "/mirror-templates",
   QRCODE: "/qrcode",
   QRCODE_MIRROR_A: "/qrcode/mirror-a",
@@ -22,3 +23,31 @@ export const ROUTES = {
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
+
+export const ROUTE_RULES = {
+  // logged-in users cannot access these
+  guestOnly: [
+    ROUTES.WELCOME,
+    ROUTES.QRCODE_MIRROR_A,
+    ROUTES.WAITING_LOGIN,
+  ] as string[],
+  // logged-out users cannot access these
+  protected: [
+    ROUTES.LOGGED_IN,
+    ROUTES.WAITING_PERSONALIZE,
+    ROUTES.VIRTUAL_MIRROR_V2,
+    ROUTES.AI_RECOMMENDATION_OUTFIT,
+  ] as string[],
+  sequences: {
+    // steps must be visited in order; skipping redirects to the first incomplete step
+    login: [
+      ROUTES.WELCOME,
+      ROUTES.QRCODE_MIRROR_A,
+      ROUTES.WAITING_LOGIN,
+    ] as string[],
+    fit: [
+      ROUTES.WAITING_PERSONALIZE,
+      ROUTES.AI_RECOMMENDATION_OUTFIT,
+    ] as string[],
+  },
+} as const;
