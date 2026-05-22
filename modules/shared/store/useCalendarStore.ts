@@ -4,9 +4,9 @@ export interface CalendarEvent {
   id: string;
   title: string;
   eventType: string;
-  dateTime: string;   // ISO 8601
+  dateTime: string; // ISO 8601
   location: string;
-  createdAt: string;  // ISO 8601
+  createdAt: string; // ISO 8601
 }
 
 interface CalendarStore {
@@ -23,12 +23,16 @@ function load(): CalendarEvent[] {
   try {
     const s = localStorage.getItem(STORAGE_KEY);
     return s ? JSON.parse(s) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 function save(events: CalendarEvent[]) {
   if (typeof window === "undefined") return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(events)); } catch {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  } catch {}
 }
 
 function uid(): string {

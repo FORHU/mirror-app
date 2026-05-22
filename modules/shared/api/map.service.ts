@@ -20,7 +20,7 @@ export interface DirectionsResponse {
   success: boolean;
   data: {
     routes: Array<{
-      geometry: string | any;
+      geometry: string | GeoJSON.Geometry;
       duration: number;
       distance: number;
       legs: Array<{
@@ -37,39 +37,46 @@ export interface DirectionsResponse {
 }
 
 export const mapService = {
-  search: async (query: string, proximity?: [number, number] | null): Promise<GeocodingFeature[]> => {
+  search: async (
+    query: string,
+    proximity?: [number, number] | null,
+  ): Promise<GeocodingFeature[]> => {
     if (!query) return [];
-    
-    const params: any = { q: query };
+
+    const params: Record<string, string> = { q: query };
     if (proximity) {
       params.proximity = proximity.join(",");
     }
-    
+
     const response = await api.get<GeocodingResponse>(
       "/mirror/map/search",
-      params
+      params,
     );
-    
+
     if (response.ok && response.data?.success) {
       return response.data.data;
     }
     return [];
   },
 
-  getDirections: async (origin: [number, number], destination: [number, number], profile: string = "driving"): Promise<any | null> => {
+  getDirections: async (
+    origin: [number, number],
+    destination: [number, number],
+    profile: string = "driving",
+  ): Promise<DirectionsResponse["data"] | null> => {
     try {
-      const response = await api.get<any>("/mirror/map/directions", {
+      const response = await api.get<DirectionsResponse>("/mirror/map/directions", {
         origin: origin.join(","),
         destination: destination.join(","),
         profile,
       });
 
-    if (response.ok && response.data?.success) {
-      return response.data.data;
-    }
-    return null;
-    } catch (e) {
+      if (response.ok && response.data?.success) {
+        return response.data.data;
+      }
+      return null;
+    } catch {
       return null;
     }
-  }
+  },
 };

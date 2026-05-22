@@ -22,7 +22,11 @@ interface GarmentCarouselProps {
   onSelect: (item: CarouselItem) => void;
 }
 
-export default function GarmentCarousel({ items, slotLabel, onSelect }: GarmentCarouselProps) {
+export default function GarmentCarousel({
+  items,
+  slotLabel,
+  onSelect,
+}: GarmentCarouselProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const swiperRef = useRef<SwiperType | null>(null);
 
@@ -33,12 +37,15 @@ export default function GarmentCarousel({ items, slotLabel, onSelect }: GarmentC
 
   return (
     <div className="w-full flex flex-col gap-6">
-
       {/* Header */}
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-3xl font-light text-white/80 tracking-wide">{slotLabel}</h2>
+        <h2 className="text-3xl font-light text-white/80 tracking-wide">
+          {slotLabel}
+        </h2>
         <p className="text-white/35 text-xl font-light">
-          <span className="text-white/65 text-2xl">{String(activeIdx + 1).padStart(2, "0")}</span>
+          <span className="text-white/65 text-2xl">
+            {String(activeIdx + 1).padStart(2, "0")}
+          </span>
           /{String(items.length).padStart(2, "0")}
         </p>
       </div>
@@ -63,19 +70,24 @@ export default function GarmentCarousel({ items, slotLabel, onSelect }: GarmentC
         }}
         modules={[EffectCoverflow, Navigation, Pagination]}
         className="garment-swiper w-full"
-        onSwiper={(s) => { swiperRef.current = s; }}
+        onSwiper={(s) => {
+          swiperRef.current = s;
+        }}
         onRealIndexChange={(s) => setActiveIdx(s.realIndex)}
       >
         {items.map((item) => (
           <SwiperSlide key={item.id} className="!w-[220px]">
             <div
               className={`relative overflow-hidden rounded-[28px] shadow-xl ${
-                item.imageUrl ? "bg-white" : "bg-white/10 border-2 border-white/20"
+                item.imageUrl
+                  ? "bg-white"
+                  : "bg-white/10 border-2 border-white/20"
               }`}
             >
               {/* Image / placeholder */}
               <div className="h-[300px] w-full flex items-center justify-center">
                 {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={item.imageUrl}
                     alt={item.label}
@@ -83,7 +95,9 @@ export default function GarmentCarousel({ items, slotLabel, onSelect }: GarmentC
                     className="w-full h-full object-contain p-6"
                   />
                 ) : (
-                  <span className="text-white/50 text-2xl font-light">None</span>
+                  <span className="text-white/50 text-2xl font-light">
+                    None
+                  </span>
                 )}
               </div>
 

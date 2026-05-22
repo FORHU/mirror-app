@@ -38,9 +38,7 @@ export const metadata: Metadata = {
   },
   description:
     "Mirror App is a Next.js app with authentication, QR code flow, and shared UI modules.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "",
-  ),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || ""),
   openGraph: {
     title: "Mirror App",
     description:

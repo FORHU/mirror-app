@@ -104,14 +104,18 @@ export const Navbar = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
-        <Link
-          href="/"
-          className="flex items-center gap-3 group"
-        >
+        <Link href="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-core to-brand-vibrant flex items-center justify-center glow-primary group-hover:scale-110 transition-transform duration-500 overflow-hidden">
-             <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="Logo"
+              className="w-full h-full object-cover"
+            />
           </div>
-          <span className="text-xl font-bold tracking-tighter text-gradient-2026 hidden sm:block">Mirror App</span>
+          <span className="text-xl font-bold tracking-tighter text-gradient-2026 hidden sm:block">
+            Mirror App
+          </span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">

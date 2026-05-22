@@ -18,7 +18,10 @@ function formatMinutes(seconds: number) {
 }
 
 function formatTime() {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function CommuteWidget() {
@@ -51,7 +54,11 @@ export default function CommuteWidget() {
   // If user selects a destination while in "set work" mode, save it as work
   useEffect(() => {
     if (settingWork && selectedDestination) {
-      setWorkLocation({ lat: selectedDestination.lat, lng: selectedDestination.lng });
+      setWorkLocation({
+        lat: selectedDestination.lat,
+        lng: selectedDestination.lng,
+      });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSettingWork(false);
     }
   }, [selectedDestination, settingWork, setWorkLocation]);
@@ -69,10 +76,16 @@ export default function CommuteWidget() {
     >
       {/* Clock + greeting */}
       <div className="flex items-baseline gap-3">
-        <span className="text-4xl font-light text-white" style={{ textShadow: "0 0 20px rgba(0,0,0,0.8)" }}>
+        <span
+          className="text-4xl font-light text-white"
+          style={{ textShadow: "0 0 20px rgba(0,0,0,0.8)" }}
+        >
           {clock}
         </span>
-        <span className="text-sm text-white/60" style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}>
+        <span
+          className="text-sm text-white/60"
+          style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}
+        >
           {greeting()}
         </span>
       </div>
@@ -93,10 +106,15 @@ export default function CommuteWidget() {
               </div>
             ) : commuteEta ? (
               <div className="flex items-center gap-2">
-                {commuteEta.to === "work"
-                  ? <Briefcase className="w-3.5 h-3.5 text-white/60" />
-                  : <Home className="w-3.5 h-3.5 text-white/60" />}
-                <span className="text-white font-semibold text-sm" style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}>
+                {commuteEta.to === "work" ? (
+                  <Briefcase className="w-3.5 h-3.5 text-white/60" />
+                ) : (
+                  <Home className="w-3.5 h-3.5 text-white/60" />
+                )}
+                <span
+                  className="text-white font-semibold text-sm"
+                  style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}
+                >
                   {formatMinutes(commuteEta.duration)} min
                 </span>
                 <span className="text-white/50 text-xs">
@@ -109,7 +127,9 @@ export default function CommuteWidget() {
                 className="flex items-center gap-1.5 text-white/40 hover:text-white/70 text-xs transition-colors"
               >
                 <MapPin className="w-3 h-3" />
-                {settingWork ? "Search for your workplace…" : "Set work location"}
+                {settingWork
+                  ? "Search for your workplace…"
+                  : "Set work location"}
               </button>
             ) : null}
           </motion.div>

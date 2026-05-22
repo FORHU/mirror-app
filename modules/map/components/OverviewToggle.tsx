@@ -9,11 +9,11 @@ const OverviewToggle = () => {
 
   if (!isNavigating) return null;
 
-  const isFollow = cameraMode === 'follow';
+  const isFollow = cameraMode === "follow";
 
   return (
     <button
-      onClick={() => setCameraMode(isFollow ? 'overview' : 'follow')}
+      onClick={() => setCameraMode(isFollow ? "overview" : "follow")}
       className="pointer-events-auto flex items-center justify-center w-14 h-14 rounded-full border border-white/20 bg-black/20 backdrop-blur-md hover:bg-white/10 transition-colors"
     >
       {isFollow ? (

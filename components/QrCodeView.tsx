@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useKioskSocket } from "@/modules/shared/socket/useKioskSocket";
 import { type MirrorKey } from "@/modules/shared/constants/mirrors";
 import WeatherWidget from "@/components/WeatherWidget";
-import '../styles/glow.css';
+import "../styles/glow.css";
 
 interface QrCodeViewProps {
   mirrorKey: MirrorKey;
@@ -45,8 +45,20 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
   useEffect(() => {
     function tick() {
       const now = new Date();
-      setTime(now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }));
-      setDate(now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }));
+      setTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      );
+      setDate(
+        now.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }),
+      );
     }
     tick();
     const id = setInterval(tick, 1000);
@@ -59,24 +71,51 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
 
   useEffect(() => {
     if (!BYPASS_AUTH && isLoggedIn)
-      router.push(`/event-setup?username=${encodeURIComponent(loggedInUsername || "User")}`);
+      router.push(
+        `/event-setup?username=${encodeURIComponent(loggedInUsername || "User")}`,
+      );
   }, [isLoggedIn, loggedInUsername, router]);
 
   const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL}/${kioskId}?kioskName=${kioskName}`;
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
-
       {/* Header — matches page.tsx layout */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
-        <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', alignItems: 'center' }}>
+        <div
+          style={{
+            flex: "0 0 25%",
+            width: "25%",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           <WeatherWidget iconSize={32} />
         </div>
-        <div style={{ flex: '0 0 50%', width: '50%', display: 'flex', justifyContent: 'center' }}>
-          <span className="text-white font-semibold text-3xl tracking-wide select-none">StyleOS</span>
+        <div
+          style={{
+            flex: "0 0 50%",
+            width: "50%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <span className="text-white font-semibold text-3xl tracking-wide select-none">
+            StyleOS
+          </span>
         </div>
-        <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <p className="text-white font-semibold text-2xl leading-tight">{time}</p>
+        <div
+          style={{
+            flex: "0 0 25%",
+            width: "25%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
+        >
+          <p className="text-white font-semibold text-2xl leading-tight">
+            {time}
+          </p>
           <p className="text-white/40 text-sm mt-0.5">{date}</p>
         </div>
       </div>
@@ -94,10 +133,16 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
           >
             {/* Headline */}
             <div className="flex flex-col items-center">
-              <span className="text-white font-extrabold tracking-tight select-none" style={{ fontSize: 72, lineHeight: 1.05 }}>
+              <span
+                className="text-white font-extrabold tracking-tight select-none"
+                style={{ fontSize: 72, lineHeight: 1.05 }}
+              >
                 Scan to begin
               </span>
-              <span className="text-white/30 font-extrabold tracking-tight select-none" style={{ fontSize: 72, lineHeight: 1.05 }}>
+              <span
+                className="text-white/30 font-extrabold tracking-tight select-none"
+                style={{ fontSize: 72, lineHeight: 1.05 }}
+              >
                 your session.
               </span>
             </div>
@@ -106,7 +151,11 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
             <motion.div
               initial={{ scale: 0.88, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.25, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              transition={{
+                delay: 0.25,
+                duration: 0.6,
+                ease: [0.22, 1, 0.36, 1],
+              }}
             >
               <QrFrame value={qrValue} />
             </motion.div>
@@ -124,7 +173,6 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
           </motion.div>
         </AnimatePresence>
       </main>
-
     </div>
   );
 }

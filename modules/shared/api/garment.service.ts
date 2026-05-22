@@ -1,4 +1,5 @@
 import { api } from "./api-client";
+import type { StandardResponse } from "./api.types";
 import type { FittingSlot } from "@/modules/garment/types";
 
 export interface RemoteGarmentFile {
@@ -31,7 +32,9 @@ export interface RemoteGarment {
 
 export const garmentService = {
   getBySlot: async (fittingSlot: FittingSlot): Promise<RemoteGarment[]> => {
-    const response = await api.get<any>("/api/remote/garments", { fittingSlot });
+    const response = await api.get<StandardResponse<{ items: RemoteGarment[] }>>("/api/remote/garments", {
+      fittingSlot,
+    });
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }
@@ -40,8 +43,14 @@ export const garmentService = {
     throw new Error("Unexpected response shape");
   },
 
-  getBySlotAndType: async (fittingSlot: FittingSlot, garmentType: string): Promise<RemoteGarment[]> => {
-    const response = await api.get<any>("/api/remote/garments", { fittingSlot, garmentType });
+  getBySlotAndType: async (
+    fittingSlot: FittingSlot,
+    garmentType: string,
+  ): Promise<RemoteGarment[]> => {
+    const response = await api.get<StandardResponse<{ items: RemoteGarment[] }>>("/api/remote/garments", {
+      fittingSlot,
+      garmentType,
+    });
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }

@@ -13,7 +13,13 @@
           "type": "string",
           "required": true,
           "prompt": "What's the occasion today?",
-          "examples": ["a birthday dinner", "a job interview", "a date", "a wedding", "a party"]
+          "examples": [
+            "a birthday dinner",
+            "a job interview",
+            "a date",
+            "a wedding",
+            "a party"
+          ]
         }
       ]
     },
@@ -27,7 +33,16 @@
           "name": "eventType",
           "type": "enum",
           "required": true,
-          "values": ["casual", "formal", "business", "romantic", "outdoor", "party", "sports", "other"],
+          "values": [
+            "casual",
+            "formal",
+            "business",
+            "romantic",
+            "outdoor",
+            "party",
+            "sports",
+            "other"
+          ],
           "derivedFrom": "eventName",
           "prompt": "Is this more of a casual or formal occasion?"
         }
@@ -46,7 +61,11 @@
           "prompt": "When is it happening?",
           "normalizedFormat": "ISO 8601 (e.g. 2026-05-20T19:00:00)",
           "downstreamFeature": "calendar",
-          "examples": ["this Saturday at 7pm", "tomorrow evening", "May 20 at 7"]
+          "examples": [
+            "this Saturday at 7pm",
+            "tomorrow evening",
+            "May 20 at 7"
+          ]
         }
       ]
     },
@@ -62,7 +81,13 @@
           "required": true,
           "prompt": "Where will it be?",
           "downstreamFeature": "maps",
-          "examples": ["BGC", "Makati", "The Fort Strip", "SM Mall of Asia", "Shangri-La Hotel"]
+          "examples": [
+            "BGC",
+            "Makati",
+            "The Fort Strip",
+            "SM Mall of Asia",
+            "Shangri-La Hotel"
+          ]
         }
       ]
     },
@@ -72,7 +97,18 @@
       "activeStep": "confirm",
       "description": "User confirms all collected event details. Triggers calendar save and map preview.",
       "slots": [],
-      "confirmKeywords": ["yes", "sure", "looks good", "good", "ok", "okay", "confirm", "perfect", "proceed", "correct"],
+      "confirmKeywords": [
+        "yes",
+        "sure",
+        "looks good",
+        "good",
+        "ok",
+        "okay",
+        "confirm",
+        "perfect",
+        "proceed",
+        "correct"
+      ],
       "onConfirmTriggers": ["calendar_save_event", "maps_preview_location"]
     },
     {
@@ -106,7 +142,14 @@
       "name": "get_weather",
       "page": "*",
       "description": "Ask about current weather conditions at the user's location. Responds with a speak action.",
-      "triggers": ["what's the weather", "how's the weather", "is it going to rain", "weather today", "how hot is it", "temperature outside"],
+      "triggers": [
+        "what's the weather",
+        "how's the weather",
+        "is it going to rain",
+        "weather today",
+        "how hot is it",
+        "temperature outside"
+      ],
       "slots": [],
       "responseAction": "speak",
       "contextRequired": ["lat", "lng", "currentDate"]
@@ -115,7 +158,13 @@
       "name": "get_time",
       "page": "*",
       "description": "Ask what time or date it is. Responds with a speak action using the currentTime/currentDate context.",
-      "triggers": ["what time is it", "what's the time", "what day is it", "what's today's date", "what's the date"],
+      "triggers": [
+        "what time is it",
+        "what's the time",
+        "what day is it",
+        "what's today's date",
+        "what's the date"
+      ],
       "slots": [],
       "responseAction": "speak",
       "contextRequired": ["currentTime", "currentDate"]
@@ -124,7 +173,14 @@
       "name": "get_schedule",
       "page": "*",
       "description": "Navigate to the schedule/calendar page to see upcoming events",
-      "triggers": ["show my schedule", "my events", "upcoming events", "open calendar", "what's on my calendar", "show my calendar"],
+      "triggers": [
+        "show my schedule",
+        "my events",
+        "upcoming events",
+        "open calendar",
+        "what's on my calendar",
+        "show my calendar"
+      ],
       "slots": [],
       "onTrigger": ["navigate:/schedule"]
     }

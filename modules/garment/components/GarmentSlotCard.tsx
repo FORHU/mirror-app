@@ -2,25 +2,34 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Crown, Glasses, Gem, Shirt, Layers, Package,
-  Footprints, Watch, Link, CircleDot, Plus,
+  Crown,
+  Glasses,
+  Gem,
+  Shirt,
+  Layers,
+  Package,
+  Footprints,
+  Watch,
+  Link,
+  CircleDot,
+  Plus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/modules/shared/utils";
 import { FittingSlot, type Garment, type GarmentSlot } from "../types";
 
 const SLOT_ICONS: Partial<Record<FittingSlot, LucideIcon>> = {
-  [FittingSlot.HeadGarment]:        Crown,
-  [FittingSlot.Glasses]:            Glasses,
-  [FittingSlot.Earrings]:           Gem,
-  [FittingSlot.UpperGarment]:       Shirt,
-  [FittingSlot.LowerGarment]:       Layers,
-  [FittingSlot.FullGarment]:        Package,
-  [FittingSlot.FootGarment]:        Footprints,
-  [FittingSlot.LeftHandAccessory]:  Watch,
+  [FittingSlot.HeadGarment]: Crown,
+  [FittingSlot.Glasses]: Glasses,
+  [FittingSlot.Earrings]: Gem,
+  [FittingSlot.UpperGarment]: Shirt,
+  [FittingSlot.LowerGarment]: Layers,
+  [FittingSlot.FullGarment]: Package,
+  [FittingSlot.FootGarment]: Footprints,
+  [FittingSlot.LeftHandAccessory]: Watch,
   [FittingSlot.RightHandAccessory]: Watch,
-  [FittingSlot.NeckAccessory]:      Link,
-  [FittingSlot.WaistAccessory]:     CircleDot,
+  [FittingSlot.NeckAccessory]: Link,
+  [FittingSlot.WaistAccessory]: CircleDot,
 };
 
 interface GarmentSlotCardProps {
@@ -62,7 +71,12 @@ export function GarmentSlotCard({
     <motion.button
       initial={{ opacity: 0, scale: 0.88 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.04, type: "spring", stiffness: 300, damping: 22 }}
+      transition={{
+        delay: index * 0.04,
+        type: "spring",
+        stiffness: 300,
+        damping: 22,
+      }}
       onClick={() => onPress?.(slot)}
       className={cn(
         "relative flex flex-col items-center justify-center overflow-hidden rounded-xl transition-transform active:scale-95",
@@ -75,7 +89,6 @@ export function GarmentSlotCard({
       )}
     >
       <AnimatePresence mode="wait">
-
         {/* ── Filled with its own garment ── */}
         {isFilled && slot.garment && !coveredBy ? (
           <motion.div
@@ -85,15 +98,15 @@ export function GarmentSlotCard({
             exit={{ opacity: 0 }}
             className="absolute inset-0"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={slot.garment.imageUrl}
               alt={slot.garment.name}
               className="w-full h-full object-contain"
             />
           </motion.div>
-
-        /* ── Covered by a full-body garment ── */
-        ) : coveredBy ? (
+        ) : /* ── Covered by a full-body garment ── */
+        coveredBy ? (
           <motion.div
             key="covered"
             initial={{ opacity: 0 }}
@@ -101,6 +114,7 @@ export function GarmentSlotCard({
             exit={{ opacity: 0 }}
             className="absolute inset-0"
           >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={coveredBy.imageUrl}
               alt={coveredBy.name}
@@ -116,9 +130,8 @@ export function GarmentSlotCard({
               </span>
             </div>
           </motion.div>
-
-        /* ── Empty ── */
         ) : (
+          /* ── Empty ── */
           <motion.div
             key="empty"
             initial={{ opacity: 0 }}
@@ -137,7 +150,6 @@ export function GarmentSlotCard({
             </div>
           </motion.div>
         )}
-
       </AnimatePresence>
     </motion.button>
   );

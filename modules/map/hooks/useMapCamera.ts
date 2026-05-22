@@ -5,13 +5,17 @@ import mapboxgl from "mapbox-gl";
 import { useMapStore } from "../store/useMapStore";
 
 export function useMapCamera(map: mapboxgl.Map | null) {
-  const isNavigating  = useMapStore((state) => state.isNavigating);
-  const activeRoute   = useMapStore((state) => state.activeRoute);
-  const cameraMode    = useMapStore((state) => state.cameraMode);
-  const homeLocation  = useMapStore((state) => state.homeLocation);
-  const idleRotRef    = useRef<number | null>(null);
+  const isNavigating = useMapStore((state) => state.isNavigating);
+  const activeRoute = useMapStore((state) => state.activeRoute);
+  const cameraMode = useMapStore((state) => state.cameraMode);
+  const homeLocation = useMapStore((state) => state.homeLocation);
+  const idleRotRef = useRef<number | null>(null);
 
-  const lerpBearing = (current: number, target: number, factor: number): number => {
+  const lerpBearing = (
+    current: number,
+    target: number,
+    factor: number,
+  ): number => {
     const delta = ((target - current + 540) % 360) - 180;
     return current + delta * factor;
   };
@@ -32,17 +36,21 @@ export function useMapCamera(map: mapboxgl.Map | null) {
     // ── OVERVIEW ────────────────────────────────────────────────────
     if (cameraMode === "overview") {
       const coords: [number, number][] =
-        activeRoute.geojson?.features?.[0]?.geometry?.coordinates ?? [];
+        ((activeRoute.geojson?.features?.[0]?.geometry as GeoJSON.LineString | undefined)
+          ?.coordinates ?? []) as [number, number][];
       if (coords.length === 0) return;
 
       const bounds = coords.reduce(
         (b, c) => b.extend(c),
-        new mapboxgl.LngLatBounds(coords[0], coords[0])
+        new mapboxgl.LngLatBounds(coords[0], coords[0]),
       );
       map.stop();
       map.fitBounds(bounds, {
         padding: { top: 80, bottom: 120, left: 60, right: 60 },
-        pitch: 20, bearing: 0, duration: 1800, essential: true,
+        pitch: 20,
+        bearing: 0,
+        duration: 1800,
+        essential: true,
       });
       return;
     }
@@ -57,11 +65,18 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
     // Bearing: prefer Mapbox API value (already road-aligned, accepts 0 = north as valid)
     // API now returns undefined when missing (not 0), so null-check is clean
-    const apiBearing: number | undefined = activeRoute.steps?.[0]?.maneuver?.bearing_after;
+    const apiBearing: number | undefined =
+      (activeRoute.steps?.[0]?.maneuver as { type: string; modifier: string; bearing_after?: number } | undefined)?.bearing_after;
     const bearing = apiBearing != null ? apiBearing : 0;
 
-    console.log("[Camera] FPV | center:", center, "| bearing:", bearing,
-      "| source:", apiBearing != null ? "API" : "default-0");
+    console.log(
+      "[Camera] FPV | center:",
+      center,
+      "| bearing:",
+      bearing,
+      "| source:",
+      apiBearing != null ? "API" : "default-0",
+    );
 
     if (idleRotRef.current) {
       cancelAnimationFrame(idleRotRef.current);
@@ -89,7 +104,14 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
   const flyToFPV = (center: [number, number], bearing: number) => {
     if (!map) return;
-    map.flyTo({ center, zoom: 18.5, pitch: 70, bearing, duration: 2200, easing: (t) => t * (2 - t) });
+    map.flyTo({
+      center,
+      zoom: 18.5,
+      pitch: 70,
+      bearing,
+      duration: 2200,
+      easing: (t) => t * (2 - t),
+    });
   };
 
   const easeToFPV = (center: [number, number], targetBearing: number) => {

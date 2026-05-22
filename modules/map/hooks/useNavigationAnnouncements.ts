@@ -6,17 +6,22 @@ import { mapService } from "../services/map.service";
 
 const THRESHOLDS = [500, 200, 50] as const;
 
-function buildText(instruction: string, distanceM: number, threshold: number): string {
-  if (threshold <= 50)  return `${instruction}.`;
-  if (distanceM < 1000) return `In ${Math.round(distanceM)} metres, ${instruction.toLowerCase()}.`;
+function buildText(
+  instruction: string,
+  distanceM: number,
+  threshold: number,
+): string {
+  if (threshold <= 50) return `${instruction}.`;
+  if (distanceM < 1000)
+    return `In ${Math.round(distanceM)} metres, ${instruction.toLowerCase()}.`;
   return `In ${(distanceM / 1000).toFixed(1)} kilometres, ${instruction.toLowerCase()}.`;
 }
 
 export function useNavigationAnnouncements() {
   const announcedRef = useRef<Set<string>>(new Set());
-  const playbackRef  = useRef<AudioBufferSourceNode | null>(null);
-  const playCtxRef   = useRef<AudioContext | null>(null);
-  const speakingRef  = useRef(false);
+  const playbackRef = useRef<AudioBufferSourceNode | null>(null);
+  const playCtxRef = useRef<AudioContext | null>(null);
+  const speakingRef = useRef(false);
 
   const speak = async (text: string) => {
     if (speakingRef.current) return;
@@ -25,13 +30,13 @@ export function useNavigationAnnouncements() {
       playbackRef.current?.stop();
       playCtxRef.current?.close();
 
-      const audio   = await mapService.tts(text);
+      const audio = await mapService.tts(text);
       const playCtx = new AudioContext();
       playCtxRef.current = playCtx;
 
       const decoded = await playCtx.decodeAudioData(audio.slice(0));
-      const src     = playCtx.createBufferSource();
-      src.buffer    = decoded;
+      const src = playCtx.createBufferSource();
+      src.buffer = decoded;
       src.connect(playCtx.destination);
       playbackRef.current = src;
 
@@ -39,7 +44,7 @@ export function useNavigationAnnouncements() {
         speakingRef.current = false;
         playbackRef.current = null;
         playCtxRef.current?.close();
-        playCtxRef.current  = null;
+        playCtxRef.current = null;
       };
       src.start(0);
     } catch (err) {
@@ -55,7 +60,12 @@ export function useNavigationAnnouncements() {
         return;
       }
 
-      const { currentStepIndex, distanceToNextManeuver, remainingDistance, activeRoute } = state;
+      const {
+        currentStepIndex,
+        distanceToNextManeuver,
+        remainingDistance,
+        activeRoute,
+      } = state;
 
       if (currentStepIndex !== prev.currentStepIndex) {
         for (const t of THRESHOLDS) {
@@ -79,7 +89,9 @@ export function useNavigationAnnouncements() {
           const key = `step-${currentStepIndex}-${threshold}`;
           if (!announcedRef.current.has(key)) {
             announcedRef.current.add(key);
-            speak(buildText(step.instruction, distanceToNextManeuver, threshold));
+            speak(
+              buildText(step.instruction, distanceToNextManeuver, threshold),
+            );
           }
           break;
         }

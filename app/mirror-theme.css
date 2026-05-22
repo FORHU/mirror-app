@@ -11,22 +11,22 @@
 
 :root {
   /* HUD token overrides */
-  --hud-text-primary:    rgba(255, 255, 255, 0.95);
-  --hud-text-secondary:  rgba(255, 255, 255, 0.65);
-  --hud-text-label:      rgba(255, 255, 255, 0.45);
-  --hud-accent:          rgba(79, 195, 247, 0.85);
-  --hud-icon-stroke:     rgba(255, 255, 255, 0.9);
-  --hud-progress-track:  rgba(255, 255, 255, 0.10);
-  --hud-progress-fill:   rgba(255, 255, 255, 0.50);
-  --hud-text-shadow:     0 0 12px rgba(0, 0, 0, 0.8);
+  --hud-text-primary: rgba(255, 255, 255, 0.95);
+  --hud-text-secondary: rgba(255, 255, 255, 0.65);
+  --hud-text-label: rgba(255, 255, 255, 0.45);
+  --hud-accent: rgba(79, 195, 247, 0.85);
+  --hud-icon-stroke: rgba(255, 255, 255, 0.9);
+  --hud-progress-track: rgba(255, 255, 255, 0.1);
+  --hud-progress-fill: rgba(255, 255, 255, 0.5);
+  --hud-text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
   /* Ghost UI variables - High Contrast */
-  --ghost-bg:            transparent;
-  --ghost-btn-border:    1px solid rgba(255, 255, 255, 0.35);
-  --ghost-btn-icon:      rgba(255, 255, 255, 0.95);
-  
-  --ghost-panel-border:  1px solid rgba(255, 255, 255, 0.25);
-  --ghost-panel-text:    rgba(255, 255, 255, 0.9);
-  
-  --ghost-weather-text:  rgba(255, 255, 255, 0.9);
-  --ghost-weather-icon:  0.9;
+  --ghost-bg: transparent;
+  --ghost-btn-border: 1px solid rgba(255, 255, 255, 0.35);
+  --ghost-btn-icon: rgba(255, 255, 255, 0.95);
+
+  --ghost-panel-border: 1px solid rgba(255, 255, 255, 0.25);
+  --ghost-panel-text: rgba(255, 255, 255, 0.9);
+
+  --ghost-weather-text: rgba(255, 255, 255, 0.9);
+  --ghost-weather-icon: 0.9;
 }

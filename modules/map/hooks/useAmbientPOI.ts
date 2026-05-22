@@ -13,23 +13,29 @@ export interface AmbientPOI {
 }
 
 const CATEGORIES = [
-  { query: "restaurant",        label: "restaurant" },
-  { query: "coffee shop",       label: "coffee shop" },
-  { query: "tourist attraction",label: "attraction" },
-  { query: "park",              label: "park" },
-  { query: "gas station",       label: "gas station" },
-  { query: "hotel",             label: "hotel" },
+  { query: "restaurant", label: "restaurant" },
+  { query: "coffee shop", label: "coffee shop" },
+  { query: "tourist attraction", label: "attraction" },
+  { query: "park", label: "park" },
+  { query: "gas station", label: "gas station" },
+  { query: "hotel", label: "hotel" },
 ];
 
-const INTERVAL_MS  = 2 * 60 * 1000; // 2 minutes
+const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 const MAX_RADIUS_M = 500;
 
-function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+function haversineM(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
   const R = 6371000;
   const dLat = (b.lat - a.lat) * (Math.PI / 180);
   const dLng = (b.lng - a.lng) * (Math.PI / 180);
-  const s = Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * (Math.PI / 180)) * Math.cos(b.lat * (Math.PI / 180)) * Math.sin(dLng / 2) ** 2;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * (Math.PI / 180)) *
+      Math.cos(b.lat * (Math.PI / 180)) *
+      Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
@@ -89,11 +95,18 @@ export function useAmbientPOI() {
       if (!nearby.length) return;
 
       const pick = nearby[0];
-      const distText = pick.distanceM < 100
-        ? "just ahead"
-        : `about ${Math.round(pick.distanceM / 10) * 10} metres away`;
+      const distText =
+        pick.distanceM < 100
+          ? "just ahead"
+          : `about ${Math.round(pick.distanceM / 10) * 10} metres away`;
 
-      setAmbientPOI({ name: pick.name, category: cat.label, distanceM: pick.distanceM, lat: pick.lat, lng: pick.lng });
+      setAmbientPOI({
+        name: pick.name,
+        category: cat.label,
+        distanceM: pick.distanceM,
+        lat: pick.lat,
+        lng: pick.lng,
+      });
       speak(`There's a ${cat.label} nearby: ${pick.name}, ${distText}.`);
     } catch {
       // silently ignore geocode failures
@@ -112,6 +125,7 @@ export function useAmbientPOI() {
       clearTimeout(timeout);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Also subscribe to isNavigating to start/stop when navigation changes
@@ -145,6 +159,7 @@ export function useAmbientPOI() {
       playbackRef.current?.stop();
       playCtxRef.current?.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismissAmbientPOI = () => setAmbientPOI(null);

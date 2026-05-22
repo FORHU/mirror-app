@@ -14,11 +14,14 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
       useOutlineStore.getState().init();
       return;
     }
-    useAuthStore.getState()._init().then(() => {
-      if (useAuthStore.getState().isAuthenticated) {
-        useOutlineStore.getState().init();
-      }
-    });
+    useAuthStore
+      .getState()
+      ._init()
+      .then(() => {
+        if (useAuthStore.getState().isAuthenticated) {
+          useOutlineStore.getState().init();
+        }
+      });
   }, []);
 
   // Reset outline when user logs out

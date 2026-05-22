@@ -8,7 +8,9 @@ import MapViewport from "./MapViewport";
 export const MapScene: React.FC<{ className?: string }> = ({ className }) => {
   return (
     <MapProvider>
-      <div className={`relative w-full h-full overflow-hidden ${className || ""}`}>
+      <div
+        className={`relative w-full h-full overflow-hidden ${className || ""}`}
+      >
         <MapViewport />
         {/* Overlay layer for glassmorphism UI */}
         <div className="relative z-10 pointer-events-none w-full h-full">

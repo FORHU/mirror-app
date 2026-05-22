@@ -9,7 +9,6 @@ Mirror App is a Next.js 16 project
 - **State Management:** Zustand for client-side auth state
 - **Networking:** Apisauce-based API client and auth services
 
-
 ## Getting Started
 
 After cloning the repository, run these commands:

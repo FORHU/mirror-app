@@ -35,7 +35,10 @@ export default function AmbientPOICard({ poi, onDismiss }: Props) {
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 shrink-0" style={{ color: "#4fc3f7" }} />
+                <MapPin
+                  className="w-4 h-4 shrink-0"
+                  style={{ color: "#4fc3f7" }}
+                />
                 <div>
                   <p
                     className="text-[10px] font-bold uppercase tracking-widest"
@@ -43,7 +46,10 @@ export default function AmbientPOICard({ poi, onDismiss }: Props) {
                   >
                     {poi.category} nearby
                   </p>
-                  <p className="text-sm font-semibold leading-tight" style={{ color: "var(--ghost-panel-text)" }}>
+                  <p
+                    className="text-sm font-semibold leading-tight"
+                    style={{ color: "var(--ghost-panel-text)" }}
+                  >
                     {poi.name}
                   </p>
                 </div>
@@ -56,7 +62,10 @@ export default function AmbientPOICard({ poi, onDismiss }: Props) {
               </button>
             </div>
 
-            <p className="text-xs" style={{ color: "var(--ghost-panel-text)", opacity: 0.6 }}>
+            <p
+              className="text-xs"
+              style={{ color: "var(--ghost-panel-text)", opacity: 0.6 }}
+            >
               {poi.distanceM < 100
                 ? "Just ahead"
                 : `~${Math.round(poi.distanceM / 10) * 10}m away`}

@@ -7,7 +7,11 @@ export const authService = {
    * Unified login — email + optional username and kioskId (no password).
    * Matches the companion-app and mirror-api /api/remote/auth/login contract.
    */
-  login: async (email: string, username?: string, kioskId?: string): Promise<AuthResponse> => {
+  login: async (
+    email: string,
+    username?: string,
+    kioskId?: string,
+  ): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
       "/api/remote/auth/login",
       { email, username, kioskId },
@@ -18,7 +22,10 @@ export const authService = {
     throw new Error(response.data?.message || "Login failed");
   },
 
-  googleLogin: async (idToken: string, kioskId?: string): Promise<AuthResponse> => {
+  googleLogin: async (
+    idToken: string,
+    kioskId?: string,
+  ): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
       "/api/remote/auth/google",
       { idToken, kioskId },
@@ -30,7 +37,9 @@ export const authService = {
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const response = await api.get<StandardResponse<User>>("/api/remote/users/me");
+    const response = await api.get<StandardResponse<User>>(
+      "/api/remote/users/me",
+    );
     if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }

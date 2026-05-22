@@ -6,7 +6,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Download } from "lucide-react";
 import { type SlotMap } from "@/modules/garment/types";
 import { outfitService } from "@/modules/shared/api/outfit.service";
-import { tryOnService, type TryOnRunResult } from "@/modules/shared/api/try-on.service";
+import {
+  tryOnService,
+  type TryOnRunResult,
+} from "@/modules/shared/api/try-on.service";
 import { getSocketClient } from "@/modules/shared/socket/socket-client";
 
 type Phase = "building" | "waiting" | "done" | "error";
@@ -27,24 +30,25 @@ interface TryOnFailedPayload {
 function getResultImageUrl(result: TryOnRunResult): string | null {
   if (typeof result.imageUrl === "string") return result.imageUrl;
   if (result.output) {
-    return Array.isArray(result.output) ? (result.output[0] ?? null) : result.output;
+    return Array.isArray(result.output)
+      ? (result.output[0] ?? null)
+      : result.output;
   }
   return null;
 }
 
 export default function TryItOnPage() {
-  const router     = useRouter();
+  const router = useRouter();
   const hasStarted = useRef(false);
-  const [phase,        setPhase]        = useState<Phase>("building");
+  const [phase, setPhase] = useState<Phase>("building");
   const [predictionId, setPredictionId] = useState<string | null>(null);
-  const [errorMsg,     setErrorMsg]     = useState("");
-  const [tryOnResult,  setTryOnResult]  = useState<TryOnRunResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [tryOnResult, setTryOnResult] = useState<TryOnRunResult | null>(null);
 
   useEffect(() => {
     if (hasStarted.current) return;
     hasStarted.current = true;
     generate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Subscribe to FASHN completion events once we know the predictionId.
@@ -91,19 +95,25 @@ export default function TryItOnPage() {
       const raw = localStorage.getItem("mirror_outfit_slots");
       const slotMap: SlotMap = raw ? JSON.parse(raw) : {};
 
-      const hasAny = Object.values(slotMap).some(s => s?.garment);
+      const hasAny = Object.values(slotMap).some((s) => s?.garment);
       if (!hasAny) {
-        setErrorMsg("No garments selected. Go back and choose some clothes first.");
+        setErrorMsg(
+          "No garments selected. Go back and choose some clothes first.",
+        );
         setPhase("error");
         return;
       }
 
       const items = Object.values(slotMap)
-        .filter(s => s?.garment)
-        .map(s => ({ garmentId: s!.garment!.id, slot: s!.slot as string }));
+        .filter((s) => s?.garment)
+        .map((s) => ({ garmentId: s!.garment!.id, slot: s!.slot as string }));
 
       // Step 1: create outfit
-      console.log("[try-it-on] Creating outfit with", items.length, "item(s)...");
+      console.log(
+        "[try-it-on] Creating outfit with",
+        items.length,
+        "item(s)...",
+      );
       let outfit;
       try {
         outfit = await outfitService.create({ name: "My Outfit", items });
@@ -118,7 +128,12 @@ export default function TryItOnPage() {
         typeof window !== "undefined"
           ? (window.sessionStorage.getItem("kiosk_id") ?? undefined)
           : undefined;
-      console.log("[try-it-on] Starting try-on — outfitId:", outfit.id, "kioskId:", kioskId ?? "(none)");
+      console.log(
+        "[try-it-on] Starting try-on — outfitId:",
+        outfit.id,
+        "kioskId:",
+        kioskId ?? "(none)",
+      );
       let kickoff;
       try {
         kickoff = await tryOnService.runByOutfit(outfit.id, kioskId);
@@ -129,7 +144,7 @@ export default function TryItOnPage() {
       }
 
       // Track predictionId so the socket listener can match the response
-      const pid = (kickoff.id ?? (kickoff as any).predictionId) as string | undefined;
+      const pid = kickoff.id ?? kickoff.predictionId;
       if (pid) setPredictionId(pid);
 
       // Stay in "building" — the image will arrive via tryon_completed socket event
@@ -154,7 +169,6 @@ export default function TryItOnPage() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
-
       {/* ── Background gradient ── */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#1a1030] via-[#0d0820] to-[#1a1030]" />
 
@@ -167,14 +181,14 @@ export default function TryItOnPage() {
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </motion.button>
-        <span className="text-white font-semibold text-lg tracking-wide">Try It On</span>
+        <span className="text-white font-semibold text-lg tracking-wide">
+          Try It On
+        </span>
       </header>
 
       {/* ── Main content ── */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 min-h-0">
-
         <AnimatePresence mode="wait">
-
           {/* Result */}
           {phase === "done" && (
             <motion.div
@@ -212,8 +226,12 @@ export default function TryItOnPage() {
                   <div className="w-20 h-20 rounded-full bg-purple-500/15 border border-purple-400/30 flex items-center justify-center">
                     <span className="text-3xl">✨</span>
                   </div>
-                  <span className="text-white font-semibold text-xl">Try-on started!</span>
-                  <span className="text-white/50 text-sm">Your look is being generated</span>
+                  <span className="text-white font-semibold text-xl">
+                    Try-on started!
+                  </span>
+                  <span className="text-white/50 text-sm">
+                    Your look is being generated
+                  </span>
                 </div>
               )}
             </motion.div>
@@ -236,8 +254,12 @@ export default function TryItOnPage() {
                 </div>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-white font-semibold text-xl">Generating your look…</span>
-                <span className="text-white/40 text-sm">Creating outfit and running try-on</span>
+                <span className="text-white font-semibold text-xl">
+                  Generating your look…
+                </span>
+                <span className="text-white/40 text-sm">
+                  Creating outfit and running try-on
+                </span>
               </div>
             </motion.div>
           )}
@@ -255,8 +277,12 @@ export default function TryItOnPage() {
                 <span className="text-3xl">⚠️</span>
               </div>
               <div className="flex flex-col gap-2">
-                <span className="text-white font-semibold text-lg">Something went wrong</span>
-                <span className="text-white/50 text-sm px-4 leading-relaxed">{errorMsg}</span>
+                <span className="text-white font-semibold text-lg">
+                  Something went wrong
+                </span>
+                <span className="text-white/50 text-sm px-4 leading-relaxed">
+                  {errorMsg}
+                </span>
               </div>
               <motion.button
                 whileTap={{ scale: 0.95 }}
@@ -267,7 +293,6 @@ export default function TryItOnPage() {
               </motion.button>
             </motion.div>
           )}
-
         </AnimatePresence>
       </div>
     </main>

@@ -63,7 +63,10 @@ api.axiosInstance.interceptors.response.use(
             `${API_BASE_URL}/api/remote/auth/refresh-token`,
             {
               method: "POST",
-              headers: { "Content-Type": "application/json", "x-platform": "kiosk" },
+              headers: {
+                "Content-Type": "application/json",
+                "x-platform": "kiosk",
+              },
               body: JSON.stringify({ refreshToken: rt }),
             },
           );

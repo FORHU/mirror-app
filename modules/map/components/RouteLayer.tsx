@@ -89,14 +89,19 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
     }
 
     if (activeRoute?.geojson) {
-      (map.getSource("route") as mapboxgl.GeoJSONSource).setData(activeRoute.geojson);
+      (map.getSource("route") as mapboxgl.GeoJSONSource).setData(
+        activeRoute.geojson,
+      );
     } else {
-      (map.getSource("route") as mapboxgl.GeoJSONSource).setData({ type: "FeatureCollection", features: [] });
+      (map.getSource("route") as mapboxgl.GeoJSONSource).setData({
+        type: "FeatureCollection",
+        features: [],
+      });
     }
 
     if (map.getSource("last-trip")) {
       (map.getSource("last-trip") as mapboxgl.GeoJSONSource).setData(
-        lastTripGeojson ?? { type: "FeatureCollection", features: [] }
+        lastTripGeojson ?? { type: "FeatureCollection", features: [] },
       );
     }
   }, [map, activeRoute, lastTripGeojson]);

@@ -11,7 +11,9 @@ export function detectMirrorId(): MirrorKey {
   if (typeof window === "undefined") {
     return (process.env.NEXT_PUBLIC_MIRROR_ID as MirrorKey) ?? "mirror-a";
   }
-  const param = new URLSearchParams(window.location.search).get("mirror") as MirrorKey | null;
+  const param = new URLSearchParams(window.location.search).get(
+    "mirror",
+  ) as MirrorKey | null;
   if (param && param in MIRRORS) {
     localStorage.setItem("mirror_id", param);
     return param;

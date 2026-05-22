@@ -18,18 +18,18 @@ const UserPuck: React.FC<UserPuckProps> = ({ map }) => {
     if (!markerRef.current) {
       const el = document.createElement("div");
       el.className = "user-puck";
-      markerRef.current = new mapboxgl.Marker({ 
+      markerRef.current = new mapboxgl.Marker({
         element: el,
-        anchor: 'top',              // Arrow tip (top of SVG) points at the coordinate
-        rotationAlignment: 'viewport',
-        pitchAlignment: 'viewport',
+        anchor: "top", // Arrow tip (top of SVG) points at the coordinate
+        rotationAlignment: "viewport",
+        pitchAlignment: "viewport",
       })
         .setLngLat([homeLocation.lng, homeLocation.lat])
         .addTo(map);
     }
 
     const el = markerRef.current.getElement();
-    
+
     if (isNavigating && activeRoute) {
       el.innerHTML = `
         <div style="filter: drop-shadow(0 0 10px rgba(79,195,247,0.8));">

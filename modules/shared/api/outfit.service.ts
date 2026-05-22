@@ -1,4 +1,5 @@
 import { api } from "./api-client";
+import type { StandardResponse } from "./api.types";
 
 export interface OutfitItem {
   garmentId: string;
@@ -44,7 +45,7 @@ export interface CreatedOutfit {
 
 export const outfitService = {
   getAll: async (): Promise<RemoteOutfit[]> => {
-    const response = await api.get<any>("/api/remote/outfits");
+    const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>("/api/remote/outfits");
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch outfits");
     }
@@ -53,7 +54,12 @@ export const outfitService = {
     throw new Error("Unexpected response shape");
   },
 
-  create: async ({ name, items, pngBlob, isPublic = false }: CreateOutfitParams): Promise<CreatedOutfit> => {
+  create: async ({
+    name,
+    items,
+    pngBlob,
+    isPublic = false,
+  }: CreateOutfitParams): Promise<CreatedOutfit> => {
     const form = new FormData();
     form.append("name", name);
     form.append("items", JSON.stringify(items));

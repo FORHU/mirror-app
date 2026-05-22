@@ -1,6 +1,5 @@
 export default function sitemap() {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL;
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
   return [
     {

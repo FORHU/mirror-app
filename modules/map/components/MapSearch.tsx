@@ -1,24 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Search, MapPin, Navigation, X, Loader2, Car, Footprints, Bike } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Search,
+  MapPin,
+  X,
+  Loader2,
+  Car,
+  Footprints,
+  Bike,
+} from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
+import type { GeocodeResult } from "../services/map.service";
+import type { TransportProfile } from "../types/map.types";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function MapSearch() {
   const [query, setQuery] = useState("");
-  const { 
-    searchLocations, 
-    searchResults, 
-    isSearching, 
-    setDestination, 
+  const {
+    searchLocations,
+    searchResults,
+    isSearching,
+    setDestination,
     clearNavigation,
     activeRoute,
     selectedDestination,
     activeProfile,
     setActiveProfile,
     startNavigation,
-    isNavigating
+    isNavigating,
   } = useMapStore();
 
   useEffect(() => {
@@ -30,7 +40,7 @@ export default function MapSearch() {
     return () => clearTimeout(timer);
   }, [query, searchLocations, selectedDestination]);
 
-  const handleSelect = (result: any) => {
+  const handleSelect = (result: GeocodeResult) => {
     setDestination(result);
     setQuery(result.name);
   };
@@ -47,7 +57,11 @@ export default function MapSearch() {
       {/* Search Bar */}
       <div className="relative bg-transparent border border-white/20 rounded-2xl p-2 flex items-center gap-3 backdrop-blur-md">
         <div className="pl-3">
-          {isSearching ? <Loader2 className="w-5 h-5 animate-spin text-white/50" /> : <Search className="w-5 h-5 text-white/50" />}
+          {isSearching ? (
+            <Loader2 className="w-5 h-5 animate-spin text-white/50" />
+          ) : (
+            <Search className="w-5 h-5 text-white/50" />
+          )}
         </div>
         <input
           type="text"
@@ -57,7 +71,10 @@ export default function MapSearch() {
           className="flex-1 bg-transparent border-none outline-none py-3 text-white text-lg placeholder:text-white/20"
         />
         {query && (
-          <button onClick={handleClear} className="p-2 text-white/40 hover:text-white transition-colors">
+          <button
+            onClick={handleClear}
+            className="p-2 text-white/40 hover:text-white transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         )}
@@ -81,7 +98,9 @@ export default function MapSearch() {
                 <MapPin className="w-5 h-5 mt-1 text-white/40" />
                 <div className="flex-1">
                   <div className="text-white font-medium">{result.name}</div>
-                  <div className="text-sm text-white/40 truncate">{result.address}</div>
+                  <div className="text-sm text-white/40 truncate">
+                    {result.address}
+                  </div>
                 </div>
               </button>
             ))}
@@ -99,38 +118,48 @@ export default function MapSearch() {
           >
             <div className="flex justify-between items-start">
               <div className="flex-1 pr-4">
-                <h3 className="text-2xl font-bold text-white leading-tight">{selectedDestination.name}</h3>
-                <p className="text-white/40 mt-1">{Math.round(activeRoute.distance / 1000 * 10) / 10} km away</p>
+                <h3 className="text-2xl font-bold text-white leading-tight">
+                  {selectedDestination.name}
+                </h3>
+                <p className="text-white/40 mt-1">
+                  {Math.round((activeRoute.distance / 1000) * 10) / 10} km away
+                </p>
               </div>
               <div className="text-right">
                 <div className="text-4xl font-light text-white tracking-tighter">
                   {Math.round(activeRoute.duration / 60)}
                 </div>
-                <div className="text-xs uppercase tracking-widest text-white/30 font-bold">min</div>
+                <div className="text-xs uppercase tracking-widest text-white/30 font-bold">
+                  min
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
-              {[
-                { id: 'car', icon: Car, label: 'Car' },
-                { id: 'motorcycle', icon: Bike, label: 'Moto' },
-                { id: 'bicycle', icon: Bike, label: 'Bike' },
-                { id: 'walking', icon: Footprints, label: 'Walk' },
-              ].map((mode) => {
+              {(
+                [
+                  { id: "car", icon: Car, label: "Car" },
+                  { id: "motorcycle", icon: Bike, label: "Moto" },
+                  { id: "bicycle", icon: Bike, label: "Bike" },
+                  { id: "walking", icon: Footprints, label: "Walk" },
+                ] as { id: TransportProfile; icon: typeof Car; label: string }[]
+              ).map((mode) => {
                 const Icon = mode.icon;
                 const active = activeProfile === mode.id;
                 return (
                   <button
                     key={mode.id}
-                    onClick={() => setActiveProfile(mode.id as any)}
+                    onClick={() => setActiveProfile(mode.id)}
                     className={`flex flex-col items-center gap-2 py-3 rounded-2xl transition-all border ${
-                      active 
-                        ? 'bg-white/10 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                        : 'bg-transparent border-white/10 text-white/30 hover:border-white/30'
+                      active
+                        ? "bg-white/10 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                        : "bg-transparent border-white/10 text-white/30 hover:border-white/30"
                     }`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="text-[8px] uppercase tracking-wider font-black">{mode.label}</span>
+                    <span className="text-[8px] uppercase tracking-wider font-black">
+                      {mode.label}
+                    </span>
                   </button>
                 );
               })}

@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import { useMapStore } from "../store/useMapStore";
+import { useMapStore, type NearbyPOI } from "../store/useMapStore";
 
-interface Props { map: mapboxgl.Map; }
+interface Props {
+  map: mapboxgl.Map;
+}
 
 const SOURCE = "nearby-pois";
 const LAYER_GLOW = "nearby-pois-glow";
-const LAYER_DOT  = "nearby-pois-dot";
+const LAYER_DOT = "nearby-pois-dot";
 const LAYER_LABEL = "nearby-pois-label";
 
 export default function NearbyPOILayer({ map }: Props) {
   const { nearbyPOIs, setSelectedPOI } = useMapStore();
   const nearbyPOIsRef = useRef(nearbyPOIs);
-  nearbyPOIsRef.current = nearbyPOIs;
+  useLayoutEffect(() => {
+    nearbyPOIsRef.current = nearbyPOIs;
+  });
 
   useEffect(() => {
     if (!map) return;
@@ -83,15 +87,21 @@ export default function NearbyPOILayer({ map }: Props) {
       // Re-populate with current data after style reload
       const pois = nearbyPOIsRef.current;
       if (pois.length) {
-        (map.getSource(SOURCE) as mapboxgl.GeoJSONSource)?.setData(buildGeojson(pois));
+        (map.getSource(SOURCE) as mapboxgl.GeoJSONSource)?.setData(
+          buildGeojson(pois),
+        );
       }
     };
 
-    const handleClick = (e: mapboxgl.MapLayerMouseEvent) => {
+    const handleClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
       const f = e.features?.[0];
       if (!f) return;
-      const { name, address, lat, lng, placeId } = f.properties as any;
-      const coords = (f.geometry as any).coordinates;
+      const { name, address, placeId } = f.properties as {
+        name: string;
+        address: string;
+        placeId: string;
+      };
+      const coords = (f.geometry as GeoJSON.Point).coordinates;
       setSelectedPOI({
         name,
         category: address,
@@ -103,8 +113,12 @@ export default function NearbyPOILayer({ map }: Props) {
     init();
     map.on("style.load", init);
     map.on("click", LAYER_DOT, handleClick);
-    map.on("mouseenter", LAYER_DOT, () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", LAYER_DOT, () => { map.getCanvas().style.cursor = ""; });
+    map.on("mouseenter", LAYER_DOT, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", LAYER_DOT, () => {
+      map.getCanvas().style.cursor = "";
+    });
 
     return () => {
       map.off("style.load", init);
@@ -122,7 +136,7 @@ export default function NearbyPOILayer({ map }: Props) {
   return null;
 }
 
-function buildGeojson(pois: any[]): GeoJSON.FeatureCollection {
+function buildGeojson(pois: NearbyPOI[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pois.map((poi) => ({

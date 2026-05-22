@@ -26,7 +26,10 @@ export interface TryOnRunResult {
 }
 
 export const tryOnService = {
-  runByOutfit: async (outfitId: string, kioskId?: string): Promise<TryOnRunResult> => {
+  runByOutfit: async (
+    outfitId: string,
+    kioskId?: string,
+  ): Promise<TryOnRunResult> => {
     const body: Record<string, string> = { outfitId };
     if (kioskId) body.kioskId = kioskId;
     const res = await api.axiosInstance.post("/api/mirror/try-on/outfit", body);
