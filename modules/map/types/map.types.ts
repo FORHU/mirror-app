@@ -1,7 +1,7 @@
 export type TransportProfile = 'car' | 'motorcycle' | 'bicycle' | 'walking'
 
 export interface DirectionsResponse {
-  geojson: any; // Using any for GeoJSON.FeatureCollection to avoid dependency overhead if not present
+  geojson: GeoJSON.FeatureCollection
   steps: RouteStep[]
   distance: number
   duration: number

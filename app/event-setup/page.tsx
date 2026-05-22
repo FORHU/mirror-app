@@ -50,15 +50,12 @@ type WeatherResult = { temp: string; condition: string; icon: string };
 
 async function fetchWeather(location: string | null): Promise<WeatherResult> {
   try {
-    let lat: number | undefined;
-    let lng: number | undefined;
-
     // Try to resolve coordinates from map store
     const { useMapStore } = await import("@/modules/map/store/useMapStore");
     const s = useMapStore.getState();
     const loc = s.userLocation ?? s.homeLocation;
-    lat = loc?.lat;
-    lng = loc?.lng;
+    const lat = loc?.lat;
+    const lng = loc?.lng;
 
     if (!lat || !lng) throw new Error("no location");
 
@@ -406,7 +403,7 @@ function EventSetupInner() {
   useVoice(pageContext, handleChatWonderAction);
 
   // ── Boot sequence ──
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     const t = setTimeout(() => {
       const g = getPrompt("event", dataRef.current, username);
@@ -417,7 +414,8 @@ function EventSetupInner() {
       speak(g, startLocalListening);
     }, 1500);
     return () => clearTimeout(t);
-  }, []); // intentional empty deps — boot once
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional empty deps — boot once
+  }, []);
 
   // ── Summary confirmation listener (local fallback) ──
   useEffect(() => {

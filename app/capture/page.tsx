@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- live camera blob frames */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 

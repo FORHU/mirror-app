@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
   const clientLat = qLat ? +qLat : null;
   const clientLon = qLon ? +qLon : null;
 
-  let coords: Coords | null =
+  const coords: Coords | null =
     (envLat && envLon)     ? { lat: envLat, lon: envLon } :
     (clientLat && clientLon) ? { lat: clientLat, lon: clientLon } :
     await fetchCoords();

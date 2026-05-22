@@ -1,10 +1,8 @@
 "use client";
 
 import { cn } from "@/modules/shared/utils";
-import { FittingSlot, type GarmentSlot, type SlotMap } from "../types";
+import { type GarmentSlot, type SlotMap } from "../types";
 import { GarmentSlotCard } from "./GarmentSlotCard";
-
-const CORNER: GarmentSlot = { slot: FittingSlot.None, label: "", garment: null };
 
 function ZoneLabel({ label }: { label: string }) {
   return (

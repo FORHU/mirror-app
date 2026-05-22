@@ -3,7 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Loader2, Volume2, X } from "lucide-react";
+import { Mic, MicOff, Loader2, Volume2 } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 // Pages that already have their own voice UI — don't show the global overlay there

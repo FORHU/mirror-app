@@ -10,7 +10,7 @@ export interface GeocodeResult {
 }
 
 export interface DirectionsFormatted {
-  geojson: any;
+  geojson: GeoJSON.FeatureCollection;
   steps: Array<{
     instruction: string;
     maneuver: { type: string; modifier: string };
@@ -47,7 +47,7 @@ export const mapService = {
   },
 
   geocode: async (query: string, userLocation?: { lat: number; lng: number }): Promise<{ results: GeocodeResult[] }> => {
-    const body: Record<string, any> = { query };
+    const body: Record<string, string | number> = { query };
     if (userLocation) {
       body.lat = userLocation.lat;
       body.lng = userLocation.lng;

@@ -112,6 +112,7 @@ export function useAmbientPOI() {
       clearTimeout(timeout);
       clearInterval(interval);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- single subscription on mount; checkNearby uses refs internally
   }, []);
 
   // Also subscribe to isNavigating to start/stop when navigation changes
@@ -145,6 +146,7 @@ export function useAmbientPOI() {
       playbackRef.current?.stop();
       playCtxRef.current?.close();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- single zustand subscription on mount
   }, []);
 
   const dismissAmbientPOI = () => setAmbientPOI(null);

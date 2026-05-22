@@ -91,7 +91,8 @@ const MapViewport = () => {
     return () => {
       mapInstance.remove();
     };
-  }, [homeLocation]); // Only init once when homeLocation is ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- init only when homeLocation is ready; store setters are stable
+  }, [homeLocation]);
 
   // Handle Traffic and Terrain toggles
   useEffect(() => {
@@ -148,7 +149,7 @@ const MapViewport = () => {
       }
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
     } else {
-      map.setTerrain(null as any);
+      map.setTerrain(null);
     }
   }, [map, showTraffic, showTerrain]);
 

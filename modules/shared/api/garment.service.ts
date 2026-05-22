@@ -31,7 +31,7 @@ export interface RemoteGarment {
 
 export const garmentService = {
   getBySlot: async (fittingSlot: FittingSlot): Promise<RemoteGarment[]> => {
-    const response = await api.get<any>("/api/remote/garments", { fittingSlot });
+    const response = await api.get<{ data?: { items?: RemoteGarment[] } }>("/api/remote/garments", { fittingSlot });
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }
@@ -41,7 +41,7 @@ export const garmentService = {
   },
 
   getBySlotAndType: async (fittingSlot: FittingSlot, garmentType: string): Promise<RemoteGarment[]> => {
-    const response = await api.get<any>("/api/remote/garments", { fittingSlot, garmentType });
+    const response = await api.get<{ data?: { items?: RemoteGarment[] } }>("/api/remote/garments", { fittingSlot, garmentType });
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch garments");
     }

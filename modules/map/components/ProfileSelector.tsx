@@ -4,6 +4,7 @@ import React from "react";
 import { Car, Bike, PersonStanding } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
 import { motion } from "framer-motion";
+import type { TransportProfile } from "../types/map.types";
 
 export default function ProfileSelector() {
   const { activeProfile, setActiveProfile, isNavigating } = useMapStore();
@@ -26,7 +27,7 @@ export default function ProfileSelector() {
         return (
           <button
             key={profile.id}
-            onClick={() => setActiveProfile(profile.id as any)}
+            onClick={() => setActiveProfile(profile.id as TransportProfile)}
             className="relative flex flex-col items-center group p-2 focus:outline-none"
             style={{ minWidth: 44, minHeight: 44 }}
           >

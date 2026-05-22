@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic garment thumbnails */
 
 import { motion, AnimatePresence } from "motion/react";
 import {

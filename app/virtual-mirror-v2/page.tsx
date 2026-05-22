@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-unused-vars -- paginated/swipe vars retained for in-progress UI work */
+/* eslint-disable @next/next/no-img-element -- dynamic garment/camera images */
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';

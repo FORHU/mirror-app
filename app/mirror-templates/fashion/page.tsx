@@ -1,8 +1,9 @@
 "use client";
+/* eslint-disable @next/next/no-img-element, jsx-a11y/alt-text -- kiosk mockup template, external Unsplash thumbs */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Heart, History, Home, User, Sparkles, Watch, Shirt, Footprints } from "lucide-react";
+import { ArrowLeft, Heart, History, Home, User, Watch, Shirt, Footprints } from "lucide-react";
 import { motion } from "motion/react";
 import "../../../styles/glow.css";
 

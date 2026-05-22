@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { mapService, GeocodeResult } from "../services/map.service";
 import { Search, MapPin, Loader2, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 
 const HomeLocationSetup = () => {
@@ -38,11 +38,13 @@ const HomeLocationSetup = () => {
 
       return () => map.remove();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- init map only when tab switches; re-init on pin drag would thrash
   }, [tab]);
 
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 3) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
@@ -68,7 +70,7 @@ const HomeLocationSetup = () => {
     try {
       await saveHomeLocation(coords);
       setSaveSuccess(true);
-    } catch (err) {
+    } catch {
       setError("Failed to save location. Please try again.");
     } finally {
       setIsSaving(false);
@@ -97,7 +99,7 @@ const HomeLocationSetup = () => {
     <div className="fixed inset-0 bg-[#000000] flex flex-col p-10 text-white">
       <div className="mb-12">
         <h1 className="text-4xl font-light mb-2 tracking-tight">System Setup</h1>
-        <p className="text-white/40">Set your mirror's home location to begin</p>
+        <p className="text-white/40">Set your mirror&apos;s home location to begin</p>
       </div>
 
       <div className="flex gap-8 mb-10 border-b border-white/10 pb-4">

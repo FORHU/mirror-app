@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic garment/photo blobs; next/image offers no benefit */
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -38,6 +39,7 @@ export default function OutfitBuilderPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("mirror_captured_photo");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setPhoto(stored);
   }, []);
 

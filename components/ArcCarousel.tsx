@@ -35,6 +35,7 @@ export function ArcCarousel<T extends object>({
 
   useEffect(() => {
     isDragging.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCenterVI(0);
     setDragPx(0);
   }, [resetKey]);
@@ -76,6 +77,7 @@ export function ArcCarousel<T extends object>({
       onPointerUp={commit}
       onPointerLeave={commit}
     >
+      {/* eslint-disable-next-line react-hooks/refs */}
       {vis.map(vi => {
         const offset    = vi - effectiveVI;
         const absOffset = Math.abs(offset);

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic brand/profile image */
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";

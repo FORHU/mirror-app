@@ -2,15 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/modules/shared/components/Button";
-import { cn } from "@/modules/shared/utils";
-import { useApiQuery } from "@/modules/shared/hooks/useApiQuery";
-import { LandingStats } from "@/modules/landing/api/landing-api";
 
 export const Hero = () => {
-  const { data, isLoading } = useApiQuery<LandingStats>(
-    ["landing-stats"],
-    "/landing/stats",
-  );
 
   const stats = [
     { label: "Performance", value: "100/100" },

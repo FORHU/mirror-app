@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useCalendarStore, type CalendarEvent } from "@/modules/shared/store/useCalendarStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -103,7 +103,7 @@ export default function SchedulePage() {
   const router = useRouter();
   const { events, removeEvent } = useCalendarStore();
 
-  const [highlight, setHighlight] = useState<string | null>(null);
+  const [, setHighlight] = useState<string | null>(null);
 
   const sorted = [...events].sort(
     (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime(),

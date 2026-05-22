@@ -1,9 +1,16 @@
 import { create } from "zustand";
 import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
-import { mapService } from "../services/map.service";
+import { mapService, type DirectionsFormatted, type GeocodeResult } from "../services/map.service";
 
 type Location = { lat: number; lng: number };
+
+export interface SelectedPOI {
+  name: string;
+  category: string;
+  location: Location;
+  layerId: string;
+}
 
 function loadFromStorage<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -36,13 +43,13 @@ interface MapStore {
   distanceToNextManeuver: number;
   remainingDistance: number;
   remainingDuration: number;
-  activeRoute: any | null;
-  lastTripGeojson: any | null;
+  activeRoute: DirectionsFormatted | null;
+  lastTripGeojson: GeoJSON.FeatureCollection | null;
 
-  searchResults: any[];
+  searchResults: GeocodeResult[];
   isSearching: boolean;
-  selectedDestination: any | null;
-  selectedPOI: any | null;
+  selectedDestination: GeocodeResult | null;
+  selectedPOI: SelectedPOI | null;
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
   showTerrain: boolean;
@@ -63,8 +70,8 @@ interface MapStore {
   toggleTraffic(): void;
   toggleTerrain(): void;
   searchLocations(query: string): Promise<void>;
-  setDestination(location: any): Promise<void>;
-  setSelectedPOI(poi: any): void;
+  setDestination(location: GeocodeResult): Promise<void>;
+  setSelectedPOI(poi: SelectedPOI | null): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
@@ -91,7 +98,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   remainingDistance: 0,
   remainingDuration: 0,
   activeRoute: null,
-  lastTripGeojson: loadFromStorage("mirror_last_trip"),
+  lastTripGeojson: loadFromStorage<GeoJSON.FeatureCollection>("mirror_last_trip"),
 
   searchResults: [],
   isSearching: false,

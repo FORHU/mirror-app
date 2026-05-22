@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic POI thumbnails */
 
 import React from "react";
 import { useMapStore } from "../store/useMapStore";
@@ -25,7 +26,7 @@ export const ExploreHUD = () => {
   const isMorning = hour >= 6 && hour < 11;
   const isEvening = hour >= 17 && hour < 22;
 
-  const { voiceState, isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
+  const { isListening, isProcessing, isSpeaking, transcript, reply, error, toggle } = useVoiceContext();
 
   const micIcon = isListening
     ? <MicOff className="w-5 h-5" style={{ color: "#ef4444" }} />

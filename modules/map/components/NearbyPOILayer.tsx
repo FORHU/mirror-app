@@ -6,6 +6,22 @@ import { useMapStore } from "../store/useMapStore";
 
 interface Props { map: mapboxgl.Map; }
 
+interface POI {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  placeId: string;
+}
+
+interface POIProperties {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  placeId: string;
+}
+
 const SOURCE = "nearby-pois";
 const LAYER_GLOW = "nearby-pois-glow";
 const LAYER_DOT  = "nearby-pois-dot";
@@ -13,8 +29,11 @@ const LAYER_LABEL = "nearby-pois-label";
 
 export default function NearbyPOILayer({ map }: Props) {
   const { nearbyPOIs, setSelectedPOI } = useMapStore();
-  const nearbyPOIsRef = useRef(nearbyPOIs);
-  nearbyPOIsRef.current = nearbyPOIs;
+  const nearbyPOIsRef = useRef<POI[]>(nearbyPOIs);
+
+  useEffect(() => {
+    nearbyPOIsRef.current = nearbyPOIs;
+  }, [nearbyPOIs]);
 
   useEffect(() => {
     if (!map) return;
@@ -90,8 +109,8 @@ export default function NearbyPOILayer({ map }: Props) {
     const handleClick = (e: mapboxgl.MapLayerMouseEvent) => {
       const f = e.features?.[0];
       if (!f) return;
-      const { name, address, lat, lng, placeId } = f.properties as any;
-      const coords = (f.geometry as any).coordinates;
+      const { name, address, placeId } = f.properties as POIProperties;
+      const coords = (f.geometry as GeoJSON.Point).coordinates;
       setSelectedPOI({
         name,
         category: address,
@@ -122,7 +141,7 @@ export default function NearbyPOILayer({ map }: Props) {
   return null;
 }
 
-function buildGeojson(pois: any[]): GeoJSON.FeatureCollection {
+function buildGeojson(pois: POI[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pois.map((poi) => ({

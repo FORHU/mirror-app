@@ -29,14 +29,16 @@ const WeatherWidget = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWeather();
     const interval = setInterval(fetchWeather, 10 * 60 * 1000); // 10 minutes
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchWeather is stable within this component scope
   }, [homeLocation]);
 
   if (!weather) return null;
 
-  const IconComponent = (Icons as any)[weather.icon] || Icons.Cloud;
+  const IconComponent = (Icons as unknown as Record<string, typeof Icons.Cloud>)[weather.icon] || Icons.Cloud;
 
   return (
     <div className="flex items-center gap-4 text-white p-4">

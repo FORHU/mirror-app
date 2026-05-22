@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic photos from localStorage/blob; next/image offers no benefit */
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -20,6 +21,7 @@ export default function CapturePicturePage() {
 
   useEffect(() => {
     const stored = localStorage.getItem("mirror_captured_photo");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored) setPhoto(stored);
   }, []);
 

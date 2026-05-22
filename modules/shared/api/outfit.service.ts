@@ -44,7 +44,7 @@ export interface CreatedOutfit {
 
 export const outfitService = {
   getAll: async (): Promise<RemoteOutfit[]> => {
-    const response = await api.get<any>("/api/remote/outfits");
+    const response = await api.get<{ data?: { items?: RemoteOutfit[] } }>("/api/remote/outfits");
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch outfits");
     }

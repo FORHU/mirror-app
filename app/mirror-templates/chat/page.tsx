@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Home, Heart, User, Mic, Sun, CloudRain } from "lucide-react";
+import { ArrowLeft, Home, Heart, User, Mic, CloudRain } from "lucide-react";
 import { motion } from "motion/react";
 import "../../../styles/glow.css";
 

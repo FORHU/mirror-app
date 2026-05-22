@@ -44,7 +44,7 @@ export default function TryItOnPage() {
     if (hasStarted.current) return;
     hasStarted.current = true;
     generate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Subscribe to FASHN completion events once we know the predictionId.
@@ -129,7 +129,7 @@ export default function TryItOnPage() {
       }
 
       // Track predictionId so the socket listener can match the response
-      const pid = (kickoff.id ?? (kickoff as any).predictionId) as string | undefined;
+      const pid = (kickoff.id ?? (kickoff as { predictionId?: string }).predictionId) as string | undefined;
       if (pid) setPredictionId(pid);
 
       // Stay in "building" — the image will arrive via tryon_completed socket event

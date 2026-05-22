@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, MapPin, Navigation, X, Loader2, Car, Footprints, Bike } from "lucide-react";
+import { Search, MapPin, X, Loader2, Car, Footprints, Bike } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
 import { motion, AnimatePresence } from "framer-motion";
+import type { GeocodeResult } from "../services/map.service";
+import type { TransportProfile } from "../types/map.types";
 
 export default function MapSearch() {
   const [query, setQuery] = useState("");
@@ -30,7 +32,7 @@ export default function MapSearch() {
     return () => clearTimeout(timer);
   }, [query, searchLocations, selectedDestination]);
 
-  const handleSelect = (result: any) => {
+  const handleSelect = (result: GeocodeResult) => {
     setDestination(result);
     setQuery(result.name);
   };
@@ -122,7 +124,7 @@ export default function MapSearch() {
                 return (
                   <button
                     key={mode.id}
-                    onClick={() => setActiveProfile(mode.id as any)}
+                    onClick={() => setActiveProfile(mode.id as TransportProfile)}
                     className={`flex flex-col items-center gap-2 py-3 rounded-2xl transition-all border ${
                       active 
                         ? 'bg-white/10 border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.1)]' 

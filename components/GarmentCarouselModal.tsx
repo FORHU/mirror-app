@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic garment images */
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -47,6 +48,7 @@ export default function GarmentCarouselModal({
     const sp = window.innerWidth * CARD_RATIO + CARD_GAP;
     slotPxRef.current = sp;
     dragPxRef.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDragPx(0);
     setSlotPx(sp);
     centerVIRef.current = 0;
@@ -61,6 +63,7 @@ export default function GarmentCarouselModal({
     if (idx > 0) {
       centerVIRef.current = idx;
       dragPxRef.current = 0;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCenterVI(idx);
       setDragPx(0);
     }
@@ -102,8 +105,6 @@ export default function GarmentCarouselModal({
       : items[0];
     onConfirm(item);
   }
-
-  const containerH = `calc(${CARD_RATIO * 100}vw + 52px)`;
 
   return (
     <AnimatePresence>
@@ -156,6 +157,7 @@ export default function GarmentCarouselModal({
                 <div className="w-10 h-10 rounded-full border-2 border-white/20 border-t-white animate-spin" />
               </div>
             )}
+            {/* eslint-disable-next-line react-hooks/refs */}
             {!loading && n > 0 && vis.map(vi => {
               const offset    = vi - effectiveVI;
               const absOffset = Math.abs(offset);

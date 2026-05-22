@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- dynamic garment images */
 
 import { useRef, useState } from "react";
 import type { Swiper as SwiperType } from "swiper";

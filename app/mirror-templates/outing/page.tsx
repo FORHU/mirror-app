@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element, jsx-a11y/alt-text -- kiosk mockup template, external Unsplash thumbs */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";

@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- live camera/garment frames; next/image offers no benefit */
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Menu, ArrowLeft, X, Shirt, Layers, Footprints, Watch, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { LucideIcon } from 'lucide-react';
@@ -65,7 +66,6 @@ const categories: Category[] = [
 export default function VirtualMirror() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
@@ -273,7 +273,6 @@ export default function VirtualMirror() {
                       outline: 'none',
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={garment.imageUrl}
                       alt={garment.name}
@@ -317,7 +316,7 @@ export default function VirtualMirror() {
                   {detailGarment.description.replace(/^"+|"+$/g, '')}
                 </p>
               )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <div className="flex flex-row items-center justify-center" style={{width: '400px', height:'250px' }}>
                 <img
                   src={detailGarment.imageUrl}

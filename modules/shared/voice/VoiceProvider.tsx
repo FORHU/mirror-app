@@ -160,7 +160,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     try {
       const stream    = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       const ctx       = new AudioContext({ sampleRate: SAMPLE_RATE });
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
+       
       const processor = ctx.createScriptProcessor(BUFFER_SIZE, 1, 1);
       const source    = ctx.createMediaStreamSource(stream);
 
@@ -251,6 +251,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setError(err instanceof Error ? err.message : "Voice processing failed.");
       setVoiceState("idle");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pathname read via ref to avoid stale-closure but rebinding on path change is undesired
   }, [voiceState, dispatchAction]);
 
   const toggle = useCallback(() => {

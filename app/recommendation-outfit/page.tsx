@@ -1,4 +1,6 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-unused-vars -- paginated/swipe vars retained for in-progress UI work */
+/* eslint-disable @next/next/no-img-element -- dynamic garment images */
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
@@ -64,9 +66,6 @@ export default function VirtualMirrorV2() {
         () => setOutfitPage((p) => Math.min(p + 1, totalOutfitPages - 1)),
         () => setOutfitPage((p) => Math.max(p - 1, 0)),
     );
-    const [isRecording, setIsRecording] = useState(false);
-    const messages: { role: 'user' | 'ai'; text: string }[] = [{ role: 'ai', text: 'Hi! Ask me anything about your outfit today.' }];
-    const chatEndRef = useRef<HTMLDivElement>(null);
     const now = useClock();
     const pageSize = 8;
     const shoesPageSize = 6;

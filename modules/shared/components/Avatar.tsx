@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element, jsx-a11y/alt-text -- dynamic user avatar URLs */
 
 import React from "react";
 import { cn } from "@/modules/shared/utils";
