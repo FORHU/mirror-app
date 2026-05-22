@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import { useMapStore, type NearbyPOI } from "../store/useMapStore";
+import { useMapStore } from "../store/useMapStore";
+import type { NearbyPOI } from "../services/map.service";
 
 interface Props {
   map: mapboxgl.Map;

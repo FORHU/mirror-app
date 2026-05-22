@@ -243,7 +243,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
-  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });
