@@ -130,13 +130,13 @@ export default function PersonalizeOutfitCard() {
       <div className="flex gap-3">
         <button
           className="pz-btn-skip"
-          onClick={() => router.push(ROUTES.VIRTUAL_MIRROR_V2)}
+          onClick={() => router.push(ROUTES.AI_RECOMMENDATION_FASHION)}
         >
           Skip
         </button>
         <button
           className="pz-btn-continue"
-          onClick={() => router.push(ROUTES.VIRTUAL_MIRROR_V2)}
+          onClick={() => router.push(ROUTES.AI_RECOMMENDATION_FASHION)}
         >
           Continue
         </button>

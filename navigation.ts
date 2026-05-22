@@ -11,8 +11,8 @@ export const ROUTES = {
   CAPTURE_PICTURE: "/capture-picture",
   TRY_IT_ON: "/try-it-on",
   VIRTUAL_MIRROR: "/virtual-mirror",
-  VIRTUAL_MIRROR_V2: "/virtual-mirror-v2",
   RECOMMENDATION_OUTFIT: "/recommendation-outfit",
+  AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
   AI_RECOMMENDATION_OUTFIT: "/ai-recommendation-outfit",
   MIRROR_TEMPLATES: "/mirror-templates",
   QRCODE: "/qrcode",
@@ -35,7 +35,7 @@ export const ROUTE_RULES = {
   protected: [
     ROUTES.LOGGED_IN,
     ROUTES.WAITING_PERSONALIZE,
-    ROUTES.VIRTUAL_MIRROR_V2,
+    ROUTES.AI_RECOMMENDATION_FASHION,
     ROUTES.AI_RECOMMENDATION_OUTFIT,
   ] as string[],
   sequences: {
