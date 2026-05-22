@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
+import { ROUTES } from "@/navigation";
 import {
   garmentService,
   type RemoteGarment,
@@ -310,7 +311,7 @@ export default function VirtualMirrorV2() {
           }}
         >
           <button
-            onClick={() => router.push("/logged-in")}
+            onClick={() => router.push(ROUTES.LOGGED_IN)}
             className="p-4 transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-6 h-6 text-white" />

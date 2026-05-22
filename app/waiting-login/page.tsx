@@ -3,6 +3,7 @@
 import { useKioskSocket } from "@/modules/shared/socket/useKioskSocket";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import "../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -41,7 +42,7 @@ export default function WaitingLoginPage() {
 
   useEffect(() => {
     if (!BYPASS_AUTH && isLoggedIn) {
-      router.push("/logged-in");
+      router.push(ROUTES.LOGGED_IN);
     }
   }, [isLoggedIn, loggedInUsername, router]);
 

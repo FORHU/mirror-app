@@ -11,6 +11,7 @@ import {
   Suspense,
 } from "react";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { ROUTES } from "@/navigation";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { API_URL } from "@/modules/shared/config/device.config";
 import type {
@@ -310,7 +311,7 @@ function EventSetupInner() {
     } catch {
       /* ignore */
     }
-    setTimeout(() => router.push("/logged-in"), 600);
+    setTimeout(() => router.push(ROUTES.LOGGED_IN), 600);
   }
 
   // ── Local mic (fallback when socket/ChatWonder is offline) ──
@@ -475,7 +476,7 @@ function EventSetupInner() {
           JSON.stringify({ query: action.query, label: action.label }),
         );
       } catch {}
-      router.push("/map");
+      router.push(ROUTES.MAP);
     }
 
     if (action.type === "maps_get_directions") {
@@ -488,7 +489,7 @@ function EventSetupInner() {
           }),
         );
       } catch {}
-      router.push("/map");
+      router.push(ROUTES.MAP);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

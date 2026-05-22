@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 import "../../styles/glow.css";
 import {
   outfitService,
@@ -109,7 +110,7 @@ export default function VirtualMirrorV2() {
           AI Recommendation
         </span>
         <button
-          onClick={() => router.push("/logged-in")}
+          onClick={() => router.push(ROUTES.LOGGED_IN)}
           className="p-4 transition-all hover:scale-105 active:scale-95"
         >
           <ArrowLeft className="w-6 h-6 text-white" />

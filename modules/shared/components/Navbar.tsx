@@ -8,6 +8,7 @@ import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { endKioskSession } from "@/modules/shared/utils/end-kiosk-session";
 import { Dropdown, DropdownItem } from "./Dropdown";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -44,7 +45,7 @@ export const Navbar = () => {
           <rect width="7" height="5" x="3" y="16" rx="1" />
         </svg>
       ),
-      onClick: () => router.push("/dashboard"),
+      onClick: () => router.push(ROUTES.DASHBOARD),
     },
     {
       id: "settings",
@@ -65,7 +66,7 @@ export const Navbar = () => {
           <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      onClick: () => router.push("/dashboard"),
+      onClick: () => router.push(ROUTES.DASHBOARD),
     },
     {
       id: "logout",
@@ -90,7 +91,7 @@ export const Navbar = () => {
       ),
       onClick: async () => {
         await endKioskSession();
-        router.push("/");
+        router.push(ROUTES.WELCOME);
       },
     },
   ];
