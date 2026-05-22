@@ -1,6 +1,6 @@
 "use client";
 
-import { ShirtIcon, Calendar, MapPin } from "lucide-react";
+import { ShirtIcon, Sparkles, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
@@ -54,23 +54,23 @@ export default function LoggedInPage() {
           </div>
         </button>
 
-        {/* Dress for the vibe */}
+        {/* Skin Analysis */}
         <button
-          onClick={() => router.push("/personalize-outfit")}
+          onClick={() => router.push("/cosmetic")}
           className="glass-card-strong neon-border-white glow-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >
           <div className="icon-spotlight">
-            <div className="icon-box ">
-              <Calendar className="w-11 h-11 text-white" strokeWidth={1.5} />
+            <div className="icon-box">
+              <Sparkles className="w-11 h-11 text-white" strokeWidth={1.5} />
             </div>
           </div>
           <div className="text-center">
             <h3 className="text-white font-bold text-2xl mb-2">
-              Dress for the vibe
+              Cosmetics and Skincare
             </h3>
             <p className="text-white/45 text-lg">
-              Outfit matched to your mood and location
+              Scan your face and get personalised skincare picks
             </p>
           </div>
         </button>
