@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
-import { mapService } from "../services/map.service";
+import { mapService, type NearbyPOI } from "../services/map.service";
 
 type Location = { lat: number; lng: number };
 
@@ -49,6 +49,10 @@ interface MapStore {
   isRouting: boolean;
   userLocation: Location | null;
   origin: Location | null;
+
+  nearbyPOIs: NearbyPOI[];
+  setNearbyPOIs: (pois: NearbyPOI[]) => void;
+  fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
 
   commuteEta: { duration: number; distance: number; to: "work" | "home" } | null;
   commuteEtaLoading: boolean;
@@ -103,6 +107,17 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isRouting: false,
   userLocation: null,
   origin: null,
+
+  nearbyPOIs: [],
+  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  fetchNearbyPOIs: async ({ lat, lng }) => {
+    try {
+      const { pois } = await mapService.nearbyPOIs(lat, lng, 1000);
+      set({ nearbyPOIs: pois });
+    } catch {
+      // silently ignore — POIs are non-critical
+    }
+  },
 
   commuteEta: null,
   commuteEtaLoading: false,
@@ -174,6 +189,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   setDestination: async (location) => {
     set({ selectedDestination: location, isSearching: false, searchResults: [] });
     get().fetchRoute();
+    if (location) get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
@@ -194,11 +210,11 @@ export const useMapStore = create<MapStore>((set, get) => ({
       saveToStorage("mirror_last_trip", activeRoute.geojson);
       set({ lastTripGeojson: activeRoute.geojson });
     }
-    set({ isNavigating: false, cameraMode: "free", activeRoute: null, selectedDestination: null });
+    set({ isNavigating: false, cameraMode: "free", activeRoute: null, selectedDestination: null, nearbyPOIs: [] });
   },
 
   clearNavigation: () => {
-    set({ activeRoute: null, selectedDestination: null, searchResults: [], isNavigating: false });
+    set({ activeRoute: null, selectedDestination: null, searchResults: [], isNavigating: false, nearbyPOIs: [] });
   },
 
   updateNavigationProgress: (_location) => {},

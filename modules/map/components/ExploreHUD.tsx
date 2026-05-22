@@ -215,7 +215,7 @@ export const ExploreHUD = () => {
               {/* Image with text overlaid — no panel background */}
               <div className="w-full h-44 rounded-2xl overflow-hidden relative mb-3">
                 <img
-                  src={`https://loremflickr.com/800/600/${encodeURIComponent(selectedPOI.category || 'place')}`}
+                  src={selectedPOI.photo || `https://loremflickr.com/800/600/${encodeURIComponent(selectedPOI.category || 'place')}`}
                   alt={selectedPOI.name}
                   className="w-full h-full object-cover"
                 />
