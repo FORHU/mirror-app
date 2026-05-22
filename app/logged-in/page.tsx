@@ -27,7 +27,10 @@ export default function LoggedInPage() {
             Hi, {displayName}!
           </h2>
         </div>
-        <button onClick={handleLogout} className="logout-btn px-8 py-3 text-white text-lg font-medium">
+        <button
+          onClick={handleLogout}
+          className="logout-btn px-8 py-3 text-white text-lg font-medium"
+        >
           Logout
         </button>
       </div>

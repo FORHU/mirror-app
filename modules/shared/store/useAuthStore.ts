@@ -12,7 +12,10 @@ import {
 import { authService } from "@/modules/shared/api/auth.service";
 import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
-import { setAuthCookie, clearAuthCookie } from "@/modules/shared/utils/auth-cookie";
+import {
+  setAuthCookie,
+  clearAuthCookie,
+} from "@/modules/shared/utils/auth-cookie";
 
 interface AuthState {
   user: User | null;
