@@ -38,6 +38,7 @@ jobs:
         run: pnpm build
         env:
           # Placeholder values so Next.js build doesn't fail without real secrets
+          NEXT_PUBLIC_DEVICE_MODE: mirror
           NEXT_PUBLIC_API_BASE_URL: http://localhost:3007
           NEXT_PUBLIC_SOCKET_URL: http://localhost:3007
           NEXT_PUBLIC_MAPBOX_TOKEN: ci_placeholder

@@ -1,6 +1,18 @@
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 
+export interface NearbyPOI {
+  fsqId: string;
+  name: string;
+  category: string;
+  categoryIcon: string;
+  lat: number;
+  lng: number;
+  address: string;
+  distance: number;
+  photo: string | null;
+}
+
 export interface GeocodeResult {
   name: string;
   address: string;
@@ -83,6 +95,19 @@ export const mapService = {
       throw new Error(errorData.error || "Directions failed");
     }
 
+    return response.json();
+  },
+
+  nearbyPOIs: async (lat: number, lng: number, radiusM = 1000): Promise<{ pois: NearbyPOI[] }> => {
+    const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radius: String(radiusM) });
+    const response = await fetch(`/api/mirror/map/nearby-pois?${params}`);
+    if (!response.ok) throw new Error("Nearby POIs fetch failed");
+    return response.json();
+  },
+
+  venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
+    const response = await fetch(`/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`);
+    if (!response.ok) throw new Error("Venue photos fetch failed");
     return response.json();
   },
 
