@@ -37,6 +37,7 @@ jobs:
         run: |
           ECR="${{ steps.login-ecr.outputs.registry }}/mirror-app"
           docker build \
+            --build-arg NEXT_PUBLIC_DEVICE_MODE="mirror" \
             --build-arg NEXT_PUBLIC_API_BASE_URL="${{ secrets.NEXT_PUBLIC_API_BASE_URL }}" \
             --build-arg NEXT_PUBLIC_SOCKET_URL="${{ secrets.NEXT_PUBLIC_SOCKET_URL }}" \
             --build-arg NEXT_PUBLIC_MAPBOX_TOKEN="${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}" \
