@@ -104,6 +104,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isSearching: false,
   selectedDestination: null,
   selectedPOI: null,
+  nearbyPOIs: [],
   activeProfile: "car",
   showTraffic: false,
   showTerrain: false,
@@ -184,6 +185,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
+  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });
