@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
-import { useMapStore, type NearbyPOI } from "../store/useMapStore";
+import { useMapStore } from "../store/useMapStore";
+import type { NearbyPOI } from "../services/map.service";
 
 interface Props {
   map: mapboxgl.Map;
@@ -31,7 +32,6 @@ export default function NearbyPOILayer({ map }: Props) {
         });
       }
 
-      // Outer glow ring
       if (!map.getLayer(LAYER_GLOW)) {
         map.addLayer({
           id: LAYER_GLOW,
@@ -46,7 +46,6 @@ export default function NearbyPOILayer({ map }: Props) {
         });
       }
 
-      // Solid dot
       if (!map.getLayer(LAYER_DOT)) {
         map.addLayer({
           id: LAYER_DOT,
@@ -62,7 +61,6 @@ export default function NearbyPOILayer({ map }: Props) {
         });
       }
 
-      // Name label below the dot
       if (!map.getLayer(LAYER_LABEL)) {
         map.addLayer({
           id: LAYER_LABEL,
@@ -84,7 +82,7 @@ export default function NearbyPOILayer({ map }: Props) {
         });
       }
 
-      // Re-populate with current data after style reload
+      // Re-populate after style reload
       const pois = nearbyPOIsRef.current;
       if (pois.length) {
         (map.getSource(SOURCE) as mapboxgl.GeoJSONSource)?.setData(
@@ -100,17 +98,23 @@ export default function NearbyPOILayer({ map }: Props) {
     ) => {
       const f = e.features?.[0];
       if (!f) return;
-      const { name, address, placeId } = f.properties as {
-        name: string;
-        address: string;
-        placeId: string;
-      };
-      const coords = (f.geometry as GeoJSON.Point).coordinates;
+      const { name, category, address, lat, lng, fsqId, photo } =
+        f.properties as {
+          name: string;
+          category: string;
+          address: string;
+          lat: number;
+          lng: number;
+          fsqId: string;
+          photo: string;
+        };
       setSelectedPOI({
         name,
-        category: address,
-        location: { lng: coords[0], lat: coords[1] },
-        layerId: placeId,
+        category,
+        address,
+        location: { lng, lat },
+        fsqId,
+        photo: photo || null,
       });
     };
 
@@ -147,11 +151,13 @@ function buildGeojson(pois: NearbyPOI[]): GeoJSON.FeatureCollection {
       type: "Feature",
       geometry: { type: "Point", coordinates: [poi.lng, poi.lat] },
       properties: {
-        name: poi.name,
-        address: poi.address,
-        lat: poi.lat,
-        lng: poi.lng,
-        placeId: poi.placeId,
+        name:     poi.name,
+        category: poi.category,
+        address:  poi.address,
+        lat:      poi.lat,
+        lng:      poi.lng,
+        fsqId:    poi.fsqId,
+        photo:    poi.photo ?? "",
       },
     })),
   };

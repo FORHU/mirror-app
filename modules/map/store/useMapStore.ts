@@ -3,23 +3,19 @@ import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
 import {
   mapService,
-  GeocodeResult,
-  DirectionsFormatted,
+  type NearbyPOI,
+  type GeocodeResult,
+  type DirectionsFormatted,
 } from "../services/map.service";
-
-export interface NearbyPOI {
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  placeId: string;
-}
 
 interface SelectedPOI {
   name: string;
   category: string;
+  address?: string;
   location: { lat: number; lng: number };
-  layerId: string;
+  layerId?: string;
+  fsqId?: string;
+  photo?: string | null;
 }
 
 type Destination = {
@@ -80,6 +76,8 @@ interface MapStore {
   userLocation: Location | null;
   origin: Location | null;
 
+  fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
+
   commuteEta: {
     duration: number;
     distance: number;
@@ -139,6 +137,16 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isRouting: false,
   userLocation: null,
   origin: null,
+
+  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  fetchNearbyPOIs: async ({ lat, lng }) => {
+    try {
+      const { pois } = await mapService.nearbyPOIs(lat, lng, 1000);
+      set({ nearbyPOIs: pois });
+    } catch {
+      // silently ignore — POIs are non-critical
+    }
+  },
 
   commuteEta: null,
   commuteEtaLoading: false,
@@ -231,10 +239,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
       searchResults: [],
     });
     get().fetchRoute();
+    if (location) get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
-  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });
@@ -258,6 +266,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       cameraMode: "free",
       activeRoute: null,
       selectedDestination: null,
+      nearbyPOIs: [],
     });
   },
 
@@ -267,6 +276,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       selectedDestination: null,
       searchResults: [],
       isNavigating: false,
+      nearbyPOIs: [],
     });
   },
 
