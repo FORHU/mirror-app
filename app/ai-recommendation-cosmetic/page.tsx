@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
+import { ROUTES } from "@/navigation";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -122,7 +123,7 @@ export default function CosmeticPage() {
     try { sessionStorage.setItem("skin_capture", canvas.toDataURL("image/jpeg", 0.9)); } catch {}
 
     setCapturePhaseState("captured");
-    setTimeout(() => router.push("/cosmetic/result"), 1200);
+    setTimeout(() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT), 1200);
   }, [router, setCapturePhaseState]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────

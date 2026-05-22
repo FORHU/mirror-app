@@ -8,6 +8,7 @@ import "../../../styles/glow.css";
 import WeatherWidget from '@/components/WeatherWidget';
 import { garmentService } from '@/modules/shared/api/garment.service';
 import { FittingSlot } from '@/modules/garment/types';
+import { ROUTES } from '@/navigation';
 
 // ── Demo data ─────────────────────────────────────────────────────────────────
 const DEMO_PRODUCTS = [
@@ -147,7 +148,7 @@ export default function CosmeticResultPage() {
                 <span className="text-white/60 text-sm font-light select-none">{day}, {date}</span>
             </div>
             <div style={{ flex: '0 0 25%', width: '25%', display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => router.push('/logged-in')} className="p-4 transition-all hover:scale-105 active:scale-95">
+                <button onClick={() => router.push(ROUTES.LOGGED_IN)} className="p-4 transition-all hover:scale-105 active:scale-95">
                     <ArrowLeft className="w-6 h-6 text-white" />
                 </button>
             </div>
