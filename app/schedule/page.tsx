@@ -8,6 +8,7 @@ import {
   type CalendarEvent,
 } from "@/modules/shared/store/useCalendarStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { ROUTES } from "@/navigation";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -256,7 +257,7 @@ export default function SchedulePage() {
             </p>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={() => router.push("/event-setup")}
+              onClick={() => router.push(ROUTES.EVENT_SETUP)}
               style={{
                 background: "linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)",
                 borderRadius: 16,

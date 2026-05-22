@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { ROUTES } from "@/navigation";
 import { endKioskSession } from "@/modules/shared/utils/end-kiosk-session";
 
 const DEFAULT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
@@ -31,7 +32,7 @@ export function useIdleLogout(timeoutMs: number = DEFAULT_IDLE_MS) {
 
     const fireLogout = async () => {
       await endKioskSession();
-      router.push("/");
+      router.push(ROUTES.WELCOME);
     };
 
     const reset = () => {

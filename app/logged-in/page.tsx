@@ -4,6 +4,7 @@ import { ShirtIcon, Calendar, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { ROUTES } from "@/navigation";
 
 export default function LoggedInPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function LoggedInPage() {
       <div className="flex flex-col gap-5 flex-1 min-h-0">
         {/* Check a fit */}
         <button
-          onClick={() => router.push("/waiting-personalize")}
+          onClick={() => router.push(ROUTES.WAITING_PERSONALIZE)}
           className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >
@@ -56,7 +57,7 @@ export default function LoggedInPage() {
 
         {/* Dress for the vibe */}
         <button
-          onClick={() => router.push("/personalize-outfit")}
+          onClick={() => router.push(ROUTES.PERSONALIZE_OUTFIT)}
           className="glass-card-strong neon-border-white glow-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >
@@ -77,7 +78,7 @@ export default function LoggedInPage() {
 
         {/* Explore the map */}
         <button
-          onClick={() => router.push("/map")}
+          onClick={() => router.push(ROUTES.MAP)}
           className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >
