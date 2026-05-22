@@ -89,6 +89,9 @@ interface MapStore {
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
+  setSelectedPOI(poi: any): void;
+  setNearbyPOIs(pois: any[]): void;
+>>>>>>> c9b78783bc1a58b2baf8f9e8d9977c7cbac5e646
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
@@ -122,6 +125,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   selectedDestination: null,
   nearbyPOIs: [],
   selectedPOI: null,
+  nearbyPOIs: [],
   activeProfile: "car",
   showTraffic: false,
   showTerrain: false,
@@ -223,6 +227,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
+  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });

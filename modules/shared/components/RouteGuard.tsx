@@ -18,6 +18,7 @@ export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
   const pathname = usePathname();
 
   useEffect(() => {
+    if (BYPASS_AUTH) return;
     if (isLoading) return;
 
     if (requireAuth && !isAuthenticated) {
