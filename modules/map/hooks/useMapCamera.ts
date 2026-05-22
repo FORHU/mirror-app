@@ -35,9 +35,11 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
     // ── OVERVIEW ────────────────────────────────────────────────────
     if (cameraMode === "overview") {
-      const coords: [number, number][] =
-        ((activeRoute.geojson?.features?.[0]?.geometry as GeoJSON.LineString | undefined)
-          ?.coordinates ?? []) as [number, number][];
+      const coords: [number, number][] = ((
+        activeRoute.geojson?.features?.[0]?.geometry as
+          | GeoJSON.LineString
+          | undefined
+      )?.coordinates ?? []) as [number, number][];
       if (coords.length === 0) return;
 
       const bounds = coords.reduce(
@@ -65,8 +67,11 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
     // Bearing: prefer Mapbox API value (already road-aligned, accepts 0 = north as valid)
     // API now returns undefined when missing (not 0), so null-check is clean
-    const apiBearing: number | undefined =
-      (activeRoute.steps?.[0]?.maneuver as { type: string; modifier: string; bearing_after?: number } | undefined)?.bearing_after;
+    const apiBearing: number | undefined = (
+      activeRoute.steps?.[0]?.maneuver as
+        | { type: string; modifier: string; bearing_after?: number }
+        | undefined
+    )?.bearing_after;
     const bearing = apiBearing != null ? apiBearing : 0;
 
     console.log(

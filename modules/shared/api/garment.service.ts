@@ -32,7 +32,9 @@ export interface RemoteGarment {
 
 export const garmentService = {
   getBySlot: async (fittingSlot: FittingSlot): Promise<RemoteGarment[]> => {
-    const response = await api.get<StandardResponse<{ items: RemoteGarment[] }>>("/api/remote/garments", {
+    const response = await api.get<
+      StandardResponse<{ items: RemoteGarment[] }>
+    >("/api/remote/garments", {
       fittingSlot,
     });
     if (!response.ok) {
@@ -47,7 +49,9 @@ export const garmentService = {
     fittingSlot: FittingSlot,
     garmentType: string,
   ): Promise<RemoteGarment[]> => {
-    const response = await api.get<StandardResponse<{ items: RemoteGarment[] }>>("/api/remote/garments", {
+    const response = await api.get<
+      StandardResponse<{ items: RemoteGarment[] }>
+    >("/api/remote/garments", {
       fittingSlot,
       garmentType,
     });

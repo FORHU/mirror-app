@@ -61,14 +61,14 @@ const NavigationHUD = () => {
     <Mic className="w-5 h-5 text-white/70" />
   );
 
-  const eta = useMemo(
-    () => {
-      // eslint-disable-next-line react-hooks/purity
-      const arrival = new Date(Date.now() + remainingDuration * 1000);
-      return arrival.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    },
-    [remainingDuration],
-  );
+  const eta = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    const arrival = new Date(Date.now() + remainingDuration * 1000);
+    return arrival.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, [remainingDuration]);
 
   // Smart distance formatting
   const distanceFormatted = useMemo(() => {

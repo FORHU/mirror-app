@@ -517,7 +517,7 @@ function EventSetupInner() {
       speak(g, startLocalListening);
     }, 1500);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentional empty deps — boot once
 
   // ── Summary confirmation listener (local fallback) ──

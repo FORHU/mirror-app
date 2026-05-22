@@ -93,7 +93,11 @@ export default function NearbyPOILayer({ map }: Props) {
       }
     };
 
-    const handleClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
+    const handleClick = (
+      e: mapboxgl.MapMouseEvent & {
+        features?: mapboxgl.MapboxGeoJSONFeature[];
+      },
+    ) => {
       const f = e.features?.[0];
       if (!f) return;
       const { name, address, placeId } = f.properties as {

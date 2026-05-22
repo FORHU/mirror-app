@@ -4,7 +4,6 @@ import { cn } from "@/modules/shared/utils";
 import { FittingSlot, type GarmentSlot, type SlotMap } from "../types";
 import { GarmentSlotCard } from "./GarmentSlotCard";
 
-
 function ZoneLabel({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-2 py-1 flex-shrink-0">

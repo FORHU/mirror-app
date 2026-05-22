@@ -36,7 +36,7 @@ const WeatherWidget = () => {
     fetchWeather();
     const interval = setInterval(fetchWeather, 10 * 60 * 1000); // 10 minutes
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [homeLocation]);
 
   if (!weather) return null;

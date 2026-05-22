@@ -191,7 +191,6 @@ export default function VirtualMirrorV2() {
     () => setHeadGarmentsPage((p) => Math.max(p - 1, 0)),
   );
 
-
   const [bagsPage, setBagsPage] = useState(0);
   const totalBagsPages = Math.ceil(bags.length / accessoryPageSize);
   const pagedBags = bags.slice(

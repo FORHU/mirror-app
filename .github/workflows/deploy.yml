@@ -14,7 +14,7 @@ jobs:
     environment: production
 
     permissions:
-      id-token: write  # required for OIDC AWS auth
+      id-token: write # required for OIDC AWS auth
       contents: read
 
     steps:

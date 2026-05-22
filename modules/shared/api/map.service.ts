@@ -65,11 +65,14 @@ export const mapService = {
     profile: string = "driving",
   ): Promise<DirectionsResponse["data"] | null> => {
     try {
-      const response = await api.get<DirectionsResponse>("/mirror/map/directions", {
-        origin: origin.join(","),
-        destination: destination.join(","),
-        profile,
-      });
+      const response = await api.get<DirectionsResponse>(
+        "/mirror/map/directions",
+        {
+          origin: origin.join(","),
+          destination: destination.join(","),
+          profile,
+        },
+      );
 
       if (response.ok && response.data?.success) {
         return response.data.data;

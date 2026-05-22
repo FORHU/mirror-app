@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
-import { mapService, GeocodeResult, DirectionsFormatted } from "../services/map.service";
+import {
+  mapService,
+  GeocodeResult,
+  DirectionsFormatted,
+} from "../services/map.service";
 
 export interface NearbyPOI {
   name: string;
@@ -18,7 +22,13 @@ interface SelectedPOI {
   layerId: string;
 }
 
-type Destination = { name: string; lat: number; lng: number; address?: string; placeId?: string };
+type Destination = {
+  name: string;
+  lat: number;
+  lng: number;
+  address?: string;
+  placeId?: string;
+};
 
 type Location = { lat: number; lng: number };
 
@@ -89,9 +99,7 @@ interface MapStore {
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
-  setSelectedPOI(poi: any): void;
-  setNearbyPOIs(pois: any[]): void;
->>>>>>> c9b78783bc1a58b2baf8f9e8d9977c7cbac5e646
+  setNearbyPOIs(pois: NearbyPOI[]): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
@@ -125,7 +133,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   selectedDestination: null,
   nearbyPOIs: [],
   selectedPOI: null,
-  nearbyPOIs: [],
   activeProfile: "car",
   showTraffic: false,
   showTerrain: false,
