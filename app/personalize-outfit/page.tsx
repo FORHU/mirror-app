@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 import PersonalizeOutfitCard from "@/components/PersonalizeOutfitCard";
 import WeatherWidget from "@/components/WeatherWidget";
 import "../../styles/glow.css";
@@ -71,7 +72,7 @@ export default function PersonalizeOutfit() {
           }}
         >
           <button
-            onClick={() => router.push("/logged-in")}
+            onClick={() => router.push(ROUTES.LOGGED_IN)}
             className="p-4 transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-6 h-6 text-white" />

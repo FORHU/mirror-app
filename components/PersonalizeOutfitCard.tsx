@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 import { Calendar, MapPin, Sparkles } from "lucide-react";
 import "../styles/personalize-outfit.css";
 
@@ -129,13 +130,13 @@ export default function PersonalizeOutfitCard() {
       <div className="flex gap-3">
         <button
           className="pz-btn-skip"
-          onClick={() => router.push("/virtual-mirror-v2")}
+          onClick={() => router.push(ROUTES.AI_RECOMMENDATION_FASHION)}
         >
           Skip
         </button>
         <button
           className="pz-btn-continue"
-          onClick={() => router.push("/virtual-mirror-v2")}
+          onClick={() => router.push(ROUTES.AI_RECOMMENDATION_FASHION)}
         >
           Continue
         </button>

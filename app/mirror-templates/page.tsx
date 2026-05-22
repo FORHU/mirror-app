@@ -9,6 +9,7 @@ import {
   Compass,
   Briefcase,
 } from "lucide-react";
+import { ROUTES } from "@/navigation";
 import { motion } from "motion/react";
 import "../../styles/glow.css";
 
@@ -76,7 +77,7 @@ export default function TemplatesHome() {
         <div className="flex items-center gap-4">
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => router.push("/logged-in")}
+            onClick={() => router.push(ROUTES.LOGGED_IN)}
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
           >
             <ArrowLeft className="w-5 h-5" />

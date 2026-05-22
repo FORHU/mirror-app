@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import type { ChatWonderAction, PageContext } from "../ai/chatwonder.types";
+import { ROUTES } from "@/navigation";
 import { mapService } from "@/modules/map/services/map.service";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
@@ -123,7 +124,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             "mirror_pending_map_directions",
             JSON.stringify({ destination: action.destination }),
           );
-          router.push("/map");
+          router.push(ROUTES.MAP);
         }
       } else if (action.type === "traffic_on") {
         if (!map.showTraffic) map.toggleTraffic();
@@ -150,7 +151,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           "mirror_pending_map_location",
           JSON.stringify({ query: action.query, label: action.label }),
         );
-        if (!pathname.startsWith("/map")) router.push("/map");
+        if (!pathname.startsWith("/map")) router.push(ROUTES.MAP);
       } else if (action.type === "maps_get_directions") {
         localStorage.setItem(
           "mirror_pending_map_directions",
@@ -159,7 +160,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             mode: action.mode,
           }),
         );
-        if (!pathname.startsWith("/map")) router.push("/map");
+        if (!pathname.startsWith("/map")) router.push(ROUTES.MAP);
       } else {
         // page_event, calendar_query_date, calendar_clear_event, maps_clear — forward to active page
         onActionRef.current?.(action);

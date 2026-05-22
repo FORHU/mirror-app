@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKioskSocket } from "@/modules/shared/socket/useKioskSocket";
 import { type MirrorKey } from "@/modules/shared/constants/mirrors";
+import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
 import "../styles/glow.css";
 
@@ -66,13 +67,13 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
   }, []);
 
   useEffect(() => {
-    if (!BYPASS_AUTH && waitingForLogin) router.push("/waiting-login");
+    if (!BYPASS_AUTH && waitingForLogin) router.push(ROUTES.WAITING_LOGIN);
   }, [waitingForLogin, router]);
 
   useEffect(() => {
     if (!BYPASS_AUTH && isLoggedIn)
       router.push(
-        `/event-setup?username=${encodeURIComponent(loggedInUsername || "User")}`,
+        `${ROUTES.EVENT_SETUP}?username=${encodeURIComponent(loggedInUsername || "User")}`,
       );
   }, [isLoggedIn, loggedInUsername, router]);
 

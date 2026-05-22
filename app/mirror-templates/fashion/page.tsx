@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/navigation";
 import {
   ArrowLeft,
   Heart,
@@ -236,7 +237,7 @@ export default function FashionTemplate() {
       <div className="absolute top-6 left-6 z-40">
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => router.push("/mirror-templates")}
+          onClick={() => router.push(ROUTES.MIRROR_TEMPLATES)}
           className="w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/80 transition-all backdrop-blur"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -385,7 +386,7 @@ export default function FashionTemplate() {
           }}
         >
           <button
-            onClick={() => router.push("/mirror-templates")}
+            onClick={() => router.push(ROUTES.MIRROR_TEMPLATES)}
             className="text-white/60 hover:text-white hover:scale-110 active:scale-95 transition-all p-2.5"
           >
             <Home className="w-6 h-6" />
