@@ -2,8 +2,15 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Crown, Glasses, Gem, Shirt, Layers,
-  Footprints, Watch, Link, CircleDot,
+  Crown,
+  Glasses,
+  Gem,
+  Shirt,
+  Layers,
+  Footprints,
+  Watch,
+  Link,
+  CircleDot,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/modules/shared/utils";
@@ -12,25 +19,28 @@ import { FittingSlot, type GarmentSlot, type SlotMap } from "../types";
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
 const SLOT_ICONS: Partial<Record<FittingSlot, LucideIcon>> = {
-  [FittingSlot.HeadGarment]:        Crown,
-  [FittingSlot.Glasses]:            Glasses,
-  [FittingSlot.Earrings]:           Gem,
-  [FittingSlot.UpperGarment]:       Shirt,
-  [FittingSlot.LowerGarment]:       Layers,
-  [FittingSlot.FootGarment]:        Footprints,
-  [FittingSlot.LeftHandAccessory]:  Watch,
+  [FittingSlot.HeadGarment]: Crown,
+  [FittingSlot.Glasses]: Glasses,
+  [FittingSlot.Earrings]: Gem,
+  [FittingSlot.UpperGarment]: Shirt,
+  [FittingSlot.LowerGarment]: Layers,
+  [FittingSlot.FootGarment]: Footprints,
+  [FittingSlot.LeftHandAccessory]: Watch,
   [FittingSlot.RightHandAccessory]: Watch,
-  [FittingSlot.NeckAccessory]:      Link,
-  [FittingSlot.WaistAccessory]:     CircleDot,
+  [FittingSlot.NeckAccessory]: Link,
+  [FittingSlot.WaistAccessory]: CircleDot,
 };
 
 // ── Hotspot sizes ──────────────────────────────────────────────────────────────
 
 type HotspotSize = "lg" | "md" | "sm";
 
-const SIZE: Record<HotspotSize, { button: string; icon: string; label: string }> = {
-  lg: { button: "w-20 h-20", icon: "w-8 h-8",   label: "text-[11px]" },
-  md: { button: "w-14 h-14", icon: "w-6 h-6",   label: "text-[10px]" },
+const SIZE: Record<
+  HotspotSize,
+  { button: string; icon: string; label: string }
+> = {
+  lg: { button: "w-20 h-20", icon: "w-8 h-8", label: "text-[11px]" },
+  md: { button: "w-14 h-14", icon: "w-6 h-6", label: "text-[10px]" },
   sm: { button: "w-10 h-10", icon: "w-[18px] h-[18px]", label: "text-[9px]" },
 };
 
@@ -39,21 +49,112 @@ const SIZE: Record<HotspotSize, { button: string; icon: string; label: string }>
 // The SVG silhouette is centered and ~42% of container width
 
 type HotspotDef =
-  | { kind: "slot"; slot: FittingSlot; top: string; left: string; size: HotspotSize; label: string }
-  | { kind: "earring"; side: "left" | "right"; top: string; left: string; size: HotspotSize; label: string };
+  | {
+      kind: "slot";
+      slot: FittingSlot;
+      top: string;
+      left: string;
+      size: HotspotSize;
+      label: string;
+    }
+  | {
+      kind: "earring";
+      side: "left" | "right";
+      top: string;
+      left: string;
+      size: HotspotSize;
+      label: string;
+    };
 
 const HOTSPOT_DEFS: HotspotDef[] = [
-  { kind: "slot",    slot: FittingSlot.HeadGarment,        top: "2%",  left: "50%", size: "md", label: "Head" },
-  { kind: "earring", side: "right",                         top: "8%",  left: "40%", size: "sm", label: "R. Earring" },
-  { kind: "earring", side: "left",                          top: "8%",  left: "60%", size: "sm", label: "L. Earring" },
-  { kind: "slot",    slot: FittingSlot.Glasses,             top: "11%", left: "50%", size: "sm", label: "Glasses" },
-  { kind: "slot",    slot: FittingSlot.NeckAccessory,       top: "16%", left: "50%", size: "sm", label: "Neck" },
-  { kind: "slot",    slot: FittingSlot.UpperGarment,        top: "31%", left: "50%", size: "lg", label: "Upper" },
-  { kind: "slot",    slot: FittingSlot.RightHandAccessory,  top: "47%", left: "17%", size: "sm", label: "R. Hand" },
-  { kind: "slot",    slot: FittingSlot.LeftHandAccessory,   top: "47%", left: "83%", size: "sm", label: "L. Hand" },
-  { kind: "slot",    slot: FittingSlot.WaistAccessory,      top: "51%", left: "50%", size: "sm", label: "Waist" },
-  { kind: "slot",    slot: FittingSlot.LowerGarment,        top: "67%", left: "50%", size: "lg", label: "Lower" },
-  { kind: "slot",    slot: FittingSlot.FootGarment,         top: "88%", left: "50%", size: "md", label: "Footwear" },
+  {
+    kind: "slot",
+    slot: FittingSlot.HeadGarment,
+    top: "2%",
+    left: "50%",
+    size: "md",
+    label: "Head",
+  },
+  {
+    kind: "earring",
+    side: "right",
+    top: "8%",
+    left: "40%",
+    size: "sm",
+    label: "R. Earring",
+  },
+  {
+    kind: "earring",
+    side: "left",
+    top: "8%",
+    left: "60%",
+    size: "sm",
+    label: "L. Earring",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.Glasses,
+    top: "11%",
+    left: "50%",
+    size: "sm",
+    label: "Glasses",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.NeckAccessory,
+    top: "16%",
+    left: "50%",
+    size: "sm",
+    label: "Neck",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.UpperGarment,
+    top: "31%",
+    left: "50%",
+    size: "lg",
+    label: "Upper",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.RightHandAccessory,
+    top: "47%",
+    left: "17%",
+    size: "sm",
+    label: "R. Hand",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.LeftHandAccessory,
+    top: "47%",
+    left: "83%",
+    size: "sm",
+    label: "L. Hand",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.WaistAccessory,
+    top: "51%",
+    left: "50%",
+    size: "sm",
+    label: "Waist",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.LowerGarment,
+    top: "67%",
+    left: "50%",
+    size: "lg",
+    label: "Lower",
+  },
+  {
+    kind: "slot",
+    slot: FittingSlot.FootGarment,
+    top: "88%",
+    left: "50%",
+    size: "md",
+    label: "Footwear",
+  },
 ];
 
 // ── Body silhouette SVG ────────────────────────────────────────────────────────
@@ -121,15 +222,20 @@ interface HotspotProps {
 }
 
 function GarmentHotspot({ slot, size, index, onPress }: HotspotProps) {
-  const sz     = SIZE[size];
-  const Icon   = SLOT_ICONS[slot.slot];
+  const sz = SIZE[size];
+  const Icon = SLOT_ICONS[slot.slot];
   const filled = slot.garment !== null;
 
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.4 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.055, type: "spring", stiffness: 280, damping: 20 }}
+      transition={{
+        delay: index * 0.055,
+        type: "spring",
+        stiffness: 280,
+        damping: 20,
+      }}
       className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-10"
     >
       <motion.button
@@ -183,7 +289,12 @@ function GarmentHotspot({ slot, size, index, onPress }: HotspotProps) {
       </motion.button>
 
       {/* Label */}
-      <span className={cn("text-white/45 uppercase tracking-widest whitespace-nowrap font-medium", sz.label)}>
+      <span
+        className={cn(
+          "text-white/45 uppercase tracking-widest whitespace-nowrap font-medium",
+          sz.label,
+        )}
+      >
         {filled && slot.garment ? slot.garment.name.split(" ")[0] : slot.label}
       </span>
     </motion.div>
@@ -210,8 +321,18 @@ export function GarmentSilhouette({
   const s = (key: FittingSlot): GarmentSlot =>
     slots[key] ?? { slot: key, label: key, garment: null };
 
-  const rEar = earringRight ?? { slot: FittingSlot.Earrings, label: "R. Earring", garment: null, side: "right" as const };
-  const lEar = earringLeft  ?? { slot: FittingSlot.Earrings, label: "L. Earring", garment: null, side: "left"  as const };
+  const rEar = earringRight ?? {
+    slot: FittingSlot.Earrings,
+    label: "R. Earring",
+    garment: null,
+    side: "right" as const,
+  };
+  const lEar = earringLeft ?? {
+    slot: FittingSlot.Earrings,
+    label: "L. Earring",
+    garment: null,
+    side: "left" as const,
+  };
 
   const resolveSlot = (def: HotspotDef): GarmentSlot => {
     if (def.kind === "earring") return def.side === "right" ? rEar : lEar;
@@ -220,7 +341,6 @@ export function GarmentSilhouette({
 
   return (
     <div className={cn("relative w-full h-full overflow-hidden", className)}>
-
       {/* Silhouette SVG — faint body outline */}
       <div className="absolute inset-0 flex items-start justify-center pt-2">
         <BodySilhouette />

@@ -42,5 +42,6 @@ jobs:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:3007
           NEXT_PUBLIC_SOCKET_URL: http://localhost:3007
           NEXT_PUBLIC_MAPBOX_TOKEN: ci_placeholder
+          NEXT_PUBLIC_DEVICE_MODE: phone
           OPENAI_API_KEY: ci_placeholder
           NEXT_TELEMETRY_DISABLED: 1

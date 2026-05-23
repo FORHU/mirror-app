@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 export interface WeatherData {
   temp: number | null;
@@ -8,7 +8,7 @@ export interface WeatherData {
   code: number;
 }
 
-const COORDS_KEY = 'mirror_weather_coords';
+const COORDS_KEY = "mirror_weather_coords";
 const COORDS_TTL = 12 * 60 * 60 * 1000; // 12 hours
 
 interface CachedCoords {
@@ -34,7 +34,10 @@ function readCachedCoords(): CachedCoords | null {
 
 function writeCoords(lat: number, lon: number) {
   try {
-    localStorage.setItem(COORDS_KEY, JSON.stringify({ lat, lon, at: Date.now() }));
+    localStorage.setItem(
+      COORDS_KEY,
+      JSON.stringify({ lat, lon, at: Date.now() }),
+    );
   } catch {}
 }
 
@@ -45,17 +48,17 @@ export function useWeather() {
   useEffect(() => {
     function fetchWithCoords(lat: number, lon: number) {
       fetch(`/api/weather?lat=${lat}&lon=${lon}`)
-        .then(r => r.json())
+        .then((r) => r.json())
         .then((d: WeatherData) => setWeather(d))
-        .catch(() => setWeather({ temp: null, code: 0, city: '---' }))
+        .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
         .finally(() => setLoading(false));
     }
 
     function fetchFromServer() {
-      fetch('/api/weather')
-        .then(r => r.json())
+      fetch("/api/weather")
+        .then((r) => r.json())
         .then((d: WeatherData) => setWeather(d))
-        .catch(() => setWeather({ temp: null, code: 0, city: '---' }))
+        .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
         .finally(() => setLoading(false));
     }
 

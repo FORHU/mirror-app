@@ -4,26 +4,29 @@ import React, { useState, useEffect, useRef } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { mapService, GeocodeResult } from "../services/map.service";
 import { Search, MapPin, Loader2, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 
 const HomeLocationSetup = () => {
-  const [tab, setTab] = useState<'search' | 'pin'>('search');
+  const [tab, setTab] = useState<"search" | "pin">("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const saveHomeLocation = useMapStore((state) => state.saveHomeLocation);
 
   // Pin drop map state
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const [pinCoords, setPinCoords] = useState<{ lat: number, lng: number }>({ lat: 14.5995, lng: 120.9842 });
+  const [pinCoords, setPinCoords] = useState<{ lat: number; lng: number }>({
+    lat: 14.5995,
+    lng: 120.9842,
+  });
 
   useEffect(() => {
-    if (tab === 'pin' && mapContainerRef.current) {
+    if (tab === "pin" && mapContainerRef.current) {
       const map = new mapboxgl.Map({
         container: mapContainerRef.current,
         style: "mapbox://styles/mapbox/dark-v11",
@@ -31,18 +34,20 @@ const HomeLocationSetup = () => {
         zoom: 12,
       });
 
-      map.on('move', () => {
+      map.on("move", () => {
         const center = map.getCenter();
         setPinCoords({ lat: center.lat, lng: center.lng });
       });
 
       return () => map.remove();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 3) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }
@@ -62,13 +67,13 @@ const HomeLocationSetup = () => {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const handleSave = async (coords: { lat: number, lng: number }) => {
+  const handleSave = async (coords: { lat: number; lng: number }) => {
     setIsSaving(true);
     setError(null);
     try {
       await saveHomeLocation(coords);
       setSaveSuccess(true);
-    } catch (err) {
+    } catch {
       setError("Failed to save location. Please try again.");
     } finally {
       setIsSaving(false);
@@ -96,27 +101,31 @@ const HomeLocationSetup = () => {
   return (
     <div className="fixed inset-0 bg-[#000000] flex flex-col p-10 text-white">
       <div className="mb-12">
-        <h1 className="text-4xl font-light mb-2 tracking-tight">System Setup</h1>
-        <p className="text-white/40">Set your mirror&apos;s home location to begin</p>
+        <h1 className="text-4xl font-light mb-2 tracking-tight">
+          System Setup
+        </h1>
+        <p className="text-white/40">
+          Set your mirror&apos;s home location to begin
+        </p>
       </div>
 
       <div className="flex gap-8 mb-10 border-b border-white/10 pb-4">
-        <button 
-          onClick={() => setTab('search')}
-          className={`text-lg transition-colors ${tab === 'search' ? 'text-white' : 'text-white/30'}`}
+        <button
+          onClick={() => setTab("search")}
+          className={`text-lg transition-colors ${tab === "search" ? "text-white" : "text-white/30"}`}
         >
           Search Address
         </button>
-        <button 
-          onClick={() => setTab('pin')}
-          className={`text-lg transition-colors ${tab === 'pin' ? 'text-white' : 'text-white/30'}`}
+        <button
+          onClick={() => setTab("pin")}
+          className={`text-lg transition-colors ${tab === "pin" ? "text-white" : "text-white/30"}`}
         >
           Pin Drop
         </button>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'search' ? (
+        {tab === "search" ? (
           <div className="flex flex-col h-full">
             <div className="relative mb-6">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
@@ -128,7 +137,9 @@ const HomeLocationSetup = () => {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 focus:outline-none focus:border-white/20 transition-colors"
               />
-              {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-white/20" />}
+              {isSearching && (
+                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-white/20" />
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2">
@@ -143,7 +154,9 @@ const HomeLocationSetup = () => {
                 </button>
               ))}
               {query.length >= 3 && results.length === 0 && !isSearching && (
-                <div className="text-center py-10 text-white/20">No results found</div>
+                <div className="text-center py-10 text-white/20">
+                  No results found
+                </div>
               )}
             </div>
           </div>
@@ -155,18 +168,26 @@ const HomeLocationSetup = () => {
                 <MapPin className="w-8 h-8 text-white drop-shadow-2xl -translate-y-4" />
               </div>
             </div>
-            
+
             <div className="flex justify-between items-center bg-white/5 rounded-xl p-4 border border-white/10 mb-6">
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase text-white/30 tracking-widest">Coordinates</span>
-                <span className="font-mono text-white/70">{pinCoords.lat.toFixed(6)}, {pinCoords.lng.toFixed(6)}</span>
+                <span className="text-[10px] uppercase text-white/30 tracking-widest">
+                  Coordinates
+                </span>
+                <span className="font-mono text-white/70">
+                  {pinCoords.lat.toFixed(6)}, {pinCoords.lng.toFixed(6)}
+                </span>
               </div>
               <button
                 onClick={() => handleSave(pinCoords)}
                 disabled={isSaving}
                 className="bg-white text-black px-8 py-3 rounded-xl font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
               >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Set Home"}
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Set Home"
+                )}
               </button>
             </div>
           </div>

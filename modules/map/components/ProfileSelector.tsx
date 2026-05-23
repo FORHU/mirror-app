@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { Car, Bike, PersonStanding } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
+import type { TransportProfile } from "../types/map.types";
 import { motion } from "framer-motion";
 
 export default function ProfileSelector() {
@@ -10,12 +10,13 @@ export default function ProfileSelector() {
 
   if (isNavigating) return null;
 
-  const profiles = [
-    { id: "car", icon: Car, label: "Car" },
-    { id: "motorcycle", icon: Bike, label: "Moto" },
-    { id: "bicycle", icon: Bike, label: "Bike" }, 
-    { id: "walking", icon: PersonStanding, label: "Walk" },
-  ];
+  const profiles: { id: TransportProfile; icon: typeof Car; label: string }[] =
+    [
+      { id: "car", icon: Car, label: "Car" },
+      { id: "motorcycle", icon: Bike, label: "Moto" },
+      { id: "bicycle", icon: Bike, label: "Bike" },
+      { id: "walking", icon: PersonStanding, label: "Walk" },
+    ];
 
   return (
     <div className="flex items-center gap-4">
@@ -26,7 +27,7 @@ export default function ProfileSelector() {
         return (
           <button
             key={profile.id}
-            onClick={() => setActiveProfile(profile.id as any)}
+            onClick={() => setActiveProfile(profile.id)}
             className="relative flex flex-col items-center group p-2 focus:outline-none"
             style={{ minWidth: 44, minHeight: 44 }}
           >

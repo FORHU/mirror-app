@@ -28,12 +28,17 @@
           {
             "event": "set_step",
             "description": "Move the conversation to a specific step",
-            "payload": { "step": "event | event_type | datetime | location | weather | confirm" }
+            "payload": {
+              "step": "event | event_type | datetime | location | weather | confirm"
+            }
           },
           {
             "event": "set_data",
             "description": "Set a specific collected data field",
-            "payload": { "field": "eventName | eventType | dateTime | location", "value": "string" }
+            "payload": {
+              "field": "eventName | eventType | dateTime | location",
+              "value": "string"
+            }
           },
           {
             "event": "confirm",

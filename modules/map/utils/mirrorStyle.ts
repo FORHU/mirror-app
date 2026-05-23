@@ -11,7 +11,7 @@ export function applyMirrorStyle(map: mapboxgl.Map): void {
 
   const night = isNightTime();
   // Day: pure white roads. Night: warm amber-white roads for softer glow.
-  const roadColor  = night ? "#ffd4a0" : "#ffffff";
+  const roadColor = night ? "#ffd4a0" : "#ffffff";
   const labelColor = night ? "#fff5e0" : "#ffffff";
 
   style.layers.forEach((layer) => {
@@ -25,17 +25,26 @@ export function applyMirrorStyle(map: mapboxgl.Map): void {
 
     if (layer.type === "fill-extrusion") {
       map.setPaintProperty(layer.id, "fill-extrusion-color", roadColor);
-      map.setPaintProperty(layer.id, "fill-extrusion-opacity", night ? 0.12 : 0.2);
+      map.setPaintProperty(
+        layer.id,
+        "fill-extrusion-opacity",
+        night ? 0.12 : 0.2,
+      );
     }
 
     if (
-      (layer.id.includes("tunnel") || layer.id.includes("road") || layer.id.includes("bridge")) &&
+      (layer.id.includes("tunnel") ||
+        layer.id.includes("road") ||
+        layer.id.includes("bridge")) &&
       layer.type === "line"
     ) {
       map.setPaintProperty(layer.id, "line-color", roadColor);
       if (layer.id.includes("motorway") || layer.id.includes("primary")) {
         map.setPaintProperty(layer.id, "line-opacity", 0.55);
-      } else if (layer.id.includes("secondary") || layer.id.includes("tertiary")) {
+      } else if (
+        layer.id.includes("secondary") ||
+        layer.id.includes("tertiary")
+      ) {
         map.setPaintProperty(layer.id, "line-opacity", 0.35);
       } else {
         map.setPaintProperty(layer.id, "line-opacity", 0.15);

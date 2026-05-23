@@ -7,7 +7,7 @@
   --mirror-w: 768px;
   --mirror-h: 1366px;
   --zone-header: 11vh;
-  --zone-main:   69vh;
+  --zone-main: 69vh;
   --zone-footer: 20vh;
   --pad-x: clamp(12px, 3vw, 24px);
   --pad-y: clamp(10px, 2vh, 18px);
@@ -259,9 +259,18 @@
 /* ── Mirror kiosk utilities ─────────────────────────────────────────── */
 
 /* Full-screen zone containers */
-.mirror-header { height: var(--zone-header); width: 100%; }
-.mirror-main   { height: var(--zone-main);   width: 100%; }
-.mirror-footer { height: var(--zone-footer);  width: 100%; }
+.mirror-header {
+  height: var(--zone-header);
+  width: 100%;
+}
+.mirror-main {
+  height: var(--zone-main);
+  width: 100%;
+}
+.mirror-footer {
+  height: var(--zone-footer);
+  width: 100%;
+}
 
 /* Glass panel — dark mirror surface */
 .mirror-panel {
@@ -288,10 +297,15 @@
   overflow-x: hidden;
   scrollbar-width: none;
 }
-.mirror-scroll::-webkit-scrollbar { display: none; }
+.mirror-scroll::-webkit-scrollbar {
+  display: none;
+}
 
 /* Re-enable text selection inside text-heavy panels */
-.selectable { -webkit-user-select: text; user-select: text; }
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
 
 /* Gradient text — pb extends the clip box so descenders (g, y, p) aren't cut */
 .gradient-text {

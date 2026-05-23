@@ -28,8 +28,7 @@ export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
     if (
       !requireAuth &&
       isAuthenticated &&
-      (pathname === "/" ||
-        pathname.startsWith("/onboarding"))
+      (pathname === "/" || pathname.startsWith("/onboarding"))
     ) {
       router.replace("/");
     }

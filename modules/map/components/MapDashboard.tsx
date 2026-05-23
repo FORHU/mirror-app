@@ -55,16 +55,28 @@ export default function MapDashboard() {
   return (
     <div className="relative w-full h-dvh bg-black overflow-hidden">
       {/* Hidden camera source */}
-      <video ref={hiddenVideoRef} autoPlay muted playsInline className="hidden" />
+      <video
+        ref={hiddenVideoRef}
+        autoPlay
+        muted
+        playsInline
+        className="hidden"
+      />
 
       {/* Mirror canvas — drawn via RAF, stays on main thread, avoids GPU layer isolation */}
-      <canvas ref={mirrorCanvasRef} className="absolute inset-0 w-full h-full" />
+      <canvas
+        ref={mirrorCanvasRef}
+        className="absolute inset-0 w-full h-full"
+      />
 
       {/* Tint layer */}
       <div className="absolute inset-0 bg-black/88" />
 
       {/* Map — screen blend: black areas become transparent, roads/labels float over reflection */}
-      <div className="absolute inset-0 opacity-30" style={{ mixBlendMode: "screen" }}>
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{ mixBlendMode: "screen" }}
+      >
         <MapViewport />
       </div>
 

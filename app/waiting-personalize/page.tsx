@@ -1,19 +1,11 @@
 "use client";
 
-import { useKioskSocket } from "@/modules/shared/socket/useKioskSocket";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ROUTES } from "@/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import "../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
+import { useEffect, useState } from "react";
 
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
-
-export default function WaitingLoginPage() {
-  const { isLoggedIn, loggedInUsername } = useKioskSocket();
-  const router = useRouter();
-
+export default function WaitingPersonalizePage() {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
 
@@ -39,12 +31,6 @@ export default function WaitingLoginPage() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  useEffect(() => {
-    if (!BYPASS_AUTH && isLoggedIn) {
-      router.push(ROUTES.LOGGED_IN);
-    }
-  }, [isLoggedIn, loggedInUsername, router]);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
@@ -92,7 +78,7 @@ export default function WaitingLoginPage() {
       <div className="flex-1 flex items-center justify-center min-h-0">
         <AnimatePresence mode="wait">
           <motion.div
-            key="waiting"
+            key="waiting-personalize"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -113,11 +99,11 @@ export default function WaitingLoginPage() {
                 className="text-white font-bold tracking-tight"
                 style={{ fontSize: 72, lineHeight: 1.05 }}
               >
-                Waiting to Connect
+                Waiting to Personalize
               </h1>
               <p className="text-white/40 text-xl font-light max-w-lg mx-auto leading-relaxed">
-                Your mirror has been scanned. Please complete the onboarding
-                process on the other device.
+                Fill in your event details on your device to get a personalised
+                outfit recommendation.
               </p>
             </motion.div>
 

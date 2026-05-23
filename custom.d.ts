@@ -1,3 +1,2 @@
-declare module '*.css';
-declare module 'liquid-glass-react';
-
+declare module "*.css";
+declare module "liquid-glass-react";

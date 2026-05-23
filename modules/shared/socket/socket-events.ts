@@ -12,21 +12,23 @@ export interface KioskRegisteredPayload {
 }
 
 export interface KioskLoginPayload {
-  accessToken?:  string;
+  accessToken?: string;
   refreshToken?: string;
   user?: {
-    id?:       string;
+    id?: string;
     username?: string;
-    email?:    string;
+    email?: string;
   };
   username?: string;
-  email?:    string;
+  email?: string;
 }
 
 // ─── ChatWonder events ────────────────────────────────────────────────────────
 
-export { type ChatWonderInput as ChatWonderInputPayload, type ChatWonderResponse as ChatWonderResponsePayload } from "../ai/chatwonder.types";
+export {
+  type ChatWonderInput as ChatWonderInputPayload,
+  type ChatWonderResponse as ChatWonderResponsePayload,
+} from "../ai/chatwonder.types";
 
-export const CHATWONDER_INPUT    = "chatwonder_input"    as const;
+export const CHATWONDER_INPUT = "chatwonder_input" as const;
 export const CHATWONDER_RESPONSE = "chatwonder_response" as const;
-
