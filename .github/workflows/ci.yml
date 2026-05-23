@@ -7,7 +7,7 @@ on:
 
 jobs:
   ci:
-    name: Lint, Type-check & Build
+    name: Lint & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -22,22 +22,23 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: "22"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
 
-      - name: Type-check
+      - name: Type check
         run: pnpm check
 
       - name: Build
         run: pnpm build
         env:
           # Placeholder values so Next.js build doesn't fail without real secrets
+          NEXT_PUBLIC_DEVICE_MODE: mirror
           NEXT_PUBLIC_API_BASE_URL: http://localhost:3007
           NEXT_PUBLIC_SOCKET_URL: http://localhost:3007
           NEXT_PUBLIC_MAPBOX_TOKEN: ci_placeholder
