@@ -7,7 +7,7 @@ on:
 
 jobs:
   ci:
-    name: Lint, Type-check & Build
+    name: Lint & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -22,16 +22,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "pnpm"
+          node-version: '20'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
 
-      - name: Type-check
+      - name: Type check
         run: pnpm check
 
       - name: Build
@@ -42,6 +42,5 @@ jobs:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:3007
           NEXT_PUBLIC_SOCKET_URL: http://localhost:3007
           NEXT_PUBLIC_MAPBOX_TOKEN: ci_placeholder
-          NEXT_PUBLIC_DEVICE_MODE: phone
           OPENAI_API_KEY: ci_placeholder
           NEXT_TELEMETRY_DISABLED: 1

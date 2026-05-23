@@ -14,7 +14,7 @@ jobs:
     environment: production
 
     permissions:
-      id-token: write # required for OIDC AWS auth
+      id-token: write
       contents: read
 
     steps:
@@ -34,29 +34,66 @@ jobs:
       - name: Build and push Docker image
         # NEXT_PUBLIC_* vars must be baked in at build time — they get compiled
         # into the browser bundle and cannot be changed at container runtime.
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_COMPANION_URL: ${{ secrets.NEXT_PUBLIC_COMPANION_URL }}
+          NEXT_PUBLIC_MIRROR_ID: ${{ secrets.NEXT_PUBLIC_MIRROR_ID }}
+          NEXT_PUBLIC_KIOSK_DEVICE_SECRET: ${{ secrets.NEXT_PUBLIC_KIOSK_DEVICE_SECRET }}
+          NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+          NEXT_PUBLIC_DEVICE_MODE: ${{ secrets.NEXT_PUBLIC_DEVICE_MODE }}
         run: |
           ECR="${{ steps.login-ecr.outputs.registry }}/mirror-app"
           docker build \
-            --build-arg NEXT_PUBLIC_DEVICE_MODE="mirror" \
-            --build-arg NEXT_PUBLIC_API_BASE_URL="${{ secrets.NEXT_PUBLIC_API_BASE_URL }}" \
-            --build-arg NEXT_PUBLIC_SOCKET_URL="${{ secrets.NEXT_PUBLIC_SOCKET_URL }}" \
-            --build-arg NEXT_PUBLIC_MAPBOX_TOKEN="${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}" \
-            --build-arg OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}" \
-            -t "$ECR:${{ github.sha }}" \
-            -t "$ECR:latest" \
-            .
+            --build-arg NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL}" \
+            --build-arg NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL}" \
+            --build-arg NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL}" \
+            --build-arg NEXT_PUBLIC_COMPANION_URL="${NEXT_PUBLIC_COMPANION_URL}" \
+            --build-arg NEXT_PUBLIC_MIRROR_ID="${NEXT_PUBLIC_MIRROR_ID}" \
+            --build-arg NEXT_PUBLIC_KIOSK_DEVICE_SECRET="${NEXT_PUBLIC_KIOSK_DEVICE_SECRET}" \
+            --build-arg NEXT_PUBLIC_MAPBOX_TOKEN="${NEXT_PUBLIC_MAPBOX_TOKEN}" \
+            --build-arg NEXT_PUBLIC_DEVICE_MODE="${NEXT_PUBLIC_DEVICE_MODE}" \
+            -t "$ECR:${{ github.sha }}" -t "$ECR:latest" .
           docker push "$ECR:${{ github.sha }}"
           docker push "$ECR:latest"
 
-      - name: Deploy to EC2
+      - name: Write env file
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NODE_ENV: production
+          PORT: 3000
         run: |
-          echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/key && chmod 600 /tmp/key
-          ssh -i /tmp/key -o StrictHostKeyChecking=no ubuntu@${{ secrets.FRONTEND_EC2_HOST }} \
-            "set -e
-             aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin '${{ steps.login-ecr.outputs.registry }}'
-             docker pull '${{ steps.login-ecr.outputs.registry }}/mirror-app:${{ github.sha }}'
-             docker stop mirror-app 2>/dev/null || true
-             docker rm mirror-app 2>/dev/null || true
-             docker run -d --name mirror-app --restart unless-stopped -p 3000:3000 '${{ steps.login-ecr.outputs.registry }}/mirror-app:${{ github.sha }}'
-             docker image prune -f"
-          rm -f /tmp/key
+          cat > ${{ github.workspace }}/mirror-app.env << EOF
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          NODE_ENV=${NODE_ENV}
+          PORT=${PORT}
+          EOF
+
+      - name: Copy env file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host:     ${{ secrets.FRONTEND_EC2_HOST }}
+          username: ubuntu
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          source:   mirror-app.env
+          target:   /home/ubuntu/
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.FRONTEND_EC2_HOST }}
+          username: ubuntu
+          key:      ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            chmod 600 /home/ubuntu/mirror-app.env
+            aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+            docker pull ${{ steps.login-ecr.outputs.registry }}/mirror-app:${{ github.sha }}
+            docker stop mirror-app 2>/dev/null || true
+            docker rm   mirror-app 2>/dev/null || true
+            docker run -d --name mirror-app --restart unless-stopped \
+              --env-file /home/ubuntu/mirror-app.env \
+              -p 3000:3000 \
+              ${{ steps.login-ecr.outputs.registry }}/mirror-app:${{ github.sha }}
+            docker image prune -f
