@@ -6,8 +6,10 @@ import {
   useContext,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { getSocketClient } from "@/modules/shared/socket/socket-client";
 import type { ChatWonderAction, PageContext } from "../ai/chatwonder.types";
 import { ROUTES } from "@/navigation";
 import { mapService } from "@/modules/map/services/map.service";
@@ -78,6 +80,44 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
+
+  // --- WebSocket Sync ---
+  useEffect(() => {
+    if (!pathname) return;
+    const socket = getSocketClient();
+    const kioskId =
+      typeof window !== "undefined"
+        ? window.sessionStorage.getItem("kiosk_id") || localStorage.getItem("mirrorKey") || "mirror-a"
+        : "mirror-a";
+    socket.emit("send_companion_notification", { kioskId, type: "route_changed", route: pathname });
+  }, [pathname]);
+
+  useEffect(() => {
+    const socket = getSocketClient();
+    const handleNotification = (data: any) => {
+      // ---------------------------------------------------------
+      // MIRROR APP SOCKET LISTENER
+      // This is where you receive notifications FROM the Companion.
+      // You can add as many custom features here as you want!
+      // ---------------------------------------------------------
+
+      if (data?.action && data.action.startsWith("/")) {
+        // Feature 1: Companion forced the mirror to change pages
+        router.push(data.action);
+      } else if (data?.action === "show_confetti") {
+        // Example Feature 2: Companion triggered a UI animation
+        // triggerConfetti();
+      } else if (data?.action === "set_volume") {
+        // Example Feature 3: Companion changed the AI voice volume
+        // setVolume(data.level);
+      }
+    };
+    socket.on("kiosk_notification", handleNotification);
+    return () => {
+      socket.off("kiosk_notification", handleNotification);
+    };
+  }, [router]);
+  // ----------------------
 
   const stopPlayback = () => {
     playbackRef.current?.stop();
