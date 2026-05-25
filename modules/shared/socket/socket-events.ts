@@ -11,6 +11,9 @@ export interface KioskRegisteredPayload {
   kioskId: string;
 }
 
+// kiosk_login has two backend payload shapes:
+//  1. { accessToken, refreshToken, user: { id, email, username } }  — login / pairMirror
+//  2. Raw Prisma User at root { id, email, username, gender, … }    — updateProfile (no tokens)
 export interface KioskLoginPayload {
   accessToken?: string;
   refreshToken?: string;
@@ -18,7 +21,10 @@ export interface KioskLoginPayload {
     id?: string;
     username?: string;
     email?: string;
+    displayName?: string;
   };
+  // Top-level fields present in the raw-user shape (updateProfile)
+  id?: string;
   username?: string;
   email?: string;
 }
