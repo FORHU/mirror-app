@@ -1,4 +1,6 @@
 import { create } from "zustand";
+
+let _sessionListenerRegistered = false;
 import {
   ACCESS_TOKEN,
   REFRESH_TOKEN,
@@ -39,6 +41,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async _init() {
     if (typeof window === "undefined") return;
+
+    if (!_sessionListenerRegistered) {
+      _sessionListenerRegistered = true;
+      window.addEventListener("session_expired", () => get()._forceLogout());
+    }
 
     try {
       const [storedUser, token] = await Promise.all([
