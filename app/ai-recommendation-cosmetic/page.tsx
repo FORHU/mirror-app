@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
-import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
+import { cosmeticsService, type CosmeticProduct } from "@/modules/shared/api/cosmetics.service";
+import { useChatWonderStream } from "@/modules/shared/ai/useChatWonderStream";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -13,10 +14,8 @@ const OY = 580;
 const RX = 330; // 660 px wide  (86 % of screen)
 const RY = 410; // 820 px tall
 
-const FACE_MESH_CDN =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
-const CAMERA_UTILS_CDN =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+const FACE_MESH_SRC = "/mediapipe/face_mesh/face_mesh.js";
+const CAMERA_UTILS_SRC = "/mediapipe/camera_utils/camera_utils.js";
 const ALIGN_THRESHOLD = 20; // consecutive frames before triggering hold
 const HOLD_MS = 1500; // ms to hold before capture fires
 
@@ -34,7 +33,7 @@ type FaceMeshInstance = {
   send: (input: { image: HTMLVideoElement }) => Promise<void>;
 };
 type CameraInstance = { start: () => void; stop?: () => void };
-type CapturePhase = "idle" | "holding" | "captured" | "analyzing";
+type CapturePhase = "idle" | "holding" | "captured" | "analyzing" | "error";
 
 declare global {
   interface Window {
@@ -92,6 +91,54 @@ function inOval(p: { x: number; y: number }) {
 
 const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R, nose bridge
 
+// ── Prompt builder ────────────────────────────────────────────────────────────
+function buildSkinAnalysisPrompt(imageUrl: string, products: CosmeticProduct[]): string {
+  const catalog = JSON.stringify(
+    products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      brand: p.brand,
+      category: p.category,
+      type: p.type,
+      tags: p.tags,
+      benefits: p.benefits,
+    })),
+  );
+
+  return `You are a professional dermatologist and cosmetics expert AI.
+
+Analyze the facial skin in this image: ${imageUrl}
+
+Return ONLY a valid JSON object — no markdown, no explanation, no extra text:
+{
+  "skinType": "OILY | DRY | COMBINATION | NORMAL | SENSITIVE",
+  "skinTone": "warm light | cool light | neutral light | warm medium | cool medium | neutral medium | warm deep | cool deep | neutral deep | warm dark | cool dark | neutral dark",
+  "hydrationPct": <integer 0-100>,
+  "oilinessPct": <integer 0-100>,
+  "concerns": ["<specific visible skin concern>"],
+  "routineTip": "<one actionable sentence tailored to the detected skin profile>",
+  "recommendations": [
+    { "productId": "<exact id from catalog>", "rank": 1, "score": <0-100>, "reason": "<brief reason matching skin profile>" }
+  ]
+}
+
+ANALYSIS RULES:
+- skinType: exactly one of OILY, DRY, COMBINATION, NORMAL, SENSITIVE
+- skinTone: exactly one of the listed options
+- hydrationPct: estimate from visible cues (dullness, flakiness, tightness = low)
+- oilinessPct: estimate from shine, enlarged pores, greasy appearance
+- concerns: specific visible issues only (e.g. "enlarged pores", "uneven skin tone", "mild acne", "dryness")
+- routineTip: one sentence, practical, specific to the detected type and concerns
+
+RECOMMENDATION RULES:
+- Select 5-8 products from the catalog whose tags and benefits best address the detected skin type and concerns
+- productId must be an exact id value from the catalog below
+- rank starts at 1 (best match), score is 0-100
+
+PRODUCT CATALOG:
+${catalog}`;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
@@ -101,8 +148,13 @@ export default function CosmeticPage() {
   const alignedFrames = useRef(0);
   const faceAlignedRef = useRef(false);
   const capturePhaseRef = useRef<CapturePhase>("idle");
+  const awaitingChatWonderRef = useRef(false);
+  const productsRef = useRef<CosmeticProduct[]>([]);
+
+  const { messages, isStreaming, error: chatError, sendMessage, clearMessages } = useChatWonderStream();
 
   const [isModelLoading, setIsModelLoading] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [faceAligned, setFaceAligned] = useState(false);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -134,31 +186,24 @@ export default function CosmeticPage() {
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    try {
-      sessionStorage.setItem("skin_capture", dataUrl);
-    } catch {}
+    try { sessionStorage.setItem("skin_capture", dataUrl); } catch {}
 
-    setCapturePhaseState("captured"); // triggers white flash
-
-    // Let the flash animation play before showing analyzing state
+    setCapturePhaseState("captured");
     await new Promise((r) => setTimeout(r, 600));
     setCapturePhaseState("analyzing");
 
     try {
       const uploaded = await cosmeticsService.uploadCapture(dataUrl);
-      const analysis = await cosmeticsService.analyzeSkin(uploaded.id);
-      try {
-        sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
-      } catch {}
-      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
+      const products = await cosmeticsService.getProducts();
+      productsRef.current = products;
+      clearMessages();
+      awaitingChatWonderRef.current = true;
+      sendMessage(buildSkinAnalysisPrompt(uploaded.fileUrl, products));
     } catch {
-      setErrorMsg("Analysis failed. Retrying in 3s…");
-      setTimeout(() => {
-        setErrorMsg(null);
-        resetToIdle();
-      }, 3000);
+      setErrorMsg("Analysis failed.");
+      setCapturePhaseState("error");
     }
-  }, [router, setCapturePhaseState, resetToIdle]);
+  }, [sendMessage, clearMessages, setCapturePhaseState]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────
   const beginCaptureHold = useCallback(() => {
@@ -224,15 +269,18 @@ export default function CosmeticPage() {
 
     async function init() {
       await Promise.all([
-        loadScript(FACE_MESH_CDN),
-        loadScript(CAMERA_UTILS_CDN),
+        loadScript(FACE_MESH_SRC),
+        loadScript(CAMERA_UTILS_SRC),
       ]);
-      if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera)
+      if (!isMounted) return;
+      if (!videoRef.current || !window.FaceMesh || !window.Camera) {
+        setCameraError("Camera failed to initialize. Please refresh.");
+        setIsModelLoading(false);
         return;
+      }
 
       const faceMesh = new window.FaceMesh({
-        locateFile: (f) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+        locateFile: (f) => `/mediapipe/face_mesh/${f}`,
       });
       faceMesh.setOptions({
         maxNumFaces: 1,
@@ -256,7 +304,10 @@ export default function CosmeticPage() {
     }
 
     init().catch(() => {
-      if (isMounted) setIsModelLoading(false);
+      if (isMounted) {
+        setCameraError("Camera failed to initialize. Please refresh.");
+        setIsModelLoading(false);
+      }
     });
 
     return () => {
@@ -266,23 +317,89 @@ export default function CosmeticPage() {
     };
   }, [handleResults]);
 
+  // ── ChatWonder stream completion → parse → navigate ─────────────────────────
+  useEffect(() => {
+    if (!awaitingChatWonderRef.current || isStreaming) return;
+    awaitingChatWonderRef.current = false;
+
+    if (chatError) {
+      setErrorMsg("Analysis failed.");
+      setCapturePhaseState("error");
+      return;
+    }
+
+    const lastAI = [...messages].reverse().find((m) => m.role === "AI");
+    if (!lastAI?.content) {
+      setErrorMsg("Analysis failed.");
+      setCapturePhaseState("error");
+      return;
+    }
+
+    try {
+      const jsonStr = lastAI.content.replace(/```json\n?|\n?```/g, "").trim();
+      const parsed = JSON.parse(jsonStr) as {
+        skinType: string;
+        skinTone: string | null;
+        hydrationPct: number;
+        oilinessPct: number;
+        concerns: string[];
+        routineTip: string;
+        recommendations: Array<{ productId: string; rank: number; score: number; reason: string }>;
+      };
+
+      const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n ?? 50)));
+      const analysis = {
+        id: "ai",
+        skinType: parsed.skinType,
+        skinTone: parsed.skinTone ?? null,
+        hydrationPct: clamp(parsed.hydrationPct),
+        oilinessPct: clamp(parsed.oilinessPct),
+        concerns: parsed.concerns ?? [],
+        routineTip: parsed.routineTip ?? "",
+        recommendations: (parsed.recommendations ?? [])
+          .map((r, idx) => {
+            const product = productsRef.current.find((p) => p.id === r.productId);
+            if (!product) return null;
+            return {
+              id: `rec-${idx}`,
+              rank: r.rank ?? idx + 1,
+              score: r.score ?? 80,
+              reason: r.reason ?? "",
+              cosmeticProduct: product,
+            };
+          })
+          .filter(Boolean),
+      };
+
+      try { sessionStorage.setItem("skin_analysis", JSON.stringify(analysis)); } catch {}
+      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
+    } catch {
+      setErrorMsg("Analysis failed.");
+      setCapturePhaseState("error");
+    }
+  }, [isStreaming, messages, chatError, setCapturePhaseState, router]);
+
   // ── Derived values ────────────────────────────────────────────────────────────
   const ovalColor =
     faceAligned || capturePhase !== "idle"
       ? "rgba(72,199,142,0.95)"
       : "rgba(255,255,255,0.85)";
 
-  const instructionText = isModelLoading
-    ? "Initializing camera…"
-    : capturePhase === "analyzing"
-      ? "Analyzing your skin…"
-      : capturePhase === "captured"
-        ? "Processing…"
-        : capturePhase === "holding"
-          ? "Hold still…"
-          : faceAligned
-            ? "Face detected"
-            : "Position your face within the guide";
+  const instructionText = cameraError
+    ? cameraError
+    : isModelLoading
+      ? "Initializing camera…"
+      : capturePhase === "analyzing"
+        ? "Analyzing your skin…"
+        : capturePhase === "captured"
+          ? "Processing…"
+          : capturePhase === "holding"
+            ? "Hold still…"
+            : capturePhase === "error"
+              ? ""
+              : faceAligned
+                ? "Face detected"
+                : "Position your face within the guide";
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -391,8 +508,9 @@ export default function CosmeticPage() {
           className="absolute inset-x-0 z-10 text-center text-lg tracking-wide"
           style={{
             top: `${((OY + RY + 36) / 1366) * 100}%`,
-            color:
-              capturePhase !== "idle" || faceAligned
+            color: cameraError
+              ? "rgba(248,113,113,0.95)"
+              : capturePhase !== "idle" || faceAligned
                 ? "rgba(72,199,142,0.95)"
                 : "rgba(255,255,255,0.60)",
           }}
@@ -405,12 +523,12 @@ export default function CosmeticPage() {
         </motion.p>
       </AnimatePresence>
 
-      {/* Error overlay — auto-dismisses after 3s */}
+      {/* Error overlay with retry button */}
       <AnimatePresence>
         {errorMsg && (
           <motion.div
             key="error-msg"
-            className="absolute inset-x-0 z-30 flex justify-center"
+            className="absolute inset-x-0 z-30 flex flex-col items-center gap-4"
             style={{ top: `${((OY + RY + 80) / 1366) * 100}%` }}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -426,6 +544,15 @@ export default function CosmeticPage() {
             >
               {errorMsg}
             </span>
+            <button
+              onClick={() => {
+                setErrorMsg(null);
+                resetToIdle();
+              }}
+              className="px-6 py-2 rounded-full border border-white/40 text-white/90 text-sm tracking-wide active:bg-white/10 transition-colors"
+            >
+              Take another photo
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+
+# mediapipe assets (auto-copied from node_modules by postinstall)
+/public/mediapipe
 /.pnp
 .pnp.*
 .yarn/*

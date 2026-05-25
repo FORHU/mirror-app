@@ -63,6 +63,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           setCachedAccessToken(token);
           console.warn("[useAuthStore] Background user refresh failed", e);
         }
+      } else {
+        // No tokens in storage — clear any stale cookie so middleware and
+        // client state stay in sync (prevents redirect loops on /logged-in).
+        clearAuthCookie();
       }
     } catch (e) {
       console.error("[useAuthStore] Initialization error", e);

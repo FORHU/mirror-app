@@ -64,4 +64,12 @@ export const cosmeticsService = {
     if (!res.ok || !res.data?.data) throw new Error("Not found");
     return res.data.data;
   },
+
+  getProducts: async (limit = 100): Promise<CosmeticProduct[]> => {
+    const res = await api.get<
+      StandardResponse<{ data: CosmeticProduct[]; total: number; page: number; limit: number }>
+    >(`/api/mirror/cosmetic-products?limit=${limit}`);
+    if (!res.ok || !res.data?.data) return [];
+    return res.data.data.data;
+  },
 };
