@@ -151,8 +151,12 @@ export default function CosmeticPage() {
         sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
       } catch {}
       router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
-    } catch {
-      setErrorMsg("Analysis failed. Retrying in 3s…");
+    } catch (err: any) {
+      if (err.message?.includes("401")) {
+        setErrorMsg("Please log in with the Companion App to analyze your skin.");
+      } else {
+        setErrorMsg("Analysis failed. Retrying in 3s…");
+      }
       setTimeout(() => {
         setErrorMsg(null);
         resetToIdle();

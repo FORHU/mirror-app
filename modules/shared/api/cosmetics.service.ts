@@ -53,6 +53,7 @@ export const cosmeticsService = {
       "/api/mirror/skin-analyses",
       { fileId, weatherSnapshotId: null },
     );
+    if (res.status === 401) throw new Error("401: Unauthorized");
     if (!res.ok || !res.data?.data) throw new Error("Skin analysis failed");
     return res.data.data;
   },
