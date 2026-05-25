@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -15,9 +16,18 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
+import { useWakeWord, isSpeechRecognitionSupported } from "./useWakeWord";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
+const SILENCE_THRESHOLD = 0.012; // RMS below this = silence
+const SILENCE_DURATION_MS = 2000; // stop after 2 s of silence
+
+function getRMS(data: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+  return Math.sqrt(sum / data.length);
+}
 
 function float32ToInt16(f: Float32Array): Int16Array {
   const out = new Int16Array(f.length);
@@ -38,6 +48,7 @@ export interface VoiceContextValue {
   isListening: boolean;
   isProcessing: boolean;
   isSpeaking: boolean;
+  wakeWordActive: boolean;
   toggle: () => void;
   startListening: () => void;
   stopListening: () => void;
@@ -78,6 +89,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
+  const lastSpeechRef = useRef<number>(0);
+  const silenceTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopListeningRef = useRef<(() => void) | null>(null);
 
   const stopPlayback = () => {
     playbackRef.current?.stop();
@@ -86,7 +100,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current = null;
   };
 
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current !== null) {
+      clearInterval(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  };
+
   const cleanupRecording = () => {
+    clearSilenceTimer();
     processorRef.current?.disconnect();
     sourceRef.current?.disconnect();
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -185,8 +207,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const source = ctx.createMediaStreamSource(stream);
 
       chunksRef.current = [];
+      lastSpeechRef.current = Date.now();
+
       processor.onaudioprocess = (e) => {
-        chunksRef.current.push(float32ToInt16(e.inputBuffer.getChannelData(0)));
+        const data = e.inputBuffer.getChannelData(0);
+        chunksRef.current.push(float32ToInt16(data));
+        if (getRMS(data) > SILENCE_THRESHOLD) {
+          lastSpeechRef.current = Date.now();
+        }
       };
 
       source.connect(processor);
@@ -197,6 +225,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       sourceRef.current = source;
       streamRef.current = stream;
       setVoiceState("recording");
+
+      // Poll every 250 ms — if silence has lasted ≥ 2 s, auto-stop
+      silenceTimerRef.current = setInterval(() => {
+        if (Date.now() - lastSpeechRef.current >= SILENCE_DURATION_MS) {
+          clearSilenceTimer();
+          stopListeningRef.current?.();
+        }
+      }, 250);
     } catch {
       setError("Microphone access denied.");
     }
@@ -315,6 +351,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceState, dispatchAction]);
 
+  // Keep the ref in sync so the silence timer can always call the latest version
+  stopListeningRef.current = stopListening;
+
   const toggle = useCallback(() => {
     if (voiceState === "idle") return startListening();
     if (voiceState === "recording") return stopListening();
@@ -341,6 +380,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const isProcessing = voiceState === "processing";
   const isSpeaking = voiceState === "speaking";
 
+  // Defer the SpeechRecognition check to after mount so server and client
+  // both start with `false`, preventing a hydration mismatch.
+  const [speechSupported, setSpeechSupported] = useState(false);
+  useEffect(() => { setSpeechSupported(isSpeechRecognitionSupported()); }, []);
+
+  // Wake-word detection — only runs while the main pipeline is idle so they
+  // don't compete for the microphone.
+  const wakeWordActive = voiceState === "idle" && speechSupported;
+  useWakeWord(startListening, wakeWordActive);
+
   return (
     <VoiceContext.Provider
       value={{
@@ -351,6 +400,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         isListening,
         isProcessing,
         isSpeaking,
+        wakeWordActive,
         toggle,
         startListening,
         stopListening,

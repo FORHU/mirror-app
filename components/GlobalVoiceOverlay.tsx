@@ -19,7 +19,7 @@ export default function GlobalVoiceOverlay() {
 }
 
 function VoiceUI() {
-  const { voiceState, transcript, reply, error, toggle } = useVoiceContext();
+  const { voiceState, transcript, reply, error, toggle, wakeWordActive } = useVoiceContext();
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -38,6 +38,8 @@ function VoiceUI() {
 
   return (
     <>
+    
+
       {/* Transcript / reply bubble — appears above the mic button */}
       <AnimatePresence>
         {(transcript || reply || error) && (
