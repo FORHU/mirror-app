@@ -14,6 +14,7 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
+import { AiEventsOverlay } from "./AiEventsOverlay";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -45,6 +46,7 @@ export interface VoiceContextValue {
     onAction: (action: ChatWonderAction) => void,
   ) => void;
   unregisterPage: () => void;
+  aiEvents: any[];
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -64,6 +66,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [transcript, setTranscript] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [aiEvents, setAiEvents] = useState<any[]>([]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -278,10 +281,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         transcript: t,
         reply: r,
         action,
+        events,
       } = await mapService.voice(combined.buffer, ctx, historyRef.current);
 
       setTranscript(t);
       setReply(r);
+      setAiEvents(events || []);
       historyRef.current = [
         ...historyRef.current,
         { user: t, assistant: r },
@@ -351,9 +356,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         stopListening,
         registerPage,
         unregisterPage,
+        aiEvents,
       }}
     >
       {children}
+      <AiEventsOverlay />
     </VoiceContext.Provider>
   );
 }
