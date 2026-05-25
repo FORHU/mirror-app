@@ -9,8 +9,6 @@ import {
   setStorageData,
   removeStorageData,
 } from "@/modules/shared/utils/storage";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-
 // In the browser, use relative URLs so requests go through the Next.js proxy
 // (next.config.ts rewrites /api/remote/** → backend). This avoids CORS preflight
 // failures caused by the x-platform header the backend doesn't whitelist.
@@ -99,11 +97,9 @@ api.axiosInstance.interceptors.response.use(
       await removeStorageData(REFRESH_TOKEN);
       await removeStorageData(USER);
       _cachedAccessToken = null;
-      useAuthStore.getState()._forceLogout();
 
-      // Dispatch a custom event for the UI to respond to if needed
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("unauthorized"));
+        window.dispatchEvent(new CustomEvent("session_expired"));
       }
     }
 
