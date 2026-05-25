@@ -5,14 +5,9 @@ import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useKioskSocket } from "@/modules/shared/socket/useKioskSocket";
-import { type MirrorKey } from "@/modules/shared/constants/mirrors";
 import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
 import "../styles/glow.css";
-
-interface QrCodeViewProps {
-  mirrorKey: MirrorKey;
-}
 
 // ── QR frame ──────────────────────────────────────────────────────────────────
 
@@ -33,9 +28,24 @@ function QrFrame({ value }: { value: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
-  const { kioskId, kioskName, waitingForLogin } =
-    useKioskSocket(mirrorKey);
+export function QrCodeView() {
+  const [sessionHash, setSessionHash] = useState("");
+
+  useEffect(() => {
+    const hash = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+    sessionStorage.setItem("kiosk_id", hash);
+    setSessionHash(hash);
+  }, []);
+
+  if (!sessionHash) {
+    return <div className="w-screen h-screen bg-black" />;
+  }
+
+  return <QrCodeViewInner sessionHash={sessionHash} />;
+}
+
+function QrCodeViewInner({ sessionHash }: { sessionHash: string }) {
+  const { kioskId, waitingForLogin } = useKioskSocket(sessionHash);
   const router = useRouter();
 
   const [time, setTime] = useState("");
@@ -68,7 +78,7 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
     if (waitingForLogin) router.push(ROUTES.WAITING_LOGIN);
   }, [waitingForLogin, router]);
 
-  const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL}/${kioskId}?kioskName=${kioskName}`;
+  const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL}/${kioskId}?kioskName=StyleOS Kiosk`;
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">

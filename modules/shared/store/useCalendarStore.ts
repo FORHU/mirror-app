@@ -21,7 +21,7 @@ const STORAGE_KEY = "mirror_calendar_events";
 function load(): CalendarEvent[] {
   if (typeof window === "undefined") return [];
   try {
-    const s = localStorage.getItem(STORAGE_KEY);
+    const s = sessionStorage.getItem(STORAGE_KEY);
     return s ? JSON.parse(s) : [];
   } catch {
     return [];
@@ -31,7 +31,7 @@ function load(): CalendarEvent[] {
 function save(events: CalendarEvent[]) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   } catch {}
 }
 

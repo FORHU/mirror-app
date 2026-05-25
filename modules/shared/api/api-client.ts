@@ -17,7 +17,7 @@ const API_BASE_URL =
     ? ""
     : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
-// In-memory token cache to avoid hitting localStorage on every request
+// In-memory token cache to avoid hitting sessionStorage on every request
 let _cachedAccessToken: string | null = null;
 
 export function setCachedAccessToken(token: string | null) {

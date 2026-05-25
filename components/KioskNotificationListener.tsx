@@ -31,6 +31,10 @@ export function KioskNotificationListener() {
         // allows /logged-in (protected route), then navigate there.
         setAuthCookie();
         router.push(ROUTES.LOGGED_IN);
+      } else if (action === "force_logout") {
+        useAuthStore.getState().logout({ isRemote: true }).then(() => {
+          router.push(ROUTES.WELCOME);
+        });
       }
     };
 

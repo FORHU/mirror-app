@@ -56,7 +56,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
     try {
       // In mirror-app, we assume the token is stored somewhere or the session is handled.
       // If there is an auth token required, you would attach it here.
-      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
+      const token = typeof window !== "undefined" ? sessionStorage.getItem("access_token") || "" : "";
 
       const response = await fetch("/api/mirror/chat-wonder/stream", {
         method: "POST",

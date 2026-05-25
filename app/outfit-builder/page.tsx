@@ -43,7 +43,7 @@ export default function OutfitBuilderPage() {
   const router = useRouter();
   const [photo] = useState<string | null>(() =>
     typeof window !== "undefined"
-      ? localStorage.getItem("mirror_captured_photo")
+      ? sessionStorage.getItem("mirror_captured_photo")
       : null,
   );
   const [slotMap, setSlotMap] = useState<SlotMap>(createEmptySlotMap);
@@ -155,7 +155,7 @@ export default function OutfitBuilderPage() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              localStorage.setItem(
+              sessionStorage.setItem(
                 "mirror_outfit_slots",
                 JSON.stringify(slotMap),
               );
@@ -168,7 +168,7 @@ export default function OutfitBuilderPage() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              localStorage.setItem(
+              sessionStorage.setItem(
                 "mirror_outfit_slots",
                 JSON.stringify(slotMap),
               );

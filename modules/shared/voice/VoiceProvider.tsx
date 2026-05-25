@@ -127,7 +127,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             .then(() => useMapStore.getState().startNavigation())
             .catch(() => {});
         } else {
-          localStorage.setItem(
+          sessionStorage.setItem(
             "mirror_pending_map_directions",
             JSON.stringify({ destination: action.destination }),
           );
@@ -154,13 +154,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           location: action.location,
         });
       } else if (action.type === "maps_preview_location") {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "mirror_pending_map_location",
           JSON.stringify({ query: action.query, label: action.label }),
         );
         if (!pathname.startsWith("/map")) router.push(ROUTES.MAP);
       } else if (action.type === "maps_get_directions") {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "mirror_pending_map_directions",
           JSON.stringify({
             destination: action.destination,

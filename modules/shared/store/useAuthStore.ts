@@ -14,6 +14,7 @@ import {
 import { authService } from "@/modules/shared/api/auth.service";
 import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
+import { getSocketClient } from "@/modules/shared/socket/socket-client";
 import {
   setAuthCookie,
   clearAuthCookie,
@@ -30,7 +31,7 @@ interface AuthState {
 
   // Public actions
   login: (email: string, username?: string, kioskId?: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: { isRemote?: boolean }) => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
 
@@ -100,10 +101,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  async logout() {
+  async logout(options) {
     set({ isLoading: true });
     try {
       const rt = await getStorageData<string>(REFRESH_TOKEN);
+      if (!options?.isRemote) {
+        const kioskId = await getStorageData<string>("kiosk_id");
+        if (kioskId) {
+          getSocketClient().emit("send_companion_notification", {
+            kioskId,
+            action: "force_logout",
+          });
+        }
+      }
       if (rt) {
         await authService.logout(rt);
       }

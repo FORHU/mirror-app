@@ -1,15 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { detectMirrorId } from "@/modules/shared/constants/mirrors";
+import { QrCodeView } from "@/components/QrCodeView";
 
-export default function QrCodePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(`/qrcode/${detectMirrorId()}`);
-  }, [router]);
-
-  return null;
+export default function StaticQrPage() {
+  return <QrCodeView />;
 }

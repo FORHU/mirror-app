@@ -19,11 +19,11 @@ interface CachedCoords {
 
 function readCachedCoords(): CachedCoords | null {
   try {
-    const raw = localStorage.getItem(COORDS_KEY);
+    const raw = sessionStorage.getItem(COORDS_KEY);
     if (!raw) return null;
     const cached: CachedCoords = JSON.parse(raw);
     if (Date.now() - cached.at > COORDS_TTL) {
-      localStorage.removeItem(COORDS_KEY);
+      sessionStorage.removeItem(COORDS_KEY);
       return null;
     }
     return cached;
@@ -34,7 +34,7 @@ function readCachedCoords(): CachedCoords | null {
 
 function writeCoords(lat: number, lon: number) {
   try {
-    localStorage.setItem(
+    sessionStorage.setItem(
       COORDS_KEY,
       JSON.stringify({ lat, lon, at: Date.now() }),
     );

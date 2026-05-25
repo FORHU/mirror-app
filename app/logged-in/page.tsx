@@ -49,7 +49,7 @@ export default function LoggedInPage() {
         {/* Check a fit */}
         <button
           onClick={() => {
-            const kioskId = sessionStorage.getItem("kiosk_id") || "mirror-a";
+            const kioskId = sessionStorage.getItem("kiosk_id");
             getSocketClient().emit("send_companion_notification", {
               kioskId,
               action: "personalize_outfit",

@@ -92,7 +92,7 @@ export default function TryItOnPage() {
     setErrorMsg("");
     setTryOnResult(null);
     try {
-      const raw = localStorage.getItem("mirror_outfit_slots");
+      const raw = sessionStorage.getItem("mirror_outfit_slots");
       const slotMap: SlotMap = raw ? JSON.parse(raw) : {};
 
       const hasAny = Object.values(slotMap).some((s) => s?.garment);

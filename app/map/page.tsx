@@ -10,9 +10,9 @@ import { useRouter } from "next/navigation";
 
 async function consumePendingLocation() {
   try {
-    const raw = localStorage.getItem("mirror_pending_map_location");
+    const raw = sessionStorage.getItem("mirror_pending_map_location");
     if (!raw) return;
-    localStorage.removeItem("mirror_pending_map_location");
+    sessionStorage.removeItem("mirror_pending_map_location");
 
     const { query, label } = JSON.parse(raw) as {
       query: string;
@@ -34,9 +34,9 @@ async function consumePendingLocation() {
 
 async function consumePendingDirections() {
   try {
-    const raw = localStorage.getItem("mirror_pending_map_directions");
+    const raw = sessionStorage.getItem("mirror_pending_map_directions");
     if (!raw) return;
-    localStorage.removeItem("mirror_pending_map_directions");
+    sessionStorage.removeItem("mirror_pending_map_directions");
 
     const { destination } = JSON.parse(raw) as { destination: string };
     const store = useMapStore.getState();

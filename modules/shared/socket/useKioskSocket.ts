@@ -7,7 +7,7 @@ import {
   KioskRegisteredPayload,
   RegisterKioskPayload,
 } from "./socket-events";
-import { MIRRORS, MirrorKey } from "../constants/mirrors";
+
 import { setCachedAccessToken } from "../api/api-client";
 import { useAuthStore } from "../store/useAuthStore";
 import type { User } from "../api/api.types";
@@ -15,24 +15,8 @@ import { setStorageData } from "../utils/storage";
 import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
 import { setAuthCookie } from "../utils/auth-cookie";
 
-export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
-  const kioskId = useMemo(() => {
-    if (typeof window === "undefined") return mirrorIdOverride ?? "mirror-a";
-
-    if (mirrorIdOverride) {
-      window.sessionStorage.setItem("kiosk_id", mirrorIdOverride);
-      return mirrorIdOverride;
-    }
-
-    return (
-      (window.sessionStorage.getItem("kiosk_id") as MirrorKey) ?? "mirror-a"
-    );
-  }, [mirrorIdOverride]);
-
-  const kioskName = useMemo(
-    () => MIRRORS[kioskId as MirrorKey]?.name ?? kioskId,
-    [kioskId],
-  );
+export function useKioskSocket(kioskId: string) {
+  const kioskName = kioskId;
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
@@ -113,6 +97,9 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
     socket.on("kiosk_scanning", handleKioskScanning);
     socket.on("kiosk_login", handleKioskLogin);
 
+    if (socket.connected) {
+      socket.disconnect();
+    }
     socket.connect();
 
     return () => {
@@ -123,7 +110,7 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
       socket.off("kiosk_login", handleKioskLogin);
       // Keep the kiosk connected across route changes so it stays in its room.
     };
-  }, [kioskId, kioskName]);
+  }, [kioskId]);
 
   return {
     kioskId,

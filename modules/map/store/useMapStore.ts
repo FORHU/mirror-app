@@ -31,7 +31,7 @@ type Location = { lat: number; lng: number };
 function loadFromStorage<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
   try {
-    const s = localStorage.getItem(key);
+    const s = sessionStorage.getItem(key);
     return s ? (JSON.parse(s) as T) : null;
   } catch {
     return null;
@@ -41,7 +41,7 @@ function loadFromStorage<T>(key: string): T | null {
 function saveToStorage(key: string, value: unknown) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    sessionStorage.setItem(key, JSON.stringify(value));
   } catch {}
 }
 
@@ -188,7 +188,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   clearWorkLocation: () => {
     if (typeof window !== "undefined")
-      localStorage.removeItem("mirror_work_location");
+      sessionStorage.removeItem("mirror_work_location");
     set({ workLocation: null, commuteEta: null });
   },
 

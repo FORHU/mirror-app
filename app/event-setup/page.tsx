@@ -471,7 +471,7 @@ function EventSetupInner() {
 
     if (action.type === "maps_preview_location") {
       try {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "mirror_pending_map_location",
           JSON.stringify({ query: action.query, label: action.label }),
         );
@@ -481,7 +481,7 @@ function EventSetupInner() {
 
     if (action.type === "maps_get_directions") {
       try {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "mirror_pending_map_directions",
           JSON.stringify({
             destination: action.destination,

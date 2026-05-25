@@ -37,7 +37,7 @@ const PRODUCT_ITEMS: ProductItem[] = [
 export default function CapturePicturePage() {
   const photo =
     typeof window !== "undefined"
-      ? localStorage.getItem("mirror_captured_photo")
+      ? sessionStorage.getItem("mirror_captured_photo")
       : null;
 
   return (

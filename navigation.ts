@@ -17,7 +17,6 @@ export const ROUTES = {
   AI_RECOMMENDATION_COSMETIC_RESULT: "/ai-recommendation-cosmetic/result",
   MIRROR_TEMPLATES: "/mirror-templates",
   QRCODE: "/qrcode",
-  QRCODE_MIRROR_A: "/qrcode/mirror-a",
   MAP: "/map",
   SCHEDULE: "/schedule",
   DASHBOARD: "/dashboard",
@@ -26,10 +25,9 @@ export const ROUTES = {
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
 export const ROUTE_RULES = {
-  // logged-in users cannot access these
   guestOnly: [
     ROUTES.WELCOME,
-    ROUTES.QRCODE_MIRROR_A,
+    ROUTES.QRCODE,
     ROUTES.WAITING_LOGIN,
   ] as string[],
   // logged-out users cannot access these
@@ -44,7 +42,7 @@ export const ROUTE_RULES = {
     // steps must be visited in order; skipping redirects to the first incomplete step
     login: [
       ROUTES.WELCOME,
-      ROUTES.QRCODE_MIRROR_A,
+      ROUTES.QRCODE,
       ROUTES.WAITING_LOGIN,
     ] as string[],
     fit: [
