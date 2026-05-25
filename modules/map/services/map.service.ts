@@ -69,7 +69,10 @@ export const mapService = {
     }
     const response = await fetch(`/api/mirror/map/geocode`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+      },
       body: JSON.stringify(body),
     });
     if (!response.ok) throw new Error("Geocoding failed");
@@ -100,13 +103,17 @@ export const mapService = {
 
   nearbyPOIs: async (lat: number, lng: number, radiusM = 1000): Promise<{ pois: NearbyPOI[] }> => {
     const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radius: String(radiusM) });
-    const response = await fetch(`/api/mirror/map/nearby-pois?${params}`);
+    const response = await fetch(`/api/mirror/map/nearby-pois?${params}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` },
+    });
     if (!response.ok) throw new Error("Nearby POIs fetch failed");
     return response.json();
   },
 
   venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
-    const response = await fetch(`/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`);
+    const response = await fetch(`/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` },
+    });
     if (!response.ok) throw new Error("Venue photos fetch failed");
     return response.json();
   },
@@ -114,7 +121,10 @@ export const mapService = {
   tts: async (text: string): Promise<ArrayBuffer> => {
     const response = await fetch(`/api/mirror/voice/tts`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+      },
       body: JSON.stringify({ text }),
     });
     if (!response.ok) throw new Error("TTS failed");
@@ -187,7 +197,10 @@ export const mapService = {
     const url = `/api/mirror/voice/process?${params}`;
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: {
+        "Content-Type": "application/octet-stream",
+        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+      },
       body: pcmBuffer,
     });
     if (!response.ok) {
