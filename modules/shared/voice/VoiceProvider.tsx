@@ -46,7 +46,7 @@ export interface VoiceContextValue {
     onAction: (action: ChatWonderAction) => void,
   ) => void;
   unregisterPage: () => void;
-  aiEvents: any[];
+  aiEvents: unknown[];
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -66,7 +66,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [transcript, setTranscript] = useState("");
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [aiEvents, setAiEvents] = useState<any[]>([]);
+  const [aiEvents, setAiEvents] = useState<unknown[]>([]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);

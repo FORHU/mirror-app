@@ -148,7 +148,7 @@ export const mapService = {
     transcript: string;
     reply: string;
     action: ChatWonderAction | null;
-    events: any[];
+    events: unknown[];
   }> => {
     const params = new URLSearchParams();
     if (ctx?.lat !== undefined) params.set("lat", String(ctx.lat));
@@ -210,7 +210,7 @@ export const mapService = {
       /* malformed action — ignore */
     }
 
-    let events: any[] = [];
+    let events: unknown[] = [];
     try {
       const rawEvents = response.headers.get("X-Events");
       if (rawEvents) events = JSON.parse(decodeURIComponent(rawEvents));

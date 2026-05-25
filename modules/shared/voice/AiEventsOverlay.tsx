@@ -11,7 +11,7 @@ export function AiEventsOverlay() {
   return (
     <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center p-8 bg-black/40 backdrop-blur-md transition-opacity duration-500 animate-in fade-in zoom-in-95">
       <div className="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto max-h-full p-4 pointer-events-auto">
-        {aiEvents.map((event, idx) => (
+        {aiEvents.map((event: any, idx: number) => (
           <div key={idx} className="bg-white/10 border border-white/20 rounded-3xl p-6 backdrop-blur-xl shadow-2xl flex flex-col">
             
             {/* Header: Event Type & Time */}
@@ -40,10 +40,11 @@ export function AiEventsOverlay() {
               <div className="mt-auto">
                 <h4 className="text-white/50 text-xs uppercase tracking-[0.2em] mb-3 font-bold">Curated Cosmetics</h4>
                 <div className="space-y-3">
-                  {event.cosmetics.resolvedProducts.map((prod: any) => (
+                  {event.cosmetics.resolvedProducts.map((prod: { id: string; name: string; imageUrl: string; brand: string; reason: string }) => (
                     <div key={prod.id} className="flex items-center gap-4 bg-black/30 rounded-2xl p-3 border border-white/5 hover:bg-black/40 transition-colors">
                       {prod.imageUrl ? (
                         <div className="w-14 h-14 rounded-xl overflow-hidden bg-white/5 shrink-0 relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" />
                         </div>
                       ) : (

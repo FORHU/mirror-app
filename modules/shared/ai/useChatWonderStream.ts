@@ -83,6 +83,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
+      let buffer = "";
 
       let aiContent = "";
 
@@ -90,10 +91,12 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
         
         // SSE messages are separated by double newlines
-        const lines = chunk.split("\n\n");
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        
         for (const line of lines) {
           if (line.startsWith("data: ")) {
             const jsonStr = line.replace("data: ", "");
@@ -134,8 +137,8 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
               } else if (parsed.type === "error") {
                 setError(parsed.message || "Unknown ChatWonder error");
               }
-            } catch (e) {
-              // Ignore partial JSON chunks
+            } catch {
+              // incomplete chunk
             }
           }
         }
