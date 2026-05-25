@@ -245,16 +245,43 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   setSelectedPOI: (selectedPOI) => {
     set({ selectedPOI });
-    if (selectedPOI?.fsqId) {
-      mapService.venuePhotos(selectedPOI.fsqId)
+    if (!selectedPOI) return;
+
+    const fetchAndSetPhoto = (fsqId: string) => {
+      mapService.venuePhotos(fsqId)
         .then(({ photos }) => {
           if (photos.length > 0) {
             set((s) => {
-              if (s.selectedPOI && s.selectedPOI.fsqId === selectedPOI.fsqId) {
+              if (s.selectedPOI && s.selectedPOI.fsqId === fsqId) {
                 return { selectedPOI: { ...s.selectedPOI, photo: photos[0] } };
               }
               return {};
             });
+          }
+        })
+        .catch(() => {});
+    };
+
+    if (selectedPOI.fsqId) {
+      fetchAndSetPhoto(selectedPOI.fsqId);
+    } else {
+      // Mapbox built-in label click — search Foursquare nearby to find the venue
+      const { lat, lng } = selectedPOI.location;
+      mapService.nearbyPOIs(lat, lng, 300)
+        .then(({ pois }) => {
+          const clickedName = selectedPOI.name.toLowerCase();
+          const match = pois.find((p) => {
+            const n = p.name.toLowerCase();
+            return n.includes(clickedName) || clickedName.includes(n);
+          });
+          if (match?.fsqId) {
+            set((s) => {
+              if (s.selectedPOI && s.selectedPOI.name === selectedPOI.name) {
+                return { selectedPOI: { ...s.selectedPOI, fsqId: match.fsqId, photo: match.photo ?? null } };
+              }
+              return {};
+            });
+            fetchAndSetPhoto(match.fsqId);
           }
         })
         .catch(() => {});
