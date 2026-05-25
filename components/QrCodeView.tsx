@@ -34,7 +34,7 @@ function QrFrame({ value }: { value: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
-  const { kioskId, kioskName, waitingForLogin, isLoggedIn, loggedInUsername } =
+  const { kioskId, kioskName, waitingForLogin } =
     useKioskSocket(mirrorKey);
   const router = useRouter();
 
@@ -67,13 +67,6 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
   useEffect(() => {
     if (waitingForLogin) router.push(ROUTES.WAITING_LOGIN);
   }, [waitingForLogin, router]);
-
-  useEffect(() => {
-    if (isLoggedIn)
-      router.push(
-        `${ROUTES.EVENT_SETUP}?username=${encodeURIComponent(loggedInUsername || "User")}`,
-      );
-  }, [isLoggedIn, loggedInUsername, router]);
 
   const qrValue = `${process.env.NEXT_PUBLIC_SITE_URL}/${kioskId}?kioskName=${kioskName}`;
 

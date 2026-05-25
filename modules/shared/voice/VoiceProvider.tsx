@@ -81,48 +81,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
 
-  // --- WebSocket Sync ---
-  useEffect(() => {
-    if (!pathname) return;
-    const socket = getSocketClient();
-    const kioskId =
-      typeof window !== "undefined"
-        ? window.sessionStorage.getItem("kiosk_id") || localStorage.getItem("mirrorKey") || "mirror-a"
-        : "mirror-a";
-    socket.emit("send_companion_notification", { kioskId, type: "route_changed", route: pathname });
-  }, [pathname]);
-
-  useEffect(() => {
-    const socket = getSocketClient();
-    const handleNotification = (data: any) => {
-      // ---------------------------------------------------------
-      // MIRROR APP SOCKET LISTENER
-      // This is where you receive notifications FROM the Companion.
-      // You can add as many custom features here as you want!
-      // ---------------------------------------------------------
-
-      if (data?.type === "route_changed") {
-        // Sync the Mirror's route when the Companion navigates
-        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
-        if (data.route && data.route.startsWith("/") && data.route !== currentPath) {
-          router.push(data.route);
-        }
-      } else if (data?.action && data.action.startsWith("/")) {
-        // Feature 1: Companion forced the mirror to change pages
-        router.push(data.action);
-      } else if (data?.action === "show_confetti") {
-        // Example Feature 2: Companion triggered a UI animation
-        // triggerConfetti();
-      } else if (data?.action === "set_volume") {
-        // Example Feature 3: Companion changed the AI voice volume
-        // setVolume(data.level);
-      }
-    };
-    socket.on("kiosk_notification", handleNotification);
-    return () => {
-      socket.off("kiosk_notification", handleNotification);
-    };
-  }, [router]);
   // ----------------------
 
   const stopPlayback = () => {
