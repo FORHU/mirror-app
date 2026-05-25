@@ -26,8 +26,9 @@ export function KioskNotificationListener() {
       const { action } = data as { action: string };
       if (action === "waiting_login") {
         router.push(ROUTES.WAITING_LOGIN);
-      } else if (action === "setup_complete") {
-        // Set the auth cookie NOW so the middleware allows the /logged-in route
+      } else if (action === "profile_updated") {
+        // Gender setup complete on companion — set auth cookie so the middleware
+        // allows /logged-in (protected route), then navigate there.
         setAuthCookie();
         router.push(ROUTES.LOGGED_IN);
       }
