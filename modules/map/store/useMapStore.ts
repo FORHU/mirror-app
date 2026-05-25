@@ -239,7 +239,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
       searchResults: [],
     });
     get().fetchRoute();
-    if (location) get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
+    if (location)
+      get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
   },
 
   setSelectedPOI: (selectedPOI) => set({ selectedPOI }),

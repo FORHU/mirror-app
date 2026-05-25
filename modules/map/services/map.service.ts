@@ -98,15 +98,25 @@ export const mapService = {
     return response.json();
   },
 
-  nearbyPOIs: async (lat: number, lng: number, radiusM = 1000): Promise<{ pois: NearbyPOI[] }> => {
-    const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radius: String(radiusM) });
+  nearbyPOIs: async (
+    lat: number,
+    lng: number,
+    radiusM = 1000,
+  ): Promise<{ pois: NearbyPOI[] }> => {
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      radius: String(radiusM),
+    });
     const response = await fetch(`/api/mirror/map/nearby-pois?${params}`);
     if (!response.ok) throw new Error("Nearby POIs fetch failed");
     return response.json();
   },
 
   venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
-    const response = await fetch(`/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`);
+    const response = await fetch(
+      `/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`,
+    );
     if (!response.ok) throw new Error("Venue photos fetch failed");
     return response.json();
   },
