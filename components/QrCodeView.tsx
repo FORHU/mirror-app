@@ -14,8 +14,6 @@ interface QrCodeViewProps {
   mirrorKey: MirrorKey;
 }
 
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
-
 // ── QR frame ──────────────────────────────────────────────────────────────────
 
 function QrFrame({ value }: { value: string }) {
@@ -67,11 +65,11 @@ export function QrCodeView({ mirrorKey }: QrCodeViewProps) {
   }, []);
 
   useEffect(() => {
-    if (!BYPASS_AUTH && waitingForLogin) router.push(ROUTES.WAITING_LOGIN);
+    if (waitingForLogin) router.push(ROUTES.WAITING_LOGIN);
   }, [waitingForLogin, router]);
 
   useEffect(() => {
-    if (!BYPASS_AUTH && isLoggedIn)
+    if (isLoggedIn)
       router.push(
         `${ROUTES.EVENT_SETUP}?username=${encodeURIComponent(loggedInUsername || "User")}`,
       );

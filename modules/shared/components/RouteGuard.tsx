@@ -5,8 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { AppLoader } from "./AppLoader";
 
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
-
 interface RouteGuardProps {
   children: React.ReactNode;
   requireAuth?: boolean;
@@ -18,7 +16,6 @@ export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (BYPASS_AUTH) return;
     if (isLoading) return;
 
     if (requireAuth && !isAuthenticated) {
@@ -33,8 +30,6 @@ export function RouteGuard({ children, requireAuth = true }: RouteGuardProps) {
       router.replace("/");
     }
   }, [isAuthenticated, isLoading, requireAuth, router, pathname]);
-
-  if (BYPASS_AUTH) return <>{children}</>;
 
   if (isLoading) {
     return (
