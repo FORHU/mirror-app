@@ -13,7 +13,8 @@ export const ROUTES = {
   VIRTUAL_MIRROR: "/virtual-mirror",
   RECOMMENDATION_OUTFIT: "/recommendation-outfit",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
-  // AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
+  AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
+  AI_RECOMMENDATION_COSMETIC_RESULT: "/ai-recommendation-cosmetic/result",
   MIRROR_TEMPLATES: "/mirror-templates",
   QRCODE: "/qrcode",
   QRCODE_MIRROR_A: "/qrcode/mirror-a",
@@ -36,7 +37,8 @@ export const ROUTE_RULES = {
     ROUTES.LOGGED_IN,
     ROUTES.WAITING_PERSONALIZE,
     ROUTES.AI_RECOMMENDATION_FASHION,
-    // ROUTES.AI_RECOMMENDATION_COSMETIC
+    ROUTES.AI_RECOMMENDATION_COSMETIC,
+    ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT,
   ] as string[],
   sequences: {
     // steps must be visited in order; skipping redirects to the first incomplete step

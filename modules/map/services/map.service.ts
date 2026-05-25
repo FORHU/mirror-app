@@ -101,8 +101,16 @@ export const mapService = {
     return response.json();
   },
 
-  nearbyPOIs: async (lat: number, lng: number, radiusM = 1000): Promise<{ pois: NearbyPOI[] }> => {
-    const params = new URLSearchParams({ lat: String(lat), lng: String(lng), radius: String(radiusM) });
+  nearbyPOIs: async (
+    lat: number,
+    lng: number,
+    radiusM = 1000,
+  ): Promise<{ pois: NearbyPOI[] }> => {
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lng: String(lng),
+      radius: String(radiusM),
+    });
     const response = await fetch(`/api/mirror/map/nearby-pois?${params}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` },
     });
@@ -111,9 +119,10 @@ export const mapService = {
   },
 
   venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
-    const response = await fetch(`/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` },
-    });
+    const response = await fetch(
+      `/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`,
+      { headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` } },
+    );
     if (!response.ok) throw new Error("Venue photos fetch failed");
     return response.json();
   },
@@ -158,6 +167,7 @@ export const mapService = {
     transcript: string;
     reply: string;
     action: ChatWonderAction | null;
+    events: unknown[];
   }> => {
     const params = new URLSearchParams();
     if (ctx?.lat !== undefined) params.set("lat", String(ctx.lat));
@@ -221,6 +231,15 @@ export const mapService = {
     } catch {
       /* malformed action — ignore */
     }
-    return { audio, transcript, reply, action };
+
+    let events: unknown[] = [];
+    try {
+      const rawEvents = response.headers.get("X-Events");
+      if (rawEvents) events = JSON.parse(decodeURIComponent(rawEvents));
+    } catch {
+      /* ignore */
+    }
+
+    return { audio, transcript, reply, action, events };
   },
 };

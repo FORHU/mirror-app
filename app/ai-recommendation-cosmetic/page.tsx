@@ -4,20 +4,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
+import { ROUTES } from "@/navigation";
+import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
 const OY = 580;
-const RX = 330;   // 660 px wide  (86 % of screen)
-const RY = 410;   // 820 px tall
+const RX = 330; // 660 px wide  (86 % of screen)
+const RY = 410; // 820 px tall
 
-const FACE_MESH_CDN    = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
-const CAMERA_UTILS_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
-const ALIGN_THRESHOLD  = 20;    // consecutive frames before triggering hold
-const HOLD_MS          = 1500;  // ms to hold before capture fires
+const FACE_MESH_CDN =
+  "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
+const CAMERA_UTILS_CDN =
+  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+const ALIGN_THRESHOLD = 20; // consecutive frames before triggering hold
+const HOLD_MS = 1500; // ms to hold before capture fires
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type FaceLandmark    = { x: number; y: number; z: number };
+type FaceLandmark = { x: number; y: number; z: number };
 type FaceMeshResults = { multiFaceLandmarks?: FaceLandmark[][] };
 type FaceMeshInstance = {
   setOptions: (opts: {
@@ -29,12 +33,14 @@ type FaceMeshInstance = {
   onResults: (cb: (r: FaceMeshResults) => void) => void;
   send: (input: { image: HTMLVideoElement }) => Promise<void>;
 };
-type CameraInstance  = { start: () => void; stop?: () => void };
-type CapturePhase    = "idle" | "holding" | "captured";
+type CameraInstance = { start: () => void; stop?: () => void };
+type CapturePhase = "idle" | "holding" | "captured" | "analyzing";
 
 declare global {
   interface Window {
-    FaceMesh: new (config: { locateFile: (file: string) => string }) => FaceMeshInstance;
+    FaceMesh: new (config: {
+      locateFile: (file: string) => string;
+    }) => FaceMeshInstance;
     Camera: new (
       video: HTMLVideoElement,
       config: { onFrame: () => Promise<void>; width: number; height: number },
@@ -45,10 +51,14 @@ declare global {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadScript(src: string) {
   return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
     const s = document.createElement("script");
-    s.src = src; s.async = true;
-    s.onload  = () => resolve();
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve();
     s.onerror = () => reject(new Error(`Failed to load: ${src}`));
     document.body.appendChild(s);
   });
@@ -57,8 +67,8 @@ function loadScript(src: string) {
 // Converts MediaPipe normalised (0–1) coords → display pixels.
 // Accounts for object-cover scaling and the scaleX(-1) mirror flip.
 function toDisplayCoords(lm: FaceLandmark, video: HTMLVideoElement) {
-  const videoAspect = video.videoWidth  / video.videoHeight;
-  const contAspect  = video.clientWidth / video.clientHeight;
+  const videoAspect = video.videoWidth / video.videoHeight;
+  const contAspect = video.clientWidth / video.clientHeight;
   let scaledW: number, scaledH: number, offsetX: number, offsetY: number;
   if (videoAspect > contAspect) {
     scaledH = video.clientHeight;
@@ -85,16 +95,17 @@ const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
-  const videoRef        = useRef<HTMLVideoElement>(null);
-  const cameraRef       = useRef<CameraInstance | null>(null);
-  const holdTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const alignedFrames   = useRef(0);
-  const faceAlignedRef  = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraRef = useRef<CameraInstance | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alignedFrames = useRef(0);
+  const faceAlignedRef = useRef(false);
   const capturePhaseRef = useRef<CapturePhase>("idle");
 
   const [isModelLoading, setIsModelLoading] = useState(true);
-  const [faceAligned,    setFaceAligned]    = useState(false);
-  const [capturePhase,   setCapturePhase]   = useState<CapturePhase>("idle");
+  const [faceAligned, setFaceAligned] = useState(false);
+  const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
     faceAlignedRef.current = nextFaceAligned;
@@ -106,24 +117,48 @@ export default function CosmeticPage() {
     setCapturePhase(nextCapturePhase);
   }, []);
 
+  const resetToIdle = useCallback(() => {
+    alignedFrames.current = 0;
+    setFaceAlignedState(false);
+    setCapturePhaseState("idle");
+  }, [setFaceAlignedState, setCapturePhaseState]);
+
   // ── Capture frame ────────────────────────────────────────────────────────────
-  const captureFrame = useCallback(() => {
+  const captureFrame = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
 
     const canvas = document.createElement("canvas");
-    canvas.width  = video.videoWidth;
+    canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    ctx.drawImage(video, 0, 0);
+    try {
+      sessionStorage.setItem("skin_capture", dataUrl);
+    } catch {}
 
-    try { sessionStorage.setItem("skin_capture", canvas.toDataURL("image/jpeg", 0.9)); } catch {}
+    setCapturePhaseState("captured"); // triggers white flash
 
-    setCapturePhaseState("captured");
-    setTimeout(() => router.push("/cosmetic/result"), 1200);
-  }, [router, setCapturePhaseState]);
+    // Let the flash animation play before showing analyzing state
+    await new Promise((r) => setTimeout(r, 600));
+    setCapturePhaseState("analyzing");
+
+    try {
+      const uploaded = await cosmeticsService.uploadCapture(dataUrl);
+      const analysis = await cosmeticsService.analyzeSkin(uploaded.id);
+      try {
+        sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
+      } catch {}
+      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
+    } catch {
+      setErrorMsg("Analysis failed. Retrying in 3s…");
+      setTimeout(() => {
+        setErrorMsg(null);
+        resetToIdle();
+      }, 3000);
+    }
+  }, [router, setCapturePhaseState, resetToIdle]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────
   const beginCaptureHold = useCallback(() => {
@@ -142,55 +177,68 @@ export default function CosmeticPage() {
   }, [setCapturePhaseState]);
 
   // ── FaceMesh results handler ─────────────────────────────────────────────────
-  const handleResults = useCallback((results: FaceMeshResults) => {
-    if (capturePhaseRef.current !== "idle") return; // freeze detection once holding/captured
+  const handleResults = useCallback(
+    (results: FaceMeshResults) => {
+      if (capturePhaseRef.current !== "idle") return; // freeze detection once holding/captured/analyzing
 
-    const landmarks = results.multiFaceLandmarks?.[0];
-    const video     = videoRef.current;
-    if (!video) return;
+      const landmarks = results.multiFaceLandmarks?.[0];
+      const video = videoRef.current;
+      if (!video) return;
 
-    if (!landmarks) {
-      alignedFrames.current = 0;
-      if (faceAlignedRef.current) {
-        setFaceAlignedState(false);
-        cancelCaptureHold();
+      if (!landmarks) {
+        alignedFrames.current = 0;
+        if (faceAlignedRef.current) {
+          setFaceAlignedState(false);
+          cancelCaptureHold();
+        }
+        return;
       }
-      return;
-    }
 
-    const allIn = CHECK_LM.every((i) => inOval(toDisplayCoords(landmarks[i], video)));
+      const allIn = CHECK_LM.every((i) =>
+        inOval(toDisplayCoords(landmarks[i], video)),
+      );
 
-    if (allIn) {
-      alignedFrames.current += 1;
-      if (alignedFrames.current >= ALIGN_THRESHOLD && !faceAlignedRef.current) {
-        setFaceAlignedState(true);
-        beginCaptureHold();
+      if (allIn) {
+        alignedFrames.current += 1;
+        if (
+          alignedFrames.current >= ALIGN_THRESHOLD &&
+          !faceAlignedRef.current
+        ) {
+          setFaceAlignedState(true);
+          beginCaptureHold();
+        }
+      } else {
+        alignedFrames.current = 0;
+        if (faceAlignedRef.current) {
+          setFaceAlignedState(false);
+          cancelCaptureHold();
+        }
       }
-    } else {
-      alignedFrames.current = 0;
-      if (faceAlignedRef.current) {
-        setFaceAlignedState(false);
-        cancelCaptureHold();
-      }
-    }
-  }, [beginCaptureHold, cancelCaptureHold, setFaceAlignedState]);
+    },
+    [beginCaptureHold, cancelCaptureHold, setFaceAlignedState],
+  );
 
   // ── MediaPipe init ────────────────────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
 
     async function init() {
-      await Promise.all([loadScript(FACE_MESH_CDN), loadScript(CAMERA_UTILS_CDN)]);
-      if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera) return;
+      await Promise.all([
+        loadScript(FACE_MESH_CDN),
+        loadScript(CAMERA_UTILS_CDN),
+      ]);
+      if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera)
+        return;
 
       const faceMesh = new window.FaceMesh({
-        locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
+        locateFile: (f) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
       });
       faceMesh.setOptions({
-        maxNumFaces:            1,
-        refineLandmarks:        false,
+        maxNumFaces: 1,
+        refineLandmarks: false,
         minDetectionConfidence: 0.6,
-        minTrackingConfidence:  0.5,
+        minTrackingConfidence: 0.5,
       });
       faceMesh.onResults(handleResults);
 
@@ -199,14 +247,17 @@ export default function CosmeticPage() {
           if (!videoRef.current) return;
           await faceMesh.send({ image: videoRef.current });
         },
-        width: 1920, height: 1080,
+        width: 1920,
+        height: 1080,
       });
       camera.start();
       cameraRef.current = camera;
       if (isMounted) setIsModelLoading(false);
     }
 
-    init().catch(() => { if (isMounted) setIsModelLoading(false); });
+    init().catch(() => {
+      if (isMounted) setIsModelLoading(false);
+    });
 
     return () => {
       isMounted = false;
@@ -216,28 +267,32 @@ export default function CosmeticPage() {
   }, [handleResults]);
 
   // ── Derived values ────────────────────────────────────────────────────────────
-  const ovalColor = (faceAligned || capturePhase !== "idle")
-    ? "rgba(72,199,142,0.95)"
-    : "rgba(255,255,255,0.85)";
+  const ovalColor =
+    faceAligned || capturePhase !== "idle"
+      ? "rgba(72,199,142,0.95)"
+      : "rgba(255,255,255,0.85)";
 
   const instructionText = isModelLoading
     ? "Initializing camera…"
-    : capturePhase === "captured"
-    ? "Analyzing your skin…"
-    : capturePhase === "holding"
-    ? "Hold still…"
-    : faceAligned
-    ? "Face detected"
-    : "Position your face within the guide";
+    : capturePhase === "analyzing"
+      ? "Analyzing your skin…"
+      : capturePhase === "captured"
+        ? "Processing…"
+        : capturePhase === "holding"
+          ? "Hold still…"
+          : faceAligned
+            ? "Face detected"
+            : "Position your face within the guide";
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">
-
       {/* Camera feed — horizontally mirrored */}
       <video
         ref={videoRef}
-        autoPlay playsInline muted
+        autoPlay
+        playsInline
+        muted
         className="absolute inset-0 w-full h-full object-cover"
         style={{ transform: "scaleX(1)" }}
       />
@@ -263,10 +318,18 @@ export default function CosmeticPage() {
           </filter>
         </defs>
 
-        <rect width="768" height="1366" fill="rgba(0,0,0,0.62)" mask="url(#face-oval-mask)" />
+        <rect
+          width="768"
+          height="1366"
+          fill="rgba(0,0,0,0.62)"
+          mask="url(#face-oval-mask)"
+        />
 
         <ellipse
-          cx={OX} cy={OY} rx={RX} ry={RY}
+          cx={OX}
+          cy={OY}
+          rx={RX}
+          ry={RY}
           fill="none"
           stroke={ovalColor}
           strokeWidth={capturePhase === "holding" ? 3.5 : 2.5}
@@ -275,9 +338,9 @@ export default function CosmeticPage() {
         />
       </svg>
 
-      {/* Green pulse fill during hold */}
+      {/* Emerald pulse fill — during hold and during analysis */}
       <AnimatePresence>
-        {capturePhase === "holding" && (
+        {(capturePhase === "holding" || capturePhase === "analyzing") && (
           <motion.div
             key="hold-pulse"
             className="absolute inset-0 pointer-events-none"
@@ -328,9 +391,10 @@ export default function CosmeticPage() {
           className="absolute inset-x-0 z-10 text-center text-lg tracking-wide"
           style={{
             top: `${((OY + RY + 36) / 1366) * 100}%`,
-            color: capturePhase !== "idle" || faceAligned
-              ? "rgba(72,199,142,0.95)"
-              : "rgba(255,255,255,0.60)",
+            color:
+              capturePhase !== "idle" || faceAligned
+                ? "rgba(72,199,142,0.95)"
+                : "rgba(255,255,255,0.60)",
           }}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -341,6 +405,30 @@ export default function CosmeticPage() {
         </motion.p>
       </AnimatePresence>
 
+      {/* Error overlay — auto-dismisses after 3s */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div
+            key="error-msg"
+            className="absolute inset-x-0 z-30 flex justify-center"
+            style={{ top: `${((OY + RY + 80) / 1366) * 100}%` }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span
+              style={{
+                color: "rgba(248,113,113,0.95)",
+                fontSize: "14px",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {errorMsg}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

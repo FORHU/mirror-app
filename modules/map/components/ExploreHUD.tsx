@@ -381,7 +381,10 @@ export const ExploreHUD = () => {
               <div className="w-full h-44 rounded-2xl overflow-hidden relative mb-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedPOI.photo || `https://loremflickr.com/800/600/${encodeURIComponent(selectedPOI.category || "place")}`}
+                  src={
+                    selectedPOI.photo ||
+                    `https://loremflickr.com/800/600/${encodeURIComponent(selectedPOI.category || "place")}`
+                  }
                   alt={selectedPOI.name}
                   className="w-full h-full object-cover"
                 />

@@ -8,8 +8,6 @@ import { motion, AnimatePresence } from "motion/react";
 import "../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
 
-const BYPASS_AUTH = process.env.NEXT_PUBLIC_BYPASS_AUTH === "true";
-
 export default function WaitingLoginPage() {
   const { isLoggedIn, loggedInUsername } = useKioskSocket();
   const router = useRouter();
@@ -41,7 +39,7 @@ export default function WaitingLoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!BYPASS_AUTH && isLoggedIn) {
+    if (isLoggedIn) {
       router.push(ROUTES.LOGGED_IN);
     }
   }, [isLoggedIn, loggedInUsername, router]);
