@@ -89,13 +89,18 @@ export function useKioskSocket(mirrorIdOverride?: MirrorKey) {
         setStorageData(USER, payload.user);
       }
 
-      // Sync into the auth store so RouteGuard and other consumers see the
-      // user as authenticated (socket login bypasses the normal _init flow).
+      const nested = payload?.user as User | undefined;
+      const raw = !nested && (payload as unknown as User)?.id
+        ? (payload as unknown as User)
+        : undefined;
+      const authUser = nested ?? raw ?? null;
+
       setAuthCookie();
-      useAuthStore.setState({
-        isAuthenticated: true,
-        user: (payload.user as User) ?? null,
-      });
+      if (authUser) {
+        useAuthStore.setState({ isAuthenticated: true, user: authUser });
+      } else {
+        useAuthStore.setState({ isAuthenticated: true });
+      }
 
       setLoggedInUsername(username);
       setIsLoggedIn(true);

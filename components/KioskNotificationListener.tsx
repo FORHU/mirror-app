@@ -37,6 +37,10 @@ export function KioskNotificationListener() {
     // API calls work, but do NOT navigate and do NOT set the auth cookie yet.
     // Setting the cookie here would cause the middleware to redirect away from
     // /waiting-login (guestOnly route) before setup_complete fires.
+    //
+    // Two payload shapes arrive on this event:
+    //  1. { accessToken, refreshToken, user: { id, email, username } }  — login / pairMirror
+    //  2. Raw Prisma User { id, email, username, gender, … }            — updateProfile (no tokens)
     const loginHandler = (payload: KioskLoginPayload) => {
       if (payload?.accessToken) {
         setCachedAccessToken(payload.accessToken);
@@ -45,13 +49,20 @@ export function KioskNotificationListener() {
       if (payload?.refreshToken) {
         setStorageData(REFRESH_TOKEN, payload.refreshToken);
       }
-      if (payload?.user) {
-        setStorageData(USER, payload.user);
+
+      const nested = payload?.user as User | undefined;
+      const raw = !nested && (payload as unknown as User)?.id
+        ? (payload as unknown as User)
+        : undefined;
+      const user = nested ?? raw ?? null;
+
+      if (user) {
+        setStorageData(USER, user);
+        useAuthStore.setState({ isAuthenticated: true, user });
+      } else {
+        // Payload carries no user data — mark authenticated but preserve existing user
+        useAuthStore.setState({ isAuthenticated: true });
       }
-      useAuthStore.setState({
-        isAuthenticated: true,
-        user: (payload.user as User) ?? null,
-      });
     };
 
     socket.on("kiosk_notification", notificationHandler);
