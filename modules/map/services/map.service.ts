@@ -35,10 +35,10 @@ export interface DirectionsFormatted {
 }
 
 export const mapService = {
-  getHomeLocation: async () => {
+  getHomeLocation: async (): Promise<{ homeLocation: { lat: number; lng: number } }> => {
     const res = await api.get<{ homeLocation: { lat: number; lng: number } }>("/api/mirror/map/home-location");
     if (!res.ok) throw new Error("Failed to fetch home location");
-    return res.data!;
+    return res.data as { homeLocation: { lat: number; lng: number } };
   },
 
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
