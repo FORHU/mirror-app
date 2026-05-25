@@ -57,6 +57,10 @@ const MapViewport = () => {
       // Handle map clicks for discovery
       mapInstance.on("click", (e) => {
         const features = mapInstance.queryRenderedFeatures(e.point);
+
+        // Let NearbyPOILayer's layer-specific handler own clicks on custom POI dots
+        if (features.some((f) => f.layer?.id === "nearby-pois-dot")) return;
+
         const namedFeature = features.find(
           (f) => f.properties?.name || f.properties?.name_en,
         );

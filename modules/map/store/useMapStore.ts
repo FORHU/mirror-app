@@ -243,7 +243,23 @@ export const useMapStore = create<MapStore>((set, get) => ({
       get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
   },
 
-  setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
+  setSelectedPOI: (selectedPOI) => {
+    set({ selectedPOI });
+    if (selectedPOI?.fsqId) {
+      mapService.venuePhotos(selectedPOI.fsqId)
+        .then(({ photos }) => {
+          if (photos.length > 0) {
+            set((s) => {
+              if (s.selectedPOI && s.selectedPOI.fsqId === selectedPOI.fsqId) {
+                return { selectedPOI: { ...s.selectedPOI, photo: photos[0] } };
+              }
+              return {};
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  },
 
   setActiveProfile: (activeProfile) => {
     set({ activeProfile });
