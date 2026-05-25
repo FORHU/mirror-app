@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
+import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -33,7 +34,7 @@ type FaceMeshInstance = {
   send: (input: { image: HTMLVideoElement }) => Promise<void>;
 };
 type CameraInstance = { start: () => void; stop?: () => void };
-type CapturePhase = "idle" | "holding" | "captured";
+type CapturePhase = "idle" | "holding" | "captured" | "analyzing";
 
 declare global {
   interface Window {
@@ -104,6 +105,7 @@ export default function CosmeticPage() {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [faceAligned, setFaceAligned] = useState(false);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
     faceAlignedRef.current = nextFaceAligned;
@@ -115,32 +117,48 @@ export default function CosmeticPage() {
     setCapturePhase(nextCapturePhase);
   }, []);
 
+  const resetToIdle = useCallback(() => {
+    alignedFrames.current = 0;
+    setFaceAlignedState(false);
+    setCapturePhaseState("idle");
+  }, [setFaceAlignedState, setCapturePhaseState]);
+
   // ── Capture frame ────────────────────────────────────────────────────────────
-  const captureFrame = useCallback(() => {
+  const captureFrame = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0);
+    canvas.getContext("2d")?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
     try {
-      sessionStorage.setItem(
-        "skin_capture",
-        canvas.toDataURL("image/jpeg", 0.9),
-      );
+      sessionStorage.setItem("skin_capture", dataUrl);
     } catch {}
 
-    setCapturePhaseState("captured");
-    setTimeout(
-      () => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT),
-      1200,
-    );
-  }, [router, setCapturePhaseState]);
+    setCapturePhaseState("captured"); // triggers white flash
+
+    // Let the flash animation play before showing analyzing state
+    await new Promise((r) => setTimeout(r, 600));
+    setCapturePhaseState("analyzing");
+
+    try {
+      const uploaded = await cosmeticsService.uploadCapture(dataUrl);
+      const analysis = await cosmeticsService.analyzeSkin(uploaded.id);
+      try {
+        sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
+      } catch {}
+      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
+    } catch {
+      setErrorMsg("Analysis failed. Retrying in 3s…");
+      setTimeout(() => {
+        setErrorMsg(null);
+        resetToIdle();
+      }, 3000);
+    }
+  }, [router, setCapturePhaseState, resetToIdle]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────
   const beginCaptureHold = useCallback(() => {
@@ -161,7 +179,7 @@ export default function CosmeticPage() {
   // ── FaceMesh results handler ─────────────────────────────────────────────────
   const handleResults = useCallback(
     (results: FaceMeshResults) => {
-      if (capturePhaseRef.current !== "idle") return; // freeze detection once holding/captured
+      if (capturePhaseRef.current !== "idle") return; // freeze detection once holding/captured/analyzing
 
       const landmarks = results.multiFaceLandmarks?.[0];
       const video = videoRef.current;
@@ -256,13 +274,15 @@ export default function CosmeticPage() {
 
   const instructionText = isModelLoading
     ? "Initializing camera…"
-    : capturePhase === "captured"
+    : capturePhase === "analyzing"
       ? "Analyzing your skin…"
-      : capturePhase === "holding"
-        ? "Hold still…"
-        : faceAligned
-          ? "Face detected"
-          : "Position your face within the guide";
+      : capturePhase === "captured"
+        ? "Processing…"
+        : capturePhase === "holding"
+          ? "Hold still…"
+          : faceAligned
+            ? "Face detected"
+            : "Position your face within the guide";
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
@@ -318,9 +338,9 @@ export default function CosmeticPage() {
         />
       </svg>
 
-      {/* Green pulse fill during hold */}
+      {/* Emerald pulse fill — during hold and during analysis */}
       <AnimatePresence>
-        {capturePhase === "holding" && (
+        {(capturePhase === "holding" || capturePhase === "analyzing") && (
           <motion.div
             key="hold-pulse"
             className="absolute inset-0 pointer-events-none"
@@ -383,6 +403,31 @@ export default function CosmeticPage() {
         >
           {instructionText}
         </motion.p>
+      </AnimatePresence>
+
+      {/* Error overlay — auto-dismisses after 3s */}
+      <AnimatePresence>
+        {errorMsg && (
+          <motion.div
+            key="error-msg"
+            className="absolute inset-x-0 z-30 flex justify-center"
+            style={{ top: `${((OY + RY + 80) / 1366) * 100}%` }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+          >
+            <span
+              style={{
+                color: "rgba(248,113,113,0.95)",
+                fontSize: "14px",
+                letterSpacing: "0.02em",
+              }}
+            >
+              {errorMsg}
+            </span>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
