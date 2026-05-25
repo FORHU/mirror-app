@@ -101,7 +101,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       // You can add as many custom features here as you want!
       // ---------------------------------------------------------
 
-      if (data?.action && data.action.startsWith("/")) {
+      if (data?.type === "route_changed") {
+        // Sync the Mirror's route when the Companion navigates
+        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+        if (data.route && data.route.startsWith("/") && data.route !== currentPath) {
+          router.push(data.route);
+        }
+      } else if (data?.action && data.action.startsWith("/")) {
         // Feature 1: Companion forced the mirror to change pages
         router.push(data.action);
       } else if (data?.action === "show_confetti") {
