@@ -32,13 +32,19 @@ export interface SkinAnalysis {
 }
 
 export const cosmeticsService = {
-  uploadCapture: async (dataUrl: string): Promise<{ id: string; fileUrl: string }> => {
+  uploadCapture: async (
+    dataUrl: string,
+  ): Promise<{ id: string; fileUrl: string }> => {
     const blob = await (await fetch(dataUrl)).blob();
     const form = new FormData();
     form.append("file", blob, "skin-capture.jpg");
-    const res = await api.axiosInstance.post("/api/mirror/file-uploads/upload", form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await api.axiosInstance.post(
+      "/api/mirror/file-uploads/upload",
+      form,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
     return res.data.data as { id: string; fileUrl: string };
   },
 

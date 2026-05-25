@@ -6,7 +6,10 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
-import { cosmeticsService, type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
+import {
+  cosmeticsService,
+  type SkinAnalysis,
+} from "@/modules/shared/api/cosmetics.service";
 import { ROUTES } from "@/navigation";
 
 // ── Skin tone label → hex ─────────────────────────────────────────────────────
@@ -33,16 +36,28 @@ function toneHex(label: string | null): string {
 // ── Severity from concern label text ─────────────────────────────────────────
 function inferSeverity(label: string): "low" | "medium" | "high" {
   const l = label.toLowerCase();
-  if (l.includes("severe") || l.includes("significant") || l.includes("deep") || l.includes("chronic"))
+  if (
+    l.includes("severe") ||
+    l.includes("significant") ||
+    l.includes("deep") ||
+    l.includes("chronic")
+  )
     return "high";
-  if (l.includes("moderate") || l.includes("enlarged") || l.includes("uneven") || l.includes("excess"))
+  if (
+    l.includes("moderate") ||
+    l.includes("enlarged") ||
+    l.includes("uneven") ||
+    l.includes("excess")
+  )
     return "medium";
   return "low";
 }
 
 // ── AM/PM use from product tags ───────────────────────────────────────────────
 function inferUse(tags: string[]): string {
-  const match = tags.find((t) => /^(am|pm|am\/pm|daily|morning|evening)/i.test(t));
+  const match = tags.find((t) =>
+    /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
+  );
   if (!match) return "Daily";
   return match.toUpperCase().replace("MORNING", "AM").replace("EVENING", "PM");
 }
@@ -125,27 +140,32 @@ export default function CosmeticResultPage() {
     }
   });
 
-  const [analysis, setAnalysis] = useState<SkinAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [productPage, setProductPage] = useState(0);
-
-  useEffect(() => {
-    // Use result cached by capture page if available
+  // Lazy-init from sessionStorage cache written by capture page
+  const [analysis, setAnalysis] = useState<SkinAnalysis | null>(() => {
     try {
       const cached = sessionStorage.getItem("skin_analysis");
-      if (cached) {
-        setAnalysis(JSON.parse(cached) as SkinAnalysis);
-        setLoading(false);
-        return;
-      }
-    } catch {}
-
-    // Fallback: fetch by stored ID
-    const id = sessionStorage.getItem("skin_analysis_id");
-    if (!id) {
-      setLoading(false);
-      return;
+      return cached ? (JSON.parse(cached) as SkinAnalysis) : null;
+    } catch {
+      return null;
     }
+  });
+
+  // Only show loading spinner when we have an ID to fetch but no cached result
+  const [loading, setLoading] = useState(() => {
+    try {
+      if (sessionStorage.getItem("skin_analysis")) return false;
+      return Boolean(sessionStorage.getItem("skin_analysis_id"));
+    } catch {
+      return false;
+    }
+  });
+
+  const [productPage, setProductPage] = useState(0);
+
+  // Async fallback: fetch from API when cache is absent
+  useEffect(() => {
+    const id = sessionStorage.getItem("skin_analysis_id");
+    if (!id || sessionStorage.getItem("skin_analysis")) return;
     cosmeticsService
       .getAnalysis(id)
       .then((data) => setAnalysis(data))
@@ -298,7 +318,9 @@ export default function CosmeticResultPage() {
                   justifyContent: "center",
                 }}
               >
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "11px" }}>
+                <span
+                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "11px" }}
+                >
                   No capture
                 </span>
               </div>
@@ -326,7 +348,9 @@ export default function CosmeticResultPage() {
                   justifyContent: "center",
                 }}
               >
-                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>
+                <span
+                  style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}
+                >
                   Loading analysis…
                 </span>
               </div>
@@ -342,10 +366,22 @@ export default function CosmeticResultPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <span style={{ color: "white", fontSize: "11px", fontWeight: 600 }}>
+                  <span
+                    style={{
+                      color: "white",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                    }}
+                  >
                     {skin.skinType} Skin
                   </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
                     <div
                       style={{
                         width: "9px",
@@ -356,7 +392,12 @@ export default function CosmeticResultPage() {
                         flexShrink: 0,
                       }}
                     />
-                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px" }}>
+                    <span
+                      style={{
+                        color: "rgba(255,255,255,0.4)",
+                        fontSize: "9px",
+                      }}
+                    >
                       {skin.skinTone.label}
                     </span>
                   </div>
@@ -364,7 +405,13 @@ export default function CosmeticResultPage() {
 
                 {/* Hydration bar */}
                 <div style={{ flexShrink: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "3px",
+                    }}
+                  >
                     <span
                       style={{
                         color: "rgba(255,255,255,0.5)",
@@ -375,11 +422,23 @@ export default function CosmeticResultPage() {
                     >
                       Hydration
                     </span>
-                    <span style={{ color: "rgba(96,165,250,0.9)", fontSize: "8px", fontWeight: 700 }}>
+                    <span
+                      style={{
+                        color: "rgba(96,165,250,0.9)",
+                        fontSize: "8px",
+                        fontWeight: 700,
+                      }}
+                    >
                       {skin.hydration}%
                     </span>
                   </div>
-                  <div style={{ height: "3px", borderRadius: "9999px", background: "rgba(255,255,255,0.1)" }}>
+                  <div
+                    style={{
+                      height: "3px",
+                      borderRadius: "9999px",
+                      background: "rgba(255,255,255,0.1)",
+                    }}
+                  >
                     <div
                       style={{
                         height: "100%",
@@ -393,7 +452,13 @@ export default function CosmeticResultPage() {
 
                 {/* Oiliness bar */}
                 <div style={{ flexShrink: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "3px",
+                    }}
+                  >
                     <span
                       style={{
                         color: "rgba(255,255,255,0.5)",
@@ -404,11 +469,23 @@ export default function CosmeticResultPage() {
                     >
                       Oiliness
                     </span>
-                    <span style={{ color: "rgba(251,146,60,0.9)", fontSize: "8px", fontWeight: 700 }}>
+                    <span
+                      style={{
+                        color: "rgba(251,146,60,0.9)",
+                        fontSize: "8px",
+                        fontWeight: 700,
+                      }}
+                    >
                       {skin.oiliness}%
                     </span>
                   </div>
-                  <div style={{ height: "3px", borderRadius: "9999px", background: "rgba(255,255,255,0.1)" }}>
+                  <div
+                    style={{
+                      height: "3px",
+                      borderRadius: "9999px",
+                      background: "rgba(255,255,255,0.1)",
+                    }}
+                  >
                     <div
                       style={{
                         height: "100%",
@@ -433,9 +510,23 @@ export default function CosmeticResultPage() {
                     >
                       Concerns
                     </span>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "5px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                        marginTop: "5px",
+                      }}
+                    >
                       {skin.concerns.map((c) => (
-                        <div key={c.label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div
+                          key={c.label}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                        >
                           <div
                             style={{
                               width: "5px",
@@ -445,7 +536,12 @@ export default function CosmeticResultPage() {
                               flexShrink: 0,
                             }}
                           />
-                          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "9px" }}>
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.7)",
+                              fontSize: "9px",
+                            }}
+                          >
                             {c.label}
                           </span>
                         </div>
@@ -497,7 +593,9 @@ export default function CosmeticResultPage() {
                   justifyContent: "center",
                 }}
               >
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}>
+                <span
+                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}
+                >
                   No analysis data
                 </span>
               </div>
@@ -524,7 +622,9 @@ export default function CosmeticResultPage() {
                 justifyContent: "center",
               }}
             >
-              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>
+              <span
+                style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}
+              >
                 Loading products…
               </span>
             </div>
@@ -537,7 +637,9 @@ export default function CosmeticResultPage() {
                 justifyContent: "center",
               }}
             >
-              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}>
+              <span
+                style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}
+              >
                 No recommendations
               </span>
             </div>
@@ -651,11 +753,21 @@ export default function CosmeticResultPage() {
                         {product.brand}
                       </span>
                       {/* Why checkmarks */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "1px",
+                        }}
+                      >
                         {product.why.map((reason) => (
                           <div
                             key={reason}
-                            style={{ display: "flex", gap: "3px", alignItems: "flex-start" }}
+                            style={{
+                              display: "flex",
+                              gap: "3px",
+                              alignItems: "flex-start",
+                            }}
                           >
                             <span
                               style={{
