@@ -1,5 +1,5 @@
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
-import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
+import { api } from "@/modules/shared/api/api-client";
 
 export interface NearbyPOI {
   fsqId: string;
@@ -36,26 +36,15 @@ export interface DirectionsFormatted {
 
 export const mapService = {
   getHomeLocation: async () => {
-    const response = await fetch(`/api/mirror/map/home-location`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-    });
-    if (!response.ok) throw new Error("Failed to fetch home location");
-    return response.json();
+    const res = await api.get("/api/mirror/map/home-location");
+    if (!res.ok) throw new Error("Failed to fetch home location");
+    return res.data;
   },
 
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
-    const response = await fetch(`/api/mirror/map/home-location`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-      body: JSON.stringify(coords),
-    });
-    if (!response.ok) throw new Error("Failed to save home location");
-    return response.json();
+    const res = await api.patch("/api/mirror/map/home-location", coords);
+    if (!res.ok) throw new Error("Failed to save home location");
+    return res.data;
   },
 
   geocode: async (
@@ -67,16 +56,12 @@ export const mapService = {
       body.lat = userLocation.lat;
       body.lng = userLocation.lng;
     }
-    const response = await fetch(`/api/mirror/map/geocode`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) throw new Error("Geocoding failed");
-    return response.json();
+    const res = await api.post<{ results: GeocodeResult[] }>(
+      "/api/mirror/map/geocode",
+      body,
+    );
+    if (!res.ok) throw new Error("Geocoding failed");
+    return res.data!;
   },
 
   directions: async (
@@ -84,21 +69,15 @@ export const mapService = {
     destination: [number, number],
     profile: "car" | "motorcycle" | "bicycle" | "walking" = "car",
   ): Promise<DirectionsFormatted> => {
-    const response = await fetch(`/api/mirror/map/directions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-      body: JSON.stringify({ origin, destination, profile }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Directions failed");
+    const res = await api.post<DirectionsFormatted>(
+      "/api/mirror/map/directions",
+      { origin, destination, profile },
+    );
+    if (!res.ok) {
+      const err = res.data as unknown as { error?: string };
+      throw new Error(err?.error ?? "Directions failed");
     }
-
-    return response.json();
+    return res.data!;
   },
 
   nearbyPOIs: async (
@@ -106,38 +85,29 @@ export const mapService = {
     lng: number,
     radiusM = 1000,
   ): Promise<{ pois: NearbyPOI[] }> => {
-    const params = new URLSearchParams({
-      lat: String(lat),
-      lng: String(lng),
-      radius: String(radiusM),
-    });
-    const response = await fetch(`/api/mirror/map/nearby-pois?${params}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` },
-    });
-    if (!response.ok) throw new Error("Nearby POIs fetch failed");
-    return response.json();
+    const res = await api.get<{ pois: NearbyPOI[] }>(
+      "/api/mirror/map/nearby-pois",
+      { lat, lng, radius: radiusM },
+    );
+    if (!res.ok) throw new Error("Nearby POIs fetch failed");
+    return res.data!;
   },
 
   venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
-    const response = await fetch(
+    const res = await api.get<{ photos: string[] }>(
       `/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`,
-      { headers: { Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}` } },
     );
-    if (!response.ok) throw new Error("Venue photos fetch failed");
-    return response.json();
+    if (!res.ok) throw new Error("Venue photos fetch failed");
+    return res.data!;
   },
 
   tts: async (text: string): Promise<ArrayBuffer> => {
-    const response = await fetch(`/api/mirror/voice/tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-      body: JSON.stringify({ text }),
-    });
-    if (!response.ok) throw new Error("TTS failed");
-    return response.arrayBuffer();
+    const res = await api.axiosInstance.post(
+      "/api/mirror/voice/tts",
+      { text },
+      { responseType: "arraybuffer" },
+    );
+    return res.data as ArrayBuffer;
   },
 
   voice: async (
@@ -169,64 +139,53 @@ export const mapService = {
     action: ChatWonderAction | null;
     events: unknown[];
   }> => {
-    const params = new URLSearchParams();
-    if (ctx?.lat !== undefined) params.set("lat", String(ctx.lat));
-    if (ctx?.lng !== undefined) params.set("lng", String(ctx.lng));
-    if (ctx?.traffic !== undefined) params.set("traffic", String(ctx.traffic));
-    if (ctx?.navigating !== undefined)
-      params.set("navigating", String(ctx.navigating));
-    if (ctx?.profile) params.set("profile", ctx.profile);
+    const params: Record<string, string> = {};
+    if (ctx?.lat !== undefined) params.lat = String(ctx.lat);
+    if (ctx?.lng !== undefined) params.lng = String(ctx.lng);
+    if (ctx?.traffic !== undefined) params.traffic = String(ctx.traffic);
+    if (ctx?.navigating !== undefined) params.navigating = String(ctx.navigating);
+    if (ctx?.profile) params.profile = ctx.profile;
     if (ctx?.remainingDistance !== undefined)
-      params.set("remainingDistance", String(ctx.remainingDistance));
+      params.remainingDistance = String(ctx.remainingDistance);
     if (ctx?.remainingDuration !== undefined)
-      params.set("remainingDuration", String(ctx.remainingDuration));
+      params.remainingDuration = String(ctx.remainingDuration);
     if (ctx?.destinationName)
-      params.set("destinationName", encodeURIComponent(ctx.destinationName));
+      params.destinationName = encodeURIComponent(ctx.destinationName);
     if (ctx?.currentInstruction)
-      params.set(
-        "currentInstruction",
-        encodeURIComponent(ctx.currentInstruction),
-      );
+      params.currentInstruction = encodeURIComponent(ctx.currentInstruction);
     if (ctx?.nextManeuverDistance !== undefined)
-      params.set("nextManeuverDistance", String(ctx.nextManeuverDistance));
+      params.nextManeuverDistance = String(ctx.nextManeuverDistance);
     if (ctx?.nextInstruction)
-      params.set("nextInstruction", encodeURIComponent(ctx.nextInstruction));
+      params.nextInstruction = encodeURIComponent(ctx.nextInstruction);
     if (ctx?.currentTime)
-      params.set("currentTime", encodeURIComponent(ctx.currentTime));
+      params.currentTime = encodeURIComponent(ctx.currentTime);
     if (ctx?.currentDate)
-      params.set("currentDate", encodeURIComponent(ctx.currentDate));
+      params.currentDate = encodeURIComponent(ctx.currentDate);
     if (ctx?.schedules)
-      params.set("schedules", encodeURIComponent(ctx.schedules));
+      params.schedules = encodeURIComponent(ctx.schedules);
     if (ctx?.currentPage)
-      params.set("currentPage", encodeURIComponent(ctx.currentPage));
-    if (ctx?.userOutlineId) params.set("userOutlineId", ctx.userOutlineId);
-    if (history?.length)
-      params.set("history", JSON.stringify(history.slice(-4)));
-    if (sampleRate) params.set("sampleRate", String(sampleRate));
+      params.currentPage = encodeURIComponent(ctx.currentPage);
+    if (ctx?.userOutlineId) params.userOutlineId = ctx.userOutlineId;
+    if (history?.length) params.history = JSON.stringify(history.slice(-4));
+    if (sampleRate) params.sampleRate = String(sampleRate);
 
-    const url = `/api/mirror/voice/process?${params}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/octet-stream",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+    const res = await api.axiosInstance.post(
+      "/api/mirror/voice/process",
+      pcmBuffer,
+      {
+        headers: { "Content-Type": "application/octet-stream" },
+        responseType: "arraybuffer",
+        params,
       },
-      body: pcmBuffer,
-    });
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ error: "Voice processing failed" }));
-      throw new Error(err.error ?? "Voice processing failed");
-    }
-    const audio = await response.arrayBuffer();
-    const transcript = decodeURIComponent(
-      response.headers.get("X-Transcript") ?? "",
     );
-    const reply = decodeURIComponent(response.headers.get("X-Reply") ?? "");
+
+    const audio = res.data as ArrayBuffer;
+    const transcript = decodeURIComponent(res.headers["x-transcript"] ?? "");
+    const reply = decodeURIComponent(res.headers["x-reply"] ?? "");
+
     let action: ChatWonderAction | null = null;
     try {
-      const raw = response.headers.get("X-Action");
+      const raw = res.headers["x-action"];
       if (raw) action = JSON.parse(decodeURIComponent(raw)) as ChatWonderAction;
     } catch {
       /* malformed action — ignore */
@@ -234,7 +193,7 @@ export const mapService = {
 
     let events: unknown[] = [];
     try {
-      const rawEvents = response.headers.get("X-Events");
+      const rawEvents = res.headers["x-events"];
       if (rawEvents) events = JSON.parse(decodeURIComponent(rawEvents));
     } catch {
       /* ignore */
