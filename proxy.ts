@@ -11,10 +11,6 @@ function matchesAny(pathname: string, routes: readonly string[]): boolean {
   return routes.some((r) => matchesRoute(pathname, r));
 }
 
-function savedStep(request: NextRequest, cookie: string): number {
-  return parseInt(request.cookies.get(cookie)?.value ?? "-1", 10);
-}
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isLoggedIn = !!request.cookies.get("mirror_session")?.value;

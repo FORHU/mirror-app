@@ -45,7 +45,7 @@ export const Navbar = () => {
           <rect width="7" height="5" x="3" y="16" rx="1" />
         </svg>
       ),
-      onClick: () => router.push(ROUTES.DASHBOARD),
+      onClick: () => router.push(ROUTES.LOGGED_IN),
     },
     {
       id: "settings",
@@ -66,7 +66,7 @@ export const Navbar = () => {
           <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      onClick: () => router.push(ROUTES.DASHBOARD),
+      onClick: () => router.push(ROUTES.LOGGED_IN),
     },
     {
       id: "logout",

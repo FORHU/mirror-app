@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -15,8 +15,9 @@ import type { User } from "@/modules/shared/api/api.types";
 
 const DEFAULT_TOKEN = process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "";
 
-export default function SelectGenderPage() {
+function SelectGenderContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,8 +60,14 @@ export default function SelectGenderPage() {
       await setStorageData(USER, user);
       useAuthStore.setState({ isAuthenticated: true, user });
       setAuthCookie();
+      sessionStorage.setItem("mirror_gender", gender);
 
-      router.push(ROUTES.LOGGED_IN);
+      const next = searchParams.get("next");
+      if (next === "cosmetic") {
+        router.push(ROUTES.LOGGED_IN);
+      } else {
+        router.push(ROUTES.LOGGED_IN);
+      }
     } catch (err: unknown) {
       setError(
         (err as { message?: string })?.message ??
@@ -72,7 +79,7 @@ export default function SelectGenderPage() {
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
-      {/* Header — matches / page layout */}
+      {/* Header */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
         <div
           style={{
@@ -126,9 +133,7 @@ export default function SelectGenderPage() {
       <div className="flex flex-row gap-6 flex-1 min-h-0">
         {/* Male */}
         <button
-          onClick={() => {
-            handleContinue("MALE");
-          }}
+          onClick={() => handleContinue("MALE")}
           disabled={isLoading}
           className="flex-1 glass-card-strong border border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 transition-all active:scale-95 disabled:opacity-50"
         >
@@ -161,14 +166,19 @@ export default function SelectGenderPage() {
         </button>
       </div>
 
-      {/* Error */}
       {error && (
         <p className="text-red-400 text-center text-base mt-4 shrink-0">
           {error}
         </p>
       )}
-
-      {/* Continue Button */}
     </div>
+  );
+}
+
+export default function SelectGenderPage() {
+  return (
+    <Suspense>
+      <SelectGenderContent />
+    </Suspense>
   );
 }

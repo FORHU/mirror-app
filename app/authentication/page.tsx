@@ -40,15 +40,13 @@ export default function LoggedInPage() {
       <div className="flex flex-col gap-5 flex-1 min-h-0">
         {/* Check a fit */}
         <button
-          onClick={() => {
-            router.push(ROUTES.AI_RECOMMENDATION_FASHION);
-          }}
+          onClick={() => router.push(ROUTES.AI_RECOMMENDATION_FASHION)}
           className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >
           <div className="icon-spotlight">
-            <div className="icon-box ">
-              <ShirtIcon className="w-11 h-11 text-white " strokeWidth={1.5} />
+            <div className="icon-box">
+              <ShirtIcon className="w-11 h-11 text-white" strokeWidth={1.5} />
             </div>
           </div>
           <div className="text-center">
