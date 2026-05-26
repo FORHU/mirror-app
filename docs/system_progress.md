@@ -37,16 +37,16 @@ Single kiosk instance with one persistent authenticated user per device. No per-
 
 ## Routes
 
-| Constant | Path | Description |
-|---|---|---|
-| `WELCOME` | `/` | Splash / attract screen |
-| `SELECT_GENDER` | `/select-gender` | Gender prompt — always first step |
-| `LOGGED_IN` | `/authentication` | Feature hub — end of onboarding |
-| `OVERVIEW` | `/overview` | Session summary — shows user info, gender, feature shortcuts |
-| `AI_RECOMMENDATION_FASHION` | `/ai-recommendation-fashion` | Fashion AI flow |
-| `AI_RECOMMENDATION_COSMETIC` | `/ai-recommendation-cosmetic` | Cosmetic / skin analysis |
-| `AI_RECOMMENDATION_COSMETIC_RESULT` | `/ai-recommendation-cosmetic/result` | Cosmetic results |
-| `MAP` | `/map` | Store map |
+| Constant                            | Path                                 | Description                                                  |
+| ----------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+| `WELCOME`                           | `/`                                  | Splash / attract screen                                      |
+| `SELECT_GENDER`                     | `/select-gender`                     | Gender prompt — always first step                            |
+| `LOGGED_IN`                         | `/authentication`                    | Feature hub — end of onboarding                              |
+| `OVERVIEW`                          | `/overview`                          | Session summary — shows user info, gender, feature shortcuts |
+| `AI_RECOMMENDATION_FASHION`         | `/ai-recommendation-fashion`         | Fashion AI flow                                              |
+| `AI_RECOMMENDATION_COSMETIC`        | `/ai-recommendation-cosmetic`        | Cosmetic / skin analysis                                     |
+| `AI_RECOMMENDATION_COSMETIC_RESULT` | `/ai-recommendation-cosmetic/result` | Cosmetic results                                             |
+| `MAP`                               | `/map`                               | Store map                                                    |
 
 ---
 
@@ -62,26 +62,26 @@ Single auth rule: unauthenticated visitor on a protected route → redirect to `
 
 ## Two-Kiosk Setup
 
-Token selection is driven by `NEXT_PUBLIC_DOMAIN` in `.env`:
+Token selection happens **at runtime** via `window.location.hostname` — not baked in at build time. Both tokens are in every build; the device's hostname determines which one is used.
 
 ```
-NEXT_PUBLIC_DOMAIN === "local.mirror2"  →  NEXT_PUBLIC_USER2_ACCESS_TOKEN
-otherwise                               →  NEXT_PUBLIC_USER1_ACCESS_TOKEN
+window.location.hostname === NEXT_PUBLIC_DOMAIN2  →  NEXT_PUBLIC_USER2_ACCESS_TOKEN
+otherwise                                          →  NEXT_PUBLIC_USER1_ACCESS_TOKEN
 ```
 
-**Kiosk 1 `.env`:**
+**`.env` (same file on both devices, one build):**
+
 ```
-NEXT_PUBLIC_DOMAIN=local.mirror1
-NEXT_PUBLIC_USER1_ACCESS_TOKEN=<token>
-NEXT_PUBLIC_USER2_ACCESS_TOKEN=          ← leave empty
+NEXT_PUBLIC_DOMAIN1=local.mirror1          ← kiosk 1 hostname
+NEXT_PUBLIC_DOMAIN2=local.mirror2          ← kiosk 2 hostname
+
+NEXT_PUBLIC_USER1_ACCESS_TOKEN=<token>     ← kiosk 1 JWT
+NEXT_PUBLIC_USER2_ACCESS_TOKEN=<token>     ← kiosk 2 JWT (both filled in)
 ```
 
-**Kiosk 2 `.env`:**
-```
-NEXT_PUBLIC_DOMAIN=local.mirror2
-NEXT_PUBLIC_USER1_ACCESS_TOKEN=<token>   ← same token (baked into build)
-NEXT_PUBLIC_USER2_ACCESS_TOKEN=<token>   ← fill this in
-```
+**Real devices:** set each Orange Pi hostname to `local.mirror1` or `local.mirror2`.
+
+**Local testing kiosk 2:** change `NEXT_PUBLIC_DOMAIN2=localhost` in `.env` → rebuild → browser on `localhost` picks User 2 token.
 
 Each kiosk updates its own backend user profile (gender etc.) via its JWT — no cross-kiosk contamination.
 
@@ -89,37 +89,37 @@ Each kiosk updates its own backend user profile (gender etc.) via its JWT — no
 
 ## Key Files
 
-| File | Role |
-|---|---|
-| `navigation.ts` | Route constants + middleware protection rules |
-| `proxy.ts` | Next.js middleware — auth guard |
-| `app/page.tsx` | Splash screen — tap goes to `/select-gender` |
-| `app/select-gender/page.tsx` | Gender prompt — domain-based token selector, `updateProfile`, saves gender to sessionStorage |
-| `app/authentication/page.tsx` | Feature picker hub |
-| `app/overview/page.tsx` | Session overview — displayName, gender, feature shortcuts |
-| `app/ai-recommendation-fashion/page.tsx` | Fashion flow |
-| `app/ai-recommendation-cosmetic/page.tsx` | Cosmetics flow |
-| `app/map/page.tsx` | Map |
+| File                                      | Role                                                                                         |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `navigation.ts`                           | Route constants + middleware protection rules                                                |
+| `proxy.ts`                                | Next.js middleware — auth guard                                                              |
+| `app/page.tsx`                            | Splash screen — tap goes to `/select-gender`                                                 |
+| `app/select-gender/page.tsx`              | Gender prompt — domain-based token selector, `updateProfile`, saves gender to sessionStorage |
+| `app/authentication/page.tsx`             | Feature picker hub                                                                           |
+| `app/overview/page.tsx`                   | Session overview — displayName, gender, feature shortcuts                                    |
+| `app/ai-recommendation-fashion/page.tsx`  | Fashion flow                                                                                 |
+| `app/ai-recommendation-cosmetic/page.tsx` | Cosmetics flow                                                                               |
+| `app/map/page.tsx`                        | Map                                                                                          |
 
 ---
 
 ## What Was Removed
 
-| Removed | Reason |
-|---|---|
-| QR code flow (`/qrcode`, `QrCodeView`) | No per-visitor login — one persistent kiosk user |
-| `KioskNotificationListener` | Socket-based login events no longer needed |
-| Testing pages (`testing-waiting-*`, `testing-personalize-outfit`) | Cleaned up |
-| `modules/sample/` | Unused scaffold |
-| Route sequence enforcement (step cookies) | Replaced with simple binary auth check |
-| `guestOnly` / `sequences` route rules | Simplified to single `protected` list |
-| `NEXT_PUBLIC_KIOSK_ID` | Replaced by `NEXT_PUBLIC_DOMAIN` for kiosk identification |
+| Removed                                                           | Reason                                                                                   |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| QR code flow (`/qrcode`, `QrCodeView`)                            | No per-visitor login — one persistent kiosk user                                         |
+| `KioskNotificationListener`                                       | Socket-based login events no longer needed                                               |
+| Testing pages (`testing-waiting-*`, `testing-personalize-outfit`) | Cleaned up                                                                               |
+| `modules/sample/`                                                 | Unused scaffold                                                                          |
+| Route sequence enforcement (step cookies)                         | Replaced with simple binary auth check                                                   |
+| `guestOnly` / `sequences` route rules                             | Simplified to single `protected` list                                                    |
+| `NEXT_PUBLIC_KIOSK_ID` / `NEXT_PUBLIC_DOMAIN`                     | Replaced by `NEXT_PUBLIC_DOMAIN1` + `NEXT_PUBLIC_DOMAIN2` for runtime hostname detection |
 
 ---
 
 ## Session
 
-- Token: selected at build time via `NEXT_PUBLIC_DOMAIN` — `local.mirror2` → User 2, else → User 1
+- Token: selected at **runtime** via `window.location.hostname` vs `NEXT_PUBLIC_DOMAIN2` — match → User 2, else → User 1
 - Cookie: `mirror_session` — set via `setAuthCookie()` after gender selection
 - Gender: stored in `sessionStorage` as `mirror_gender` for display on `/overview`
 - Per-visitor: `authService.updateProfile({ gender })` called on each gender pick

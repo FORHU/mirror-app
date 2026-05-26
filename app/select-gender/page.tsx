@@ -13,10 +13,12 @@ import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
 import type { User } from "@/modules/shared/api/api.types";
 
-const DEFAULT_TOKEN =
-  process.env.NEXT_PUBLIC_DOMAIN === "local.mirror2"
+function getKioskToken(): string {
+  const isKiosk2 = window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2;
+  return isKiosk2
     ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? "")
     : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "");
+}
 
 function SelectGenderContent() {
   const router = useRouter();
@@ -56,10 +58,11 @@ function SelectGenderContent() {
     setError(null);
 
     try {
-      setCachedAccessToken(DEFAULT_TOKEN);
+      const token = getKioskToken();
+      setCachedAccessToken(token);
       const user: User = await authService.updateProfile({ gender });
 
-      await setStorageData(ACCESS_TOKEN, DEFAULT_TOKEN);
+      await setStorageData(ACCESS_TOKEN, token);
       await setStorageData(USER, user);
       useAuthStore.setState({ isAuthenticated: true, user });
       setAuthCookie();
