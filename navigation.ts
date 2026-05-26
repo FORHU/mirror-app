@@ -17,8 +17,6 @@ export const ROUTES = {
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
 export const ROUTE_RULES = {
-  // guestOnly: [ROUTES.WELCOME, ROUTES.SELECT_GENDER, ROUTES.QRCODE, ROUTES.WAITING_LOGIN] as string[],
-  // logged-out users cannot access these
   protected: [
     ROUTES.WELCOME,
     ROUTES.SELECT_GENDER,
@@ -28,12 +26,4 @@ export const ROUTE_RULES = {
     ROUTES.AI_RECOMMENDATION_COSMETIC,
     ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT,
   ] as string[],
-  sequences: {
-    // steps must be visited in order; skipping redirects to the first incomplete step
-    login: [ROUTES.WELCOME, ROUTES.QRCODE, ROUTES.WAITING_LOGIN] as string[],
-    fit: [
-      ROUTES.WAITING_PERSONALIZE,
-      ROUTES.AI_RECOMMENDATION_FASHION,
-    ] as string[],
-  },
 } as const;
