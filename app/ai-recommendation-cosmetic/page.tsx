@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
-import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 import { api } from "@/modules/shared/api/api-client";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
@@ -94,6 +93,37 @@ function inOval(p: { x: number; y: number }) {
 
 const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R, nose bridge
 
+// ── Mock analysis generator ───────────────────────────────────────────────────
+const SKIN_TYPES = ["OILY", "DRY", "COMBINATION", "NORMAL", "SENSITIVE"] as const;
+const SKIN_TONES = ["warm light", "cool light", "neutral light", "warm medium", "cool medium", "neutral medium", "warm deep", "cool deep", "neutral deep"] as const;
+const CONCERN_POOL = [
+  "enlarged pores", "acne", "dark circles", "uneven skin tone",
+  "fine lines", "oiliness", "dryness", "redness", "hyperpigmentation",
+];
+const TIPS = [
+  "Use a gentle foaming cleanser morning and evening to control oil without stripping moisture.",
+  "Apply a hydrating serum with hyaluronic acid before moisturizer to lock in hydration.",
+  "Wear SPF 30+ daily — UV exposure worsens uneven tone and accelerates fine lines.",
+  "Incorporate a niacinamide serum to reduce pore appearance and even out skin tone.",
+];
+
+function rand(n: number) { return Math.floor(Math.random() * n); }
+function randInt(min: number, max: number) { return min + rand(max - min); }
+
+function buildMockAnalysis() {
+  const concerns = [...CONCERN_POOL].sort(() => Math.random() - 0.5).slice(0, randInt(2, 5));
+  return {
+    id: "mock",
+    skinType: SKIN_TYPES[rand(SKIN_TYPES.length)],
+    skinTone: SKIN_TONES[rand(SKIN_TONES.length)],
+    hydrationPct: randInt(20, 85),
+    oilinessPct: randInt(15, 80),
+    concerns,
+    routineTip: TIPS[rand(TIPS.length)],
+    recommendations: [],
+  };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
@@ -103,6 +133,7 @@ export default function CosmeticPage() {
   const alignedFrames = useRef(0);
   const faceAlignedRef = useRef(false);
   const capturePhaseRef = useRef<CapturePhase>("idle");
+  const latestLandmarksRef = useRef<FaceLandmark[] | null>(null);
 
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [faceAligned, setFaceAligned] = useState(false);
@@ -154,12 +185,6 @@ export default function CosmeticPage() {
     setCapturePhase(nextCapturePhase);
   }, []);
 
-  const resetToIdle = useCallback(() => {
-    alignedFrames.current = 0;
-    setFaceAlignedState(false);
-    setCapturePhaseState("idle");
-  }, [setFaceAlignedState, setCapturePhaseState]);
-
   // ── Capture frame ────────────────────────────────────────────────────────────
   const captureFrame = useCallback(async () => {
     const video = videoRef.current;
@@ -171,9 +196,10 @@ export default function CosmeticPage() {
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    try {
-      sessionStorage.setItem("skin_capture", dataUrl);
-    } catch {}
+    try { sessionStorage.setItem("skin_capture", dataUrl); } catch {}
+    if (latestLandmarksRef.current) {
+      try { sessionStorage.setItem("skin_landmarks", JSON.stringify(latestLandmarksRef.current)); } catch {}
+    }
 
     setCapturePhaseState("captured"); // triggers white flash
 
@@ -181,27 +207,14 @@ export default function CosmeticPage() {
     await new Promise((r) => setTimeout(r, 600));
     setCapturePhaseState("analyzing");
 
+    // Brief fake delay so "Analyzing…" state is visible
+    await new Promise((r) => setTimeout(r, 800));
     try {
-      const uploaded = await cosmeticsService.uploadCapture(dataUrl);
-      const analysis = await cosmeticsService.analyzeSkin(uploaded.id);
-      try {
-        sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
-      } catch {}
-      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
-    } catch (err: unknown) {
-      if ((err as { message?: string })?.message?.includes("401")) {
-        setErrorMsg(
-          "Please log in with the Companion App to analyze your skin.",
-        );
-      } else {
-        setErrorMsg("Analysis failed. Retrying in 3s…");
-      }
-      setTimeout(() => {
-        setErrorMsg(null);
-        resetToIdle();
-      }, 3000);
-    }
-  }, [router, setCapturePhaseState, resetToIdle]);
+      const analysis = buildMockAnalysis();
+      sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
+    } catch {}
+    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
+  }, [router, setCapturePhaseState]);
 
   // ── Face-aligned → hold → capture trigger ───────────────────────────────────
   const beginCaptureHold = useCallback(() => {
@@ -227,6 +240,8 @@ export default function CosmeticPage() {
       const landmarks = results.multiFaceLandmarks?.[0];
       const video = videoRef.current;
       if (!video) return;
+
+      if (landmarks) latestLandmarksRef.current = landmarks;
 
       if (!landmarks) {
         alignedFrames.current = 0;

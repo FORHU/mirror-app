@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import "../../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
 import {
@@ -12,83 +13,133 @@ import {
 } from "@/modules/shared/api/cosmetics.service";
 import { ROUTES } from "@/navigation";
 
-// ── Skin tone label → hex ─────────────────────────────────────────────────────
-const SKIN_TONE_HEX: Record<string, string> = {
-  "warm light": "#F5C5A3",
-  "cool light": "#F0C1AC",
-  "neutral light": "#F2C4AE",
-  "warm medium": "#C8956C",
-  "cool medium": "#B07B5B",
-  "neutral medium": "#BC8866",
-  "warm deep": "#7C4A2D",
-  "cool deep": "#6B3D2A",
-  "neutral deep": "#714030",
-  "warm dark": "#4A2A1A",
-  "cool dark": "#3D2318",
-  "neutral dark": "#44281C",
-};
-
-function toneHex(label: string | null): string {
-  if (!label) return "#C8956C";
-  return SKIN_TONE_HEX[label.toLowerCase()] ?? "#C8956C";
-}
-
-// ── Severity from concern label text ─────────────────────────────────────────
 function inferSeverity(label: string): "low" | "medium" | "high" {
   const l = label.toLowerCase();
-  if (
-    l.includes("severe") ||
-    l.includes("significant") ||
-    l.includes("deep") ||
-    l.includes("chronic")
-  )
-    return "high";
-  if (
-    l.includes("moderate") ||
-    l.includes("enlarged") ||
-    l.includes("uneven") ||
-    l.includes("excess")
-  )
-    return "medium";
+  if (/severe|significant|deep|chronic/.test(l)) return "high";
+  if (/moderate|enlarged|uneven|excess/.test(l)) return "medium";
   return "low";
 }
+function toTitleCase(s: string) { return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase(); }
 
-// ── AM/PM use from product tags ───────────────────────────────────────────────
-function inferUse(tags: string[]): string {
-  const match = tags.find((t) =>
-    /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
-  );
-  if (!match) return "Daily";
-  return match.toUpperCase().replace("MORNING", "AM").replace("EVENING", "PM");
-}
+// Severity expressed through white opacity only
+const SEVERITY_OPACITY: Record<string, number> = { high: 0.9, medium: 0.55, low: 0.3 };
 
-// ── Title-case enum value ─────────────────────────────────────────────────────
-function toTitleCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
-
-// ── Severity dot color ────────────────────────────────────────────────────────
-const SEVERITY_COLOR: Record<string, string> = {
-  low: "rgba(250,204,21,0.85)",
-  medium: "rgba(251,146,60,0.85)",
-  high: "rgba(248,113,113,0.85)",
+// ── Face region anchor landmarks (MediaPipe FaceMesh 468-point) ───────────────
+const REGION_ANCHOR: Record<string, number> = {
+  forehead:       10,
+  left_cheek:     234,
+  right_cheek:    454,
+  nose:           4,
+  left_eye_area:  133,
+  right_eye_area: 362,
+  chin:           152,
 };
 
-const PRODUCT_PAGE_SIZE = 6;
+// ── Concern label → zone keys ─────────────────────────────────────────────────
+function getConcernZones(label: string): string[] {
+  const l = label.toLowerCase();
+  if (/pore|blackhead|whitehead/.test(l))               return ["nose", "left_cheek", "right_cheek"];
+  if (/acne|breakout|pimple|blemish/.test(l))           return ["forehead", "chin", "left_cheek", "right_cheek"];
+  if (/dark.circle|under.eye|puffin|puffy|bag/.test(l)) return ["left_eye_area", "right_eye_area"];
+  if (/wrinkle|fine.line|crow|aging|age/.test(l))       return ["forehead", "left_eye_area", "right_eye_area"];
+  if (/pigment|dark.spot|uneven|melasma|tone/.test(l))  return ["left_cheek", "right_cheek"];
+  if (/dry|flak|dehydrat/.test(l))                      return ["left_cheek", "right_cheek"];
+  if (/red|rosacea|inflam/.test(l))                     return ["left_cheek", "right_cheek", "nose"];
+  if (/oil|shine|greasy/.test(l))                       return ["forehead", "nose", "chin"];
+  if (/t.zone/.test(l))                                 return ["forehead", "nose"];
+  return ["left_cheek", "right_cheek"];
+}
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function SectionTitle({ label }: { label: string }) {
+// ── Overlap resolver ──────────────────────────────────────────────────────────
+type Landmark = { x: number; y: number; z: number };
+type ZoneEntry = { zone: string; labels: string[]; severity: string; cx: number; cy: number };
+
+const LABEL_ROW_H = 18;
+const PILL_PAD_Y  = 4;
+const MIN_GAP     = 8;
+// How far the elbow line extends beyond the photo edge into the side panel
+const LINE_OVERHANG = 20;
+
+function resolveOverlaps(nodes: Array<{ cy: number; rowCount: number }>): number[] {
+  const ys = nodes.map((n) => n.cy);
+  const blockH = (n: { rowCount: number }) => n.rowCount * LABEL_ROW_H + PILL_PAD_Y * 2;
+  for (let pass = 0; pass < 20; pass++) {
+    let moved = false;
+    for (let i = 0; i < ys.length - 1; i++) {
+      for (let j = i + 1; j < ys.length; j++) {
+        const botI = ys[i] + blockH(nodes[i]) / 2;
+        const topJ = ys[j] - blockH(nodes[j]) / 2;
+        const overlap = botI + MIN_GAP - topJ;
+        if (overlap > 0) {
+          ys[i] -= overlap / 2;
+          ys[j] += overlap / 2;
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+  return ys;
+}
+
+// ── Annotation overlay ────────────────────────────────────────────────────────
+// Renders dots + elbow lines. The SVG uses overflow:visible so lines extend
+// into the side panels. The photo container must NOT have overflow:hidden —
+// the image is clipped separately in its own wrapper.
+function FaceAnnotationOverlay({
+  entries,
+  lyMap,
+  width,
+  height,
+}: {
+  entries: ZoneEntry[];
+  lyMap: Map<string, number>;
+  width: number;
+  height: number;
+}) {
   return (
-    <div className="flex items-center gap-2 px-1 py-1">
-      <div className="flex-1 h-px bg-white/20" />
-      <span className="text-white text-xs font-bold tracking-widest uppercase">
-        {label}
-      </span>
-      <div className="flex-1 h-px bg-white/20" />
-    </div>
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      style={{
+        position: "absolute", inset: 0,
+        width: "100%", height: "100%",
+        overflow: "visible", pointerEvents: "none",
+        zIndex: 2,
+      }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {entries.map((entry, idx) => {
+        const { zone, cx, cy } = entry;
+        const ly       = lyMap.get(zone) ?? cy;
+        const isLeft   = cx < width * 0.5;
+        const dotEdgeX = isLeft ? cx - 5 : cx + 5;
+        const elbowX   = isLeft ? -LINE_OVERHANG : width + LINE_OVERHANG;
+
+        return (
+          <g key={zone}>
+            {/* Pulse ring */}
+            <circle cx={cx} cy={cy} r={12} fill="rgba(255,255,255,0.08)" stroke="none">
+              <animate attributeName="r"       values="6;14;6"      dur="2.2s" begin={`${idx * 0.35}s`} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.5;0;0.5"   dur="2.2s" begin={`${idx * 0.35}s`} repeatCount="indefinite" />
+            </circle>
+            {/* Core dot */}
+            <circle cx={cx} cy={cy} r={4} fill="white" stroke="rgba(0,0,0,0.4)" strokeWidth={1} />
+            {/* Diagonal line */}
+            <line
+              x1={dotEdgeX} y1={cy}
+              x2={elbowX}   y2={ly}
+              stroke="rgba(255,255,255,0.25)"
+              strokeWidth={1}
+              strokeLinecap="round"
+            />
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
+// ── Clock ─────────────────────────────────────────────────────────────────────
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -98,738 +149,322 @@ function useClock() {
   return now;
 }
 
-function useSwipe(onLeft: () => void, onRight: () => void) {
-  const startX = useRef<number | null>(null);
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (startX.current === null) return;
-      const delta = e.changedTouches[0].clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseDown: (e: React.MouseEvent) => {
-      startX.current = e.clientX;
-    },
-    onMouseUp: (e: React.MouseEvent) => {
-      if (startX.current === null) return;
-      const delta = e.clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseLeave: () => {
-      startX.current = null;
-    },
-  };
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function CosmeticResultPage() {
   const router = useRouter();
   const now = useClock();
 
-  const [capturedImage] = useState<string | null>(() => {
-    try {
-      return sessionStorage.getItem("skin_capture");
-    } catch {
-      return null;
-    }
-  });
+  type SessionData = { capturedImage: string | null; landmarks: Landmark[] | null; analysis: SkinAnalysis | null; loading: boolean };
+  const [session, setSession] = useState<SessionData>({ capturedImage: null, landmarks: null, analysis: null, loading: false });
+  const { capturedImage, landmarks, analysis, loading } = session;
 
-  // Lazy-init from sessionStorage cache written by capture page
-  const [analysis, setAnalysis] = useState<SkinAnalysis | null>(() => {
-    try {
-      const cached = sessionStorage.getItem("skin_analysis");
-      return cached ? (JSON.parse(cached) as SkinAnalysis) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [photoSize, setPhotoSize] = useState({ w: 0, h: 0 });
+  const photoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Only show loading spinner when we have an ID to fetch but no cached result
-  const [loading, setLoading] = useState(() => {
-    try {
-      if (sessionStorage.getItem("skin_analysis")) return false;
-      return Boolean(sessionStorage.getItem("skin_analysis_id"));
-    } catch {
-      return false;
-    }
-  });
+  const goToRecommendation = useCallback(() => {
+    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RECOMMENDATION);
+  }, [router]);
 
-  const [productPage, setProductPage] = useState(0);
-
-  // Async fallback: fetch from API when cache is absent
+  // Read sessionStorage after mount to avoid SSR/client hydration mismatch
   useEffect(() => {
-    const id = sessionStorage.getItem("skin_analysis_id");
-    if (!id || sessionStorage.getItem("skin_analysis")) return;
-    cosmeticsService
-      .getAnalysis(id)
-      .then((data) => setAnalysis(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try {
+      const capturedImage = sessionStorage.getItem("skin_capture");
+      const rawLm = sessionStorage.getItem("skin_landmarks");
+      const landmarks = rawLm ? (JSON.parse(rawLm) as Landmark[]) : null;
+      const rawAnalysis = sessionStorage.getItem("skin_analysis");
+      const analysis = rawAnalysis ? (JSON.parse(rawAnalysis) as SkinAnalysis) : null;
+      const id = !analysis ? sessionStorage.getItem("skin_analysis_id") : null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
+      setSession({ capturedImage, landmarks, analysis, loading: Boolean(id) });
+      if (id) {
+        cosmeticsService
+          .getAnalysis(id)
+          .then((data) => setSession((prev) => ({ ...prev, analysis: data, loading: false })))
+          .catch(() => setSession((prev) => ({ ...prev, loading: false })));
+      }
+    } catch {}
   }, []);
 
-  // ── Map API response → UI shape ───────────────────────────────────────────
-  const skin = analysis
-    ? {
-        skinType: toTitleCase(analysis.skinType),
-        skinTone: {
-          label: analysis.skinTone ?? "Medium",
-          hex: toneHex(analysis.skinTone),
-        },
-        hydration: analysis.hydrationPct,
-        oiliness: analysis.oilinessPct,
-        concerns: analysis.concerns.map((c) => ({
-          label: c,
-          severity: inferSeverity(c),
-        })),
-        routineTip: analysis.routineTip,
+  // Measure photo container for SVG coordinate space
+  useEffect(() => {
+    const el = photoContainerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      setPhotoSize({ w: el.clientWidth, h: el.clientHeight });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const skin = useMemo(() => analysis ? {
+    skinType: toTitleCase(analysis.skinType),
+    skinTone: analysis.skinTone ?? "medium",
+    hydration: analysis.hydrationPct,
+    oiliness: analysis.oilinessPct,
+    concerns: analysis.concerns.map((c) => ({ label: c, severity: inferSeverity(c) })),
+    routineTip: analysis.routineTip,
+  } : null, [analysis]);
+
+  // ── Annotated zones ───────────────────────────────────────────────────────
+  const annotatedZones = useMemo<ZoneEntry[]>(() => {
+    if (!landmarks || !skin || photoSize.w === 0) return [];
+    const zoneMap = new Map<string, { labels: string[]; severity: string }>();
+    for (const c of skin.concerns) {
+      for (const zone of getConcernZones(c.label)) {
+        if (!zoneMap.has(zone)) zoneMap.set(zone, { labels: [], severity: c.severity });
+        const entry = zoneMap.get(zone)!;
+        if (!entry.labels.includes(c.label)) entry.labels.push(c.label);
+        if (c.severity === "high" || (c.severity === "medium" && entry.severity === "low"))
+          entry.severity = c.severity;
       }
-    : null;
+    }
+    return Array.from(zoneMap.entries()).map(([zone, data]) => {
+      const anchorIdx = REGION_ANCHOR[zone];
+      if (anchorIdx === undefined || anchorIdx >= landmarks.length) return null;
+      const lm = landmarks[anchorIdx];
+      return { zone, ...data, cx: (1 - lm.x) * photoSize.w, cy: lm.y * photoSize.h };
+    }).filter(Boolean) as ZoneEntry[];
+  }, [landmarks, skin, photoSize]);
 
-  const products = (analysis?.recommendations ?? []).map((r) => ({
-    id: r.cosmeticProduct.id,
-    name: r.cosmeticProduct.name,
-    brand: r.cosmeticProduct.brand ?? "",
-    category: r.cosmeticProduct.category ?? r.cosmeticProduct.type ?? "Product",
-    use: inferUse(r.cosmeticProduct.tags),
-    why: r.reason
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .slice(0, 2),
-    imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
-  }));
+  // ── Resolved y-positions split to left/right panels ──────────────────────
+  const { leftEntries, rightEntries, lyMap } = useMemo(() => {
+    if (photoSize.w === 0) return { leftEntries: [], rightEntries: [], lyMap: new Map<string, number>() };
+    const left  = annotatedZones.filter((e) => e.cx <  photoSize.w * 0.5);
+    const right = annotatedZones.filter((e) => e.cx >= photoSize.w * 0.5);
+    const resolvedLeft  = resolveOverlaps(left.map((e)  => ({ cy: e.cy, rowCount: e.labels.length })));
+    const resolvedRight = resolveOverlaps(right.map((e) => ({ cy: e.cy, rowCount: e.labels.length })));
+    const lEntries = left.map((e, i)  => ({ ...e, ly: resolvedLeft[i] }));
+    const rEntries = right.map((e, i) => ({ ...e, ly: resolvedRight[i] }));
+    const map = new Map<string, number>();
+    lEntries.forEach((e) => map.set(e.zone, e.ly));
+    rEntries.forEach((e) => map.set(e.zone, e.ly));
+    return { leftEntries: lEntries, rightEntries: rEntries, lyMap: map };
+  }, [annotatedZones, photoSize.w]);
 
-  const totalProductPages = Math.ceil(products.length / PRODUCT_PAGE_SIZE);
-  const pagedProducts = products.slice(
-    productPage * PRODUCT_PAGE_SIZE,
-    (productPage + 1) * PRODUCT_PAGE_SIZE,
-  );
-
-  const productSwipe = useSwipe(
-    () => setProductPage((p) => Math.min(p + 1, totalProductPages - 1)),
-    () => setProductPage((p) => Math.max(p - 1, 0)),
-  );
-
-  const time = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const day = now.toLocaleDateString([], { weekday: "long" });
+  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day  = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
+
+  const panelH = photoSize.h > 0 ? `${photoSize.h}px` : "62vh";
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
-      {/* Header — 25/50/25 columns */}
-      <header
-        className="flex items-center shrink-0 py-4 px-4"
-        style={{ background: "rgba(0,0,0,0.85)" }}
-      >
-        <div
-          style={{
-            flex: "0 0 25%",
-            width: "25%",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
+
+      {/* Header */}
+      <header className="flex items-center shrink-0 py-4 px-4" style={{ background: "rgba(0,0,0,0.85)" }}>
+        <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
           <WeatherWidget iconSize={32} />
         </div>
-        <div
-          style={{
-            flex: "0 0 50%",
-            width: "50%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            className="text-white font-thin select-none"
-            style={{ fontSize: "2rem", lineHeight: 1 }}
-          >
-            {time}
-          </span>
-          <span className="text-white/60 text-sm font-light select-none">
-            {day}, {date}
-          </span>
+        <div style={{ flex: "0 0 50%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span className="text-white font-thin select-none" style={{ fontSize: "2rem", lineHeight: 1 }}>{time}</span>
+          <span className="text-white/60 text-sm font-light select-none">{day}, {date}</span>
         </div>
-        <div
-          style={{
-            flex: "0 0 25%",
-            width: "25%",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={() => router.push(ROUTES.LOGGED_IN)}
-            className="p-4 transition-all hover:scale-105 active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-        </div>
+        <div style={{ flex: "0 0 25%" }} />
       </header>
 
-      {/* Body — 3 columns */}
-      <div className="flex flex-1" style={{ height: "546px", minHeight: 0 }}>
-        {/* Left panel — Captured photo + Skin Analysis */}
-        <div
-          className="h-full flex flex-col p-2 gap-2 min-h-0"
-          style={{ flex: "0 0 30%", width: "30%" }}
+      {/* Body */}
+      <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
+
+        {/* ── Photo row: [left labels] [photo + annotation] [right labels] ─ */}
+        <motion.div
+          className="flex items-start shrink-0 pt-3"
+          style={{ paddingLeft: "6px", paddingRight: "6px", gap: "4px" }}
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          {/* Captured photo — fixed 9:16 portrait ratio */}
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "9 / 16",
-              borderRadius: "10px",
-              overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.04)",
-              flexShrink: 0,
-              position: "relative",
-            }}
-          >
-            {capturedImage ? (
-              <Image
-                fill
-                unoptimized
-                src={capturedImage}
-                alt="Skin capture"
-                style={{
-                  objectFit: "cover",
-                  objectPosition: "center top",
-                  transform: "scaleX(-1)",
-                }}
-              />
-            ) : (
+          {/* Left panel — dots whose cx < photoW * 0.5 */}
+          {/* z-index: 1 so pills render above the SVG lines that overflow here */}
+          <div style={{ flex: 1, minWidth: 0, position: "relative", height: panelH, zIndex: 1 }}>
+            {photoSize.h > 0 && leftEntries.map((entry) => (
               <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                key={entry.zone}
+                style={{ position: "absolute", top: entry.ly, right: 0, transform: "translateY(-50%)" }}
               >
-                <span
-                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "11px" }}
-                >
-                  No capture
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Skin Analysis — compact */}
-          <div
-            style={{
-              flex: 2,
-              minHeight: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: "7px",
-              overflow: "hidden",
-              padding: "2px 4px",
-            }}
-          >
-            {loading ? (
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span
-                  style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}
-                >
-                  Loading analysis…
-                </span>
-              </div>
-            ) : skin ? (
-              <>
-                {/* Skin type + tone */}
-                <div
-                  style={{
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "white",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {skin.skinType} Skin
-                  </span>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "9px",
-                        height: "9px",
-                        borderRadius: "50%",
-                        background: skin.skinTone.hex,
-                        border: "1px solid rgba(255,255,255,0.25)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.4)",
-                        fontSize: "9px",
-                      }}
-                    >
-                      {skin.skinTone.label}
+                <div style={{
+                  padding: "4px 8px", borderRadius: "8px",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  display: "flex", flexDirection: "column", gap: "2px",
+                }}>
+                  {entry.labels.map((label) => (
+                    <span key={label} style={{ color: "rgba(255,255,255,0.85)", fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap" }}>
+                      {label}
                     </span>
-                  </div>
-                </div>
-
-                {/* Hydration bar */}
-                <div style={{ flexShrink: 0 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "3px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.5)",
-                        fontSize: "8px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Hydration
-                    </span>
-                    <span
-                      style={{
-                        color: "rgba(96,165,250,0.9)",
-                        fontSize: "8px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {skin.hydration}%
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: "3px",
-                      borderRadius: "9999px",
-                      background: "rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        borderRadius: "9999px",
-                        background: "rgba(96,165,250,0.85)",
-                        width: `${skin.hydration}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Oiliness bar */}
-                <div style={{ flexShrink: 0 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "3px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.5)",
-                        fontSize: "8px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Oiliness
-                    </span>
-                    <span
-                      style={{
-                        color: "rgba(251,146,60,0.9)",
-                        fontSize: "8px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {skin.oiliness}%
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      height: "3px",
-                      borderRadius: "9999px",
-                      background: "rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        borderRadius: "9999px",
-                        background: "rgba(251,146,60,0.85)",
-                        width: `${skin.oiliness}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Concerns */}
-                {skin.concerns.length > 0 && (
-                  <div style={{ flexShrink: 0, overflow: "hidden" }}>
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.4)",
-                        fontSize: "8px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      Concerns
-                    </span>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "4px",
-                        marginTop: "5px",
-                      }}
-                    >
-                      {skin.concerns.map((c) => (
-                        <div
-                          key={c.label}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "5px",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: "5px",
-                              height: "5px",
-                              borderRadius: "50%",
-                              background: SEVERITY_COLOR[c.severity],
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span
-                            style={{
-                              color: "rgba(255,255,255,0.7)",
-                              fontSize: "9px",
-                            }}
-                          >
-                            {c.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Routine tip */}
-                {skin.routineTip && (
-                  <div
-                    style={{
-                      marginTop: "auto",
-                      paddingTop: "6px",
-                      borderTop: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.35)",
-                        fontSize: "8px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        display: "block",
-                        marginBottom: "3px",
-                      }}
-                    >
-                      Tip
-                    </span>
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.55)",
-                        fontSize: "8px",
-                        lineHeight: 1.4,
-                        display: "block",
-                      }}
-                    >
-                      {skin.routineTip}
-                    </span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div
-                style={{
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span
-                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}
-                >
-                  No analysis data
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Center panel — empty mirror space */}
-        <div style={{ flex: "0 0 40%", width: "40%", minHeight: 0 }} />
-
-        {/* Right panel — Paged product list */}
-        <div
-          className="h-full flex flex-col p-2 gap-1 min-h-0"
-          style={{ flex: "0 0 30%", width: "30%" }}
-        >
-          <SectionTitle label="Products" />
-
-          {loading ? (
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <span
-                style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}
-              >
-                Loading products…
-              </span>
-            </div>
-          ) : products.length === 0 ? (
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <span
-                style={{ color: "rgba(255,255,255,0.2)", fontSize: "10px" }}
-              >
-                No recommendations
-              </span>
-            </div>
-          ) : (
-            <>
-              {/* Swipeable product list */}
-              <div
-                {...productSwipe}
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                  overflow: "hidden",
-                  touchAction: "pan-y",
-                  userSelect: "none",
-                  cursor: "grab",
-                }}
-              >
-                {pagedProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="flex glass-card-garment"
-                    style={{
-                      flex: 1,
-                      minHeight: 0,
-                      borderRadius: "10px",
-                      overflow: "hidden",
-                      alignItems: "stretch",
-                    }}
-                  >
-                    {/* Left — photo 40% */}
-                    <div
-                      style={{
-                        flex: "0 0 40%",
-                        background: "rgba(255,255,255,0.01)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        overflow: "hidden",
-                        position: "relative",
-                      }}
-                    >
-                      {product.imageUrl ? (
-                        <Image
-                          fill
-                          unoptimized
-                          src={product.imageUrl}
-                          alt={product.name}
-                          draggable={false}
-                          className="object-contain pointer-events-none"
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            background: "rgba(255,255,255,0.03)",
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    {/* Right — text 60% */}
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        padding: "8px 8px",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        gap: "4px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <span
-                        style={{
-                          color: "rgba(255,255,255,0.4)",
-                          fontSize: "8px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {product.category} · {product.use}
-                      </span>
-                      <span
-                        style={{
-                          color: "white",
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          lineHeight: 1.3,
-                          overflow: "hidden",
-                          whiteSpace: "nowrap",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {product.name}
-                      </span>
-                      <span
-                        style={{
-                          color: "rgba(255,255,255,0.4)",
-                          fontSize: "9px",
-                          overflow: "hidden",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {product.brand}
-                      </span>
-                      {/* Why checkmarks */}
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "1px",
-                        }}
-                      >
-                        {product.why.map((reason) => (
-                          <div
-                            key={reason}
-                            style={{
-                              display: "flex",
-                              gap: "3px",
-                              alignItems: "flex-start",
-                            }}
-                          >
-                            <span
-                              style={{
-                                color: "rgba(255,255,255,0.35)",
-                                fontSize: "7px",
-                                flexShrink: 0,
-                                paddingTop: "1px",
-                              }}
-                            >
-                              ✓
-                            </span>
-                            <span
-                              style={{
-                                color: "rgba(255,255,255,0.5)",
-                                fontSize: "7px",
-                                lineHeight: 1.35,
-                                overflow: "hidden",
-                              }}
-                            >
-                              {reason}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Dot indicator — only when multiple pages */}
-              {totalProductPages > 1 && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    gap: "5px",
-                    paddingBottom: "2px",
-                    flexShrink: 0,
-                  }}
-                >
-                  {Array.from({ length: totalProductPages }).map((_, i) => (
-                    <div
-                      key={i}
-                      onClick={() => setProductPage(i)}
-                      style={{
-                        width: i === productPage ? "14px" : "5px",
-                        height: "5px",
-                        borderRadius: "9999px",
-                        background:
-                          i === productPage
-                            ? "rgba(255,255,255,0.85)"
-                            : "rgba(255,255,255,0.2)",
-                        transition: "all 0.3s ease",
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
-                    />
                   ))}
                 </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Photo — no overflow:hidden so SVG elbow lines can spill into panels */}
+          <div
+            ref={photoContainerRef}
+            style={{
+              position: "relative",
+              flexShrink: 0,
+              aspectRatio: "9 / 16",
+              height: "62vh",
+              borderRadius: "16px",
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.04)",
+              // overflow:hidden intentionally removed; image is clipped by its own wrapper below
+            }}
+          >
+            {/* Image wrapper — clips photo to rounded rect */}
+            <div style={{ position: "absolute", inset: 0, borderRadius: "16px", overflow: "hidden" }}>
+              {capturedImage ? (
+                <Image
+                  fill unoptimized
+                  src={capturedImage}
+                  alt="Skin capture"
+                  style={{ objectFit: "cover", objectPosition: "center top", transform: "scaleX(-1)" }}
+                />
+              ) : (
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>No capture</span>
+                </div>
               )}
-            </>
+            </div>
+
+            {/* Annotation SVG — overflow:visible draws elbow lines into side panels */}
+            <AnimatePresence>
+              {photoSize.w > 0 && annotatedZones.length > 0 && (
+                <FaceAnnotationOverlay
+                  entries={annotatedZones}
+                  lyMap={lyMap}
+                  width={photoSize.w}
+                  height={photoSize.h}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Right panel — dots whose cx >= photoW * 0.5 */}
+          <div style={{ flex: 1, minWidth: 0, position: "relative", height: panelH }}>
+            {photoSize.h > 0 && rightEntries.map((entry) => (
+              <div
+                key={entry.zone}
+                style={{ position: "absolute", top: entry.ly, left: 0, transform: "translateY(-50%)" }}
+              >
+                <div style={{
+                  padding: "4px 8px", borderRadius: "8px",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  display: "flex", flexDirection: "column", gap: "2px",
+                }}>
+                  {entry.labels.map((label) => (
+                    <span key={label} style={{ color: "rgba(255,255,255,0.85)", fontSize: "10px", fontWeight: 500, whiteSpace: "nowrap" }}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ── Skin analysis results ────────────────────────────────────────── */}
+        <div className="flex-1 px-4 pb-4 pt-3" style={{ minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+          {loading ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: "13px" }}>Loading analysis…</span>
+            </div>
+          ) : skin ? (
+            <motion.div
+              style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              {/* Summary card */}
+              <div style={{
+                borderRadius: "16px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                padding: "14px 16px",
+                display: "flex", flexDirection: "column", gap: "10px",
+              }}>
+                {/* Skin type + tone */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "white", fontSize: "22px", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                    {skin.skinType}
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px" }}>{skin.skinTone}</span>
+                </div>
+
+                {/* Hydration + Oiliness bars */}
+                {([
+                  { label: "Hydration", value: skin.hydration, delay: 0.4 },
+                  { label: "Oiliness",  value: skin.oiliness,  delay: 0.55 },
+                ] as const).map(({ label, value, delay }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", width: "64px", flexShrink: 0 }}>{label}</span>
+                    <div style={{ flex: 1, height: "3px", borderRadius: "9999px", background: "rgba(255,255,255,0.1)" }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${value}%` }}
+                        transition={{ duration: 0.7, delay, ease: "easeOut" }}
+                        style={{ height: "100%", borderRadius: "9999px", background: "rgba(255,255,255,0.75)" }}
+                      />
+                    </div>
+                    <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", fontWeight: 600, width: "34px", textAlign: "right", flexShrink: 0 }}>
+                      {value}<span style={{ fontSize: "10px", fontWeight: 400, opacity: 0.55 }}>%</span>
+                    </span>
+                  </div>
+                ))}
+
+                {/* Divider + routine tip */}
+                {skin.routineTip && (
+                  <>
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.07)" }} />
+                    <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", lineHeight: 1.55 }}>
+                      {skin.routineTip}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Concerns — severity-grouped rows */}
+              {skin.concerns.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(["high", "medium", "low"] as const).map((sev) => {
+                    const items = skin.concerns.filter((c) => c.severity === sev).map((c) => c.label);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={sev} style={{ display: "flex", alignItems: "stretch", gap: "10px" }}>
+                        <div style={{ width: "2px", borderRadius: "9999px", background: `rgba(255,255,255,${SEVERITY_OPACITY[sev]})`, flexShrink: 0 }} />
+                        <span style={{ color: `rgba(255,255,255,${SEVERITY_OPACITY[sev]})`, fontSize: "12px", lineHeight: 1.5, paddingTop: "1px" }}>
+                          {items.join(" · ")}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* CTA */}
+              <div style={{ flex: 1, display: "flex", alignItems: "flex-end" }}>
+                <button
+                  onClick={goToRecommendation}
+                  style={{
+                    width: "100%", padding: "14px",
+                    borderRadius: "12px",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    color: "white", fontSize: "14px", fontWeight: 500,
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  }}
+                >
+                  See Recommended Products <ArrowRight style={{ width: "15px", height: "15px" }} />
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>No analysis data</span>
+            </div>
           )}
         </div>
       </div>
