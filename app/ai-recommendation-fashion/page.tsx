@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import {
   garmentService,
   type RemoteGarment,
 } from "@/modules/shared/api/garment.service";
+import { api } from "@/modules/shared/api/api-client";
 import {
   outfitService,
   type RemoteOutfit,
@@ -16,7 +18,6 @@ import {
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
-import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
   const startX = useRef<number | null>(null);
@@ -106,6 +107,39 @@ export default function VirtualMirrorV2() {
   const [loadingGarments, setLoadingGarments] = useState(true);
   const [loadingOutfits, setLoadingOutfits] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
+  const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSuggestion = async () => {
+      // Prefer Zustand store (set by voice); fall back to auto-fetch if empty
+      if (storeAiSuggestion) {
+        setAiSuggestion(storeAiSuggestion);
+        return;
+      }
+
+      // Automatically fetch weather-based suggestion if none exists
+      try {
+        const { useMapStore } = await import("@/modules/map/store/useMapStore");
+        const location = useMapStore.getState().userLocation;
+        const res = await api.post<{ suggestion: string }>(
+          "/api/mirror/voice/suggest",
+          {
+            type: "fashion",
+            ctx: { lat: location?.lat, lng: location?.lng },
+          },
+        );
+        if (res.data?.suggestion) {
+          setAiSuggestion(res.data.suggestion);
+          useMirrorStore.getState().setAiSuggestion(res.data.suggestion);
+        }
+      } catch (err) {
+        console.error("Failed to auto-fetch suggestion:", err);
+      }
+    };
+
+    fetchSuggestion();
+  }, [storeAiSuggestion]);
 
   const clearSlots = () => {
     setSelectedHat(null);
@@ -319,6 +353,26 @@ export default function VirtualMirrorV2() {
           </button>
         </div>
       </header>
+
+      {/* AI Suggestion Banner */}
+      {aiSuggestion && (
+        <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }}>
+          <div
+            className="p-3 rounded-xl flex items-center gap-3"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <span className="text-xl shrink-0">✨</span>
+            <p className="text-white/90 text-sm font-medium leading-snug">
+              {aiSuggestion}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — Accessories */}
         <div
@@ -345,46 +399,64 @@ export default function VirtualMirrorV2() {
                 }}
                 className="glass-card"
               >
-                {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                  if (loadingGarments)
-                    return (
-                      <SkeletonCell
-                        key={i}
-                        style={{ marginTop: "5px", marginBottom: "5px" }}
-                      />
-                    );
-                  const g = pagedHeadGarments[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedHat(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        marginTop: "5px",
-                        marginBottom: "5px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedHat?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
+                {!loadingGarments && headGarments.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "60px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No accessories
+                  </div>
+                ) : (
+                  Array.from({ length: accessoryPageSize }).map((_, i) => {
+                    if (loadingGarments)
+                      return (
+                        <SkeletonCell
+                          key={i}
+                          style={{ marginTop: "5px", marginBottom: "5px" }}
                         />
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    const g = pagedHeadGarments[i];
+                    return (
+                      <div
+                        key={i}
+                        onClick={() =>
+                          g && (setSelectedHat(g), setSelectedOutfitIdx(null))
+                        }
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          marginTop: "5px",
+                          marginBottom: "5px",
+                          cursor: g ? "pointer" : "default",
+                          border:
+                            g && selectedHat?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g?.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
                 {Array.from({
@@ -412,98 +484,6 @@ export default function VirtualMirrorV2() {
               </div>
             </div>
 
-            {/* <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedGlasses[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalGlassesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 12 : 4, height: 4, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedEarrings[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalEarringsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 12 : 4, height: 4, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedNeck[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalNeckPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 12 : 4, height: 4, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* bracelet */}
-            {/* <div {...braceletSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedBracelets[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalBraceletsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setBraceletsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === braceletsPage ? 12 : 4, height: 4, background: i === braceletsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* watch */}
-            {/* <div {...watchSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedWatches[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalWatchesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setWatchesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === watchesPage ? 12 : 4, height: 4, background: i === watchesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
             {/* bag */}
             <div
               {...bagSwipe}
@@ -522,68 +502,84 @@ export default function VirtualMirrorV2() {
                 }}
                 className="glass-card"
               >
-                {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                  if (loadingGarments)
-                    return (
-                      <SkeletonCell
-                        key={i}
-                        style={{ marginTop: "5px", marginBottom: "5px" }}
-                      />
-                    );
-                  const g = pagedBags[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedBag(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        marginTop: "5px",
-                        marginBottom: "5px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedBag?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
+                {!loadingGarments && bags.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "60px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No bags
+                  </div>
+                ) : (
+                  Array.from({ length: accessoryPageSize }).map((_, i) => {
+                    if (loadingGarments)
+                      return (
+                        <SkeletonCell
+                          key={i}
+                          style={{ marginTop: "5px", marginBottom: "5px" }}
                         />
-                      )}
-                    </div>
-                  );
-                })}
+                      );
+                    const g = pagedBags[i];
+                    return (
+                      <div
+                        key={i}
+                        onClick={() =>
+                          g && (setSelectedBag(g), setSelectedOutfitIdx(null))
+                        }
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          marginTop: "5px",
+                          marginBottom: "5px",
+                          cursor: g ? "pointer" : "default",
+                          border:
+                            g && selectedBag?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g?.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalBagsPages) }).map(
-                  (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setBagsPage(i)}
-                      aria-label={`Go to page ${i + 1}`}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === bagsPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === bagsPage ? "white" : "rgba(255,255,255,0.3)",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                      }}
-                    />
-                  ),
-                )}
+                {Array.from({ length: totalBagsPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setBagsPage(i)}
+                    aria-label={`Go to page ${i + 1}`}
+                    className="rounded-full transition-all duration-300"
+                    style={{
+                      width: i === bagsPage ? 12 : 4,
+                      height: 4,
+                      background:
+                        i === bagsPage ? "white" : "rgba(255,255,255,0.3)",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -605,65 +601,83 @@ export default function VirtualMirrorV2() {
                   columnGap: "6px",
                 }}
               >
-                {loadingOutfits
-                  ? Array.from({ length: 4 }).map((_, i) => (
-                      <SkeletonCell
-                        key={i}
-                        ratio="3/5"
-                        style={{ borderRadius: "10px" }}
-                      />
-                    ))
-                  : pagedOutfits.map((outfit, i) => {
-                      const globalIdx = outfitPage * outfitPageSize + i;
-                      return (
-                        <div
-                          key={outfit.id}
-                          onClick={() => selectOutfit(globalIdx)}
-                          style={{
-                            position: "relative",
-                            aspectRatio: "3/5",
-                            borderRadius: "10px",
-                            overflow: "hidden",
-                            background: "rgba(255,255,255,0.01)",
-                            cursor: "pointer",
-                            border:
-                              selectedOutfitIdx === globalIdx
-                                ? "2px solid rgba(255,255,255,0.6)"
-                                : "2px solid transparent",
-                            transition: "border-color 0.2s",
-                          }}
-                        >
-                          {outfit.file?.fileUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={outfit.file.fileUrl}
-                              alt={outfit.name}
-                              draggable={false}
-                              className="w-full h-full object-cover pointer-events-none"
-                            />
-                          ) : (
-                            <div
+                {loadingOutfits ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <SkeletonCell
+                      key={i}
+                      ratio="3/5"
+                      style={{ borderRadius: "10px" }}
+                    />
+                  ))
+                ) : outfits.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "160px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    No outfits created
+                  </div>
+                ) : (
+                  pagedOutfits.map((outfit, i) => {
+                    const globalIdx = outfitPage * outfitPageSize + i;
+                    return (
+                      <div
+                        key={outfit.id}
+                        onClick={() => selectOutfit(globalIdx)}
+                        style={{
+                          position: "relative",
+                          aspectRatio: "3/5",
+                          borderRadius: "10px",
+                          overflow: "hidden",
+                          background: "rgba(255,255,255,0.01)",
+                          cursor: "pointer",
+                          border:
+                            selectedOutfitIdx === globalIdx
+                              ? "2px solid rgba(255,255,255,0.6)"
+                              : "2px solid transparent",
+                          transition: "border-color 0.2s",
+                        }}
+                      >
+                        {outfit.file?.fileUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={outfit.file.fileUrl}
+                            alt={outfit.name}
+                            draggable={false}
+                            className="w-full h-full object-cover pointer-events-none"
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <span
                               style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
+                                color: "rgba(255,255,255,0.2)",
+                                fontSize: "11px",
                               }}
                             >
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,0.2)",
-                                  fontSize: "11px",
-                                }}
-                              >
-                                {outfit.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                              {outfit.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
                 {Array.from({ length: totalOutfitPages }).map((_, i) => (
@@ -1109,38 +1123,56 @@ export default function VirtualMirrorV2() {
                   gap: "4px",
                 }}
               >
-                {Array.from({ length: pageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedTops[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedTop(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedTop?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                {!loadingGarments && tops.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "120px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No tops
+                  </div>
+                ) : (
+                  Array.from({ length: pageSize }).map((_, i) => {
+                    if (loadingGarments) return <SkeletonCell key={i} />;
+                    const g = pagedTops[i];
+                    return (
+                      <div
+                        key={i}
+                        onClick={() =>
+                          g && (setSelectedTop(g), setSelectedOutfitIdx(null))
+                        }
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          cursor: g ? "pointer" : "default",
+                          border:
+                            g && selectedTop?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g?.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
                 {Array.from({ length: Math.max(1, totalTopsPages) }).map(
@@ -1178,38 +1210,57 @@ export default function VirtualMirrorV2() {
                   gap: "4px",
                 }}
               >
-                {Array.from({ length: pageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedBottoms[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedBottom(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedBottom?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                {!loadingGarments && bottoms.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "120px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No bottoms
+                  </div>
+                ) : (
+                  Array.from({ length: pageSize }).map((_, i) => {
+                    if (loadingGarments) return <SkeletonCell key={i} />;
+                    const g = pagedBottoms[i];
+                    return (
+                      <div
+                        key={i}
+                        onClick={() =>
+                          g &&
+                          (setSelectedBottom(g), setSelectedOutfitIdx(null))
+                        }
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          cursor: g ? "pointer" : "default",
+                          border:
+                            g && selectedBottom?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g?.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
                 {Array.from({ length: Math.max(1, totalBottomsPages) }).map(
@@ -1247,38 +1298,56 @@ export default function VirtualMirrorV2() {
                   gap: "4px",
                 }}
               >
-                {Array.from({ length: shoesPageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedShoes[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedShoe(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedShoe?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                {!loadingGarments && shoes.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "90px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No shoes
+                  </div>
+                ) : (
+                  Array.from({ length: shoesPageSize }).map((_, i) => {
+                    if (loadingGarments) return <SkeletonCell key={i} />;
+                    const g = pagedShoes[i];
+                    return (
+                      <div
+                        key={i}
+                        onClick={() =>
+                          g && (setSelectedShoe(g), setSelectedOutfitIdx(null))
+                        }
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          cursor: g ? "pointer" : "default",
+                          border:
+                            g && selectedShoe?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g?.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="flex justify-center gap-1.5 pt-2">
                 {Array.from({ length: Math.max(1, totalShoesPages) }).map(
@@ -1452,7 +1521,6 @@ export default function VirtualMirrorV2() {
           </div>
         </div>
       )}
-      <GlobalVoiceOverlay />
     </div>
   );
 }

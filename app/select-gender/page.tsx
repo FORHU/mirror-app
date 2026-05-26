@@ -12,6 +12,7 @@ import { setAuthCookie } from "@/modules/shared/utils/auth-cookie";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
 import type { User } from "@/modules/shared/api/api.types";
+import { useVoice } from "@/modules/shared/voice/useVoice";
 
 function getKioskToken(): string {
   const isKiosk2 = window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2;
@@ -28,6 +29,12 @@ function SelectGenderContent() {
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
+
+  useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
+    if (action.type === "select_gender" && action.gender) {
+      handleContinue(action.gender as "MALE" | "FEMALE");
+    }
+  });
 
   useEffect(() => {
     function tick() {

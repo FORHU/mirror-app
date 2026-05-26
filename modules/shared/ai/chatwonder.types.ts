@@ -18,7 +18,7 @@ export interface ChatWonderInput {
 }
 
 export type ChatWonderAction =
-  | { type: "navigate"; route: string }
+  | { type: "navigate"; route: string; suggestion?: string }
   | { type: "speak"; text?: string }
   | { type: "page_event"; event: string; payload: Record<string, unknown> }
   | {
@@ -45,7 +45,8 @@ export type ChatWonderAction =
   | {
       type: "set_profile";
       profile: "car" | "motorcycle" | "bicycle" | "walking";
-    };
+    }
+  | { type: "select_gender"; gender: "MALE" | "FEMALE" };
 
 export interface ChatWonderResponse {
   intent: string;

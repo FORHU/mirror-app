@@ -114,95 +114,52 @@ export const mapService = {
     return res.data as ArrayBuffer;
   },
 
-  voice: async (
-    pcmBuffer: ArrayBuffer,
-    ctx?: {
-      lat?: number;
-      lng?: number;
-      traffic?: boolean;
-      navigating?: boolean;
-      profile?: string;
-      remainingDistance?: number;
-      remainingDuration?: number;
-      destinationName?: string;
-      currentInstruction?: string;
-      nextManeuverDistance?: number;
-      nextInstruction?: string;
-      currentTime?: string;
-      currentDate?: string;
-      schedules?: string;
-      currentPage?: string;
-      userOutlineId?: string;
-    },
-    history?: Array<{ user: string; assistant: string }>,
-    sampleRate?: number,
-  ): Promise<{
-    audio: ArrayBuffer;
-    transcript: string;
-    reply: string;
-    action: ChatWonderAction | null;
-    events: unknown[];
-  }> => {
-    const params: Record<string, string> = {};
-    if (ctx?.lat !== undefined) params.lat = String(ctx.lat);
-    if (ctx?.lng !== undefined) params.lng = String(ctx.lng);
-    if (ctx?.traffic !== undefined) params.traffic = String(ctx.traffic);
-    if (ctx?.navigating !== undefined)
-      params.navigating = String(ctx.navigating);
-    if (ctx?.profile) params.profile = ctx.profile;
-    if (ctx?.remainingDistance !== undefined)
-      params.remainingDistance = String(ctx.remainingDistance);
-    if (ctx?.remainingDuration !== undefined)
-      params.remainingDuration = String(ctx.remainingDuration);
-    if (ctx?.destinationName)
-      params.destinationName = encodeURIComponent(ctx.destinationName);
-    if (ctx?.currentInstruction)
-      params.currentInstruction = encodeURIComponent(ctx.currentInstruction);
-    if (ctx?.nextManeuverDistance !== undefined)
-      params.nextManeuverDistance = String(ctx.nextManeuverDistance);
-    if (ctx?.nextInstruction)
-      params.nextInstruction = encodeURIComponent(ctx.nextInstruction);
-    if (ctx?.currentTime)
-      params.currentTime = encodeURIComponent(ctx.currentTime);
-    if (ctx?.currentDate)
-      params.currentDate = encodeURIComponent(ctx.currentDate);
-    if (ctx?.schedules) params.schedules = encodeURIComponent(ctx.schedules);
-    if (ctx?.currentPage)
-      params.currentPage = encodeURIComponent(ctx.currentPage);
-    if (ctx?.userOutlineId) params.userOutlineId = ctx.userOutlineId;
-    if (history?.length) params.history = JSON.stringify(history.slice(-4));
-    if (sampleRate) params.sampleRate = String(sampleRate);
-
+  transcribe: async (pcmBuffer: ArrayBuffer): Promise<string> => {
     const res = await api.axiosInstance.post(
-      "/api/mirror/voice/process",
+      "/api/mirror/voice/transcribe",
       pcmBuffer,
       {
         headers: { "Content-Type": "application/octet-stream" },
-        responseType: "arraybuffer",
-        params,
       },
     );
+    return res.data.transcript;
+  },
 
-    const audio = res.data as ArrayBuffer;
-    const transcript = decodeURIComponent(res.headers["x-transcript"] ?? "");
-    const reply = decodeURIComponent(res.headers["x-reply"] ?? "");
+  ask: async (
+    transcript: string,
+    ctx: Record<string, unknown>,
+    history?: Array<{ user: string; assistant: string }>,
+  ): Promise<{
+    audio: ArrayBuffer;
+    reply: string;
+    action: ChatWonderAction | null;
+    events: unknown[];
+    sessionId: string;
+  }> => {
+    const payload = { transcript, ctx, history };
+    const res = await api.axiosInstance.post<{
+      reply: string;
+      action: ChatWonderAction | null;
+      events: unknown[];
+      sessionId: string;
+      audioBase64: string;
+    }>("/api/mirror/voice/ask", payload);
 
-    let action: ChatWonderAction | null = null;
-    try {
-      const raw = res.headers["x-action"];
-      if (raw) action = JSON.parse(decodeURIComponent(raw)) as ChatWonderAction;
-    } catch {
-      /* malformed action — ignore */
-    }
+    const { reply, action, events, sessionId, audioBase64 } = res.data;
 
-    let events: unknown[] = [];
-    try {
-      const rawEvents = res.headers["x-events"];
-      if (rawEvents) events = JSON.parse(decodeURIComponent(rawEvents));
-    } catch {
-      /* ignore */
-    }
+    // Decode base64 audio string → ArrayBuffer
+    const binaryStr = atob(audioBase64 ?? "");
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++)
+      bytes[i] = binaryStr.charCodeAt(i);
+    const audio = bytes.buffer;
 
-    return { audio, transcript, reply, action, events };
+    return {
+      audio,
+      reply,
+      action: action ?? null,
+      events: events ?? [],
+      sessionId: sessionId ?? "",
+    };
   },
 };

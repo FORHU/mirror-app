@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
 import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
+import { api } from "@/modules/shared/api/api-client";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -106,6 +108,41 @@ export default function CosmeticPage() {
   const [faceAligned, setFaceAligned] = useState(false);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [manualCaptureVisible, setManualCaptureVisible] = useState(false);
+  const manualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
+
+  useEffect(() => {
+    const fetchSuggestion = async () => {
+      // Prefer Zustand store (set by voice); fall back to auto-fetch if empty
+      if (storeAiSuggestion) {
+        setAiSuggestion(storeAiSuggestion);
+        return;
+      }
+
+      // Automatically fetch weather-based suggestion if none exists
+      try {
+        const { useMapStore } = await import("@/modules/map/store/useMapStore");
+        const location = useMapStore.getState().userLocation;
+        const res = await api.post<{ suggestion: string }>(
+          "/api/mirror/voice/suggest",
+          {
+            type: "cosmetics",
+            ctx: { lat: location?.lat, lng: location?.lng },
+          },
+        );
+        if (res.data?.suggestion) {
+          setAiSuggestion(res.data.suggestion);
+          useMirrorStore.getState().setAiSuggestion(res.data.suggestion);
+        }
+      } catch (err) {
+        console.error("Failed to auto-fetch suggestion:", err);
+      }
+    };
+
+    fetchSuggestion();
+  }, [storeAiSuggestion]);
 
   const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
     faceAlignedRef.current = nextFaceAligned;
@@ -223,6 +260,23 @@ export default function CosmeticPage() {
     },
     [beginCaptureHold, cancelCaptureHold, setFaceAlignedState],
   );
+
+  // Show manual capture button after 8s idle — fallback for poor lighting
+  useEffect(() => {
+    if (capturePhase === "idle" && !faceAligned && !isModelLoading) {
+      manualTimerRef.current = setTimeout(
+        () => setManualCaptureVisible(true),
+        8000,
+      );
+    } else {
+      if (manualTimerRef.current) clearTimeout(manualTimerRef.current);
+      if (capturePhase !== "idle")
+        setTimeout(() => setManualCaptureVisible(false), 0);
+    }
+    return () => {
+      if (manualTimerRef.current) clearTimeout(manualTimerRef.current);
+    };
+  }, [capturePhase, faceAligned, isModelLoading]);
 
   // ── MediaPipe init ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -390,6 +444,31 @@ export default function CosmeticPage() {
         </h1>
       </motion.div>
 
+      {/* AI Suggestion Banner */}
+      <AnimatePresence>
+        {aiSuggestion && (
+          <motion.div
+            className="absolute top-24 inset-x-8 z-20"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div
+              className="p-3 rounded-xl flex items-center gap-3"
+              style={{
+                background: "rgba(0,0,0,0.4)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <span className="text-xl shrink-0">✨</span>
+              <p className="text-white/90 text-sm font-medium leading-snug">
+                {aiSuggestion}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Instruction text */}
       <AnimatePresence mode="wait">
         <motion.p
@@ -432,6 +511,37 @@ export default function CosmeticPage() {
             >
               {errorMsg}
             </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Manual capture fallback — appears after 8s if auto-detection hasn't fired */}
+      <AnimatePresence>
+        {manualCaptureVisible && capturePhase === "idle" && (
+          <motion.div
+            key="manual-capture"
+            className="absolute inset-x-0 z-30 flex flex-col items-center gap-2"
+            style={{ top: `${((OY + RY + 120) / 1366) * 100}%` }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.4 }}
+          >
+            <p className="text-white/50 text-xs tracking-wide">
+              Having trouble? Capture manually
+            </p>
+            <button
+              onClick={captureFrame}
+              className="px-8 py-3 rounded-full font-semibold text-sm tracking-wide"
+              style={{
+                background: "rgba(72,199,142,0.15)",
+                border: "1px solid rgba(72,199,142,0.5)",
+                color: "rgba(72,199,142,0.95)",
+                backdropFilter: "blur(8px)",
+              }}
+            >
+              📸 Capture Now
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

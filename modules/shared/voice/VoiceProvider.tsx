@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -14,7 +15,9 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
+import { motion, AnimatePresence } from "framer-motion";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -29,6 +32,99 @@ function float32ToInt16(f: Float32Array): Int16Array {
 }
 
 export type VoiceState = "idle" | "recording" | "processing" | "speaking";
+
+function detectIntent(
+  transcript: string,
+  pathname: string = "",
+): Record<string, string> {
+  const t = transcript.toLowerCase().trim();
+
+  // 0. Page-specific strict intents
+  if (pathname.includes("/select-gender")) {
+    if (/\b(male|homme|men|man|garçon|boy|masculin)\b/i.test(t))
+      return { type: "select_gender", gender: "MALE" };
+    if (/\b(female|femme|women|woman|fille|girl|féminin)\b/i.test(t))
+      return { type: "select_gender", gender: "FEMALE" };
+  }
+  if (pathname === "/" || pathname === "/welcome") {
+    if (
+      /\b(start(\s+now)?|begin|let's\s+go|commencer|démarrer|c'est\s+parti|y\s+aller|go)\b/i.test(
+        t,
+      )
+    ) {
+      return { type: "navigate", route: "/select-gender" };
+    }
+  }
+
+  // 1. Screen navigation
+  if (
+    /\b(open|show|go\s+to|ouvrir|afficher|aller\s+à|carte|navigation)\s+(the\s+|la\s+)?(map|navigation)(?!s_navigate)\b/i.test(
+      t,
+    )
+  )
+    return { type: "navigate", route: "/map" };
+  if (
+    /\b(build|create|make|assemble|style|do|créer|faire|assembler|choisir)\s+(an?\s+|un\s+|une\s+)?(my\s+|mon\s+|ma\s+)?(outfit|look|style|fashion|tenue|mode|vêtements?)\b|\b(pick|choose|go\s+to|open|ouvrir|aller\s+à)\s+(the\s+|la\s+|les\s+)?(my\s+|mes\s+)?(clothes|outfit|fashion|style|tenue|mode|vêtements?)(?:\s+screen|app|écran)?\b/i.test(
+      t,
+    )
+  )
+    return { type: "navigate", route: "/ai-recommendation-fashion" };
+  if (
+    /\b(try\s+(it\s+)?on|virtual\s+(fitting|mirror|try)|essayer|miroir\s+virtuel|essayage)\b/i.test(
+      t,
+    )
+  )
+    return { type: "navigate", route: "/virtual-mirror" };
+  if (
+    /\b(do|style|apply|maquiller|appliquer|faire)\s+(my\s+|mon\s+|ma\s+)?(makeup|cosmetic|skin\s*care|face|maquillage|cosmétique|soins?\s+du\s+visage|visage)\b|\b(open|go\s+to|ouvrir|aller\s+à)\s+(the\s+|le\s+|la\s+|les\s+)?(my\s+|mes\s+|mon\s+)?(makeup|cosmetic|skin\s*care|maquillage|cosmétique|soins?\s+du\s+visage)(?:\s+screen|écran)?\b/i.test(
+      t,
+    )
+  )
+    return { type: "navigate", route: "/ai-recommendation-cosmetic" };
+  if (/\b(home|main\s+screen|welcome|accueil|écran\s+d'accueil)\b/i.test(t))
+    return { type: "navigate", route: "/overview" };
+
+  // 2. Travel mode
+  const modeMatch = t.match(
+    /(?:switch|change|set).{0,10}(?:to|mode).{0,5}(car|motorcycle|bicycle|bike|walking|walk)\b/i,
+  );
+  if (modeMatch) {
+    const modeMap: Record<string, string> = {
+      bike: "bicycle",
+      walk: "walking",
+    };
+    const raw = modeMatch[1].toLowerCase();
+    return { type: "set_profile", profile: modeMap[raw] ?? raw };
+  }
+
+  // 3. Map controls
+  if (/\b(best route|avoid traffic|traffic.{0,10}route)\b/i.test(t))
+    return { type: "traffic_route" };
+  if (/\b(turn on|enable|show)\s+traffic\b/i.test(t))
+    return { type: "traffic_on" };
+  if (/\b(turn off|disable|hide)\s+traffic\b/i.test(t))
+    return { type: "traffic_off" };
+  if (/\b(stop|cancel|end)\s+navigation\b/i.test(t))
+    return { type: "stop_navigation" };
+
+  // 4. Navigate to a physical place
+  const navMatch = t.match(
+    /(?:take me to|navigate to|directions? to|drive to|go to|aller à|emmène-moi à|directions? pour)\s+(.+)/i,
+  );
+  if (navMatch) {
+    const dest = navMatch[1].trim().toLowerCase();
+    // Guard against physical routing intercepting UI commands that didn't perfectly match
+    if (
+      !/^(the\s+|la\s+|les\s+)?(my\s+|mon\s+|ma\s+|mes\s+)?(fashion|outfit|clothes|map|schedule|makeup|cosmetics?|skin\s*care|home|mirror|mode|tenue|vêtements?|carte|maquillage|cosmétique|accueil|miroir)(?:\s+screen|écran)?$/.test(
+        dest,
+      )
+    ) {
+      return { type: "maps_navigate", destination: dest };
+    }
+  }
+
+  return { type: "speak" };
+}
 
 export interface VoiceContextValue {
   voiceState: VoiceState;
@@ -47,6 +143,7 @@ export interface VoiceContextValue {
   ) => void;
   unregisterPage: () => void;
   aiEvents: unknown[];
+  chatHistory: Array<{ user: string; assistant: string }>;
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -67,6 +164,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [aiEvents, setAiEvents] = useState<unknown[]>([]);
+  const [chatHistory, setChatHistory] = useState<
+    Array<{ user: string; assistant: string }>
+  >([]);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -78,6 +178,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
+  const sessionIdRef = useRef<string | undefined>(undefined);
+
+  // Auto-clear voice error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const t = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [error]);
 
   // ----------------------
 
@@ -104,7 +213,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const map = useMapStore.getState();
 
       if (action.type === "navigate") {
-        router.push(action.route);
+        const { setAiSuggestion, clearAiSuggestion } =
+          useMirrorStore.getState();
+        if (action.suggestion) {
+          setAiSuggestion(action.suggestion);
+        } else {
+          clearAiSuggestion();
+        }
+
+        // Route guard fallback — if route somehow invalid, default to fashion screen
+        const safeRoutes = [
+          "/ai-recommendation-fashion",
+          "/ai-recommendation-cosmetic",
+          "/map",
+          "/select-gender",
+          "/authentication",
+        ];
+        const route = safeRoutes.includes(action.route)
+          ? action.route
+          : "/ai-recommendation-fashion";
+        router.push(route);
       } else if (action.type === "speak") {
         // audio already playing — no-op
       } else if (action.type === "maps_navigate") {
@@ -276,42 +404,74 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         schedules,
         currentPage: pageCtxRef.current?.pageName ?? pathname,
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
+        sessionId: sessionIdRef.current,
       };
 
-      const {
-        audio,
-        transcript: t,
-        reply: r,
-        action,
-        events,
-      } = await mapService.voice(combined.buffer, ctx, historyRef.current);
-
+      const t = await mapService.transcribe(combined.buffer);
       setTranscript(t);
+
+      if (!t || t.trim() === "") {
+        setVoiceState("idle");
+        return;
+      }
+
+      const action = detectIntent(t, pathname);
+      let r = "";
+      let events: unknown[] = [];
+      let audioBuffer: ArrayBuffer | null = null;
+
+      if (action.type !== "speak") {
+        r = "Opening that up.";
+        audioBuffer = await mapService.tts(r);
+        dispatchAction(action as unknown as ChatWonderAction);
+      } else {
+        const res = await mapService.ask(t, ctx, historyRef.current);
+        r = res.reply;
+        events = res.events;
+        audioBuffer = res.audio;
+        if (res.sessionId) {
+          sessionIdRef.current = res.sessionId;
+        }
+        if (res.action) dispatchAction(res.action);
+      }
+
       setReply(r);
       setAiEvents(events || []);
-      historyRef.current = [
+      const newHistory = [
         ...historyRef.current,
         { user: t, assistant: r },
       ].slice(-4);
+      historyRef.current = newHistory;
+      setChatHistory(newHistory);
       setVoiceState("speaking");
 
-      const playCtx = new AudioContext();
-      playbackCtxRef.current = playCtx;
-      const decoded = await playCtx.decodeAudioData(audio.slice(0));
-      const src = playCtx.createBufferSource();
-      src.buffer = decoded;
-      src.connect(playCtx.destination);
-      playbackRef.current = src;
+      if (audioBuffer) {
+        const playCtx = new AudioContext();
+        playbackCtxRef.current = playCtx;
+        const decoded = await playCtx.decodeAudioData(audioBuffer.slice(0));
+        const src = playCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(playCtx.destination);
+        playbackRef.current = src;
 
-      src.onended = () => {
-        stopPlayback();
+        src.onended = () => {
+          stopPlayback();
+          setVoiceState("idle");
+        };
+        src.start(0);
+      } else {
         setVoiceState("idle");
-      };
-      src.start(0);
-
-      if (action) dispatchAction(action);
+      }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Voice processing failed.");
+      const apiErrorMsg =
+        (err as { response?: { data?: { error?: string; message?: string } } })
+          ?.response?.data?.error ||
+        (err as { response?: { data?: { error?: string; message?: string } } })
+          ?.response?.data?.message;
+      setError(
+        apiErrorMsg ||
+          (err instanceof Error ? err.message : "Voice processing failed."),
+      );
       setVoiceState("idle");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,9 +522,29 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         registerPage,
         unregisterPage,
         aiEvents,
+        chatHistory,
       }}
     >
       {children}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            className="fixed top-10 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl"
+            style={{
+              background: "rgba(220,38,38,0.9)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255,255,255,0.2)",
+            }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+          >
+            <p className="text-white text-sm font-medium tracking-wide">
+              {error}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AiEventsOverlay />
     </VoiceContext.Provider>
   );
