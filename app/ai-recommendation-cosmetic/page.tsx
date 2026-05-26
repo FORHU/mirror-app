@@ -94,11 +94,34 @@ function inOval(p: { x: number; y: number }) {
 const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R, nose bridge
 
 // ── Mock analysis generator ───────────────────────────────────────────────────
-const SKIN_TYPES = ["OILY", "DRY", "COMBINATION", "NORMAL", "SENSITIVE"] as const;
-const SKIN_TONES = ["warm light", "cool light", "neutral light", "warm medium", "cool medium", "neutral medium", "warm deep", "cool deep", "neutral deep"] as const;
+const SKIN_TYPES = [
+  "OILY",
+  "DRY",
+  "COMBINATION",
+  "NORMAL",
+  "SENSITIVE",
+] as const;
+const SKIN_TONES = [
+  "warm light",
+  "cool light",
+  "neutral light",
+  "warm medium",
+  "cool medium",
+  "neutral medium",
+  "warm deep",
+  "cool deep",
+  "neutral deep",
+] as const;
 const CONCERN_POOL = [
-  "enlarged pores", "acne", "dark circles", "uneven skin tone",
-  "fine lines", "oiliness", "dryness", "redness", "hyperpigmentation",
+  "enlarged pores",
+  "acne",
+  "dark circles",
+  "uneven skin tone",
+  "fine lines",
+  "oiliness",
+  "dryness",
+  "redness",
+  "hyperpigmentation",
 ];
 const TIPS = [
   "Use a gentle foaming cleanser morning and evening to control oil without stripping moisture.",
@@ -107,11 +130,17 @@ const TIPS = [
   "Incorporate a niacinamide serum to reduce pore appearance and even out skin tone.",
 ];
 
-function rand(n: number) { return Math.floor(Math.random() * n); }
-function randInt(min: number, max: number) { return min + rand(max - min); }
+function rand(n: number) {
+  return Math.floor(Math.random() * n);
+}
+function randInt(min: number, max: number) {
+  return min + rand(max - min);
+}
 
 function buildMockAnalysis() {
-  const concerns = [...CONCERN_POOL].sort(() => Math.random() - 0.5).slice(0, randInt(2, 5));
+  const concerns = [...CONCERN_POOL]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, randInt(2, 5));
   return {
     id: "mock",
     skinType: SKIN_TYPES[rand(SKIN_TYPES.length)],
@@ -196,9 +225,16 @@ export default function CosmeticPage() {
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    try { sessionStorage.setItem("skin_capture", dataUrl); } catch {}
+    try {
+      sessionStorage.setItem("skin_capture", dataUrl);
+    } catch {}
     if (latestLandmarksRef.current) {
-      try { sessionStorage.setItem("skin_landmarks", JSON.stringify(latestLandmarksRef.current)); } catch {}
+      try {
+        sessionStorage.setItem(
+          "skin_landmarks",
+          JSON.stringify(latestLandmarksRef.current),
+        );
+      } catch {}
     }
 
     setCapturePhaseState("captured"); // triggers white flash
