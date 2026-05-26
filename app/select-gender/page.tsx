@@ -13,7 +13,10 @@ import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
 import type { User } from "@/modules/shared/api/api.types";
 
-const DEFAULT_TOKEN = process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "";
+const DEFAULT_TOKEN =
+  process.env.NEXT_PUBLIC_DOMAIN === "local.mirror2"
+    ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? "")
+    : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "");
 
 function SelectGenderContent() {
   const router = useRouter();
