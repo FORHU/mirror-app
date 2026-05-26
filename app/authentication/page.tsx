@@ -4,6 +4,7 @@ import { ShirtIcon, Sparkles, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
+import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
 
 export default function LoggedInPage() {
   const router = useRouter();
@@ -104,6 +105,7 @@ export default function LoggedInPage() {
 
       {/* Bottom breathing room */}
       <div className="h-10 shrink-0" />
+      <GlobalVoiceOverlay />
     </div>
   );
 }

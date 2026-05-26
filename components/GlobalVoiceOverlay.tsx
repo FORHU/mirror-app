@@ -1,20 +1,10 @@
 "use client";
 
-import React from "react";
-import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Loader2, Volume2 } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
-// Pages that already have their own voice UI — don't show the global overlay there
-const EXCLUDED_PATHS = ["/map"];
-
 export default function GlobalVoiceOverlay() {
-  const pathname = usePathname();
-
-  // Hide on pages that have a built-in mic button
-  if (EXCLUDED_PATHS.some((p) => pathname.startsWith(p))) return null;
-
   return <VoiceUI />;
 }
 
