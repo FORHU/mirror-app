@@ -425,7 +425,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         audioBuffer = await mapService.tts(r);
         dispatchAction(action as unknown as ChatWonderAction);
       } else {
-        const res = await mapService.ask(t, ctx, historyRef.current);
+        const res = await mapService.ask(t, ctx);
         r = res.reply;
         events = res.events;
         audioBuffer = res.audio;

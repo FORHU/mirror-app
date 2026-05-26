@@ -128,7 +128,6 @@ export const mapService = {
   ask: async (
     transcript: string,
     ctx: Record<string, unknown>,
-    history?: Array<{ user: string; assistant: string }>,
   ): Promise<{
     audio: ArrayBuffer;
     reply: string;
@@ -136,7 +135,7 @@ export const mapService = {
     events: unknown[];
     sessionId: string;
   }> => {
-    const payload = { transcript, ctx, history };
+    const payload = { transcript, ctx };
     const res = await api.axiosInstance.post<{
       reply: string;
       action: ChatWonderAction | null;

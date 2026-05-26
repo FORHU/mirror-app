@@ -151,11 +151,12 @@ idle → recording → processing → speaking → idle
 ### Phase 5a — AI Path (No Regex Match)
 
 16. If `action.type === "speak"`:
-    - Calls `mapService.ask(transcript, ctx, history)` → `POST /api/mirror/voice/ask`
-    - Backend assembles 4-layer prompt, fetches weather, calls ChatWonder AI, generates TTS
-    - Response returns: MP3 audio buffer + `X-Reply` + `X-Action` + `X-Session-Id` + `X-Events`
-    - Frontend parses headers → gets `reply` text, `action` object, `sessionId`, `events`
+    - Calls `mapService.ask(transcript, ctx)` → `POST /api/mirror/voice/ask`
+    - Backend assembles 4-layer prompt, fetches (Redis-cached) weather, calls ChatWonder AI, generates TTS
+    - Response is JSON: `{ reply, action, events, sessionId, audioBase64 }`
+    - Frontend destructures the body and decodes `audioBase64` (`atob` → `Uint8Array` → `ArrayBuffer`) into the MP3 buffer
     - Saves new `sessionId` to `sessionIdRef` for conversation continuity
+    - **Note:** the chat history kept in `historyRef` is local-only — it powers the in-app chat overlay UI and is no longer sent to the backend (ChatWonder maintains its own session memory via `sessionId`)
 
 ### Phase 6 — Action Dispatch
 
