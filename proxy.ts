@@ -66,7 +66,7 @@ export function proxy(request: NextRequest) {
   // ── 3. Fit sequence (logged-in users) ──────────────────────────────────────
   //
   //   step 0 (/waiting-personalize)       — requires logged-in; unlocks step 1
-  //   step 1 (/ai-recommendation-outfit)  — requires step 0 completed
+  //   step 1 (/ai-recommendation-fashion) — requires step 0 completed
 
   const fitIdx = sequenceIndex(pathname, ROUTE_RULES.sequences.fit);
   if (fitIdx >= 0 && isLoggedIn) {

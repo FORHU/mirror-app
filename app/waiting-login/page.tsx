@@ -44,16 +44,40 @@ export default function WaitingLoginPage() {
 
       {/* Header */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
-        <div style={{ flex: "0 0 25%", width: "25%", display: "flex", alignItems: "center" }}>
+        <div
+          style={{
+            flex: "0 0 25%",
+            width: "25%",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           <WeatherWidget iconSize={32} />
         </div>
-        <div style={{ flex: "0 0 50%", width: "50%", display: "flex", justifyContent: "center" }}>
+        <div
+          style={{
+            flex: "0 0 50%",
+            width: "50%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
           <span className="text-white font-semibold text-3xl tracking-wide select-none">
             StyleOS
           </span>
         </div>
-        <div style={{ flex: "0 0 25%", width: "25%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-          <p className="text-white font-semibold text-2xl leading-tight">{time}</p>
+        <div
+          style={{
+            flex: "0 0 25%",
+            width: "25%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+          }}
+        >
+          <p className="text-white font-semibold text-2xl leading-tight">
+            {time}
+          </p>
           <p className="text-white/40 text-sm mt-0.5">{date}</p>
         </div>
       </div>

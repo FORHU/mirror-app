@@ -248,7 +248,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     if (!selectedPOI) return;
 
     const fetchAndSetPhoto = (fsqId: string) => {
-      mapService.venuePhotos(fsqId)
+      mapService
+        .venuePhotos(fsqId)
         .then(({ photos }) => {
           if (photos.length > 0) {
             set((s) => {
@@ -267,7 +268,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     } else {
       // Mapbox built-in label click — search Foursquare nearby to find the venue
       const { lat, lng } = selectedPOI.location;
-      mapService.nearbyPOIs(lat, lng, 300)
+      mapService
+        .nearbyPOIs(lat, lng, 300)
         .then(({ pois }) => {
           const clickedName = selectedPOI.name.toLowerCase();
           const match = pois.find((p) => {
@@ -277,7 +279,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
           if (match?.fsqId) {
             set((s) => {
               if (s.selectedPOI && s.selectedPOI.name === selectedPOI.name) {
-                return { selectedPOI: { ...s.selectedPOI, fsqId: match.fsqId, photo: match.photo ?? null } };
+                return {
+                  selectedPOI: {
+                    ...s.selectedPOI,
+                    fsqId: match.fsqId,
+                    photo: match.photo ?? null,
+                  },
+                };
               }
               return {};
             });

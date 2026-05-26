@@ -35,8 +35,12 @@ export interface DirectionsFormatted {
 }
 
 export const mapService = {
-  getHomeLocation: async (): Promise<{ homeLocation: { lat: number; lng: number } }> => {
-    const res = await api.get<{ homeLocation: { lat: number; lng: number } }>("/api/mirror/map/home-location");
+  getHomeLocation: async (): Promise<{
+    homeLocation: { lat: number; lng: number };
+  }> => {
+    const res = await api.get<{ homeLocation: { lat: number; lng: number } }>(
+      "/api/mirror/map/home-location",
+    );
     if (!res.ok) throw new Error("Failed to fetch home location");
     return res.data as { homeLocation: { lat: number; lng: number } };
   },
@@ -143,7 +147,8 @@ export const mapService = {
     if (ctx?.lat !== undefined) params.lat = String(ctx.lat);
     if (ctx?.lng !== undefined) params.lng = String(ctx.lng);
     if (ctx?.traffic !== undefined) params.traffic = String(ctx.traffic);
-    if (ctx?.navigating !== undefined) params.navigating = String(ctx.navigating);
+    if (ctx?.navigating !== undefined)
+      params.navigating = String(ctx.navigating);
     if (ctx?.profile) params.profile = ctx.profile;
     if (ctx?.remainingDistance !== undefined)
       params.remainingDistance = String(ctx.remainingDistance);
@@ -161,8 +166,7 @@ export const mapService = {
       params.currentTime = encodeURIComponent(ctx.currentTime);
     if (ctx?.currentDate)
       params.currentDate = encodeURIComponent(ctx.currentDate);
-    if (ctx?.schedules)
-      params.schedules = encodeURIComponent(ctx.schedules);
+    if (ctx?.schedules) params.schedules = encodeURIComponent(ctx.schedules);
     if (ctx?.currentPage)
       params.currentPage = encodeURIComponent(ctx.currentPage);
     if (ctx?.userOutlineId) params.userOutlineId = ctx.userOutlineId;

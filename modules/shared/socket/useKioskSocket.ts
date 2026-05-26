@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getSocketClient } from "./socket-client";
 import {
   KioskLoginPayload,
@@ -16,7 +16,6 @@ import { ACCESS_TOKEN, REFRESH_TOKEN, USER } from "../constants/storage-keys";
 import { setAuthCookie } from "../utils/auth-cookie";
 
 export function useKioskSocket(kioskId: string) {
-  const kioskName = kioskId;
   const [isConnected, setIsConnected] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [waitingForLogin, setWaitingForLogin] = useState(false);
@@ -30,7 +29,7 @@ export function useKioskSocket(kioskId: string) {
       setIsConnected(true);
       const payload: RegisterKioskPayload = {
         kioskId,
-        name: kioskName,
+        name: kioskId,
         secret: process.env.NEXT_PUBLIC_KIOSK_DEVICE_SECRET ?? "", // Include the secret for authentication
       };
       socket.emit("register_kiosk", payload);
@@ -74,9 +73,10 @@ export function useKioskSocket(kioskId: string) {
       }
 
       const nested = payload?.user as User | undefined;
-      const raw = !nested && (payload as unknown as User)?.id
-        ? (payload as unknown as User)
-        : undefined;
+      const raw =
+        !nested && (payload as unknown as User)?.id
+          ? (payload as unknown as User)
+          : undefined;
       const authUser = nested ?? raw ?? null;
 
       setAuthCookie();
@@ -114,7 +114,6 @@ export function useKioskSocket(kioskId: string) {
 
   return {
     kioskId,
-    kioskName,
     isConnected,
     isRegistered,
     waitingForLogin,
