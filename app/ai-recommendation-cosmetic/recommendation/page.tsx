@@ -146,20 +146,22 @@ export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const now = useClock();
 
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
-  const [analysis, setAnalysis] = useState<SkinAnalysis | null>(null);
+  type SessionData = { capturedImage: string | null; landmarks: Landmark[] | null; analysis: SkinAnalysis | null };
+  const [session, setSession] = useState<SessionData>({ capturedImage: null, landmarks: null, analysis: null });
+  const { capturedImage, landmarks, analysis } = session;
   const [photoSize, setPhotoSize] = useState({ w: 0, h: 0 });
   const [page, setPage] = useState(0);
   const photoContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      setCapturedImage(sessionStorage.getItem("skin_capture"));
+      const capturedImage = sessionStorage.getItem("skin_capture");
       const rawLm = sessionStorage.getItem("skin_landmarks");
-      if (rawLm) setLandmarks(JSON.parse(rawLm) as Landmark[]);
+      const landmarks = rawLm ? (JSON.parse(rawLm) as Landmark[]) : null;
       const rawAnalysis = sessionStorage.getItem("skin_analysis");
-      if (rawAnalysis) setAnalysis(JSON.parse(rawAnalysis) as SkinAnalysis);
+      const analysis = rawAnalysis ? (JSON.parse(rawAnalysis) as SkinAnalysis) : null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
+      setSession({ capturedImage, landmarks, analysis });
     } catch {}
   }, []);
 

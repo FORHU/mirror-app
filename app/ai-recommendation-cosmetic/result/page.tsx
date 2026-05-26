@@ -154,10 +154,9 @@ export default function CosmeticResultPage() {
   const router = useRouter();
   const now = useClock();
 
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
-  const [analysis, setAnalysis] = useState<SkinAnalysis | null>(null);
-  const [loading, setLoading] = useState(false);
+  type SessionData = { capturedImage: string | null; landmarks: Landmark[] | null; analysis: SkinAnalysis | null; loading: boolean };
+  const [session, setSession] = useState<SessionData>({ capturedImage: null, landmarks: null, analysis: null, loading: false });
+  const { capturedImage, landmarks, analysis, loading } = session;
 
   const [photoSize, setPhotoSize] = useState({ w: 0, h: 0 });
   const photoContainerRef = useRef<HTMLDivElement>(null);
@@ -169,22 +168,19 @@ export default function CosmeticResultPage() {
   // Read sessionStorage after mount to avoid SSR/client hydration mismatch
   useEffect(() => {
     try {
-      setCapturedImage(sessionStorage.getItem("skin_capture"));
+      const capturedImage = sessionStorage.getItem("skin_capture");
       const rawLm = sessionStorage.getItem("skin_landmarks");
-      if (rawLm) setLandmarks(JSON.parse(rawLm) as Landmark[]);
+      const landmarks = rawLm ? (JSON.parse(rawLm) as Landmark[]) : null;
       const rawAnalysis = sessionStorage.getItem("skin_analysis");
-      if (rawAnalysis) {
-        setAnalysis(JSON.parse(rawAnalysis) as SkinAnalysis);
-      } else {
-        const id = sessionStorage.getItem("skin_analysis_id");
-        if (id) {
-          setLoading(true);
-          cosmeticsService
-            .getAnalysis(id)
-            .then((data) => setAnalysis(data))
-            .catch(() => {})
-            .finally(() => setLoading(false));
-        }
+      const analysis = rawAnalysis ? (JSON.parse(rawAnalysis) as SkinAnalysis) : null;
+      const id = !analysis ? sessionStorage.getItem("skin_analysis_id") : null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
+      setSession({ capturedImage, landmarks, analysis, loading: Boolean(id) });
+      if (id) {
+        cosmeticsService
+          .getAnalysis(id)
+          .then((data) => setSession((prev) => ({ ...prev, analysis: data, loading: false })))
+          .catch(() => setSession((prev) => ({ ...prev, loading: false })));
       }
     } catch {}
   }, []);
@@ -200,14 +196,14 @@ export default function CosmeticResultPage() {
     return () => obs.disconnect();
   }, []);
 
-  const skin = analysis ? {
+  const skin = useMemo(() => analysis ? {
     skinType: toTitleCase(analysis.skinType),
     skinTone: analysis.skinTone ?? "medium",
     hydration: analysis.hydrationPct,
     oiliness: analysis.oilinessPct,
     concerns: analysis.concerns.map((c) => ({ label: c, severity: inferSeverity(c) })),
     routineTip: analysis.routineTip,
-  } : null;
+  } : null, [analysis]);
 
   // ── Annotated zones ───────────────────────────────────────────────────────
   const annotatedZones = useMemo<ZoneEntry[]>(() => {

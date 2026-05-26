@@ -136,7 +136,6 @@ export default function CosmeticPage() {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [faceAligned, setFaceAligned] = useState(false);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
     faceAlignedRef.current = nextFaceAligned;
@@ -147,12 +146,6 @@ export default function CosmeticPage() {
     capturePhaseRef.current = nextCapturePhase;
     setCapturePhase(nextCapturePhase);
   }, []);
-
-  const resetToIdle = useCallback(() => {
-    alignedFrames.current = 0;
-    setFaceAlignedState(false);
-    setCapturePhaseState("idle");
-  }, [setFaceAlignedState, setCapturePhaseState]);
 
   // ── Capture frame ────────────────────────────────────────────────────────────
   const captureFrame = useCallback(async () => {
@@ -432,30 +425,6 @@ export default function CosmeticPage() {
         </motion.p>
       </AnimatePresence>
 
-      {/* Error overlay — auto-dismisses after 3s */}
-      <AnimatePresence>
-        {errorMsg && (
-          <motion.div
-            key="error-msg"
-            className="absolute inset-x-0 z-30 flex justify-center"
-            style={{ top: `${((OY + RY + 80) / 1366) * 100}%` }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
-          >
-            <span
-              style={{
-                color: "rgba(248,113,113,0.95)",
-                fontSize: "14px",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {errorMsg}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
