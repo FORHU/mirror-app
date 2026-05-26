@@ -75,7 +75,7 @@ export default function WelcomePage() {
   return (
     <div
       className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10 cursor-pointer"
-      onClick={() => router.push(ROUTES.QRCODE)}
+      onClick={() => router.push(ROUTES.SELECT_GENDER)}
     >
       {/* Header */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
@@ -147,7 +147,7 @@ export default function WelcomePage() {
       <div className="flex flex-col gap-4 shrink-0">
         <button
           className="w-full py-8 text-white font-bold text-2xl transition-all active:scale-95"
-          onClick={() => router.push(ROUTES.QRCODE)}
+          onClick={() => router.push(ROUTES.SELECT_GENDER)}
         >
           Touch to Start Now
         </button>

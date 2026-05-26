@@ -60,4 +60,15 @@ export const authService = {
     }
     throw new Error(response.data?.message || "Refresh token failed");
   },
+
+  updateProfile: async (data: { gender: "MALE" | "FEMALE" }): Promise<User> => {
+    const response = await api.post<StandardResponse<User>>(
+      "/api/remote/auth/update",
+      { data },
+    );
+    if (response.ok && response.data?.status === "success") {
+      return response.data.data;
+    }
+    throw new Error(response.data?.message || "Failed to update profile");
+  },
 };
