@@ -28,11 +28,11 @@ export function proxy(request: NextRequest) {
 
   // ── 1. Auth guards (run before sequence checks) ────────────────────────────
 
-  if (isLoggedIn && matchesAny(pathname, ROUTE_RULES.guestOnly)) {
-    const res = NextResponse.redirect(new URL(ROUTES.LOGGED_IN, request.url));
-    res.cookies.delete(LOGIN_STEP_COOKIE);
-    return res;
-  }
+  // if (isLoggedIn && matchesAny(pathname, ROUTE_RULES.guestOnly)) {
+  //   const res = NextResponse.redirect(new URL(ROUTES.LOGGED_IN, request.url));
+  //   res.cookies.delete(LOGIN_STEP_COOKIE);
+  //   return res;
+  // }
 
   if (!isLoggedIn && matchesAny(pathname, ROUTE_RULES.protected)) {
     return NextResponse.redirect(new URL(ROUTES.WELCOME, request.url));

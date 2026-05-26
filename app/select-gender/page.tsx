@@ -18,7 +18,6 @@ const DEFAULT_TOKEN = process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "";
 export default function SelectGenderPage() {
   const router = useRouter();
 
-  const [selected, setSelected] = useState<"MALE" | "FEMALE" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState("");
@@ -47,14 +46,14 @@ export default function SelectGenderPage() {
     return () => clearInterval(id);
   }, []);
 
-  async function handleContinue() {
-    if (!selected || isLoading) return;
+  async function handleContinue(gender: "MALE" | "FEMALE") {
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
 
     try {
       setCachedAccessToken(DEFAULT_TOKEN);
-      const user: User = await authService.updateProfile({ gender: selected });
+      const user: User = await authService.updateProfile({ gender });
 
       await setStorageData(ACCESS_TOKEN, DEFAULT_TOKEN);
       await setStorageData(USER, user);
@@ -76,12 +75,22 @@ export default function SelectGenderPage() {
       {/* Header — matches / page layout */}
       <div className="flex items-center shrink-0 py-4 px-4 mb-6">
         <div
-          style={{ flex: "0 0 25%", width: "25%", display: "flex", alignItems: "center" }}
+          style={{
+            flex: "0 0 25%",
+            width: "25%",
+            display: "flex",
+            alignItems: "center",
+          }}
         >
           <WeatherWidget iconSize={32} />
         </div>
         <div
-          style={{ flex: "0 0 50%", width: "50%", display: "flex", justifyContent: "center" }}
+          style={{
+            flex: "0 0 50%",
+            width: "50%",
+            display: "flex",
+            justifyContent: "center",
+          }}
         >
           <span className="text-white font-semibold text-3xl tracking-wide select-none">
             StyleOS
@@ -96,7 +105,9 @@ export default function SelectGenderPage() {
             alignItems: "flex-end",
           }}
         >
-          <p className="text-white font-semibold text-2xl leading-tight">{time}</p>
+          <p className="text-white font-semibold text-2xl leading-tight">
+            {time}
+          </p>
           <p className="text-white/40 text-sm mt-0.5">{date}</p>
         </div>
       </div>
@@ -115,58 +126,49 @@ export default function SelectGenderPage() {
       <div className="flex flex-row gap-6 flex-1 min-h-0">
         {/* Male */}
         <button
-          onClick={() => { setSelected("MALE"); setError(null); }}
+          onClick={() => {
+            handleContinue("MALE");
+          }}
           disabled={isLoading}
-          className={`flex-1 glass-card-strong rounded-3xl flex flex-col items-center justify-center gap-6 transition-all active:scale-95 disabled:opacity-50 ${
-            selected === "MALE"
-              ? "neon-border-white glow-white"
-              : "border border-white/10"
-          }`}
+          className="flex-1 glass-card-strong border border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 transition-all active:scale-95 disabled:opacity-50"
         >
           <div className="text-white" style={{ fontSize: 80, lineHeight: 1 }}>
             ♂
           </div>
           <div className="text-center">
             <h3 className="text-white font-bold text-3xl mb-2">Male</h3>
-            <p className="text-white/45 text-lg">Men&apos;s style &amp; grooming</p>
+            <p className="text-white/45 text-lg">
+              Men&apos;s style &amp; grooming
+            </p>
           </div>
         </button>
 
         {/* Female */}
         <button
-          onClick={() => { setSelected("FEMALE"); setError(null); }}
+          onClick={() => handleContinue("FEMALE")}
           disabled={isLoading}
-          className={`flex-1 glass-card-strong rounded-3xl flex flex-col items-center justify-center gap-6 transition-all active:scale-95 disabled:opacity-50 ${
-            selected === "FEMALE"
-              ? "neon-border-white glow-white"
-              : "border border-white/10"
-          }`}
+          className="flex-1 glass-card-strong border border-white/10 rounded-3xl flex flex-col items-center justify-center gap-6 transition-all active:scale-95 disabled:opacity-50"
         >
           <div className="text-white" style={{ fontSize: 80, lineHeight: 1 }}>
             ♀
           </div>
           <div className="text-center">
             <h3 className="text-white font-bold text-3xl mb-2">Female</h3>
-            <p className="text-white/45 text-lg">Women&apos;s style &amp; beauty</p>
+            <p className="text-white/45 text-lg">
+              Women&apos;s style &amp; beauty
+            </p>
           </div>
         </button>
       </div>
 
       {/* Error */}
       {error && (
-        <p className="text-red-400 text-center text-base mt-4 shrink-0">{error}</p>
+        <p className="text-red-400 text-center text-base mt-4 shrink-0">
+          {error}
+        </p>
       )}
 
       {/* Continue Button */}
-      <div className="shrink-0 pt-6">
-        <button
-          disabled={!selected || isLoading}
-          onClick={handleContinue}
-          className="w-full py-5 rounded-2xl text-white font-bold text-xl transition-all active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed glass-card-strong neon-border-white"
-        >
-          {isLoading ? "Setting up..." : "Continue"}
-        </button>
-      </div>
     </div>
   );
 }

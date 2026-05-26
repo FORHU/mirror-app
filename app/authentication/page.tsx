@@ -3,19 +3,11 @@
 import { ShirtIcon, Sparkles, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES } from "@/navigation";
-import { getSocketClient } from "@/modules/shared/socket/socket-client";
 
 export default function LoggedInPage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const displayName =
-    user?.displayName || user?.username || user?.email || "User";
-
-  async function handleLogout() {
-    await logout();
+  function handleRestart() {
     router.push(ROUTES.WELCOME);
   }
 
@@ -25,14 +17,14 @@ export default function LoggedInPage() {
       <div className="flex items-center justify-between mb-10 shrink-0 py-4">
         <div>
           <h2 className="text-white font-bold text-3xl tracking-tight">
-            Hi, {displayName}!
+            Welcome to Mirror!
           </h2>
         </div>
         <button
-          onClick={handleLogout}
+          onClick={handleRestart}
           className="logout-btn px-8 py-3 text-white text-lg font-medium"
         >
-          Logout
+          Restart
         </button>
       </div>
 
@@ -49,12 +41,7 @@ export default function LoggedInPage() {
         {/* Check a fit */}
         <button
           onClick={() => {
-            const kioskId = sessionStorage.getItem("kiosk_id");
-            getSocketClient().emit("send_companion_notification", {
-              kioskId,
-              action: "personalize_outfit",
-            });
-            router.push(ROUTES.WAITING_PERSONALIZE);
+            router.push(ROUTES.AI_RECOMMENDATION_FASHION);
           }}
           className="glass-card-strong neon-border-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
@@ -65,7 +52,9 @@ export default function LoggedInPage() {
             </div>
           </div>
           <div className="text-center">
-            <h3 className="text-white font-bold text-2xl mb-2">Check a fit</h3>
+            <h3 className="text-white font-bold text-2xl mb-2">
+              Style your Fashion
+            </h3>
             <p className="text-white/45 text-lg">
               Just try on clothes and see how they look
             </p>

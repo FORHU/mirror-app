@@ -1,7 +1,7 @@
 export const ROUTES = {
   WELCOME: "/",
   WAITING_LOGIN: "/waiting-login",
-  LOGGED_IN: "/logged-in",
+  LOGGED_IN: "/authentication",
   SELECT_GENDER: "/select-gender",
   WAITING_PERSONALIZE: "/waiting-personalize",
   PERSONALIZE_OUTFIT: "/personalize-outfit",
@@ -17,9 +17,11 @@ export const ROUTES = {
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
 export const ROUTE_RULES = {
-  guestOnly: [ROUTES.WELCOME, ROUTES.SELECT_GENDER, ROUTES.QRCODE, ROUTES.WAITING_LOGIN] as string[],
+  // guestOnly: [ROUTES.WELCOME, ROUTES.SELECT_GENDER, ROUTES.QRCODE, ROUTES.WAITING_LOGIN] as string[],
   // logged-out users cannot access these
   protected: [
+    ROUTES.WELCOME,
+    ROUTES.SELECT_GENDER,
     ROUTES.LOGGED_IN,
     ROUTES.WAITING_PERSONALIZE,
     ROUTES.AI_RECOMMENDATION_FASHION,
