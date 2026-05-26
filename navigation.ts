@@ -5,8 +5,7 @@ export const ROUTES = {
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   AI_RECOMMENDATION_COSMETIC_RESULT: "/ai-recommendation-cosmetic/result",
-  AI_RECOMMENDATION_COSMETIC_RECOMMENDATION:
-    "/ai-recommendation-cosmetic/recommendation",
+  AI_RECOMMENDATION_COSMETIC_RECOMMENDATION: "/ai-recommendation-cosmetic/recommendation",
   OVERVIEW: "/overview",
   MIRROR_TEMPLATES: "/mirror-templates",
   QRCODE: "/qrcode",
