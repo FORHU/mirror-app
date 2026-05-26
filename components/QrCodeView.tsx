@@ -29,13 +29,14 @@ function QrFrame({ value }: { value: string }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function QrCodeView() {
-  const [sessionHash, setSessionHash] = useState("");
-
-  useEffect(() => {
-    const hash = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
+  const [sessionHash] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const hash =
+      Math.random().toString(36).substring(2) +
+      Math.random().toString(36).substring(2);
     sessionStorage.setItem("kiosk_id", hash);
-    setSessionHash(hash);
-  }, []);
+    return hash;
+  });
 
   if (!sessionHash) {
     return <div className="w-screen h-screen bg-black" />;

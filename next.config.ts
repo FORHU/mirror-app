@@ -6,9 +6,13 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
   .replace(/\/$/, "");
 
 const nextConfig = {
-  output: 'standalone',
+  output: "standalone",
   reactStrictMode: true,
-  allowedDevOrigins: ["localhost:3000", "192.168.100.9:3000", "192.168.1.31:3000"],
+  allowedDevOrigins: [
+    "localhost:3000",
+    "192.168.100.9:3000",
+    "192.168.1.31:3000",
+  ],
   async rewrites() {
     return [
       {

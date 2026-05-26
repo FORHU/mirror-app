@@ -6,10 +6,8 @@ import {
   useContext,
   useRef,
   useState,
-  useEffect,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getSocketClient } from "@/modules/shared/socket/socket-client";
 import type { ChatWonderAction, PageContext } from "../ai/chatwonder.types";
 import { ROUTES } from "@/navigation";
 import { mapService } from "@/modules/map/services/map.service";

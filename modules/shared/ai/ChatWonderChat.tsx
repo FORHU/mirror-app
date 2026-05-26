@@ -16,8 +16,7 @@ export function ChatWonderChat() {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, isStreaming, error, sendMessage, clearMessages } =
-    useChatWonderStream();
+  const { messages, isStreaming, error, sendMessage } = useChatWonderStream();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,7 +29,7 @@ export function ChatWonderChat() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
-    
+
     const text = input;
     setInput("");
     await sendMessage(text);
@@ -93,7 +92,9 @@ export function ChatWonderChat() {
                   animate={{ opacity: 1, y: 0 }}
                   className={cn(
                     "flex gap-3 max-w-[85%]",
-                    msg.role === "USER" ? "ml-auto flex-row-reverse" : "mr-auto"
+                    msg.role === "USER"
+                      ? "ml-auto flex-row-reverse"
+                      : "mr-auto",
                   )}
                 >
                   <div
@@ -101,17 +102,21 @@ export function ChatWonderChat() {
                       "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
                       msg.role === "USER"
                         ? "bg-blue-600 text-white"
-                        : "bg-white/10 text-blue-400"
+                        : "bg-white/10 text-blue-400",
                     )}
                   >
-                    {msg.role === "USER" ? <User size={16} /> : <Bot size={16} />}
+                    {msg.role === "USER" ? (
+                      <User size={16} />
+                    ) : (
+                      <Bot size={16} />
+                    )}
                   </div>
                   <div
                     className={cn(
                       "p-3 rounded-2xl text-sm leading-relaxed",
                       msg.role === "USER"
                         ? "bg-blue-600 text-white rounded-tr-none"
-                        : "bg-white/10 text-white/90 rounded-tl-none border border-white/5"
+                        : "bg-white/10 text-white/90 rounded-tl-none border border-white/5",
                     )}
                   >
                     {msg.content || (
@@ -130,7 +135,7 @@ export function ChatWonderChat() {
                   {error}
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
 

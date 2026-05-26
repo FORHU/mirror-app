@@ -168,21 +168,6 @@
       "slots": [],
       "responseAction": "speak",
       "contextRequired": ["currentTime", "currentDate"]
-    },
-    {
-      "name": "get_schedule",
-      "page": "*",
-      "description": "Navigate to the schedule/calendar page to see upcoming events",
-      "triggers": [
-        "show my schedule",
-        "my events",
-        "upcoming events",
-        "open calendar",
-        "what's on my calendar",
-        "show my calendar"
-      ],
-      "slots": [],
-      "onTrigger": ["navigate:/schedule"]
     }
   ]
 }

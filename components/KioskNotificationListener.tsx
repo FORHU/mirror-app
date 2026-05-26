@@ -32,9 +32,12 @@ export function KioskNotificationListener() {
         setAuthCookie();
         router.push(ROUTES.LOGGED_IN);
       } else if (action === "force_logout") {
-        useAuthStore.getState().logout({ isRemote: true }).then(() => {
-          router.push(ROUTES.WELCOME);
-        });
+        useAuthStore
+          .getState()
+          .logout({ isRemote: true })
+          .then(() => {
+            router.push(ROUTES.WELCOME);
+          });
       }
     };
 
@@ -56,9 +59,10 @@ export function KioskNotificationListener() {
       }
 
       const nested = payload?.user as User | undefined;
-      const raw = !nested && (payload as unknown as User)?.id
-        ? (payload as unknown as User)
-        : undefined;
+      const raw =
+        !nested && (payload as unknown as User)?.id
+          ? (payload as unknown as User)
+          : undefined;
       const user = nested ?? raw ?? null;
 
       if (user) {
