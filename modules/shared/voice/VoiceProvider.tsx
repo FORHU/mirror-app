@@ -322,6 +322,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState === "recording") return stopListening();
     if (voiceState === "speaking") {
       stopPlayback();
+      setTranscript("");
+      setReply("");
+      setError(null);
       setVoiceState("idle");
     }
   }, [voiceState, startListening, stopListening]);

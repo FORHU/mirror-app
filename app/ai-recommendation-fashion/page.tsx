@@ -16,6 +16,7 @@ import {
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
+import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
   const startX = useRef<number | null>(null);
@@ -1451,6 +1452,7 @@ export default function VirtualMirrorV2() {
           </div>
         </div>
       )}
+      <GlobalVoiceOverlay />
     </div>
   );
 }
