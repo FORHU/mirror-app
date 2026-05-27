@@ -58,8 +58,10 @@ export default function NavCard() {
   const duration = activeRoute?.duration ?? 0;
 
   const eta = useMemo(() => {
-    const arrival = new Date(Date.now() + duration * 1000);
-    return arrival.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (duration <= 0) return "--";
+    const h = Math.floor(duration / 3600);
+    const m = Math.ceil((duration % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m} min`;
   }, [duration]);
 
   const distanceFormatted = useMemo(() => {
@@ -101,7 +103,7 @@ export default function NavCard() {
                       <span className="text-3xl font-thin text-white/90">{distanceFormatted}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">ETA</span>
+                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Duration</span>
                       <span className="text-3xl font-thin text-white/90">{eta}</span>
                     </div>
                   </div>

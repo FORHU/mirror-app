@@ -56,10 +56,7 @@ async function resampleTo16k(samples: Int16Array, fromRate: number): Promise<Int
 
 export type VoiceState = "idle" | "recording" | "processing" | "speaking";
 
-function detectIntent(
-  _transcript: string,
-  _pathname: string = "",
-): Record<string, string> {
+function detectIntent(): Record<string, string> {
   // All intent resolution is handled by the AI backend.
   // The AI receives full context (current page, nav state, location, etc.)
   // and returns typed actions — maps_navigate, navigate, stop_navigation, etc.
@@ -283,7 +280,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     cleanupRecording();
 
     const total = chunks.reduce((n, c) => n + c.length, 0);
-    let combined = new Int16Array(total);
+    let combined: Int16Array<ArrayBufferLike> = new Int16Array(total);
     let offset = 0;
     for (const c of chunks) {
       combined.set(c, offset);
@@ -352,7 +349,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         sessionId: sessionIdRef.current,
       };
 
-      const t = await mapService.transcribe(combined.buffer);
+      const t = await mapService.transcribe(combined.buffer as ArrayBuffer);
       setTranscript(t);
 
       if (!t || t.trim() === "") {
@@ -360,7 +357,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const action = detectIntent(t, pathname);
+      const action = detectIntent();
       let r = "";
       let events: unknown[] = [];
       let audioBuffer: ArrayBuffer | null = null;

@@ -91,7 +91,7 @@ export default function MapMicPill() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              onClick={() => setShowTranscript((v) => !v)}
+              onClick={() => setShowTranscript(!showTranscript)}
               className="w-11 h-11 flex items-center justify-center rounded-full transition-all active:scale-95"
               style={{
                 background: showTranscript ? "rgba(0,0,0,0.95)" : "rgba(0,0,0,0.85)",
