@@ -7,9 +7,8 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import "../../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
-import { type SkinAnalysis, type CosmeticProduct } from "@/modules/shared/api/cosmetics.service";
+import { type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 import { ROUTES } from "@/navigation";
-import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 // ── Shared overlay logic (mirrors result page) ────────────────────────────────
 type Landmark = { x: number; y: number; z: number };
@@ -423,63 +422,26 @@ export default function CosmeticRecommendationPage() {
   }, [annotatedZones, photoSize.w]);
 
   // ── Products ──────────────────────────────────────────────────────────────
-  const { eventCosmeticTags } = useMirrorStore();
-  const [realProducts, setRealProducts] = useState<Product[] | null>(null);
+  const products: Product[] = analysis?.recommendations?.length
+    ? analysis.recommendations.map((r) => ({
+        id: r.cosmeticProduct.id,
+        name: r.cosmeticProduct.name,
+        brand: r.cosmeticProduct.brand ?? "",
+        category:
+          r.cosmeticProduct.category ?? r.cosmeticProduct.type ?? "Product",
+        use:
+          r.cosmeticProduct.tags
+            ?.find((t: string) =>
+              /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
+            )
+            ?.toUpperCase() ?? "Daily",
+        score: r.score ?? 80,
+        reason: r.reason?.split(",")[0]?.trim() ?? "",
+        imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
+      }))
+    : MOCK_PRODUCTS;
 
-  useEffect(() => {
-    // If we have AI-generated event tags, fetch actual products from the DB
-    if (eventCosmeticTags && eventCosmeticTags.length > 0) {
-      import("@/modules/shared/api/cosmetics.service").then(
-        ({ cosmeticsService }) => {
-          cosmeticsService
-            .getProducts({ tags: eventCosmeticTags })
-            .then((res) => {
-              setRealProducts(
-                res.data.map((p: CosmeticProduct) => ({
-                  id: p.id,
-                  name: p.name,
-                  brand: p.brand ?? "",
-                  category: p.category ?? p.type ?? "Product",
-                  use:
-                    p.tags
-                      ?.find((t: string) =>
-                        /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
-                      )
-                      ?.toUpperCase() ?? "Daily",
-                  score: 95,
-                  reason: p.benefits?.[0] ?? "Matched to your event",
-                  imageUrl: p.fileUrl?.fileUrl ?? null,
-                })),
-              );
-            })
-            .catch(console.error);
-        },
-      );
-    }
-  }, [eventCosmeticTags]);
-
-  const products: Product[] =
-    realProducts ??
-    (analysis?.recommendations?.length
-      ? analysis.recommendations.map((r) => ({
-          id: r.cosmeticProduct.id,
-          name: r.cosmeticProduct.name,
-          brand: r.cosmeticProduct.brand ?? "",
-          category:
-            r.cosmeticProduct.category ?? r.cosmeticProduct.type ?? "Product",
-          use:
-            r.cosmeticProduct.tags
-              ?.find((t: string) =>
-                /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
-              )
-              ?.toUpperCase() ?? "Daily",
-          score: r.score ?? 80,
-          reason: r.reason?.split(",")[0]?.trim() ?? "",
-          imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
-        }))
-      : MOCK_PRODUCTS);
-
-  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
+  const totalPages = Math.ceil(products.length / PAGE_SIZE);
   const pagedProducts = products.slice(
     page * PAGE_SIZE,
     (page + 1) * PAGE_SIZE,

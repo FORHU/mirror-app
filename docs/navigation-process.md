@@ -102,7 +102,6 @@ idle → recording → processing → speaking → idle
     - Current page name
     - ChatWonder session ID from `sessionIdRef`
     - User outline ID from `useOutlineStore`
-    - **User gender** from `useAuthStore.getState().user?.gender` ← NEW
 11. `mapService.transcribe(combined.buffer)` → `POST /api/mirror/voice/transcribe`
 12. `voiceState` → `"processing"`
 
