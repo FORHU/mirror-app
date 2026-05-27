@@ -18,6 +18,14 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  VoiceState,
+  Route,
+  PendingAction,
+  Confirmation,
+  IntentStrength,
+} from "./types";
+import { ROUTE_RESPONSES, SYSTEM_RESPONSES } from "./responses";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -30,26 +38,6 @@ function float32ToInt16(f: Float32Array): Int16Array {
   }
   return out;
 }
-
-export type VoiceState = "idle" | "recording" | "processing" | "speaking";
-
-export type Route =
-  | "/"
-  | "/select-gender"
-  | "/authentication"
-  | "/ai-recommendation-fashion"
-  | "/ai-recommendation-cosmetic"
-  | "/map"
-  | "/overview";
-
-export type PendingAction = {
-  type: "navigate";
-  target: Route;
-  createdAt: number;
-};
-
-export type Confirmation = "CONFIRM" | "REJECT" | "UNCERTAIN";
-export type IntentStrength = "LOW" | "MEDIUM" | "HIGH";
 
 const CONFIRM_PATTERNS = [/\b(yes|yeah|yep|sure|ok|okay|go ahead|confirm)\b/i];
 const REJECT_PATTERNS = [/\b(no|nope|cancel|stop|wait|nevermind)\b/i];
@@ -81,13 +69,13 @@ function detectIntent(
       return {
         type: "select_gender",
         gender: "MALE",
-        reply: "Got it, setting your profile to male.",
+        reply: SYSTEM_RESPONSES.genderSetMale,
       };
     if (/\b(female|femme|women|woman|fille|girl|féminin)\b/i.test(t))
       return {
         type: "select_gender",
         gender: "FEMALE",
-        reply: "Got it, setting your profile to female.",
+        reply: SYSTEM_RESPONSES.genderSetFemale,
       };
   }
   if (pathname === "/" || pathname === "/welcome") {
@@ -99,7 +87,7 @@ function detectIntent(
       return {
         type: "navigate",
         route: "/select-gender",
-        reply: "Let's get started. First, I just need to know your gender.",
+        reply: ROUTE_RESPONSES["/select-gender"].open,
       };
     }
   }
@@ -113,7 +101,7 @@ function detectIntent(
     return {
       type: "navigate",
       route: "/map",
-      reply: "Sure, let's pull up the map.",
+      reply: ROUTE_RESPONSES["/map"].open,
     };
   if (
     /\b(build|create|make|assemble|style|do|créer|faire|assembler|choisir)\s+(an?\s+|un\s+|une\s+)?(my\s+|mon\s+|ma\s+)?(outfit|look|style|fashion|tenue|mode|vêtements?)\b|\b(pick|choose|go\s+to|open|ouvrir|aller\s+à)\s+(the\s+|la\s+|les\s+)?(my\s+|mes\s+)?(clothes|outfit|fashion|style|tenue|mode|vêtements?)(?:\s+screen|app|écran)?\b/i.test(
@@ -123,7 +111,7 @@ function detectIntent(
     return {
       type: "navigate",
       route: "/ai-recommendation-fashion",
-      reply: "I can help with that. Let's look at your outfit options.",
+      reply: ROUTE_RESPONSES["/ai-recommendation-fashion"].open,
     };
   if (
     /\b(try\s+(it\s+)?on|virtual\s+(fitting|mirror|try)|essayer|miroir\s+virtuel|essayage)\b/i.test(
@@ -133,7 +121,7 @@ function detectIntent(
     return {
       type: "navigate",
       route: "/virtual-mirror",
-      reply: "Opening the virtual mirror.",
+      reply: ROUTE_RESPONSES["/virtual-mirror"].open,
     };
   if (
     /\b(do|style|apply|maquiller|appliquer|faire)\s+(my\s+|mon\s+|ma\s+)?(makeup|cosmetic|skin\s*care|face|maquillage|cosmétique|soins?\s+du\s+visage|visage)\b|\b(open|go\s+to|ouvrir|aller\s+à)\s+(the\s+|le\s+|la\s+|les\s+)?(my\s+|mes\s+|mon\s+)?(makeup|cosmetic|skin\s*care|maquillage|cosmétique|soins?\s+du\s+visage)(?:\s+screen|écran)?\b/i.test(
@@ -143,13 +131,13 @@ function detectIntent(
     return {
       type: "navigate",
       route: "/ai-recommendation-cosmetic",
-      reply: "Sure thing, let's explore your makeup options.",
+      reply: ROUTE_RESPONSES["/ai-recommendation-cosmetic"].open,
     };
   if (/\b(home|main\s+screen|welcome|accueil|écran\s+d'accueil)\b/i.test(t))
     return {
       type: "navigate",
       route: "/overview",
-      reply: "Taking you back to the home screen.",
+      reply: ROUTE_RESPONSES["/overview"].open,
     };
 
   // 2. Travel mode
@@ -317,7 +305,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             "/map",
           ];
           if (guardedRoutes.includes(targetRoute)) {
-            const msg = "You need to select your gender first.";
+            const msg = SYSTEM_RESPONSES.genderGuard;
             const audio = await mapService.tts(msg);
             return { intercepted: true, reply: msg, audio };
           }
@@ -331,11 +319,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           if (pathname === "/authentication") {
             if (targetRoute === "/") {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to restart?";
+              confirmMsg = ROUTE_RESPONSES["/"].intercept!;
             }
             if (targetRoute === "/authentication") {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to go back to the menu?";
+              confirmMsg = ROUTE_RESPONSES["/authentication"].intercept!;
             }
           } else if (
             pathname === "/ai-recommendation-fashion" ||
@@ -346,27 +334,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               pathname === "/ai-recommendation-fashion"
             ) {
               needsConfirmation = true;
-              confirmMsg =
-                "Are you sure you want to go to the cosmetics and skincare?";
+              confirmMsg = ROUTE_RESPONSES["/ai-recommendation-cosmetic"].intercept!;
             }
             if (
               targetRoute === "/ai-recommendation-fashion" &&
               pathname === "/ai-recommendation-cosmetic"
             ) {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to go to the outfit styling?";
+              confirmMsg = ROUTE_RESPONSES["/ai-recommendation-fashion"].intercept!;
             }
             if (targetRoute === "/map") {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to go to the map?";
+              confirmMsg = ROUTE_RESPONSES["/map"].intercept!;
             }
             if (targetRoute === "/") {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to restart?";
+              confirmMsg = ROUTE_RESPONSES["/"].intercept!;
             }
             if (targetRoute === "/authentication") {
               needsConfirmation = true;
-              confirmMsg = "Are you sure you want to go back to the menu?";
+              confirmMsg = ROUTE_RESPONSES["/authentication"].intercept!;
             }
           }
 
@@ -625,7 +612,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             r = dispRes.reply || "";
             if (dispRes.audio) audioBuffer = dispRes.audio;
           } else {
-            r = "Opening that up.";
+            r = SYSTEM_RESPONSES.defaultOpen;
             audioBuffer = await mapService.tts(r);
           }
           bypassMainExecution = true;
@@ -635,12 +622,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             clearTimeout(pendingActionTimeoutRef.current);
             pendingActionTimeoutRef.current = null;
           }
-          r = "Okay, cancelled.";
+          r = SYSTEM_RESPONSES.cancelled;
           audioBuffer = await mapService.tts(r);
           bypassMainExecution = true;
         } else {
           // UNCERTAIN
-          ctx.mode = "confirm_context_required";
+          (ctx as Record<string, any>).mode = "confirm_context_required";
         }
       }
 
@@ -656,7 +643,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             r = dispRes.reply || "";
             if (dispRes.audio) audioBuffer = dispRes.audio;
           } else {
-            r = action.reply || "Opening that up.";
+            r = action.reply || SYSTEM_RESPONSES.defaultOpen;
             audioBuffer = await mapService.tts(r);
           }
         } else {
