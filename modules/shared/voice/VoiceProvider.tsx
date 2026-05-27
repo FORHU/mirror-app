@@ -18,6 +18,7 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -32,6 +33,51 @@ function float32ToInt16(f: Float32Array): Int16Array {
 }
 
 export type VoiceState = "idle" | "recording" | "processing" | "speaking";
+
+export type Route =
+  | "/"
+  | "/select-gender"
+  | "/authentication"
+  | "/ai-recommendation-fashion"
+  | "/ai-recommendation-cosmetic"
+  | "/map";
+
+export type PendingAction = {
+  type: "navigate";
+  target: Route;
+  reason?: string;
+  createdAt: number;
+};
+
+export type Confirmation = "CONFIRM" | "REJECT" | "UNCERTAIN";
+export type IntentStrength = "LOW" | "MEDIUM" | "HIGH";
+
+const CONFIRM_PATTERNS = [/\b(yes|yeah|yep|sure|ok|okay|go ahead|confirm)\b/i];
+const REJECT_PATTERNS = [/\b(no|nope|cancel|stop|wait|nevermind)\b/i];
+
+const FRIENDLY_ROUTE_NAMES: Partial<Record<Route, string>> = {
+  "/map": "the map",
+  "/ai-recommendation-fashion": "fashion",
+  "/ai-recommendation-cosmetic": "makeup and skincare",
+  "/select-gender": "the gender selection",
+  "/authentication": "the menu",
+  "/": "the start screen",
+};
+
+function isConfirmation(text: string): Confirmation {
+  const lower = text.toLowerCase();
+  if (REJECT_PATTERNS.some((p) => p.test(lower))) return "REJECT";
+  if (CONFIRM_PATTERNS.some((p) => p.test(lower))) return "CONFIRM";
+  return "UNCERTAIN";
+}
+
+function detectIntentStrength(text: string): IntentStrength {
+  const lower = text.toLowerCase();
+  if (/\b(actually|instead|show me|take me to|navigate to)\b/i.test(lower))
+    return "HIGH";
+  if (/\b(maybe|what about|could you)\b/i.test(lower)) return "LOW";
+  return "MEDIUM";
+}
 
 function detectIntent(
   transcript: string,
@@ -168,6 +214,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     Array<{ user: string; assistant: string }>
   >([]);
 
+  // State Machine Orchestration Engine
+  const pendingActionRef = useRef<PendingAction | null>(null);
+  const pendingActionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const stateErrorsRef = useRef<number>(0);
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -187,6 +238,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(t);
     }
   }, [error]);
+
+  // Reset pending state on route change to prevent cross-page leakage
+  useEffect(() => {
+    pendingActionRef.current = null;
+    stateErrorsRef.current = 0;
+    if (pendingActionTimeoutRef.current) {
+      clearTimeout(pendingActionTimeoutRef.current);
+      pendingActionTimeoutRef.current = null;
+    }
+  }, [pathname]);
 
   // ----------------------
 
@@ -209,30 +270,133 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const dispatchAction = useCallback(
-    (action: ChatWonderAction) => {
+    async (
+      action: ChatWonderAction,
+      resolvedEvents?: unknown[],
+      forceExecute: boolean = false,
+      prefixMessage?: string,
+    ): Promise<{
+      intercepted: boolean;
+      reply?: string;
+      audio?: ArrayBuffer;
+    } | void> => {
       const map = useMapStore.getState();
 
       if (action.type === "navigate") {
-        const { setAiSuggestion, clearAiSuggestion } =
-          useMirrorStore.getState();
+        const targetRoute = action.route as Route;
+
+        // 1. Guard Layer (Feature-Aware Restrictions)
+        const requiresGender =
+          targetRoute === "/ai-recommendation-fashion" ||
+          targetRoute === "/ai-recommendation-cosmetic";
+        const hasGender = !!useAuthStore.getState().user?.gender;
+        if (requiresGender && !hasGender) {
+          const msg =
+            "I can absolutely help with that — I just need to know your gender first so I can tailor everything properly.";
+          const audio = await mapService.tts(msg);
+          stateErrorsRef.current += 1;
+          return { intercepted: true, reply: msg, audio };
+        }
+
+        // 2. Confirmation Layer (Context Switches)
+        if (!forceExecute) {
+          const isMajorSwitch =
+            (targetRoute === "/ai-recommendation-cosmetic" &&
+              pathname === "/ai-recommendation-fashion") ||
+            (targetRoute === "/map" && pathname !== "/map") ||
+            targetRoute === "/" ||
+            targetRoute === "/authentication";
+
+          if (isMajorSwitch) {
+            if (pendingActionTimeoutRef.current)
+              clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionRef.current = {
+              type: "navigate",
+              target: targetRoute,
+              createdAt: Date.now(),
+            };
+            pendingActionTimeoutRef.current = setTimeout(() => {
+              pendingActionRef.current = null;
+              pendingActionTimeoutRef.current = null;
+            }, 30000);
+
+            const friendly = FRIENDLY_ROUTE_NAMES[targetRoute] ?? targetRoute;
+            let confirmTail: string;
+            if (targetRoute === "/")
+              confirmTail = "Want me to log out and restart?";
+            else if (targetRoute === "/authentication")
+              confirmTail = "Want me to take you back to the menu?";
+            else confirmTail = `Want me to switch to ${friendly}?`;
+
+            const prefix = prefixMessage?.trim();
+            const msg = prefix ? `${prefix} ${confirmTail}` : confirmTail;
+
+            const audio = await mapService.tts(msg);
+            return { intercepted: true, reply: msg, audio };
+          }
+        }
+
+        // Execute Navigation
+        const {
+          setAiSuggestion,
+          clearAiSuggestion,
+          setEventFashionTags,
+          clearEventFashionTags,
+          setEventCosmeticTags,
+          clearEventCosmeticTags,
+        } = useMirrorStore.getState();
         if (action.suggestion) {
           setAiSuggestion(action.suggestion);
         } else {
           clearAiSuggestion();
         }
 
-        // Route guard fallback — if route somehow invalid, default to fashion screen
+        if (
+          action.route === "/ai-recommendation-fashion" &&
+          resolvedEvents?.length
+        ) {
+          const firstEvent = resolvedEvents[0] as {
+            fashion?: { tags?: string[] };
+          };
+          const tags = firstEvent?.fashion?.tags;
+          if (tags && tags.length > 0) setEventFashionTags(tags);
+          else clearEventFashionTags();
+        } else {
+          clearEventFashionTags();
+        }
+
+        if (
+          action.route === "/ai-recommendation-cosmetic" &&
+          resolvedEvents?.length
+        ) {
+          const firstEvent = resolvedEvents[0] as {
+            cosmetics?: { tags?: string[] };
+          };
+          const tags = firstEvent?.cosmetics?.tags;
+          if (tags && tags.length > 0) setEventCosmeticTags(tags);
+          else clearEventCosmeticTags();
+        } else {
+          clearEventCosmeticTags();
+        }
+
+        // Safety fallback state errors
+        stateErrorsRef.current = 0;
+
         const safeRoutes = [
           "/ai-recommendation-fashion",
           "/ai-recommendation-cosmetic",
           "/map",
           "/select-gender",
           "/authentication",
+          "/overview",
+          "/virtual-mirror",
+          "/",
         ];
         const route = safeRoutes.includes(action.route)
           ? action.route
           : "/ai-recommendation-fashion";
         router.push(route);
+        return;
       } else if (action.type === "speak") {
         // audio already playing — no-op
       } else if (action.type === "maps_navigate") {
@@ -405,6 +569,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         currentPage: pageCtxRef.current?.pageName ?? pathname,
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
+        gender: useAuthStore.getState().user?.gender ?? undefined,
+        mode: undefined as string | undefined,
       };
 
       const t = await mapService.transcribe(combined.buffer);
@@ -415,24 +581,103 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const action = detectIntent(t, pathname);
       let r = "";
       let events: unknown[] = [];
       let audioBuffer: ArrayBuffer | null = null;
+      let bypassMainExecution = false;
 
-      if (action.type !== "speak") {
-        r = "Opening that up.";
+      // 3 Errors fallback reset
+      if (stateErrorsRef.current >= 3) {
+        pendingActionRef.current = null;
+        stateErrorsRef.current = 0;
+        r = "Let's start over. How can I help?";
         audioBuffer = await mapService.tts(r);
-        dispatchAction(action as unknown as ChatWonderAction);
-      } else {
-        const res = await mapService.ask(t, ctx);
-        r = res.reply;
-        events = res.events;
-        audioBuffer = res.audio;
-        if (res.sessionId) {
-          sessionIdRef.current = res.sessionId;
+        bypassMainExecution = true;
+      }
+
+      // 1. Pre-Processor Layer (Confirmation & Pending Actions)
+      else if (pendingActionRef.current) {
+        const conf = isConfirmation(t);
+        const strength = detectIntentStrength(t);
+
+        if (strength === "HIGH") {
+          // Interrupt Override Rule
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+        } else if (conf === "CONFIRM") {
+          const pa = pendingActionRef.current;
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+          const resolvedAction: ChatWonderAction = {
+            type: "navigate",
+            route: pa.target,
+          };
+          const res = await dispatchAction(resolvedAction, undefined, true);
+          if (res && res.intercepted) {
+            r = res.reply || "";
+            if (res.audio) audioBuffer = res.audio;
+          } else {
+            r = "Alright, opening it up.";
+            audioBuffer = await mapService.tts(r);
+          }
+          bypassMainExecution = true;
+        } else if (conf === "REJECT") {
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+          r = "Okay, cancelled.";
+          audioBuffer = await mapService.tts(r);
+          bypassMainExecution = true;
+        } else {
+          // UNCERTAIN
+          ctx.mode = "confirm_context_required";
         }
-        if (res.action) dispatchAction(res.action);
+      }
+
+      // 2. Main Intent Engine & Execution
+      if (!bypassMainExecution) {
+        const action = detectIntent(t, pathname);
+
+        if (action.type !== "speak") {
+          const res = await dispatchAction(
+            action as unknown as ChatWonderAction,
+          );
+          if (res && res.intercepted) {
+            r = res.reply || "";
+            if (res.audio) audioBuffer = res.audio;
+          } else {
+            r = "Opening that up.";
+            audioBuffer = await mapService.tts(r);
+          }
+        } else {
+          const res = await mapService.ask(t, ctx);
+          r = res.reply;
+          events = res.events;
+          audioBuffer = res.audio;
+          if (res.sessionId) {
+            sessionIdRef.current = res.sessionId;
+          }
+          if (res.action) {
+            const dispRes = await dispatchAction(
+              res.action,
+              res.events,
+              false,
+              r,
+            );
+            if (dispRes && dispRes.intercepted) {
+              r = dispRes.reply || "";
+              if (dispRes.audio) audioBuffer = dispRes.audio;
+            }
+          }
+        }
       }
 
       setReply(r);

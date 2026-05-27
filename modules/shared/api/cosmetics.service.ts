@@ -65,4 +65,23 @@ export const cosmeticsService = {
     if (!res.ok || !res.data?.data) throw new Error("Not found");
     return res.data.data;
   },
+
+  getProducts: async (params?: {
+    tags?: string[];
+  }): Promise<{ data: CosmeticProduct[]; total: number }> => {
+    const urlParams = new URLSearchParams();
+    if (params?.tags) {
+      params.tags.forEach((tag) => urlParams.append("tags[]", tag));
+    }
+
+    const qs = urlParams.toString();
+    const url = `/api/mirror/cosmetic-products${qs ? `?${qs}` : ""}`;
+
+    const res =
+      await api.get<
+        StandardResponse<{ data: CosmeticProduct[]; total: number }>
+      >(url);
+    if (!res.ok || !res.data?.data) throw new Error("Failed to fetch products");
+    return res.data.data;
+  },
 };

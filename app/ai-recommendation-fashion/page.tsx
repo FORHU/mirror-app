@@ -108,6 +108,7 @@ export default function VirtualMirrorV2() {
   const [loadingOutfits, setLoadingOutfits] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
+  const eventFashionTags = useMirrorStore((state) => state.eventFashionTags);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
 
   useEffect(() => {
@@ -240,49 +241,50 @@ export default function VirtualMirrorV2() {
 
   useEffect(() => {
     // Garment grids resolve independently from the outfit grid
+    const tags = eventFashionTags?.length ? eventFashionTags : undefined;
     Promise.allSettled([
       garmentService
-        .getBySlot(FittingSlot.UpperGarment)
+        .getBySlot(FittingSlot.UpperGarment, tags)
         .then(setTops)
         .catch((err) => console.error("[Tops] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.LowerGarment)
+        .getBySlot(FittingSlot.LowerGarment, tags)
         .then(setBottoms)
         .catch((err) => console.error("[Bottoms] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.FootGarment)
+        .getBySlot(FittingSlot.FootGarment, tags)
         .then(setShoes)
         .catch((err) => console.error("[Shoes] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.HeadGarment)
+        .getBySlot(FittingSlot.HeadGarment, tags)
         .then(setHeadGarments)
         .catch((err) => console.error("[HeadGarment] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.Glasses)
+        .getBySlot(FittingSlot.Glasses, tags)
         .then(setGlasses)
         .catch((err) => console.error("[Glasses] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.Earrings)
+        .getBySlot(FittingSlot.Earrings, tags)
         .then(setEarrings)
         .catch((err) => console.error("[Earrings] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.NeckAccessory)
+        .getBySlot(FittingSlot.NeckAccessory, tags)
         .then(setNeckAccessories)
         .catch((err) => console.error("[NeckAccessory] fetch error:", err)),
       garmentService
-        .getBySlot(FittingSlot.WaistAccessory)
+        .getBySlot(FittingSlot.WaistAccessory, tags)
         .then(setWaistAccessories)
         .catch((err) => console.error("[WaistAccessory] fetch error:", err)),
       garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bracelet")
+        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bracelet", tags)
         .then(setBracelets)
         .catch((err) => console.error("[Bracelet] fetch error:", err)),
       garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Watch")
+        .getBySlotAndType(FittingSlot.RightHandAccessory, "Watch", tags)
         .then(setWatches)
         .catch((err) => console.error("[Watch] fetch error:", err)),
       garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag")
+        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag", tags)
         .then(setBags)
         .catch((err) => console.error("[Bag] fetch error:", err)),
     ]).finally(() => setLoadingGarments(false));
@@ -292,7 +294,7 @@ export default function VirtualMirrorV2() {
       .then(setOutfits)
       .catch((err) => console.error("[Outfits] fetch error:", err))
       .finally(() => setLoadingOutfits(false));
-  }, []);
+  }, [eventFashionTags]);
 
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
