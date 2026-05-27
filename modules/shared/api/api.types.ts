@@ -19,6 +19,7 @@ export interface User {
   avatarUrl?: string;
   onboardingCompleted: boolean;
   artistCount?: number;
+  gender?: string;
 }
 
 export interface AuthResponse {

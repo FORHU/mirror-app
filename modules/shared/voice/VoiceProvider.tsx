@@ -18,6 +18,14 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  VoiceState,
+  Route,
+  PendingAction,
+  Confirmation,
+  IntentStrength,
+} from "./types";
+import { ROUTE_RESPONSES, SYSTEM_RESPONSES } from "./responses";
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
@@ -31,30 +39,150 @@ function float32ToInt16(f: Float32Array): Int16Array {
   return out;
 }
 
-async function resampleTo16k(samples: Int16Array, fromRate: number): Promise<Int16Array> {
-  const float32 = new Float32Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    float32[i] = samples[i] / (samples[i] < 0 ? 0x8000 : 0x7fff);
+const CONFIRM_PATTERNS = [/\b(yes|yeah|yep|sure|ok|okay|go ahead|confirm)\b/i];
+const REJECT_PATTERNS = [/\b(no|nope|cancel|stop|wait|nevermind)\b/i];
+
+function isConfirmation(text: string): Confirmation {
+  const lower = text.toLowerCase();
+  if (REJECT_PATTERNS.some((p) => p.test(lower))) return "REJECT";
+  if (CONFIRM_PATTERNS.some((p) => p.test(lower))) return "CONFIRM";
+  return "UNCERTAIN";
+}
+
+function detectIntentStrength(text: string): IntentStrength {
+  const lower = text.toLowerCase();
+  if (/\b(actually|instead|show me|take me to|navigate to)\b/i.test(lower))
+    return "HIGH";
+  if (/\b(maybe|what about|could you)\b/i.test(lower)) return "LOW";
+  return "MEDIUM";
+}
+
+function detectIntent(
+  transcript: string,
+  pathname: string = "",
+): Record<string, string> {
+  const t = transcript.toLowerCase().trim();
+
+  // 0. Page-specific strict intents
+  if (pathname.includes("/select-gender")) {
+    if (/\b(male|homme|men|man|garçon|boy|masculin)\b/i.test(t))
+      return {
+        type: "select_gender",
+        gender: "MALE",
+        reply: SYSTEM_RESPONSES.genderSetMale,
+      };
+    if (/\b(female|femme|women|woman|fille|girl|féminin)\b/i.test(t))
+      return {
+        type: "select_gender",
+        gender: "FEMALE",
+        reply: SYSTEM_RESPONSES.genderSetFemale,
+      };
   }
-  const targetLength = Math.ceil(samples.length * SAMPLE_RATE / fromRate);
-  const offCtx = new OfflineAudioContext(1, targetLength, SAMPLE_RATE);
-  const buf = offCtx.createBuffer(1, samples.length, fromRate);
-  buf.copyToChannel(float32, 0);
-  const src = offCtx.createBufferSource();
-  src.buffer = buf;
-  src.connect(offCtx.destination);
-  src.start();
-  const rendered = await offCtx.startRendering();
-  const resampled = rendered.getChannelData(0);
-  const out = new Int16Array(resampled.length);
-  for (let i = 0; i < resampled.length; i++) {
-    const c = Math.max(-1, Math.min(1, resampled[i]));
-    out[i] = c < 0 ? c * 0x8000 : c * 0x7fff;
+  if (pathname === "/" || pathname === "/welcome") {
+    if (
+      /\b(start(\s+now)?|begin|let's\s+go|commencer|démarrer|c'est\s+parti|y\s+aller|go)\b/i.test(
+        t,
+      )
+    ) {
+      return {
+        type: "navigate",
+        route: "/select-gender",
+        reply: ROUTE_RESPONSES["/select-gender"].open,
+      };
+    }
+  }
+
+  // 1. Screen navigation
+  if (
+    /\b(open|show|go\s+to|ouvrir|afficher|aller\s+à|carte|navigation)\s+(the\s+|la\s+)?(map|navigation)(?!s_navigate)\b/i.test(
+      t,
+    )
+  )
+    return {
+      type: "navigate",
+      route: "/map",
+      reply: ROUTE_RESPONSES["/map"].open,
+    };
+  if (
+    /\b(build|create|make|assemble|style|do|créer|faire|assembler|choisir)\s+(an?\s+|un\s+|une\s+)?(my\s+|mon\s+|ma\s+)?(outfit|look|style|fashion|tenue|mode|vêtements?)\b|\b(pick|choose|go\s+to|open|ouvrir|aller\s+à)\s+(the\s+|la\s+|les\s+)?(my\s+|mes\s+)?(clothes|outfit|fashion|style|tenue|mode|vêtements?)(?:\s+screen|app|écran)?\b/i.test(
+      t,
+    )
+  )
+    return {
+      type: "navigate",
+      route: "/ai-recommendation-fashion",
+      reply: ROUTE_RESPONSES["/ai-recommendation-fashion"].open,
+    };
+  if (
+    /\b(try\s+(it\s+)?on|virtual\s+(fitting|mirror|try)|essayer|miroir\s+virtuel|essayage)\b/i.test(
+      t,
+    )
+  )
+    return {
+      type: "navigate",
+      route: "/virtual-mirror",
+      reply: ROUTE_RESPONSES["/virtual-mirror"].open,
+    };
+  if (
+    /\b(do|style|apply|maquiller|appliquer|faire)\s+(my\s+|mon\s+|ma\s+)?(makeup|cosmetic|skin\s*care|face|maquillage|cosmétique|soins?\s+du\s+visage|visage)\b|\b(open|go\s+to|ouvrir|aller\s+à)\s+(the\s+|le\s+|la\s+|les\s+)?(my\s+|mes\s+|mon\s+)?(makeup|cosmetic|skin\s*care|maquillage|cosmétique|soins?\s+du\s+visage)(?:\s+screen|écran)?\b/i.test(
+      t,
+    )
+  )
+    return {
+      type: "navigate",
+      route: "/ai-recommendation-cosmetic",
+      reply: ROUTE_RESPONSES["/ai-recommendation-cosmetic"].open,
+    };
+  if (/\b(home|main\s+screen|welcome|accueil|écran\s+d'accueil)\b/i.test(t))
+    return {
+      type: "navigate",
+      route: "/overview",
+      reply: ROUTE_RESPONSES["/overview"].open,
+    };
+
+  // 2. Travel mode
+  const modeMatch = t.match(
+    /(?:switch|change|set).{0,10}(?:to|mode).{0,5}(car|motorcycle|bicycle|bike|walking|walk)\b/i,
+  );
+  if (modeMatch) {
+    const modeMap: Record<string, string> = {
+      bike: "bicycle",
+      walk: "walking",
+    };
+    const raw = modeMatch[1].toLowerCase();
+    return { type: "set_profile", profile: modeMap[raw] ?? raw };
   }
   return out;
 }
 
-export type VoiceState = "idle" | "recording" | "processing" | "speaking";
+  // 3. Map controls
+  if (/\b(best route|avoid traffic|traffic.{0,10}route)\b/i.test(t))
+    return {
+      type: "traffic_route",
+      reply: "I'll find the best route with traffic for you.",
+    };
+  if (/\b(turn on|enable|show)\s+traffic\b/i.test(t))
+    return { type: "traffic_on", reply: "Showing traffic on the map." };
+  if (/\b(turn off|disable|hide)\s+traffic\b/i.test(t))
+    return { type: "traffic_off", reply: "Hiding traffic on the map." };
+  if (/\b(stop|cancel|end)\s+navigation\b/i.test(t))
+    return { type: "stop_navigation", reply: "Stopping navigation." };
+
+  // 4. Navigate to a physical place
+  const navMatch = t.match(
+    /(?:take me to|navigate to|directions? to|drive to|go to|aller à|emmène-moi à|directions? pour)\s+(.+)/i,
+  );
+  if (navMatch) {
+    const dest = navMatch[1].trim().toLowerCase();
+    // Guard against physical routing intercepting UI commands that didn't perfectly match
+    if (
+      !/^(the\s+|la\s+|les\s+)?(my\s+|mon\s+|ma\s+|mes\s+)?(fashion|outfit|clothes|map|schedule|makeup|cosmetics?|skin\s*care|home|mirror|mode|tenue|vêtements?|carte|maquillage|cosmétique|accueil|miroir)(?:\s+screen|écran)?$/.test(
+        dest,
+      )
+    ) {
+      return { type: "maps_navigate", destination: dest };
+    }
+  }
 
 function detectIntent(): Record<string, string> {
   // All intent resolution is handled by the AI backend.
@@ -108,6 +236,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   >([]);
   const [transcriptOpen, setTranscriptOpen] = useState(true);
 
+  const pendingActionRef = useRef<PendingAction | null>(null);
+  const pendingActionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -127,6 +258,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(t);
     }
   }, [error]);
+
+  // Reset pending state on route change
+  useEffect(() => {
+    pendingActionRef.current = null;
+    if (pendingActionTimeoutRef.current) {
+      clearTimeout(pendingActionTimeoutRef.current);
+      pendingActionTimeoutRef.current = null;
+    }
+  }, [pathname]);
 
   // ----------------------
 
@@ -149,10 +289,101 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   };
 
   const dispatchAction = useCallback(
-    (action: ChatWonderAction) => {
+    async (
+      action: ChatWonderAction,
+      forceExecute: boolean = false,
+    ): Promise<{
+      intercepted: boolean;
+      reply?: string;
+      audio?: ArrayBuffer;
+    } | void> => {
       const map = useMapStore.getState();
 
       if (action.type === "navigate") {
+        const targetRoute = action.route as Route;
+
+        // 1. Guard for Landing Page and Select Gender Page
+        if (
+          pathname === "/" ||
+          pathname === "/select-gender" ||
+          pathname === "/welcome"
+        ) {
+          const guardedRoutes = [
+            "/ai-recommendation-fashion",
+            "/ai-recommendation-cosmetic",
+            "/map",
+          ];
+          if (guardedRoutes.includes(targetRoute)) {
+            const msg = SYSTEM_RESPONSES.genderGuard;
+            const audio = await mapService.tts(msg);
+            return { intercepted: true, reply: msg, audio };
+          }
+        }
+
+        // 2. Confirmation Layer for Context Switches
+        if (!forceExecute) {
+          let needsConfirmation = false;
+          let confirmMsg = "";
+
+          if (pathname === "/authentication") {
+            if (targetRoute === "/") {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/"].intercept!;
+            }
+            if (targetRoute === "/authentication") {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/authentication"].intercept!;
+            }
+          } else if (
+            pathname === "/ai-recommendation-fashion" ||
+            pathname === "/ai-recommendation-cosmetic"
+          ) {
+            if (
+              targetRoute === "/ai-recommendation-cosmetic" &&
+              pathname === "/ai-recommendation-fashion"
+            ) {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/ai-recommendation-cosmetic"].intercept!;
+            }
+            if (
+              targetRoute === "/ai-recommendation-fashion" &&
+              pathname === "/ai-recommendation-cosmetic"
+            ) {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/ai-recommendation-fashion"].intercept!;
+            }
+            if (targetRoute === "/map") {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/map"].intercept!;
+            }
+            if (targetRoute === "/") {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/"].intercept!;
+            }
+            if (targetRoute === "/authentication") {
+              needsConfirmation = true;
+              confirmMsg = ROUTE_RESPONSES["/authentication"].intercept!;
+            }
+          }
+
+          if (needsConfirmation) {
+            if (pendingActionTimeoutRef.current)
+              clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionRef.current = {
+              type: "navigate",
+              target: targetRoute,
+              createdAt: Date.now(),
+            };
+            pendingActionTimeoutRef.current = setTimeout(() => {
+              pendingActionRef.current = null;
+              pendingActionTimeoutRef.current = null;
+            }, 30000);
+
+            const audio = await mapService.tts(confirmMsg);
+            return { intercepted: true, reply: confirmMsg, audio };
+          }
+        }
+
         const { setAiSuggestion, clearAiSuggestion } =
           useMirrorStore.getState();
         if (action.suggestion) {
@@ -168,11 +399,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           "/map",
           "/select-gender",
           "/authentication",
+          "/overview",
+          "/",
         ];
         const route = safeRoutes.includes(action.route)
           ? action.route
           : "/ai-recommendation-fashion";
         router.push(route);
+        return;
       } else if (action.type === "speak") {
         // audio already playing — no-op
       } else if (action.type === "maps_navigate") {
@@ -361,20 +595,85 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       let r = "";
       let events: unknown[] = [];
       let audioBuffer: ArrayBuffer | null = null;
+      let bypassMainExecution = false;
 
-      if (action.type !== "speak") {
-        r = "Opening that up.";
-        audioBuffer = await mapService.tts(r);
-        dispatchAction(action as unknown as ChatWonderAction);
-      } else {
-        const res = await mapService.ask(t, ctx);
-        r = res.reply;
-        events = res.events;
-        audioBuffer = res.audio;
-        if (res.sessionId) {
-          sessionIdRef.current = res.sessionId;
+      // PRE-PROCESSOR LAYER
+      if (pendingActionRef.current) {
+        const conf = isConfirmation(t);
+        const strength = detectIntentStrength(t);
+
+        if (strength === "HIGH") {
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+        } else if (conf === "CONFIRM") {
+          const pa = pendingActionRef.current;
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+          const resolvedAction: ChatWonderAction = {
+            type: "navigate",
+            route: pa.target,
+          };
+          const dispRes = await dispatchAction(resolvedAction, true);
+          if (dispRes && dispRes.intercepted) {
+            r = dispRes.reply || "";
+            if (dispRes.audio) audioBuffer = dispRes.audio;
+          } else {
+            r = SYSTEM_RESPONSES.defaultOpen;
+            audioBuffer = await mapService.tts(r);
+          }
+          bypassMainExecution = true;
+        } else if (conf === "REJECT") {
+          pendingActionRef.current = null;
+          if (pendingActionTimeoutRef.current) {
+            clearTimeout(pendingActionTimeoutRef.current);
+            pendingActionTimeoutRef.current = null;
+          }
+          r = SYSTEM_RESPONSES.cancelled;
+          audioBuffer = await mapService.tts(r);
+          bypassMainExecution = true;
+        } else {
+          // UNCERTAIN
+          (ctx as Record<string, any>).mode = "confirm_context_required";
         }
-        if (res.action) dispatchAction(res.action);
+      }
+
+      if (!bypassMainExecution) {
+        const action = detectIntent(t, pathname);
+
+        if (action.type !== "speak") {
+          const dispRes = await dispatchAction(
+            action as unknown as ChatWonderAction,
+            false,
+          );
+          if (dispRes && dispRes.intercepted) {
+            r = dispRes.reply || "";
+            if (dispRes.audio) audioBuffer = dispRes.audio;
+          } else {
+            r = action.reply || SYSTEM_RESPONSES.defaultOpen;
+            audioBuffer = await mapService.tts(r);
+          }
+        } else {
+          const res = await mapService.ask(t, ctx);
+          r = res.reply;
+          events = res.events;
+          audioBuffer = res.audio;
+          if (res.sessionId) {
+            sessionIdRef.current = res.sessionId;
+          }
+          if (res.action) {
+            const dispRes = await dispatchAction(res.action, false);
+            if (dispRes && dispRes.intercepted) {
+              r = dispRes.reply || "";
+              if (dispRes.audio) audioBuffer = dispRes.audio;
+            }
+          }
+        }
       }
 
       setReply(r);
