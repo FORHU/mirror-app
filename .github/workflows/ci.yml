@@ -14,28 +14,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: "10"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "pnpm"
-
+          cache: "npm"
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Lint
-        run: pnpm lint
+        run: npm run lint
 
       - name: Type check
-        run: pnpm check
+        run: npm run check
 
       - name: Build
-        run: pnpm build
+        run: npm run build
         env:
           # Placeholder values so Next.js build doesn't fail without real secrets
           NEXT_PUBLIC_DEVICE_MODE: mirror
