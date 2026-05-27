@@ -1,10 +1,10 @@
 FROM node:22-alpine AS base
-RUN npm install -g pnpm@10
+RUN corepack enable
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
@@ -29,7 +29,7 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_MAPBOX_TOKEN=$NEXT_PUBLIC_MAPBOX_TOKEN \
     NEXT_PUBLIC_DEVICE_MODE=$NEXT_PUBLIC_DEVICE_MODE
 
-RUN pnpm build
+RUN npm run build
 
 FROM base AS runner
 WORKDIR /app

@@ -195,6 +195,7 @@ function detectIntent(
   );
   if (navMatch) {
     const dest = navMatch[1].trim().toLowerCase();
+    // Guard against physical routing intercepting UI commands that didn't perfectly match
     if (
       !/^(the\s+|la\s+|les\s+)?(my\s+|mon\s+|ma\s+|mes\s+)?(fashion|outfit|clothes|map|schedule|makeup|cosmetics?|skin\s*care|home|mirror|mode|tenue|vêtements?|carte|maquillage|cosmétique|accueil|miroir)(?:\s+screen|écran)?$/.test(
         dest,
@@ -269,7 +270,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
 
-  // Auto-clear voice error after 5 seconds
   useEffect(() => {
     if (error) {
       const t = setTimeout(() => setError(null), 5000);
@@ -277,7 +277,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [error]);
 
-  // Reset pending state on route change
   useEffect(() => {
     pendingActionRef.current = null;
     if (pendingActionTimeoutRef.current) {
@@ -285,8 +284,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       pendingActionTimeoutRef.current = null;
     }
   }, [pathname]);
-
-  // ----------------------
 
   const stopPlayback = () => {
     playbackRef.current?.stop();
@@ -320,7 +317,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (action.type === "navigate") {
         const targetRoute = action.route as Route;
 
-        // 1. Guard for Landing Page and Select Gender Page
         if (
           pathname === "/" ||
           pathname === "/select-gender" ||
@@ -338,7 +334,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        // 2. Confirmation Layer for Context Switches
         if (!forceExecute) {
           let needsConfirmation = false;
           let confirmMsg = "";
@@ -396,7 +391,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               pendingActionRef.current = null;
               pendingActionTimeoutRef.current = null;
             }, 30000);
-
             const audio = await mapService.tts(confirmMsg);
             return { intercepted: true, reply: confirmMsg, audio };
           }
@@ -425,7 +419,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         router.push(route);
         return;
       } else if (action.type === "speak") {
-        // audio already playing — no-op
+        // no-op
       } else if (action.type === "maps_navigate") {
         const loc = map.userLocation ?? map.homeLocation ?? undefined;
         if (pathname.startsWith("/map")) {
@@ -479,10 +473,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       } else if (action.type === "maps_get_directions") {
         sessionStorage.setItem(
           "mirror_pending_map_directions",
-          JSON.stringify({
-            destination: action.destination,
-            mode: action.mode,
-          }),
+          JSON.stringify({ destination: action.destination, mode: action.mode }),
         );
         if (!pathname.startsWith("/map")) router.push(ROUTES.MAP);
       } else {
@@ -613,7 +604,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       let audioBuffer: ArrayBuffer | null = null;
       let bypassMainExecution = false;
 
-      // PRE-PROCESSOR LAYER
       if (pendingActionRef.current) {
         const conf = isConfirmation(t);
         const strength = detectIntentStrength(t);
@@ -654,7 +644,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           audioBuffer = await mapService.tts(r);
           bypassMainExecution = true;
         } else {
-          // UNCERTAIN
           (ctx as Record<string, unknown>).mode = "confirm_context_required";
         }
       }
