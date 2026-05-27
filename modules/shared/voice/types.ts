@@ -11,7 +11,7 @@ export type Route =
   | "/virtual-mirror";
 
 export type PendingAction = {
-  type: "navigate";
+  type: string;
   target: Route;
   createdAt: number;
 };

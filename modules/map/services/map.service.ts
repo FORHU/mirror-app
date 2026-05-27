@@ -134,6 +134,14 @@ export const mapService = {
     action: ChatWonderAction | null;
     events: unknown[];
     sessionId: string;
+    // Cognitive orchestration fields
+    intent?: { primary: string; secondary: string | null; confidence: number };
+    emotion?: string;
+    requiresConfirmation?: boolean;
+    followUpQuestion?: string | null;
+    suggestions?: string[];
+    uiHints?: { overlay: string | null; focus: string | null };
+    memoryUpdates?: Record<string, unknown>;
   }> => {
     const payload = { transcript, ctx };
     const res = await api.axiosInstance.post<{
@@ -142,9 +150,33 @@ export const mapService = {
       events: unknown[];
       sessionId: string;
       audioBase64: string;
+      intent?: {
+        primary: string;
+        secondary: string | null;
+        confidence: number;
+      };
+      emotion?: string;
+      requiresConfirmation?: boolean;
+      followUpQuestion?: string | null;
+      suggestions?: string[];
+      uiHints?: { overlay: string | null; focus: string | null };
+      memoryUpdates?: Record<string, unknown>;
     }>("/api/mirror/voice/ask", payload);
 
-    const { reply, action, events, sessionId, audioBase64 } = res.data;
+    const {
+      reply,
+      action,
+      events,
+      sessionId,
+      audioBase64,
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
+    } = res.data;
 
     // Decode base64 audio string → ArrayBuffer
     const binaryStr = atob(audioBase64 ?? "");
@@ -159,6 +191,13 @@ export const mapService = {
       action: action ?? null,
       events: events ?? [],
       sessionId: sessionId ?? "",
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
     };
   },
 };

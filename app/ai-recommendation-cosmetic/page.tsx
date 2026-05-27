@@ -167,7 +167,7 @@ export default function CosmeticPage() {
   const [isModelLoading, setIsModelLoading] = useState(true);
   const [faceAligned, setFaceAligned] = useState(false);
   const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorMsg] = useState<string | null>(null);
   const [manualCaptureVisible, setManualCaptureVisible] = useState(false);
   const manualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
