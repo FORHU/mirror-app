@@ -16,7 +16,7 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, showTerrain, setMap } =
+  const { homeLocation, setSelectedPOI, showTraffic, setMap } =
     useMapStore();
 
   // Use camera hook
@@ -27,29 +27,14 @@ const MapViewport = () => {
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
+      style: "mapbox://styles/mapbox/dark-v11",
       center: [homeLocation.lng, homeLocation.lat],
       zoom: 15,
       pitch: 0,
       bearing: 0,
-      antialias: true,
     });
 
     mapInstance.on("load", () => {
-      mapInstance.addLayer({
-        id: "3d-buildings",
-        source: "composite",
-        "source-layer": "building",
-        filter: ["==", "extrude", "true"],
-        type: "fill-extrusion",
-        paint: {
-          "fill-extrusion-color": "#d4d4d8",
-          "fill-extrusion-height": ["get", "height"],
-          "fill-extrusion-base": ["get", "min_height"],
-          "fill-extrusion-opacity": 0.6,
-        },
-      });
-
       setLocalMap(mapInstance);
       setMap(mapInstance);
 
@@ -96,11 +81,10 @@ const MapViewport = () => {
     };
   }, [homeLocation, setMap, setSelectedPOI]); // Only init once when homeLocation is ready
 
-  // Handle Traffic and Terrain toggles
+  // Handle Traffic toggle
   useEffect(() => {
     if (!map) return;
 
-    // Traffic — add Mapbox traffic tileset on demand, hide/show without removing
     const TRAFFIC_SRC = "mapbox-traffic-v1";
     const TRAFFIC_LAYER = "traffic-congestion";
 
@@ -123,14 +107,10 @@ const MapViewport = () => {
             "line-color": [
               "match",
               ["get", "congestion"],
-              "low",
-              "#4ade80",
-              "moderate",
-              "#fbbf24",
-              "heavy",
-              "#f97316",
-              "severe",
-              "#ef4444",
+              "low", "#4ade80",
+              "moderate", "#fbbf24",
+              "heavy", "#f97316",
+              "severe", "#ef4444",
               "#4ade80",
             ],
           },
@@ -143,22 +123,7 @@ const MapViewport = () => {
         map.setLayoutProperty(TRAFFIC_LAYER, "visibility", "none");
       }
     }
-
-    // Terrain
-    if (showTerrain) {
-      if (!map.getSource("mapbox-dem")) {
-        map.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-      }
-      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
-    } else {
-      map.setTerrain(null);
-    }
-  }, [map, showTraffic, showTerrain]);
+  }, [map, showTraffic]);
 
   return (
     <div ref={mapContainerRef} className="w-full h-full">

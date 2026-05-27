@@ -5,14 +5,9 @@ import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
 import {
   Navigation,
-  Car,
-  Footprints,
-  Bike,
-  MoreHorizontal,
   Settings,
   LocateFixed,
   X,
-  Bike as Motorcycle,
   Home,
   Check,
 } from "lucide-react";
@@ -33,20 +28,12 @@ const PANEL_ACTIVE = {
 export const ExploreHUD = () => {
   const {
     isNavigating,
-    startNavigation,
-    activeRoute,
-    fetchRoute,
-    isRouting,
     selectedPOI,
     setSelectedPOI,
     setDestination,
-    selectedDestination,
     userLocation,
-    activeProfile,
     toggleTraffic,
     showTraffic,
-    toggleTerrain,
-    showTerrain,
     map,
     origin,
     setUserLocation,
@@ -110,62 +97,7 @@ export const ExploreHUD = () => {
           }
         />
         <IconButton onClick={toggleTraffic} active={showTraffic} icon={<Settings className="w-5 h-5 text-white/80" />} />
-        <IconButton onClick={toggleTerrain} active={showTerrain} icon={<MoreHorizontal className="w-5 h-5 text-white/80" />} />
       </motion.div>
-
-      {/* ── Bottom-left: Transport selector + Route stats + Start ── */}
-      <div className="absolute bottom-28 left-6 flex flex-col items-start gap-4 pointer-events-none">
-        <AnimatePresence>
-          {selectedDestination && (
-            <motion.div
-              key="go-panel"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 16 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col items-start gap-4 pointer-events-auto"
-            >
-              {/* Transport mode selector */}
-              <div className="flex items-center gap-2">
-                <TransportButton active={activeProfile === "car"} onClick={() => useMapStore.getState().setActiveProfile("car")} icon={<Car className="w-5 h-5 text-white/80" />} />
-                <TransportButton active={activeProfile === "motorcycle"} onClick={() => useMapStore.getState().setActiveProfile("motorcycle")} icon={<Motorcycle className="w-5 h-5 text-white/80" />} />
-                <TransportButton active={activeProfile === "walking"} onClick={() => useMapStore.getState().setActiveProfile("walking")} icon={<Footprints className="w-5 h-5 text-white/80" />} />
-                <TransportButton active={activeProfile === "bicycle"} onClick={() => useMapStore.getState().setActiveProfile("bicycle")} icon={<Bike className="w-5 h-5 text-white/80" />} />
-              </div>
-
-              {/* Route stats */}
-              {activeRoute && (
-                <div className="flex gap-8 px-6 py-4 rounded-2xl" style={PANEL}>
-                  <div className="flex flex-col items-start">
-                    <span className="text-4xl font-thin text-white leading-none">
-                      {Math.ceil(activeRoute.duration / 60)}
-                      <span className="text-lg ml-1 text-white/50">min</span>
-                    </span>
-                    <span className="text-[10px] uppercase tracking-widest mt-1 text-white/40">Duration</span>
-                  </div>
-                  <div className="flex flex-col items-start">
-                    <span className="text-4xl font-thin text-white leading-none">
-                      {(activeRoute.distance * 0.000621371).toFixed(1)}
-                      <span className="text-lg ml-1 text-white/50">mi</span>
-                    </span>
-                    <span className="text-[10px] uppercase tracking-widest mt-1 text-white/40">Distance</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Start / Calculate button */}
-              <button
-                onClick={() => !activeRoute ? fetchRoute(true) : startNavigation()}
-                className="text-white px-10 py-5 rounded-2xl text-2xl font-light flex items-center gap-3 transition-all active:scale-95"
-                style={PANEL}
-              >
-                {isRouting ? "Calculating…" : !activeRoute ? "Calculate Route" : "Start Navigation"}
-                <Navigation className="w-6 h-6 fill-white rotate-90" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
 
       {/* ── Bottom-left: POI details card ── */}
       <AnimatePresence>
@@ -246,20 +178,3 @@ const IconButton = ({
   </button>
 );
 
-const TransportButton = ({
-  active,
-  icon,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className="p-3 rounded-xl transition-all active:scale-95 flex items-center justify-center"
-    style={active ? PANEL_ACTIVE : PANEL}
-  >
-    {icon}
-  </button>
-);

@@ -69,7 +69,6 @@ interface MapStore {
   selectedPOI: SelectedPOI | null;
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
-  showTerrain: boolean;
   isRouting: boolean;
   userLocation: Location | null;
   origin: Location | null;
@@ -91,7 +90,6 @@ interface MapStore {
   setCameraMode(mode: "follow" | "overview" | "free"): void;
   toggleMapStyle(): void;
   toggleTraffic(): void;
-  toggleTerrain(): void;
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
@@ -129,7 +127,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   selectedPOI: null,
   activeProfile: "car",
   showTraffic: false,
-  showTerrain: false,
   isRouting: false,
   userLocation: null,
   origin: null,
@@ -193,7 +190,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   toggleMapStyle: () =>
     set((s) => ({ mapStyle: s.mapStyle === "mirror" ? "standard" : "mirror" })),
   toggleTraffic: () => set((s) => ({ showTraffic: !s.showTraffic })),
-  toggleTerrain: () => set((s) => ({ showTerrain: !s.showTerrain })),
 
   searchLocations: async (query) => {
     set({ isSearching: true });

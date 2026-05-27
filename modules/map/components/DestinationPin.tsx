@@ -21,11 +21,10 @@ const DestinationPin: React.FC<DestinationPinProps> = ({ map }) => {
 
     const el = document.createElement("div");
     el.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 0 6px rgba(59,130,246,0.7)) drop-shadow(0 0 14px rgba(59,130,246,0.4));">
-        <svg width="36" height="48" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M18 0C8.059 0 0 8.059 0 18c0 12.75 18 30 18 30S36 30.75 36 18C36 8.059 27.941 0 18 0Z" fill="#3b82f6"/>
-          <circle cx="18" cy="18" r="7" fill="white" opacity="1"/>
-          <circle cx="18" cy="18" r="3.5" fill="#3b82f6"/>
+      <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.55));">
+        <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 1C7.716 1 1 7.716 1 16c0 11.25 15 25 15 25S31 27.25 31 16C31 7.716 24.284 1 16 1Z" fill="white" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
+          <circle cx="16" cy="16" r="5" fill="#374151"/>
         </svg>
       </div>
     `;

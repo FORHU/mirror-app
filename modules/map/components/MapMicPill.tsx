@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -12,8 +11,9 @@ const PANEL = {
 } as const;
 
 export default function MapMicPill() {
-  const { voiceState, transcript, reply, error, toggle } = useVoiceContext();
-  const [showTranscript, setShowTranscript] = useState(false);
+  const { voiceState, transcript, reply, error, toggle, transcriptOpen, setTranscriptOpen } = useVoiceContext();
+  const showTranscript = transcriptOpen;
+  const setShowTranscript = setTranscriptOpen;
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";

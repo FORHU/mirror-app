@@ -7,6 +7,7 @@ import { ExploreHUD } from "./ExploreHUD";
 import MapViewport from "./MapViewport";
 import CommuteWidget from "./CommuteWidget";
 import MapMicPill from "./MapMicPill";
+import NavCard from "./NavCard";
 
 export default function MapDashboard() {
   const { isNavigating, setUserLocation, fetchNearbyPOIs, homeLocation } = useMapStore();
@@ -46,6 +47,7 @@ export default function MapDashboard() {
 
       {isNavigating && <NavigationHUD />}
       <ExploreHUD />
+      <NavCard />
       <MapMicPill />
     </div>
   );

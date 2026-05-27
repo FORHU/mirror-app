@@ -31,6 +31,29 @@ function float32ToInt16(f: Float32Array): Int16Array {
   return out;
 }
 
+async function resampleTo16k(samples: Int16Array, fromRate: number): Promise<Int16Array> {
+  const float32 = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    float32[i] = samples[i] / (samples[i] < 0 ? 0x8000 : 0x7fff);
+  }
+  const targetLength = Math.ceil(samples.length * SAMPLE_RATE / fromRate);
+  const offCtx = new OfflineAudioContext(1, targetLength, SAMPLE_RATE);
+  const buf = offCtx.createBuffer(1, samples.length, fromRate);
+  buf.copyToChannel(float32, 0);
+  const src = offCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(offCtx.destination);
+  src.start();
+  const rendered = await offCtx.startRendering();
+  const resampled = rendered.getChannelData(0);
+  const out = new Int16Array(resampled.length);
+  for (let i = 0; i < resampled.length; i++) {
+    const c = Math.max(-1, Math.min(1, resampled[i]));
+    out[i] = c < 0 ? c * 0x8000 : c * 0x7fff;
+  }
+  return out;
+}
+
 export type VoiceState = "idle" | "recording" | "processing" | "speaking";
 
 function detectIntent(
@@ -61,6 +84,8 @@ export interface VoiceContextValue {
   unregisterPage: () => void;
   aiEvents: unknown[];
   chatHistory: Array<{ user: string; assistant: string }>;
+  transcriptOpen: boolean;
+  setTranscriptOpen: (v: boolean) => void;
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -84,6 +109,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [chatHistory, setChatHistory] = useState<
     Array<{ user: string; assistant: string }>
   >([]);
+  const [transcriptOpen, setTranscriptOpen] = useState(true);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
@@ -253,14 +279,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     setVoiceState("processing");
 
     const chunks = chunksRef.current;
+    const actualSampleRate = audioCtxRef.current?.sampleRate ?? SAMPLE_RATE;
     cleanupRecording();
 
     const total = chunks.reduce((n, c) => n + c.length, 0);
-    const combined = new Int16Array(total);
+    let combined = new Int16Array(total);
     let offset = 0;
     for (const c of chunks) {
       combined.set(c, offset);
       offset += c.length;
+    }
+
+    if (actualSampleRate !== SAMPLE_RATE) {
+      combined = await resampleTo16k(combined, actualSampleRate);
     }
 
     try {
@@ -437,6 +468,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         unregisterPage,
         aiEvents,
         chatHistory,
+        transcriptOpen,
+        setTranscriptOpen,
       }}
     >
       {children}

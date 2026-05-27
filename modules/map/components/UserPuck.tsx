@@ -37,15 +37,15 @@ const UserPuck: React.FC<UserPuckProps> = ({ map }) => {
 
     if (isNavigating && activeRoute) {
       el.innerHTML = `
-        <div style="filter: drop-shadow(0 0 10px rgba(59,130,246,0.8));">
-          <svg width="50" height="50" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 2L38 36L20 26L2 36L20 2Z" fill="#3b82f6" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+        <div style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.6));">
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 3L32 31L18 22L4 31Z" fill="white" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
         </div>
       `;
       markerRef.current.setRotation(0);
-      el.style.width = "50px";
-      el.style.height = "50px";
+      el.style.width = "36px";
+      el.style.height = "36px";
       el.style.backgroundColor = "transparent";
       el.style.borderRadius = "0";
       el.style.boxShadow = "none";
