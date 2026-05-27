@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
@@ -30,36 +30,7 @@ function SelectGenderContent() {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
 
-  useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
-    if (action.type === "select_gender" && action.gender) {
-      handleContinue(action.gender as "MALE" | "FEMALE");
-    }
-  });
-
-  useEffect(() => {
-    function tick() {
-      const now = new Date();
-      setTime(
-        now.toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        }),
-      );
-      setDate(
-        now.toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-        }),
-      );
-    }
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  async function handleContinue(gender: "MALE" | "FEMALE") {
+  const handleContinue = useCallback(async (gender: "MALE" | "FEMALE") => {
     if (isLoading) return;
     setIsLoading(true);
     setError(null);
@@ -88,7 +59,36 @@ function SelectGenderContent() {
       );
       setIsLoading(false);
     }
-  }
+  }, [isLoading, router, searchParams]);
+
+  useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
+    if (action.type === "select_gender" && action.gender) {
+      handleContinue(action.gender as "MALE" | "FEMALE");
+    }
+  });
+
+  useEffect(() => {
+    function tick() {
+      const now = new Date();
+      setTime(
+        now.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        }),
+      );
+      setDate(
+        now.toLocaleDateString("en-US", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+        }),
+      );
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">
