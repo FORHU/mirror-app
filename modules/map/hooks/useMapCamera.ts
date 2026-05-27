@@ -74,15 +74,6 @@ export function useMapCamera(map: mapboxgl.Map | null) {
     )?.bearing_after;
     const bearing = apiBearing != null ? apiBearing : 0;
 
-    console.log(
-      "[Camera] FPV | center:",
-      center,
-      "| bearing:",
-      bearing,
-      "| source:",
-      apiBearing != null ? "API" : "default-0",
-    );
-
     if (idleRotRef.current) {
       cancelAnimationFrame(idleRotRef.current);
       idleRotRef.current = null;

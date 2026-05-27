@@ -5,10 +5,10 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/modules/shared/config/device.config";
 import { useMapStore } from "../store/useMapStore";
-import { applyMirrorStyle } from "../utils/mirrorStyle";
 import RouteLayer from "./RouteLayer";
 import UserPuck from "./UserPuck";
 import DestinationPin from "./DestinationPin";
+import NearbyPOILayer from "./NearbyPOILayer";
 import { useMapCamera } from "../hooks/useMapCamera";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -27,7 +27,7 @@ const MapViewport = () => {
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/light-v11",
       center: [homeLocation.lng, homeLocation.lat],
       zoom: 15,
       pitch: 0,
@@ -43,14 +43,13 @@ const MapViewport = () => {
         filter: ["==", "extrude", "true"],
         type: "fill-extrusion",
         paint: {
-          "fill-extrusion-color": "#141414",
+          "fill-extrusion-color": "#d4d4d8",
           "fill-extrusion-height": ["get", "height"],
           "fill-extrusion-base": ["get", "min_height"],
           "fill-extrusion-opacity": 0.6,
         },
       });
 
-      applyMirrorStyle(mapInstance);
       setLocalMap(mapInstance);
       setMap(mapInstance);
 
@@ -90,15 +89,6 @@ const MapViewport = () => {
         );
         mapInstance.getCanvas().style.cursor = namedFeature ? "pointer" : "";
       });
-    });
-
-    mapInstance.on("style.load", () => {
-      applyMirrorStyle(mapInstance);
-    });
-
-    // Re-apply after first idle so all sprite/tiles are loaded
-    mapInstance.once("idle", () => {
-      applyMirrorStyle(mapInstance);
     });
 
     return () => {
@@ -175,6 +165,7 @@ const MapViewport = () => {
       {map && (
         <>
           <RouteLayer map={map} />
+          <NearbyPOILayer map={map} />
           <UserPuck map={map} />
           <DestinationPin map={map} />
         </>

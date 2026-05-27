@@ -1,95 +1,52 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useMapStore } from "../store/useMapStore";
 import NavigationHUD from "./NavigationHUD";
 import { ExploreHUD } from "./ExploreHUD";
 import MapViewport from "./MapViewport";
 import CommuteWidget from "./CommuteWidget";
-import WeatherWidget from "./WeatherWidget";
+import MapMicPill from "./MapMicPill";
 
 export default function MapDashboard() {
-  const { isNavigating } = useMapStore();
-  const hiddenVideoRef = useRef<HTMLVideoElement>(null);
-  const mirrorCanvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
+  const { isNavigating, setUserLocation, fetchNearbyPOIs, homeLocation } = useMapStore();
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
+    if (!("geolocation" in navigator)) return;
 
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "user" }, audio: false })
-      .then((s) => {
-        stream = s;
-        const video = hiddenVideoRef.current!;
-        video.srcObject = s;
-        video.play().catch(() => {});
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => {
+        setUserLocation({ lat: coords.latitude, lng: coords.longitude });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
+    );
 
-        const drawFrame = () => {
-          const canvas = mirrorCanvasRef.current;
-          const ctx = canvas?.getContext("2d");
-          if (canvas && ctx && video.readyState >= 2) {
-            const w = canvas.offsetWidth;
-            const h = canvas.offsetHeight;
-            if (canvas.width !== w) canvas.width = w;
-            if (canvas.height !== h) canvas.height = h;
-            ctx.save();
-            ctx.translate(w, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, w, h);
-            ctx.restore();
-          }
-          rafRef.current = requestAnimationFrame(drawFrame);
-        };
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [setUserLocation]);
 
-        rafRef.current = requestAnimationFrame(drawFrame);
-      })
-      .catch(() => {});
-
-    return () => {
-      stream?.getTracks().forEach((t) => t.stop());
-      cancelAnimationFrame(rafRef.current);
-    };
+  // Fetch POIs around the user's location on mount
+  useEffect(() => {
+    const loc = useMapStore.getState().userLocation ?? homeLocation;
+    if (loc) fetchNearbyPOIs(loc);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="relative w-full h-dvh bg-black overflow-hidden">
-      {/* Hidden camera source */}
-      <video
-        ref={hiddenVideoRef}
-        autoPlay
-        muted
-        playsInline
-        className="hidden"
-      />
-
-      {/* Mirror canvas — drawn via RAF, stays on main thread, avoids GPU layer isolation */}
-      <canvas
-        ref={mirrorCanvasRef}
-        className="absolute inset-0 w-full h-full"
-      />
-
-      {/* Tint layer */}
-      <div className="absolute inset-0 bg-black/88" />
-
-      {/* Map — screen blend: black areas become transparent, roads/labels float over reflection */}
-      <div
-        className="absolute inset-0 opacity-30"
-        style={{ mixBlendMode: "screen" }}
-      >
+      {/* Map — full screen, full opacity */}
+      <div className="absolute inset-0">
         <MapViewport />
       </div>
 
-      {/* Top-left cluster: weather + commute — stacked, no overlap */}
-      {!isNavigating && (
-        <div className="absolute top-6 left-6 z-50 pointer-events-auto flex flex-col gap-1">
-          <WeatherWidget />
-          <CommuteWidget />
-        </div>
-      )}
+      {/* Top-left: commute widget — explore mode only */}
+      <div className="absolute top-24 left-6 z-40 pointer-events-auto">
+        <CommuteWidget />
+      </div>
 
       {isNavigating && <NavigationHUD />}
       <ExploreHUD />
+      <MapMicPill />
     </div>
   );
 }

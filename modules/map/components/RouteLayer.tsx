@@ -21,14 +21,13 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         data: lastTripGeojson ?? { type: "FeatureCollection", features: [] },
       });
 
-      // Ghost overlay of the previous trip
       map.addLayer({
         id: "last-trip-line",
         type: "line",
         source: "last-trip",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#ffffff",
+          "line-color": "#3b82f6",
           "line-width": 2,
           "line-opacity": 0.18,
           "line-dasharray": [4, 4],
@@ -52,9 +51,9 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#00cfff",
+          "line-color": "#3b82f6",
           "line-width": 18,
-          "line-opacity": 0.25,
+          "line-opacity": 0.2,
           "line-blur": 8,
         },
       });
@@ -66,9 +65,9 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#00d4ff",
+          "line-color": "#3b82f6",
           "line-width": 10,
-          "line-opacity": 0.55,
+          "line-opacity": 0.45,
           "line-blur": 4,
         },
       });
@@ -80,8 +79,8 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#ffffff",
-          "line-width": 3,
+          "line-color": "#3b82f6",
+          "line-width": 4,
           "line-opacity": 1,
           "line-blur": 0,
         },

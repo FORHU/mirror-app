@@ -5,24 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Briefcase, Home, Loader2, MapPin } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return "Good morning";
-  if (h >= 12 && h < 17) return "Good afternoon";
-  if (h >= 17 && h < 21) return "Good evening";
-  return "Good night";
-}
-
 function formatMinutes(seconds: number) {
   return Math.ceil(seconds / 60);
 }
 
-function formatTime() {
-  return new Date().toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default function CommuteWidget() {
   const {
@@ -35,14 +21,7 @@ export default function CommuteWidget() {
     selectedDestination,
   } = useMapStore();
 
-  const [clock, setClock] = useState(formatTime());
   const [settingWork, setSettingWork] = useState(false);
-
-  // Update clock every minute
-  useEffect(() => {
-    const id = setInterval(() => setClock(formatTime()), 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   // Fetch commute ETA on mount + every 5 min
   useEffect(() => {
@@ -74,22 +53,6 @@ export default function CommuteWidget() {
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-1"
     >
-      {/* Clock + greeting */}
-      <div className="flex items-baseline gap-3">
-        <span
-          className="text-4xl font-light text-white"
-          style={{ textShadow: "0 0 20px rgba(0,0,0,0.8)" }}
-        >
-          {clock}
-        </span>
-        <span
-          className="text-sm text-white/60"
-          style={{ textShadow: "0 0 12px rgba(0,0,0,0.8)" }}
-        >
-          {greeting()}
-        </span>
-      </div>
-
       {/* Commute ETA */}
       <AnimatePresence>
         {showCommute && (

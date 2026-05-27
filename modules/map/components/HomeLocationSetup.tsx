@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { mapService, GeocodeResult } from "../services/map.service";
-import { Search, MapPin, Loader2, Check } from "lucide-react";
+import { Search, MapPin, Loader2, Check, LocateFixed } from "lucide-react";
 import { motion } from "framer-motion";
 import mapboxgl from "mapbox-gl";
 
@@ -13,6 +13,7 @@ const HomeLocationSetup = () => {
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGpsLocating, setIsGpsLocating] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,6 +68,26 @@ const HomeLocationSetup = () => {
     return () => clearTimeout(timer);
   }, [query]);
 
+  const handleUseGPS = () => {
+    if (!("geolocation" in navigator)) {
+      setError("GPS not available on this device.");
+      return;
+    }
+    setIsGpsLocating(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setIsGpsLocating(false);
+        handleSave({ lat: coords.latitude, lng: coords.longitude });
+      },
+      () => {
+        setIsGpsLocating(false);
+        setError("Could not get GPS location. Check browser permissions.");
+      },
+      { enableHighAccuracy: true, timeout: 12000 },
+    );
+  };
+
   const handleSave = async (coords: { lat: number; lng: number }) => {
     setIsSaving(true);
     setError(null);
@@ -108,6 +129,25 @@ const HomeLocationSetup = () => {
           Set your mirror&apos;s home location to begin
         </p>
       </div>
+
+      {/* Quick GPS option */}
+      <button
+        onClick={handleUseGPS}
+        disabled={isGpsLocating || isSaving}
+        className="flex items-center gap-3 mb-8 px-6 py-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors w-full disabled:opacity-50"
+      >
+        {isGpsLocating ? (
+          <Loader2 className="w-5 h-5 animate-spin text-white/60" />
+        ) : (
+          <LocateFixed className="w-5 h-5 text-blue-400" />
+        )}
+        <div className="text-left">
+          <div className="text-white font-medium">
+            {isGpsLocating ? "Getting your location…" : "Use my current location"}
+          </div>
+          <div className="text-white/40 text-sm">Automatically set from GPS</div>
+        </div>
+      </button>
 
       <div className="flex gap-8 mb-10 border-b border-white/10 pb-4">
         <button

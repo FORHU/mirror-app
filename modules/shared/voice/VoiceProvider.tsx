@@ -34,95 +34,12 @@ function float32ToInt16(f: Float32Array): Int16Array {
 export type VoiceState = "idle" | "recording" | "processing" | "speaking";
 
 function detectIntent(
-  transcript: string,
-  pathname: string = "",
+  _transcript: string,
+  _pathname: string = "",
 ): Record<string, string> {
-  const t = transcript.toLowerCase().trim();
-
-  // 0. Page-specific strict intents
-  if (pathname.includes("/select-gender")) {
-    if (/\b(male|homme|men|man|garçon|boy|masculin)\b/i.test(t))
-      return { type: "select_gender", gender: "MALE" };
-    if (/\b(female|femme|women|woman|fille|girl|féminin)\b/i.test(t))
-      return { type: "select_gender", gender: "FEMALE" };
-  }
-  if (pathname === "/" || pathname === "/welcome") {
-    if (
-      /\b(start(\s+now)?|begin|let's\s+go|commencer|démarrer|c'est\s+parti|y\s+aller|go)\b/i.test(
-        t,
-      )
-    ) {
-      return { type: "navigate", route: "/select-gender" };
-    }
-  }
-
-  // 1. Screen navigation
-  if (
-    /\b(open|show|go\s+to|ouvrir|afficher|aller\s+à|carte|navigation)\s+(the\s+|la\s+)?(map|navigation)(?!s_navigate)\b/i.test(
-      t,
-    )
-  )
-    return { type: "navigate", route: "/map" };
-  if (
-    /\b(build|create|make|assemble|style|do|créer|faire|assembler|choisir)\s+(an?\s+|un\s+|une\s+)?(my\s+|mon\s+|ma\s+)?(outfit|look|style|fashion|tenue|mode|vêtements?)\b|\b(pick|choose|go\s+to|open|ouvrir|aller\s+à)\s+(the\s+|la\s+|les\s+)?(my\s+|mes\s+)?(clothes|outfit|fashion|style|tenue|mode|vêtements?)(?:\s+screen|app|écran)?\b/i.test(
-      t,
-    )
-  )
-    return { type: "navigate", route: "/ai-recommendation-fashion" };
-  if (
-    /\b(try\s+(it\s+)?on|virtual\s+(fitting|mirror|try)|essayer|miroir\s+virtuel|essayage)\b/i.test(
-      t,
-    )
-  )
-    return { type: "navigate", route: "/virtual-mirror" };
-  if (
-    /\b(do|style|apply|maquiller|appliquer|faire)\s+(my\s+|mon\s+|ma\s+)?(makeup|cosmetic|skin\s*care|face|maquillage|cosmétique|soins?\s+du\s+visage|visage)\b|\b(open|go\s+to|ouvrir|aller\s+à)\s+(the\s+|le\s+|la\s+|les\s+)?(my\s+|mes\s+|mon\s+)?(makeup|cosmetic|skin\s*care|maquillage|cosmétique|soins?\s+du\s+visage)(?:\s+screen|écran)?\b/i.test(
-      t,
-    )
-  )
-    return { type: "navigate", route: "/ai-recommendation-cosmetic" };
-  if (/\b(home|main\s+screen|welcome|accueil|écran\s+d'accueil)\b/i.test(t))
-    return { type: "navigate", route: "/overview" };
-
-  // 2. Travel mode
-  const modeMatch = t.match(
-    /(?:switch|change|set).{0,10}(?:to|mode).{0,5}(car|motorcycle|bicycle|bike|walking|walk)\b/i,
-  );
-  if (modeMatch) {
-    const modeMap: Record<string, string> = {
-      bike: "bicycle",
-      walk: "walking",
-    };
-    const raw = modeMatch[1].toLowerCase();
-    return { type: "set_profile", profile: modeMap[raw] ?? raw };
-  }
-
-  // 3. Map controls
-  if (/\b(best route|avoid traffic|traffic.{0,10}route)\b/i.test(t))
-    return { type: "traffic_route" };
-  if (/\b(turn on|enable|show)\s+traffic\b/i.test(t))
-    return { type: "traffic_on" };
-  if (/\b(turn off|disable|hide)\s+traffic\b/i.test(t))
-    return { type: "traffic_off" };
-  if (/\b(stop|cancel|end)\s+navigation\b/i.test(t))
-    return { type: "stop_navigation" };
-
-  // 4. Navigate to a physical place
-  const navMatch = t.match(
-    /(?:take me to|navigate to|directions? to|drive to|go to|aller à|emmène-moi à|directions? pour)\s+(.+)/i,
-  );
-  if (navMatch) {
-    const dest = navMatch[1].trim().toLowerCase();
-    // Guard against physical routing intercepting UI commands that didn't perfectly match
-    if (
-      !/^(the\s+|la\s+|les\s+)?(my\s+|mon\s+|ma\s+|mes\s+)?(fashion|outfit|clothes|map|schedule|makeup|cosmetics?|skin\s*care|home|mirror|mode|tenue|vêtements?|carte|maquillage|cosmétique|accueil|miroir)(?:\s+screen|écran)?$/.test(
-        dest,
-      )
-    ) {
-      return { type: "maps_navigate", destination: dest };
-    }
-  }
-
+  // All intent resolution is handled by the AI backend.
+  // The AI receives full context (current page, nav state, location, etc.)
+  // and returns typed actions — maps_navigate, navigate, stop_navigation, etc.
   return { type: "speak" };
 }
 
@@ -250,12 +167,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               });
               return useMapStore.getState().fetchRoute();
             })
-            .then(() => useMapStore.getState().startNavigation())
             .catch(() => {});
         } else {
           sessionStorage.setItem(
-            "mirror_pending_map_directions",
-            JSON.stringify({ destination: action.destination }),
+            "mirror_pending_map_location",
+            JSON.stringify({ query: action.destination, label: action.destination }),
           );
           router.push(ROUTES.MAP);
         }
@@ -383,13 +299,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           map.selectedDestination?.address ??
           undefined,
         currentInstruction: map.isNavigating
-          ? map.activeRoute?.steps?.[map.currentStepIndex]?.instruction
+          ? map.activeRoute?.steps?.[0]?.instruction
           : undefined,
-        nextManeuverDistance: map.isNavigating
-          ? map.distanceToNextManeuver
-          : undefined,
+        nextManeuverDistance: undefined,
         nextInstruction: map.isNavigating
-          ? map.activeRoute?.steps?.[map.currentStepIndex + 1]?.instruction
+          ? map.activeRoute?.steps?.[1]?.instruction
           : undefined,
         currentTime: now.toLocaleTimeString("en-US", {
           hour: "2-digit",

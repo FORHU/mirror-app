@@ -4,8 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { usePathname } from "next/navigation";
 
 export default function GlobalVoiceOverlay() {
+  const pathname = usePathname();
+  if (pathname.startsWith("/map")) return null;
   return <VoiceUI />;
 }
 

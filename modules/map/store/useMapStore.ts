@@ -57,8 +57,6 @@ interface MapStore {
   mapStyle: "mirror" | "standard";
   cameraMode: "follow" | "overview" | "free";
   isNavigating: boolean;
-  currentStepIndex: number;
-  distanceToNextManeuver: number;
   remainingDistance: number;
   remainingDuration: number;
   activeRoute: DirectionsFormatted | null;
@@ -103,7 +101,7 @@ interface MapStore {
   startNavigation(): void;
   stopNavigation(): void;
   clearNavigation(): void;
-  updateNavigationProgress(location: Location): void;
+  patchHomeLocation(coords: Location): Promise<void>;
   fetchCommuteEta(): Promise<void>;
 }
 
@@ -119,8 +117,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   mapStyle: "mirror",
   cameraMode: "free",
   isNavigating: false,
-  currentStepIndex: 0,
-  distanceToNextManeuver: 0,
   remainingDistance: 0,
   remainingDuration: 0,
   activeRoute: null,
@@ -304,7 +300,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   startNavigation: () => {
     if (!get().activeRoute) return;
-    set({ isNavigating: true, cameraMode: "follow", currentStepIndex: 0 });
+    set({ isNavigating: true, cameraMode: "follow" });
   },
 
   stopNavigation: () => {
@@ -332,7 +328,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
     });
   },
 
-  updateNavigationProgress: () => {},
+  patchHomeLocation: async (coords) => {
+    await mapService.setHomeLocation(coords);
+    set({ homeLocation: coords, origin: coords });
+  },
 
   fetchCommuteEta: async () => {
     const { workLocation, homeLocation, userLocation, activeProfile } = get();
