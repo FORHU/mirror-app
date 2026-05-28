@@ -13,7 +13,7 @@ import {
 import { useMapStore } from "../store/useMapStore";
 import type { GeocodeResult } from "../services/map.service";
 import type { TransportProfile } from "../types/map.types";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function MapSearch() {
   const [query, setQuery] = useState("");

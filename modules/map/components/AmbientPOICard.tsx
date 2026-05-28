@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { MapPin, Navigation, X } from "lucide-react";
 import type { AmbientPOI } from "../hooks/useAmbientPOI";
 import { useMapStore } from "../store/useMapStore";

@@ -16,7 +16,7 @@ import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
 import { SYSTEM_RESPONSES } from "./responses";
 import { runKernel } from "./orchestration/kernel";

@@ -20,7 +20,7 @@ import {
   Briefcase,
   Home,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 export const ExploreHUD = () => {

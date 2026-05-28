@@ -12,7 +12,7 @@ import {
   Loader2,
   Volume2,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useNavigationAnnouncements } from "../hooks/useNavigationAnnouncements";
 import { useAmbientPOI } from "../hooks/useAmbientPOI";

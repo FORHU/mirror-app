@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { mapService, GeocodeResult } from "../services/map.service";
 import { Search, MapPin, Loader2, Check } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import mapboxgl from "mapbox-gl";
 
 const HomeLocationSetup = () => {
