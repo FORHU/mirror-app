@@ -34,7 +34,7 @@ const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
   const lastFetchRef = useRef<{ lat: number; lng: number } | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, setMap, fetchNearbyPOIs, isNavigating } =
+  const { homeLocation, setSelectedPOI, showTraffic, setMap, fetchNearbyPOIs } =
     useMapStore();
 
   // Use camera hook
