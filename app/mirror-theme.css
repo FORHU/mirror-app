@@ -19,12 +19,12 @@
   --hud-progress-track: rgba(255, 255, 255, 0.1);
   --hud-progress-fill: rgba(255, 255, 255, 0.5);
   --hud-text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
-  /* Ghost UI variables - High Contrast */
-  --ghost-bg: transparent;
-  --ghost-btn-border: 1px solid rgba(255, 255, 255, 0.35);
+  /* Ghost UI variables — dark panels on light map */
+  --ghost-bg: rgba(15, 15, 15, 0.72);
+  --ghost-btn-border: 1px solid rgba(255, 255, 255, 0.15);
   --ghost-btn-icon: rgba(255, 255, 255, 0.95);
 
-  --ghost-panel-border: 1px solid rgba(255, 255, 255, 0.25);
+  --ghost-panel-border: 1px solid rgba(255, 255, 255, 0.12);
   --ghost-panel-text: rgba(255, 255, 255, 0.9);
 
   --ghost-weather-text: rgba(255, 255, 255, 0.9);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
@@ -22,6 +22,37 @@ function SelectGenderContent() {
   const [error, setError] = useState<string | null>(null);
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
+
+  const handleContinue = useCallback(async (gender: "MALE" | "FEMALE") => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Belt-and-suspenders: Attract installs kiosk auth on /, but if a user
+      // landed here directly the call is idempotent and ensures the token is
+      // present before updateProfile fires.
+      await installKioskAuth();
+      const user: User = await authService.updateProfile({ gender });
+
+      await setStorageData(USER, user);
+      useAuthStore.setState({ isAuthenticated: true, user });
+      sessionStorage.setItem("mirror_gender", gender);
+
+      const next = searchParams.get("next");
+      if (next === "cosmetic") {
+        router.push(ROUTES.LOGGED_IN);
+      } else {
+        router.push(ROUTES.LOGGED_IN);
+      }
+    } catch (err: unknown) {
+      setError(
+        (err as { message?: string })?.message ??
+          "Something went wrong. Please try again.",
+      );
+      setIsLoading(false);
+    }
+  }, [isLoading, router, searchParams]);
 
   useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
     if (action.type === "select_gender" && action.gender) {
@@ -51,37 +82,6 @@ function SelectGenderContent() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  async function handleContinue(gender: "MALE" | "FEMALE") {
-    if (isLoading) return;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Belt-and-suspenders: Attract installs kiosk auth on /, but if a user
-      // landed here directly the call is idempotent and ensures the token is
-      // present before updateProfile fires.
-      await installKioskAuth();
-      const user: User = await authService.updateProfile({ gender });
-
-      await setStorageData(USER, user);
-      useAuthStore.setState({ isAuthenticated: true, user });
-      sessionStorage.setItem("mirror_gender", gender);
-
-      const next = searchParams.get("next");
-      if (next === "cosmetic") {
-        router.push(ROUTES.LOGGED_IN);
-      } else {
-        router.push(ROUTES.LOGGED_IN);
-      }
-    } catch (err: unknown) {
-      setError(
-        (err as { message?: string })?.message ??
-          "Something went wrong. Please try again.",
-      );
-      setIsLoading(false);
-    }
-  }
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-10 py-10">

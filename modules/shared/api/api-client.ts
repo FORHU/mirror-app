@@ -38,6 +38,13 @@ export const api = create({
 api.axiosInstance.interceptors.request.use(async (config) => {
   if (!_cachedAccessToken && typeof window !== "undefined") {
     _cachedAccessToken = await getStorageData<string>(ACCESS_TOKEN);
+    // Kiosk fallback — static token baked into env at build time
+    if (!_cachedAccessToken) {
+      _cachedAccessToken =
+        window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+          ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+          : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+    }
   }
   if (_cachedAccessToken) {
     config.headers.Authorization = `Bearer ${_cachedAccessToken}`;
@@ -54,7 +61,14 @@ api.axiosInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const rt = await getStorageData<string>(REFRESH_TOKEN);
+      let rt = await getStorageData<string>(REFRESH_TOKEN);
+      // Kiosk fallback — use env refresh token if no session refresh token
+      if (!rt && typeof window !== "undefined") {
+        rt =
+          window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+            ? (process.env.NEXT_PUBLIC_USER2_REFRESH_TOKEN ?? null)
+            : (process.env.NEXT_PUBLIC_USER1_REFRESH_TOKEN ?? null);
+      }
       if (rt) {
         try {
           const refreshRes = await fetch(

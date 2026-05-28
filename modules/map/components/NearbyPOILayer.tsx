@@ -10,12 +10,43 @@ interface Props {
 }
 
 const SOURCE = "nearby-pois";
+const LAYER_CLUSTER = "nearby-pois-cluster";
+const LAYER_CLUSTER_COUNT = "nearby-pois-cluster-count";
 const LAYER_GLOW = "nearby-pois-glow";
 const LAYER_DOT = "nearby-pois-dot";
 const LAYER_LABEL = "nearby-pois-label";
 
+const CATEGORY_COLOR: [string, string][] = [
+  ["restaurant", "#f43f5e"],
+  ["cafe", "#f97316"],
+  ["coffee", "#f97316"],
+  ["park", "#22c55e"],
+  ["garden", "#22c55e"],
+  ["transit", "#3b82f6"],
+  ["bus", "#3b82f6"],
+  ["train", "#3b82f6"],
+  ["rail", "#3b82f6"],
+  ["shop", "#a78bfa"],
+  ["store", "#a78bfa"],
+  ["mall", "#a78bfa"],
+  ["hospital", "#fb923c"],
+  ["pharmacy", "#fb923c"],
+  ["medical", "#fb923c"],
+  ["hotel", "#facc15"],
+  ["lodging", "#facc15"],
+];
+
+function categoryColor(): mapboxgl.Expression {
+  const expr: mapboxgl.Expression = ["match", ["downcase", ["get", "category"]]];
+  for (const [key, color] of CATEGORY_COLOR) {
+    expr.push(key, color);
+  }
+  expr.push("#8b5cf6"); // default
+  return expr;
+}
+
 export default function NearbyPOILayer({ map }: Props) {
-  const { nearbyPOIs, setSelectedPOI } = useMapStore();
+  const { nearbyPOIs, setSelectedPOI, isNavigating } = useMapStore();
   const nearbyPOIsRef = useRef(nearbyPOIs);
   useLayoutEffect(() => {
     nearbyPOIsRef.current = nearbyPOIs;
@@ -29,6 +60,48 @@ export default function NearbyPOILayer({ map }: Props) {
         map.addSource(SOURCE, {
           type: "geojson",
           data: { type: "FeatureCollection", features: [] },
+          cluster: true,
+          clusterMaxZoom: 16,
+          clusterRadius: 60,
+        });
+      }
+
+      if (!map.getLayer(LAYER_CLUSTER)) {
+        map.addLayer({
+          id: LAYER_CLUSTER,
+          type: "circle",
+          source: SOURCE,
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": [
+              "step", ["get", "point_count"],
+              "#3b82f6", 10, "#2563eb", 30, "#1d4ed8",
+            ],
+            "circle-radius": [
+              "step", ["get", "point_count"],
+              15, 10, 20, 30, 25,
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+            "circle-opacity": 0.9,
+          },
+        });
+      }
+
+      if (!map.getLayer(LAYER_CLUSTER_COUNT)) {
+        map.addLayer({
+          id: LAYER_CLUSTER_COUNT,
+          type: "symbol",
+          source: SOURCE,
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
+            "text-size": 12,
+          },
+          paint: {
+            "text-color": "#ffffff",
+          },
         });
       }
 
@@ -37,9 +110,10 @@ export default function NearbyPOILayer({ map }: Props) {
           id: LAYER_GLOW,
           type: "circle",
           source: SOURCE,
+          filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-radius": 22,
-            "circle-color": "#4fc3f7",
+            "circle-color": categoryColor(),
             "circle-opacity": 0.25,
             "circle-blur": 1,
           },
@@ -51,9 +125,10 @@ export default function NearbyPOILayer({ map }: Props) {
           id: LAYER_DOT,
           type: "circle",
           source: SOURCE,
+          filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-radius": 11,
-            "circle-color": "#4fc3f7",
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 15, 11],
+            "circle-color": categoryColor(),
             "circle-opacity": 1,
             "circle-stroke-width": 2.5,
             "circle-stroke-color": "#ffffff",
@@ -66,6 +141,7 @@ export default function NearbyPOILayer({ map }: Props) {
           id: LAYER_LABEL,
           type: "symbol",
           source: SOURCE,
+          filter: ["!", ["has", "point_count"]],
           layout: {
             "text-field": ["get", "name"],
             "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
@@ -82,7 +158,6 @@ export default function NearbyPOILayer({ map }: Props) {
         });
       }
 
-      // Re-populate after style reload
       const pois = nearbyPOIsRef.current;
       if (pois.length) {
         (map.getSource(SOURCE) as mapboxgl.GeoJSONSource)?.setData(
@@ -91,14 +166,12 @@ export default function NearbyPOILayer({ map }: Props) {
       }
     };
 
-    const handleClick = (
-      e: mapboxgl.MapMouseEvent & {
-        features?: mapboxgl.MapboxGeoJSONFeature[];
-      },
+    const handleDotClick = (
+      e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] },
     ) => {
       const f = e.features?.[0];
       if (!f) return;
-      const { name, category, address, lat, lng, fsqId, photo } =
+      const { name, category, address, lat, lng, fsqId, photo, distance } =
         f.properties as {
           name: string;
           category: string;
@@ -107,30 +180,45 @@ export default function NearbyPOILayer({ map }: Props) {
           lng: number;
           fsqId: string;
           photo: string;
+          distance: number;
         };
       setSelectedPOI({
         name,
         category,
         address,
+        distance,
         location: { lng, lat },
         fsqId,
         photo: photo || null,
       });
     };
 
+    const handleClusterClick = (
+      e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] },
+    ) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const src = map.getSource(SOURCE) as mapboxgl.GeoJSONSource;
+      src.getClusterExpansionZoom(f.properties!.cluster_id as number, (err, zoom) => {
+        if (err) return;
+        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
+        map.easeTo({ center: coords, zoom: zoom! });
+      });
+    };
+
     init();
     map.on("style.load", init);
-    map.on("click", LAYER_DOT, handleClick);
-    map.on("mouseenter", LAYER_DOT, () => {
-      map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", LAYER_DOT, () => {
-      map.getCanvas().style.cursor = "";
-    });
+    map.on("click", LAYER_DOT, handleDotClick);
+    map.on("click", LAYER_CLUSTER, handleClusterClick);
+    map.on("mouseenter", LAYER_DOT, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", LAYER_DOT, () => { map.getCanvas().style.cursor = ""; });
+    map.on("mouseenter", LAYER_CLUSTER, () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", LAYER_CLUSTER, () => { map.getCanvas().style.cursor = ""; });
 
     return () => {
       map.off("style.load", init);
-      map.off("click", LAYER_DOT, handleClick);
+      map.off("click", LAYER_DOT, handleDotClick);
+      map.off("click", LAYER_CLUSTER, handleClusterClick);
     };
   }, [map, setSelectedPOI]);
 
@@ -138,8 +226,8 @@ export default function NearbyPOILayer({ map }: Props) {
     if (!map) return;
     const src = map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
     if (!src) return;
-    src.setData(buildGeojson(nearbyPOIs));
-  }, [map, nearbyPOIs]);
+    src.setData(isNavigating ? buildGeojson([]) : buildGeojson(nearbyPOIs));
+  }, [map, nearbyPOIs, isNavigating]);
 
   return null;
 }
@@ -154,6 +242,7 @@ function buildGeojson(pois: NearbyPOI[]): GeoJSON.FeatureCollection {
         name: poi.name,
         category: poi.category,
         address: poi.address,
+        distance: poi.distance,
         lat: poi.lat,
         lng: poi.lng,
         fsqId: poi.fsqId,
