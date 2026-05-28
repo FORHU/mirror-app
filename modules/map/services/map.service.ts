@@ -46,9 +46,32 @@ export const mapService = {
   },
 
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
-    const res = await api.patch("/api/mirror/map/home-location", coords);
-    if (!res.ok) throw new Error("Failed to save home location");
-    return res.data;
+    let token: string | null = null;
+    if (typeof window !== "undefined") {
+      token = sessionStorage.getItem("access_token");
+      if (!token) {
+        // Kiosk fallback — static token baked into env at build time
+        token =
+          window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+            ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+            : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+      }
+    }
+    const res = await fetch("/api/mirror/map/home-location", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-platform": "kiosk",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(coords),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error("[setHomeLocation] failed:", res.status, data);
+      throw new Error(`Failed to save home location: ${res.status}`);
+    }
+    return res.json();
   },
 
   geocode: async (
@@ -88,10 +111,13 @@ export const mapService = {
     lat: number,
     lng: number,
     radiusM = 1000,
+    category?: string,
   ): Promise<{ pois: NearbyPOI[] }> => {
+    const params: Record<string, unknown> = { lat, lng, radius: radiusM };
+    if (category) params.category = category;
     const res = await api.get<{ pois: NearbyPOI[] }>(
       "/api/mirror/map/nearby-pois",
-      { lat, lng, radius: radiusM },
+      params,
     );
     if (!res.ok) throw new Error("Nearby POIs fetch failed");
     return res.data!;

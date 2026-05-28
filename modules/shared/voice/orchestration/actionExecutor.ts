@@ -72,6 +72,30 @@ export async function executeAction(
       });
       return;
 
+    case "maps_suggest_places": {
+      const map = useMapStore.getState();
+      const loc = map.userLocation ?? map.homeLocation;
+      if (!loc) return;
+
+      const CATEGORY_MAP: Record<string, string> = {
+        food: "restaurant",
+        coffee: "cafe",
+        activities: "attraction",
+        shopping: "shop",
+        medical: "medical",
+        transit: "transit",
+      };
+      const fsqCategory = CATEGORY_MAP[action.category] ?? action.category;
+
+      try {
+        const { pois } = await mapService.nearbyPOIs(loc.lat, loc.lng, 1500, fsqCategory);
+        useMapStore.getState().setSuggestedPOIs(pois, action.label);
+      } catch {
+        // silently ignore — voice reply already handles the response
+      }
+      return;
+    }
+
     default:
       onAction?.(action);
   }

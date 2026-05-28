@@ -59,6 +59,8 @@ export interface VoiceContextValue {
   unregisterPage: () => void;
   aiEvents: unknown[];
   chatHistory: Array<{ user: string; assistant: string }>;
+  transcriptOpen: boolean;
+  setTranscriptOpen: (v: boolean) => void;
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -79,6 +81,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [aiEvents, setAiEvents] = useState<unknown[]>([]);
+  const [transcriptOpen, setTranscriptOpen] = useState(true);
   const [chatHistory, setChatHistory] = useState<
     Array<{ user: string; assistant: string }>
   >([]);
@@ -428,6 +431,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         unregisterPage,
         aiEvents,
         chatHistory,
+        transcriptOpen,
+        setTranscriptOpen,
       }}
     >
       {children}

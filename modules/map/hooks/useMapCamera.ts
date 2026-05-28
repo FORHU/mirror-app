@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import { useMapStore } from "../store/useMapStore";
 
@@ -9,31 +9,10 @@ export function useMapCamera(map: mapboxgl.Map | null) {
   const activeRoute = useMapStore((state) => state.activeRoute);
   const cameraMode = useMapStore((state) => state.cameraMode);
   const homeLocation = useMapStore((state) => state.homeLocation);
-  const idleRotRef = useRef<number | null>(null);
-
-  const lerpBearing = (
-    current: number,
-    target: number,
-    factor: number,
-  ): number => {
-    const delta = ((target - current + 540) % 360) - 180;
-    return current + delta * factor;
-  };
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || !isNavigating || !activeRoute) return;
 
-    if (!isNavigating) {
-      if (idleRotRef.current) {
-        cancelAnimationFrame(idleRotRef.current);
-        idleRotRef.current = null;
-      }
-      return;
-    }
-
-    if (!activeRoute) return;
-
-    // ── OVERVIEW ────────────────────────────────────────────────────
     if (cameraMode === "overview") {
       const coords: [number, number][] = ((
         activeRoute.geojson?.features?.[0]?.geometry as
@@ -48,8 +27,8 @@ export function useMapCamera(map: mapboxgl.Map | null) {
       );
       map.stop();
       map.fitBounds(bounds, {
-        padding: { top: 80, bottom: 120, left: 60, right: 60 },
-        pitch: 20,
+        padding: { top: 130, bottom: 120, left: 60, right: 60 },
+        pitch: 0,
         bearing: 0,
         duration: 1800,
         essential: true,
@@ -57,80 +36,22 @@ export function useMapCamera(map: mapboxgl.Map | null) {
       return;
     }
 
-    // ── FOLLOW / FPV ─────────────────────────────────────────────────
-
-    // Center on homeLocation (where the puck is) — NOT coords[0] which is road-snapped
+    // Follow — flat top-down, centered on home/origin
     const center: [number, number] | null = homeLocation
       ? [homeLocation.lng, homeLocation.lat]
       : null;
     if (!center) return;
 
-    // Bearing: prefer Mapbox API value (already road-aligned, accepts 0 = north as valid)
-    // API now returns undefined when missing (not 0), so null-check is clean
-    const apiBearing: number | undefined = (
-      activeRoute.steps?.[0]?.maneuver as
-        | { type: string; modifier: string; bearing_after?: number }
-        | undefined
-    )?.bearing_after;
-    const bearing = apiBearing != null ? apiBearing : 0;
-
-    console.log(
-      "[Camera] FPV | center:",
-      center,
-      "| bearing:",
-      bearing,
-      "| source:",
-      apiBearing != null ? "API" : "default-0",
-    );
-
-    if (idleRotRef.current) {
-      cancelAnimationFrame(idleRotRef.current);
-      idleRotRef.current = null;
-    }
-
     map.stop();
     setTimeout(() => {
       map.easeTo({
         center,
-        zoom: 20,
-        pitch: 80,
-        bearing,
-        duration: 3000,
+        zoom: 17,
+        pitch: 0,
+        bearing: 0,
+        duration: 2000,
         essential: true,
-        // Push map content upward so puck appears at bottom-center (Waze/Google Maps style)
-        padding: { top: 500, bottom: 0, left: 0, right: 0 },
       });
     }, 100);
-
-    return () => {
-      if (idleRotRef.current) cancelAnimationFrame(idleRotRef.current);
-    };
   }, [map, isNavigating, activeRoute, cameraMode, homeLocation]);
-
-  const flyToFPV = (center: [number, number], bearing: number) => {
-    if (!map) return;
-    map.flyTo({
-      center,
-      zoom: 18.5,
-      pitch: 70,
-      bearing,
-      duration: 2200,
-      easing: (t) => t * (2 - t),
-    });
-  };
-
-  const easeToFPV = (center: [number, number], targetBearing: number) => {
-    if (!map) return;
-    map.stop();
-    map.easeTo({
-      center,
-      bearing: lerpBearing(map.getBearing(), targetBearing, 0.25),
-      pitch: 70,
-      zoom: 18.5,
-      duration: 800,
-      easing: (t) => t,
-    });
-  };
-
-  return { flyToFPV, easeToFPV, lerpBearing };
 }
