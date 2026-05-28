@@ -6,11 +6,13 @@ import { Button } from "./Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { Dropdown, DropdownItem } from "./Dropdown";
+import { Dialog } from "./Dialog";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
 
@@ -78,7 +80,16 @@ export const Navbar = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
+        <button
+          onClick={() => {
+            if (isAuthenticated) {
+              setShowExitDialog(true);
+            } else {
+              router.push("/");
+            }
+          }}
+          className="flex items-center gap-3 group"
+        >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-core to-brand-vibrant flex items-center justify-center glow-primary group-hover:scale-110 transition-transform duration-500 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -90,7 +101,7 @@ export const Navbar = () => {
           <span className="text-xl font-bold tracking-tighter text-gradient-2026 hidden sm:block">
             Mirror App
           </span>
-        </Link>
+        </button>
 
         <div className="hidden md:flex items-center gap-8">
           <Link
@@ -139,6 +150,20 @@ export const Navbar = () => {
           )}
         </div>
       </div>
+
+      <Dialog
+        isOpen={showExitDialog}
+        title="End Session?"
+        message="Returning to the home screen will end your current session and clear all your details. Are you sure?"
+        confirmText="Yes, end session"
+        cancelText="Cancel"
+        isDestructive={true}
+        onConfirm={() => {
+          setShowExitDialog(false);
+          router.push("/");
+        }}
+        onCancel={() => setShowExitDialog(false)}
+      />
     </nav>
   );
 };

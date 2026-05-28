@@ -27,7 +27,7 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
 
   // Auto-logout after 5 min of inactivity; releases the kiosk lock too.
   // Self-disables when not authenticated.
-  useIdleLogout();
+  // [Disabled] useIdleLogout();
 
   return <>{children}</>;
 }

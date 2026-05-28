@@ -8,7 +8,8 @@ import WeatherWidget from "@/components/WeatherWidget";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
 import { ROUTES } from "@/navigation";
-
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { authService } from "@/modules/shared/api/auth.service";
 const TAGLINES = [
   { line1: "Outfits picked,", line2: "beauty perfected." },
   { line1: "Style matched,", line2: "routes ready." },
@@ -27,6 +28,16 @@ export default function WelcomePage() {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    // Clear gender on Attract screen to ensure next visitor starts fresh
+    sessionStorage.removeItem("mirror_gender");
+    const { user, updateUser } = useAuthStore.getState();
+    if (user?.gender) {
+      updateUser({ gender: undefined });
+      authService.updateProfile({ gender: null }).catch(console.error);
+    }
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) return;

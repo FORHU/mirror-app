@@ -14,6 +14,9 @@ Ambiguous — disambiguate as **Voice session**, **Auth session**, or **Gender s
 **Voice session**:
 The continuity unit for chat-wonder conversation. Comprises the in-memory `sessionId` (which the server uses to thread turns into a single upstream conversation) AND the last-4-turns `historyRef` used for UI display. Both reset together on arrival at the **Attract screen**. Lives on the client only.
 
+**Pending action**:
+A voice-emitted action that has been deferred awaiting a yes/no answer from the user. Set when EITHER the server's response has `requiresConfirmation: true` OR the client's `actionGuard` flags the action as confirmation-required for the current pathname. On "yes", the action is re-checked through `guardAction` (block rules like **Gender selection** still apply) before being executed. On "no" or timeout, it is discarded.
+
 **Auth session**:
 The kiosk's signed-in identity. Each mirror is permanently bound to one user account via a hostname-keyed JWT baked into `.env`. The token is installed by `installKioskAuth()` on every page mount (from `AuthInitializer`). Because the install is unconditional, there is no real "logout" — token-clearing paths are immediately undone by the next mount. Independent of **Gender selection**.
 

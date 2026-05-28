@@ -28,7 +28,8 @@ export async function executeAction(
     case "maps_preview_location":
     case "maps_get_directions":
     case "maps_navigate": {
-      const dest = action.destination || action.query;
+      const a = action as { destination?: string; query?: string };
+      const dest = a.destination || a.query;
       if (!dest || dest.trim() === "") {
         router.push(ROUTES.MAP);
         return;

@@ -61,7 +61,9 @@ export const authService = {
     throw new Error(response.data?.message || "Refresh token failed");
   },
 
-  updateProfile: async (data: { gender: "MALE" | "FEMALE" }): Promise<User> => {
+  updateProfile: async (data: {
+    gender: "MALE" | "FEMALE" | null;
+  }): Promise<User> => {
     const response = await api.post<StandardResponse<User>>(
       "/api/remote/auth/update",
       { data },

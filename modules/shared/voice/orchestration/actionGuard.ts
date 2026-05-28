@@ -1,5 +1,6 @@
 import type { ChatWonderAction } from "../../ai/chatwonder.types";
 import { getFlowState } from "./flowState";
+import { useAuthStore } from "../../store/useAuthStore";
 import { SYSTEM_RESPONSES, ROUTE_RESPONSES } from "../responses";
 
 export type GuardResult = {
@@ -8,6 +9,18 @@ export type GuardResult = {
   requiresConfirmation: boolean;
   reply?: string;
 };
+
+const GENDER_GATED_ROUTES = [
+  "/ai-recommendation-fashion",
+  "/ai-recommendation-cosmetic",
+];
+
+function hasGender(): boolean {
+  const fromStore = useAuthStore.getState().user?.gender;
+  if (fromStore) return true;
+  if (typeof window === "undefined") return false;
+  return Boolean(sessionStorage.getItem("mirror_gender"));
+}
 
 export function guardAction(
   action: ChatWonderAction | null,
@@ -37,24 +50,20 @@ export function guardAction(
     };
   }
 
-  // Gender gate — fashion/cosmetics require gender; maps do not.
-  if (flow === "NEEDS_GENDER") {
-    const blocked = [
-      "/ai-recommendation-fashion",
-      "/ai-recommendation-cosmetic",
-    ];
-
-    if (
-      action.type === "navigate" &&
-      blocked.includes(action.route as string)
-    ) {
-      return {
-        allowed: false,
-        action: null,
-        requiresConfirmation: false,
-        reply: SYSTEM_RESPONSES.genderGuard,
-      };
-    }
+  // Gender gate — fashion/cosmetics require gender, regardless of which route
+  // the user is currently on. If gender is missing, redirect to /select-gender
+  // so the user can complete the gate.
+  if (
+    action.type === "navigate" &&
+    GENDER_GATED_ROUTES.includes(action.route as string) &&
+    !hasGender()
+  ) {
+    return {
+      allowed: true,
+      action: { type: "navigate", route: "/select-gender" } as ChatWonderAction,
+      requiresConfirmation: false,
+      reply: SYSTEM_RESPONSES.genderGuard,
+    };
   }
 
   // CONFIRMATION RULES ONLY (NO STATE STORAGE HERE)
