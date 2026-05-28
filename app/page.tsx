@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import "../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 import { ROUTES } from "@/navigation";
 
@@ -97,9 +98,12 @@ export default function WelcomePage() {
             justifyContent: "center",
           }}
         >
-          <span className="text-white font-semibold text-3xl tracking-wide select-none">
-            StyleOS
-          </span>
+          <div className="flex items-center">
+            <span className="text-white font-semibold text-3xl tracking-wide select-none">
+              StyleOS
+            </span>
+            <LanguageSelector />
+          </div>
         </div>
         <div
           style={{

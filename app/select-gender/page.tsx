@@ -13,6 +13,7 @@ import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
 import type { User } from "@/modules/shared/api/api.types";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 function getKioskToken(): string {
   const isKiosk2 = window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2;
@@ -112,9 +113,12 @@ function SelectGenderContent() {
             justifyContent: "center",
           }}
         >
-          <span className="text-white font-semibold text-3xl tracking-wide select-none">
-            StyleOS
-          </span>
+          <div className="flex items-center">
+            <span className="text-white font-semibold text-3xl tracking-wide select-none">
+              StyleOS
+            </span>
+            <LanguageSelector />
+          </div>
         </div>
         <div
           style={{

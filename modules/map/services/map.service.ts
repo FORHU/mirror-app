@@ -114,9 +114,12 @@ export const mapService = {
     return res.data as ArrayBuffer;
   },
 
-  transcribe: async (pcmBuffer: ArrayBuffer): Promise<string> => {
+  transcribe: async (
+    pcmBuffer: ArrayBuffer,
+    language: string = "en-US",
+  ): Promise<string> => {
     const res = await api.axiosInstance.post(
-      "/api/mirror/voice/transcribe",
+      `/api/mirror/voice/transcribe?lang=${language}`,
       pcmBuffer,
       {
         headers: { "Content-Type": "application/octet-stream" },
@@ -128,6 +131,7 @@ export const mapService = {
   ask: async (
     transcript: string,
     ctx: Record<string, unknown>,
+    language: string = "en-US",
   ): Promise<{
     audio: ArrayBuffer;
     reply: string;
@@ -161,7 +165,7 @@ export const mapService = {
       suggestions?: string[];
       uiHints?: { overlay: string | null; focus: string | null };
       memoryUpdates?: Record<string, unknown>;
-    }>("/api/mirror/voice/ask", payload);
+    }>(`/api/mirror/voice/ask?lang=${language}`, payload);
 
     const {
       reply,

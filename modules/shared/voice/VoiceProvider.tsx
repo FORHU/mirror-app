@@ -14,6 +14,7 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "framer-motion";
 import { VoiceState } from "./types";
@@ -231,9 +232,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         currentPage: pageCtxRef.current?.pageName ?? pathname,
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
+        language: useMirrorStore.getState().voiceLanguage,
       };
 
-      const t = await mapService.transcribe(combined.buffer);
+      const language = useMirrorStore.getState().voiceLanguage;
+      const t = await mapService.transcribe(combined.buffer, language);
       setTranscript(t);
 
       if (!t || t.trim() === "") {
@@ -253,10 +256,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } else {
           const lower = t.toLowerCase();
           const isYes =
-            /\b(yes|yeah|yep|sure|ok|okay|go ahead|confirm)\b/i.test(lower);
-          const isNo = /\b(no|nope|cancel|stop|wait|nevermind)\b/i.test(lower);
+            /\b(yes|yeah|yep|sure|ok|okay|go ahead|confirm|oui|ne|da)\b/i.test(
+              lower,
+            );
+          const isNo =
+            /\b(no|nope|cancel|stop|wait|nevermind|non|aniyo)\b/i.test(lower);
           const isHighIntent =
-            /\b(actually|instead|show me|take me to|navigate to)\b/i.test(
+            /\b(actually|instead|show me|take me to|navigate to|en fait)\b/i.test(
               lower,
             );
 
@@ -290,7 +296,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       if (!bypassMainExecution) {
         // COGNITIVE AI PIPELINE
-        const res = await mapService.ask(t, ctx);
+        const res = await mapService.ask(t, ctx, language);
         r = res.reply;
         events = res.events ?? [];
         audioBuffer = res.audio;
