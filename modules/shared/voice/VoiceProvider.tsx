@@ -246,7 +246,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
         language: useMirrorStore.getState().voiceLanguage,
-        gender: useAuthStore.getState().user?.gender ?? sessionStorage.getItem("mirror_gender") ?? undefined,
+        gender:
+          useAuthStore.getState().user?.gender ??
+          sessionStorage.getItem("mirror_gender") ??
+          undefined,
       };
 
       const language = useMirrorStore.getState().voiceLanguage;

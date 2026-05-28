@@ -1,13 +1,7 @@
 import { create } from "zustand";
 
-import {
-  ACCESS_TOKEN,
-  USER,
-} from "@/modules/shared/constants/storage-keys";
-import {
-  getStorageData,
-  setStorageData,
-} from "@/modules/shared/utils/storage";
+import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
+import { getStorageData, setStorageData } from "@/modules/shared/utils/storage";
 import { authService } from "@/modules/shared/api/auth.service";
 import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";

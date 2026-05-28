@@ -60,14 +60,23 @@ async function consumePendingDirections() {
 
 export default function MapPage() {
   const router = useRouter();
-  const { homeLocation, homeLocationStatus, loadHomeLocation, isNavigating, clearNavigation } = useMapStore();
+  const {
+    homeLocation,
+    homeLocationStatus,
+    loadHomeLocation,
+    isNavigating,
+    clearNavigation,
+  } = useMapStore();
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
 
@@ -79,7 +88,11 @@ export default function MapPage() {
   );
 
   useVoice(
-    { route: "/map", pageName: "Map", activeStep: isNavigating ? "navigating" : "exploring" },
+    {
+      route: "/map",
+      pageName: "Map",
+      activeStep: isNavigating ? "navigating" : "exploring",
+    },
     onAction,
   );
 
@@ -129,15 +142,31 @@ export default function MapPage() {
         <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
           <WeatherWidget iconSize={32} />
         </div>
-        <div style={{ flex: "0 0 50%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <span className="text-white font-thin select-none" style={{ fontSize: "2rem", lineHeight: 1 }}>
+        <div
+          style={{
+            flex: "0 0 50%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <span
+            className="text-white font-thin select-none"
+            style={{ fontSize: "2rem", lineHeight: 1 }}
+          >
             {time}
           </span>
           <span className="text-white/60 text-sm font-light select-none">
             {day}, {date}
           </span>
         </div>
-        <div style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end" }}>
+        <div
+          style={{
+            flex: "0 0 25%",
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
           <button
             onClick={() => router.back()}
             className="p-4 transition-all hover:scale-105 active:scale-95"

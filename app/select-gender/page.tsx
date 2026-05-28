@@ -23,36 +23,39 @@ function SelectGenderContent() {
   const [time, setTime] = useState("");
   const [date, setDate] = useState("");
 
-  const handleContinue = useCallback(async (gender: "MALE" | "FEMALE") => {
-    if (isLoading) return;
-    setIsLoading(true);
-    setError(null);
+  const handleContinue = useCallback(
+    async (gender: "MALE" | "FEMALE") => {
+      if (isLoading) return;
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      // Belt-and-suspenders: Attract installs kiosk auth on /, but if a user
-      // landed here directly the call is idempotent and ensures the token is
-      // present before updateProfile fires.
-      await installKioskAuth();
-      const user: User = await authService.updateProfile({ gender });
+      try {
+        // Belt-and-suspenders: Attract installs kiosk auth on /, but if a user
+        // landed here directly the call is idempotent and ensures the token is
+        // present before updateProfile fires.
+        await installKioskAuth();
+        const user: User = await authService.updateProfile({ gender });
 
-      await setStorageData(USER, user);
-      useAuthStore.setState({ isAuthenticated: true, user });
-      sessionStorage.setItem("mirror_gender", gender);
+        await setStorageData(USER, user);
+        useAuthStore.setState({ isAuthenticated: true, user });
+        sessionStorage.setItem("mirror_gender", gender);
 
-      const next = searchParams.get("next");
-      if (next === "cosmetic") {
-        router.push(ROUTES.LOGGED_IN);
-      } else {
-        router.push(ROUTES.LOGGED_IN);
+        const next = searchParams.get("next");
+        if (next === "cosmetic") {
+          router.push(ROUTES.LOGGED_IN);
+        } else {
+          router.push(ROUTES.LOGGED_IN);
+        }
+      } catch (err: unknown) {
+        setError(
+          (err as { message?: string })?.message ??
+            "Something went wrong. Please try again.",
+        );
+        setIsLoading(false);
       }
-    } catch (err: unknown) {
-      setError(
-        (err as { message?: string })?.message ??
-          "Something went wrong. Please try again.",
-      );
-      setIsLoading(false);
-    }
-  }, [isLoading, router, searchParams]);
+    },
+    [isLoading, router, searchParams],
+  );
 
   useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
     if (action.type === "select_gender" && action.gender) {

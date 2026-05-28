@@ -9,7 +9,6 @@ function formatMinutes(seconds: number) {
   return Math.ceil(seconds / 60);
 }
 
-
 export default function CommuteWidget() {
   const {
     isNavigating,

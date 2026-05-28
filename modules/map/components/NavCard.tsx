@@ -97,28 +97,46 @@ export default function NavCard() {
                   transition={{ duration: 0.15 }}
                 >
                   {/* Distance + ETA */}
-                  <div className="flex gap-6 px-5 py-4 border-b" style={DIVIDER}>
+                  <div
+                    className="flex gap-6 px-5 py-4 border-b"
+                    style={DIVIDER}
+                  >
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Distance</span>
-                      <span className="text-3xl font-thin text-white/90">{distanceFormatted}</span>
+                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
+                        Distance
+                      </span>
+                      <span className="text-3xl font-thin text-white/90">
+                        {distanceFormatted}
+                      </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Duration</span>
-                      <span className="text-3xl font-thin text-white/90">{eta}</span>
+                      <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
+                        Duration
+                      </span>
+                      <span className="text-3xl font-thin text-white/90">
+                        {eta}
+                      </span>
                     </div>
                   </div>
 
                   {/* Camera toggle + Stop */}
                   <div className="flex gap-2 p-3">
                     <button
-                      onClick={() => setCameraMode(cameraMode === "follow" ? "overview" : "follow")}
+                      onClick={() =>
+                        setCameraMode(
+                          cameraMode === "follow" ? "overview" : "follow",
+                        )
+                      }
                       className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all active:scale-95"
                       style={cameraMode === "overview" ? BTN_ACTIVE : BTN_DIM}
                     >
                       {cameraMode === "follow" ? (
                         <Map className="w-4 h-4 text-white/60" />
                       ) : (
-                        <Compass className="w-4 h-4" style={{ color: "#4fc3f7" }} />
+                        <Compass
+                          className="w-4 h-4"
+                          style={{ color: "#4fc3f7" }}
+                        />
                       )}
                       <span className="text-[10px] uppercase tracking-widest text-white/50">
                         {cameraMode === "follow" ? "Overview" : "Follow"}
@@ -128,10 +146,15 @@ export default function NavCard() {
                     <button
                       onClick={stopNavigation}
                       className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all active:scale-95"
-                      style={{ background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.4)" }}
+                      style={{
+                        background: "rgba(239,68,68,0.2)",
+                        border: "1px solid rgba(239,68,68,0.4)",
+                      }}
                     >
                       <X className="w-4 h-4 text-red-400" />
-                      <span className="text-[10px] uppercase tracking-widest text-red-400">Stop</span>
+                      <span className="text-[10px] uppercase tracking-widest text-red-400">
+                        Stop
+                      </span>
                     </button>
                   </div>
                 </motion.div>
@@ -149,7 +172,9 @@ export default function NavCard() {
                     {TRANSPORT.map(({ profile, Icon }) => (
                       <button
                         key={profile}
-                        onClick={() => useMapStore.getState().setActiveProfile(profile)}
+                        onClick={() =>
+                          useMapStore.getState().setActiveProfile(profile)
+                        }
                         className="flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all active:scale-95"
                         style={activeProfile === profile ? BTN_ACTIVE : BTN_DIM}
                       >
@@ -160,19 +185,30 @@ export default function NavCard() {
 
                   {/* Route stats — only when route is calculated */}
                   {activeRoute && (
-                    <div className="flex gap-6 px-5 py-4 border-b" style={DIVIDER}>
+                    <div
+                      className="flex gap-6 px-5 py-4 border-b"
+                      style={DIVIDER}
+                    >
                       <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Duration</span>
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
+                          Duration
+                        </span>
                         <span className="text-3xl font-thin text-white leading-none">
                           {Math.ceil(activeRoute.duration / 60)}
-                          <span className="text-base ml-1 text-white/50">min</span>
+                          <span className="text-base ml-1 text-white/50">
+                            min
+                          </span>
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">Distance</span>
+                        <span className="text-[10px] uppercase tracking-widest text-white/40 mb-1">
+                          Distance
+                        </span>
                         <span className="text-3xl font-thin text-white leading-none">
                           {(activeRoute.distance * 0.000621371).toFixed(1)}
-                          <span className="text-base ml-1 text-white/50">mi</span>
+                          <span className="text-base ml-1 text-white/50">
+                            mi
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -180,11 +216,17 @@ export default function NavCard() {
 
                   {/* Start / Calculate button */}
                   <button
-                    onClick={() => (!activeRoute ? fetchRoute(true) : startNavigation())}
+                    onClick={() =>
+                      !activeRoute ? fetchRoute(true) : startNavigation()
+                    }
                     className="w-full flex items-center justify-between px-5 py-4 text-white text-lg font-light transition-all active:scale-95"
                   >
                     <span>
-                      {isRouting ? "Calculating…" : !activeRoute ? "Calculate Route" : "Start Navigation"}
+                      {isRouting
+                        ? "Calculating…"
+                        : !activeRoute
+                          ? "Calculate Route"
+                          : "Start Navigation"}
                     </span>
                     <Navigation className="w-5 h-5 fill-white rotate-90 shrink-0" />
                   </button>

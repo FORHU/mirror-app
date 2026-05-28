@@ -11,7 +11,15 @@ const PANEL = {
 } as const;
 
 export default function MapMicPill() {
-  const { voiceState, transcript, reply, error, toggle, transcriptOpen, setTranscriptOpen } = useVoiceContext();
+  const {
+    voiceState,
+    transcript,
+    reply,
+    error,
+    toggle,
+    transcriptOpen,
+    setTranscriptOpen,
+  } = useVoiceContext();
   const showTranscript = transcriptOpen;
   const setShowTranscript = setTranscriptOpen;
 
@@ -94,7 +102,9 @@ export default function MapMicPill() {
               onClick={() => setShowTranscript(!showTranscript)}
               className="w-11 h-11 flex items-center justify-center rounded-full transition-all active:scale-95"
               style={{
-                background: showTranscript ? "rgba(0,0,0,0.95)" : "rgba(0,0,0,0.85)",
+                background: showTranscript
+                  ? "rgba(0,0,0,0.95)"
+                  : "rgba(0,0,0,0.85)",
                 backdropFilter: "blur(12px)",
                 border: showTranscript
                   ? "1.5px solid rgba(255,255,255,0.8)"
@@ -110,12 +120,22 @@ export default function MapMicPill() {
         <motion.button
           onClick={toggle}
           animate={isListening ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-          transition={isListening ? { repeat: Infinity, duration: 1.4, ease: "easeInOut" } : {}}
+          transition={
+            isListening
+              ? { repeat: Infinity, duration: 1.4, ease: "easeInOut" }
+              : {}
+          }
           className="flex items-center gap-3 px-6 py-3.5 rounded-full transition-all active:scale-95"
-          style={{ ...PANEL, border: pillBorder, boxShadow: isActive ? "0 0 20px rgba(255,255,255,0.08)" : "none" }}
+          style={{
+            ...PANEL,
+            border: pillBorder,
+            boxShadow: isActive ? "0 0 20px rgba(255,255,255,0.08)" : "none",
+          }}
         >
           {micIcon}
-          <span className="text-sm font-light text-white/80 tracking-wide select-none">{label}</span>
+          <span className="text-sm font-light text-white/80 tracking-wide select-none">
+            {label}
+          </span>
         </motion.button>
       </div>
     </div>

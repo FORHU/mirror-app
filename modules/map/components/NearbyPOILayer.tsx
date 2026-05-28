@@ -37,7 +37,10 @@ const CATEGORY_COLOR: [string, string][] = [
 ];
 
 function categoryColor(): mapboxgl.Expression {
-  const expr: mapboxgl.Expression = ["match", ["downcase", ["get", "category"]]];
+  const expr: mapboxgl.Expression = [
+    "match",
+    ["downcase", ["get", "category"]],
+  ];
   for (const [key, color] of CATEGORY_COLOR) {
     expr.push(key, color);
   }
@@ -74,12 +77,22 @@ export default function NearbyPOILayer({ map }: Props) {
           filter: ["has", "point_count"],
           paint: {
             "circle-color": [
-              "step", ["get", "point_count"],
-              "#3b82f6", 10, "#2563eb", 30, "#1d4ed8",
+              "step",
+              ["get", "point_count"],
+              "#3b82f6",
+              10,
+              "#2563eb",
+              30,
+              "#1d4ed8",
             ],
             "circle-radius": [
-              "step", ["get", "point_count"],
-              15, 10, 20, 30, 25,
+              "step",
+              ["get", "point_count"],
+              15,
+              10,
+              20,
+              30,
+              25,
             ],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
@@ -127,7 +140,15 @@ export default function NearbyPOILayer({ map }: Props) {
           source: SOURCE,
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 6, 15, 11],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              6,
+              15,
+              11,
+            ],
             "circle-color": categoryColor(),
             "circle-opacity": 1,
             "circle-stroke-width": 2.5,
@@ -167,7 +188,9 @@ export default function NearbyPOILayer({ map }: Props) {
     };
 
     const handleDotClick = (
-      e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] },
+      e: mapboxgl.MapMouseEvent & {
+        features?: mapboxgl.MapboxGeoJSONFeature[];
+      },
     ) => {
       const f = e.features?.[0];
       if (!f) return;
@@ -194,26 +217,42 @@ export default function NearbyPOILayer({ map }: Props) {
     };
 
     const handleClusterClick = (
-      e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] },
+      e: mapboxgl.MapMouseEvent & {
+        features?: mapboxgl.MapboxGeoJSONFeature[];
+      },
     ) => {
       const f = e.features?.[0];
       if (!f) return;
       const src = map.getSource(SOURCE) as mapboxgl.GeoJSONSource;
-      src.getClusterExpansionZoom(f.properties!.cluster_id as number, (err, zoom) => {
-        if (err) return;
-        const coords = (f.geometry as GeoJSON.Point).coordinates as [number, number];
-        map.easeTo({ center: coords, zoom: zoom! });
-      });
+      src.getClusterExpansionZoom(
+        f.properties!.cluster_id as number,
+        (err, zoom) => {
+          if (err) return;
+          const coords = (f.geometry as GeoJSON.Point).coordinates as [
+            number,
+            number,
+          ];
+          map.easeTo({ center: coords, zoom: zoom! });
+        },
+      );
     };
 
     init();
     map.on("style.load", init);
     map.on("click", LAYER_DOT, handleDotClick);
     map.on("click", LAYER_CLUSTER, handleClusterClick);
-    map.on("mouseenter", LAYER_DOT, () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", LAYER_DOT, () => { map.getCanvas().style.cursor = ""; });
-    map.on("mouseenter", LAYER_CLUSTER, () => { map.getCanvas().style.cursor = "pointer"; });
-    map.on("mouseleave", LAYER_CLUSTER, () => { map.getCanvas().style.cursor = ""; });
+    map.on("mouseenter", LAYER_DOT, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", LAYER_DOT, () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("mouseenter", LAYER_CLUSTER, () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", LAYER_CLUSTER, () => {
+      map.getCanvas().style.cursor = "";
+    });
 
     return () => {
       map.off("style.load", init);

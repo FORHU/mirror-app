@@ -11,7 +11,8 @@ import NavCard from "./NavCard";
 import POIRecommendationStrip from "./POIRecommendationStrip";
 
 export default function MapDashboard() {
-  const { isNavigating, setUserLocation, fetchNearbyPOIs, homeLocation } = useMapStore();
+  const { isNavigating, setUserLocation, fetchNearbyPOIs, homeLocation } =
+    useMapStore();
 
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
@@ -31,7 +32,7 @@ export default function MapDashboard() {
   useEffect(() => {
     const loc = useMapStore.getState().userLocation ?? homeLocation;
     if (loc) fetchNearbyPOIs(loc);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

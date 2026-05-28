@@ -143,7 +143,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   origin: null,
 
   setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
-  setSuggestedPOIs: (pois, label) => set({ suggestedPOIs: pois, suggestionLabel: label }),
+  setSuggestedPOIs: (pois, label) =>
+    set({ suggestedPOIs: pois, suggestionLabel: label }),
   clearSuggestions: () => set({ suggestedPOIs: [], suggestionLabel: "" }),
   fetchNearbyPOIs: async ({ lat, lng }) => {
     try {

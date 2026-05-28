@@ -49,7 +49,13 @@ export type ChatWonderAction =
   | { type: "select_gender"; gender: "MALE" | "FEMALE" }
   | {
       type: "maps_suggest_places";
-      category: "food" | "coffee" | "activities" | "shopping" | "medical" | "transit";
+      category:
+        | "food"
+        | "coffee"
+        | "activities"
+        | "shopping"
+        | "medical"
+        | "transit";
       label: string;
     };
 

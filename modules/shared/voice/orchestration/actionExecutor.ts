@@ -99,7 +99,12 @@ export async function executeAction(
       const fsqCategory = CATEGORY_MAP[action.category] ?? action.category;
 
       try {
-        const { pois } = await mapService.nearbyPOIs(loc.lat, loc.lng, 1500, fsqCategory);
+        const { pois } = await mapService.nearbyPOIs(
+          loc.lat,
+          loc.lng,
+          1500,
+          fsqCategory,
+        );
         useMapStore.getState().setSuggestedPOIs(pois, action.label);
       } catch {
         // silently ignore — voice reply already handles the response

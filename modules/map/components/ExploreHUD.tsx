@@ -70,7 +70,11 @@ export const ExploreHUD = () => {
     }
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setUserLocation({ lng: pos.coords.longitude, lat: pos.coords.latitude }),
+        (pos) =>
+          setUserLocation({
+            lng: pos.coords.longitude,
+            lat: pos.coords.latitude,
+          }),
         () => {},
       );
     }
@@ -87,17 +91,26 @@ export const ExploreHUD = () => {
         transition={{ duration: 0.2 }}
         className="absolute bottom-28 right-6 flex flex-col gap-3 pointer-events-auto"
       >
-        <IconButton onClick={handleRecenter} icon={<LocateFixed className="w-5 h-5 text-white/80" />} />
+        <IconButton
+          onClick={handleRecenter}
+          icon={<LocateFixed className="w-5 h-5 text-white/80" />}
+        />
         <IconButton
           onClick={handleSetHomeHere}
           disabled={savingHome}
           icon={
-            homeSaved
-              ? <Check className="w-5 h-5 text-green-400" />
-              : <Home className="w-5 h-5 text-white/80" />
+            homeSaved ? (
+              <Check className="w-5 h-5 text-green-400" />
+            ) : (
+              <Home className="w-5 h-5 text-white/80" />
+            )
           }
         />
-        <IconButton onClick={toggleTraffic} active={showTraffic} icon={<Settings className="w-5 h-5 text-white/80" />} />
+        <IconButton
+          onClick={toggleTraffic}
+          active={showTraffic}
+          icon={<Settings className="w-5 h-5 text-white/80" />}
+        />
       </motion.div>
 
       {/* ── Bottom-left: POI details card ── */}
@@ -114,7 +127,10 @@ export const ExploreHUD = () => {
               <button
                 onClick={() => setSelectedPOI(null)}
                 className="absolute top-3 right-3 p-2 rounded-full z-10 transition-all active:scale-95"
-                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)" }}
+                style={{
+                  background: "rgba(0,0,0,0.5)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                }}
               >
                 <X className="w-4 h-4 text-white" />
               </button>
@@ -134,7 +150,9 @@ export const ExploreHUD = () => {
                   <div className="text-xs uppercase tracking-widest text-white/50 mb-1">
                     {(selectedPOI.category || "Location").replace(/_/g, " ")}
                   </div>
-                  <div className="text-xl font-light text-white truncate">{selectedPOI.name}</div>
+                  <div className="text-xl font-light text-white truncate">
+                    {selectedPOI.name}
+                  </div>
                 </div>
               </div>
 
@@ -143,15 +161,17 @@ export const ExploreHUD = () => {
                   <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-white/40" />
                   <div className="flex flex-col gap-0.5">
                     {selectedPOI.address && (
-                      <span className="text-xs text-white/60 leading-tight">{selectedPOI.address}</span>
+                      <span className="text-xs text-white/60 leading-tight">
+                        {selectedPOI.address}
+                      </span>
                     )}
                     {selectedPOI.distance != null && (
                       <span className="text-xs text-white/40">
                         {selectedPOI.distance < 100
                           ? "Just ahead"
                           : selectedPOI.distance < 1000
-                          ? `${Math.round(selectedPOI.distance / 10) * 10}m away`
-                          : `${(selectedPOI.distance / 1000).toFixed(1)}km away`}
+                            ? `${Math.round(selectedPOI.distance / 10) * 10}m away`
+                            : `${(selectedPOI.distance / 1000).toFixed(1)}km away`}
                       </span>
                     )}
                   </div>
@@ -161,7 +181,11 @@ export const ExploreHUD = () => {
               <button
                 onClick={() => {
                   if (selectedPOI.location) {
-                    setDestination({ name: selectedPOI.name, lng: selectedPOI.location.lng, lat: selectedPOI.location.lat });
+                    setDestination({
+                      name: selectedPOI.name,
+                      lng: selectedPOI.location.lng,
+                      lat: selectedPOI.location.lat,
+                    });
                     setSelectedPOI(null);
                   }
                 }}
@@ -198,4 +222,3 @@ const IconButton = ({
     {icon}
   </button>
 );
-

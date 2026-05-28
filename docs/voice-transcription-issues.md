@@ -9,10 +9,13 @@
 ## User-Reported Problems
 
 ### 1. Hit-or-miss transcription accuracy
+
 Voice input is unreliable. Some phrases transcribe correctly; others come back completely wrong or partially missing. The failure is not consistent — the same phrase can work one attempt and fail the next.
 
 ### 2. Input mangled beyond recognition
+
 **Reported example:**
+
 - Said: `"Navigate me to SM Baguio"`
 - Received: `"assembaguio"`
 
@@ -62,8 +65,8 @@ processor.onaudioprocess = (e) => { ... };
 **Where:** Backend `voice.service.ts`
 
 ```ts
-LanguageOptions: "en-US,fr-FR"
-IdentifyLanguage: true
+LanguageOptions: "en-US,fr-FR";
+IdentifyLanguage: true;
 ```
 
 The mirror is deployed in the **Philippines**. AWS Transcribe supports `en-PH` (Philippine English), which has its own acoustic model trained on Filipino speakers' pronunciation patterns and regional vocabulary.
@@ -79,7 +82,10 @@ The mirror is deployed in the **Philippines**. AWS Transcribe supports `en-PH` (
 **Where:** `VoiceProvider.tsx` — `startListening()`
 
 ```ts
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+const stream = await navigator.mediaDevices.getUserMedia({
+  audio: true,
+  video: false,
+});
 ```
 
 Without explicit audio processing constraints, browser behavior varies per OS and device:
@@ -89,14 +95,15 @@ Without explicit audio processing constraints, browser behavior varies per OS an
 - **Auto gain control** may be off — quiet speech or speech from distance (user standing in front of a mirror) gets no compensation.
 
 **Fix:**
+
 ```ts
 navigator.mediaDevices.getUserMedia({
   audio: {
     echoCancellation: true,
     noiseSuppression: true,
     autoGainControl: true,
-  }
-})
+  },
+});
 ```
 
 ---
@@ -106,6 +113,7 @@ navigator.mediaDevices.getUserMedia({
 **Where:** `VoiceProvider.tsx` throughout `startListening()` / `stopListening()`
 
 The current pipeline manually manages:
+
 - Float32 → Int16 conversion (`float32ToInt16`)
 - Buffer accumulation (`chunksRef`)
 - Sample rate detection and resampling (`resampleTo16k`)
@@ -154,15 +162,15 @@ This function unconditionally returns `{ type: "speak" }`. The `if (action.type 
 
 ## Impact Summary
 
-| Issue | Severity | Affects | Status |
-|---|---|---|---|
-| Sample rate mismatch | Critical | Every recording | Mitigated (resampler added) |
-| ScriptProcessorNode main-thread drops | High | ~30% of recordings | Open |
-| Wrong AWS language (`en-US` not `en-PH`) | High | All Philippine vocabulary | Open — backend change needed |
-| No audio constraints | Medium | Noisy environments / TTS bleed | Open |
-| Raw PCM pipeline fragility | Medium | Reliability overall | Open |
-| Sequential API calls (latency) | Medium | Perceived responsiveness | Open |
-| Dead `detectIntent` code | Low | Code clarity | Open |
+| Issue                                    | Severity | Affects                        | Status                       |
+| ---------------------------------------- | -------- | ------------------------------ | ---------------------------- |
+| Sample rate mismatch                     | Critical | Every recording                | Mitigated (resampler added)  |
+| ScriptProcessorNode main-thread drops    | High     | ~30% of recordings             | Open                         |
+| Wrong AWS language (`en-US` not `en-PH`) | High     | All Philippine vocabulary      | Open — backend change needed |
+| No audio constraints                     | Medium   | Noisy environments / TTS bleed | Open                         |
+| Raw PCM pipeline fragility               | Medium   | Reliability overall            | Open                         |
+| Sequential API calls (latency)           | Medium   | Perceived responsiveness       | Open                         |
+| Dead `detectIntent` code                 | Low      | Code clarity                   | Open                         |
 
 ---
 

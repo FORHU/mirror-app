@@ -53,7 +53,11 @@ const MapViewport = () => {
     });
 
     mapInstance.on("style.load", () => {
-      mapInstance.setConfigProperty("basemap", "showPointOfInterestLabels", true);
+      mapInstance.setConfigProperty(
+        "basemap",
+        "showPointOfInterestLabels",
+        true,
+      );
       mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });
 
@@ -151,10 +155,14 @@ const MapViewport = () => {
             "line-color": [
               "match",
               ["get", "congestion"],
-              "low", "#4ade80",
-              "moderate", "#fbbf24",
-              "heavy", "#f97316",
-              "severe", "#ef4444",
+              "low",
+              "#4ade80",
+              "moderate",
+              "#fbbf24",
+              "heavy",
+              "#f97316",
+              "severe",
+              "#ef4444",
               "#4ade80",
             ],
           },
@@ -170,7 +178,11 @@ const MapViewport = () => {
   }, [map, showTraffic]);
 
   return (
-    <div ref={mapContainerRef} className="w-full h-full" style={{ filter: "brightness(0.75)" }}>
+    <div
+      ref={mapContainerRef}
+      className="w-full h-full"
+      style={{ filter: "brightness(0.75)" }}
+    >
       {map && (
         <>
           <RouteLayer map={map} />
