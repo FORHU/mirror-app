@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
 import { api } from "@/modules/shared/api/api-client";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -243,12 +244,14 @@ export default function CosmeticPage() {
     await new Promise((r) => setTimeout(r, 600));
     setCapturePhaseState("analyzing");
 
-    // Brief fake delay so "Analyzing…" state is visible
-    await new Promise((r) => setTimeout(r, 800));
     try {
-      const analysis = buildMockAnalysis();
+      const { id: fileId } = await cosmeticsService.uploadCapture(dataUrl);
+      const analysis = await cosmeticsService.analyzeSkin(fileId);
       sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
-    } catch {}
+    } catch {
+      // Fall back to mock so the result page still renders
+      sessionStorage.setItem("skin_analysis", JSON.stringify(buildMockAnalysis()));
+    }
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
   }, [router, setCapturePhaseState]);
 
@@ -338,6 +341,9 @@ export default function CosmeticPage() {
         loadScript(FACE_MESH_CDN),
         loadScript(CAMERA_UTILS_CDN),
       ]);
+      // Wait one frame so the <video> element is guaranteed in the DOM
+      // (loadScript resolves synchronously on re-navigation when scripts are cached)
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
       if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera)
         return;
 
@@ -373,6 +379,11 @@ export default function CosmeticPage() {
     return () => {
       isMounted = false;
       cameraRef.current?.stop?.();
+      // Release the camera hardware so the next mount can acquire it cleanly
+      if (videoRef.current?.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+        videoRef.current.srcObject = null;
+      }
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     };
   }, [handleResults]);

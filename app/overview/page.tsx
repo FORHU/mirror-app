@@ -126,7 +126,7 @@ export default function OverviewPage() {
           </button>
 
           <button
-            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+            onClick={() => { window.location.href = ROUTES.AI_RECOMMENDATION_COSMETIC; }}
             className="flex-1 glass-card-strong neon-border-white glow-white rounded-3xl flex flex-col items-center justify-center gap-4 transition-all active:scale-95"
           >
             <div className="icon-spotlight">
