@@ -15,6 +15,7 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
@@ -233,6 +234,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
         language: useMirrorStore.getState().voiceLanguage,
+        gender: useAuthStore.getState().user?.gender ?? sessionStorage.getItem("mirror_gender") ?? undefined,
       };
 
       const language = useMirrorStore.getState().voiceLanguage;
@@ -309,9 +311,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         let chatAction: ChatWonderAction | null = null;
 
         if (cogAction) {
+          const { type, payload, ...rest } = cogAction as any;
           chatAction = {
-            type: cogAction.type,
-            ...(cogAction.payload ?? {}),
+            type,
+            ...(payload ?? {}),
+            ...rest,
           } as ChatWonderAction;
         }
 
