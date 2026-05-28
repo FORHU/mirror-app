@@ -240,18 +240,8 @@ export default function CosmeticPage() {
 
     setCapturePhaseState("captured"); // triggers white flash
 
-    // Let the flash animation play before showing analyzing state
+    // Navigate after flash — result page handles the upload+analyze
     await new Promise((r) => setTimeout(r, 600));
-    setCapturePhaseState("analyzing");
-
-    try {
-      const { id: fileId } = await cosmeticsService.uploadCapture(dataUrl);
-      const analysis = await cosmeticsService.analyzeSkin(fileId);
-      sessionStorage.setItem("skin_analysis", JSON.stringify(analysis));
-    } catch {
-      // Fall back to mock so the result page still renders
-      sessionStorage.setItem("skin_analysis", JSON.stringify(buildMockAnalysis()));
-    }
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
   }, [router, setCapturePhaseState]);
 

@@ -4,21 +4,11 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import "../../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
 import { type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 import { ROUTES } from "@/navigation";
-
-// ── Shared overlay logic (mirrors result page) ────────────────────────────────
-type Landmark = { x: number; y: number; z: number };
-type ZoneEntry = {
-  zone: string;
-  labels: string[];
-  severity: string;
-  cx: number;
-  cy: number;
-};
 
 function inferSeverity(label: string): "low" | "medium" | "high" {
   const l = label.toLowerCase();
@@ -27,144 +17,11 @@ function inferSeverity(label: string): "low" | "medium" | "high" {
   return "low";
 }
 
-const REGION_ANCHOR: Record<string, number> = {
-  forehead: 10,
-  left_cheek: 234,
-  right_cheek: 454,
-  nose: 4,
-  left_eye_area: 133,
-  right_eye_area: 362,
-  chin: 152,
+const SEVERITY_OPACITY: Record<string, number> = {
+  high: 0.9,
+  medium: 0.55,
+  low: 0.3,
 };
-
-function getConcernZones(label: string): string[] {
-  const l = label.toLowerCase();
-  if (/pore|blackhead|whitehead/.test(l))
-    return ["nose", "left_cheek", "right_cheek"];
-  if (/acne|breakout|pimple|blemish/.test(l))
-    return ["forehead", "chin", "left_cheek", "right_cheek"];
-  if (/dark.circle|under.eye|puffin|puffy|bag/.test(l))
-    return ["left_eye_area", "right_eye_area"];
-  if (/wrinkle|fine.line|crow|aging|age/.test(l))
-    return ["forehead", "left_eye_area", "right_eye_area"];
-  if (/pigment|dark.spot|uneven|melasma|tone/.test(l))
-    return ["left_cheek", "right_cheek"];
-  if (/dry|flak|dehydrat/.test(l)) return ["left_cheek", "right_cheek"];
-  if (/red|rosacea|inflam/.test(l))
-    return ["left_cheek", "right_cheek", "nose"];
-  if (/oil|shine|greasy/.test(l)) return ["forehead", "nose", "chin"];
-  if (/t.zone/.test(l)) return ["forehead", "nose"];
-  return ["left_cheek", "right_cheek"];
-}
-
-const LABEL_ROW_H = 18;
-const PILL_PAD_Y = 4;
-const MIN_GAP = 8;
-const LINE_OVERHANG = 20;
-
-function resolveOverlaps(
-  nodes: Array<{ cy: number; rowCount: number }>,
-): number[] {
-  const ys = nodes.map((n) => n.cy);
-  const blockH = (n: { rowCount: number }) =>
-    n.rowCount * LABEL_ROW_H + PILL_PAD_Y * 2;
-  for (let pass = 0; pass < 20; pass++) {
-    let moved = false;
-    for (let i = 0; i < ys.length - 1; i++) {
-      for (let j = i + 1; j < ys.length; j++) {
-        const botI = ys[i] + blockH(nodes[i]) / 2;
-        const topJ = ys[j] - blockH(nodes[j]) / 2;
-        const overlap = botI + MIN_GAP - topJ;
-        if (overlap > 0) {
-          ys[i] -= overlap / 2;
-          ys[j] += overlap / 2;
-          moved = true;
-        }
-      }
-    }
-    if (!moved) break;
-  }
-  return ys;
-}
-
-function FaceAnnotationOverlay({
-  entries,
-  lyMap,
-  width,
-  height,
-}: {
-  entries: ZoneEntry[];
-  lyMap: Map<string, number>;
-  width: number;
-  height: number;
-}) {
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        overflow: "visible",
-        pointerEvents: "none",
-        zIndex: 2,
-      }}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      {entries.map((entry, idx) => {
-        const { zone, cx, cy } = entry;
-        const ly = lyMap.get(zone) ?? cy;
-        const isLeft = cx < width * 0.5;
-        const dotEdgeX = isLeft ? cx - 5 : cx + 5;
-        const elbowX = isLeft ? -LINE_OVERHANG : width + LINE_OVERHANG;
-        return (
-          <g key={zone}>
-            <circle
-              cx={cx}
-              cy={cy}
-              r={12}
-              fill="rgba(255,255,255,0.08)"
-              stroke="none"
-            >
-              <animate
-                attributeName="r"
-                values="6;14;6"
-                dur="2.2s"
-                begin={`${idx * 0.35}s`}
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="opacity"
-                values="0.5;0;0.5"
-                dur="2.2s"
-                begin={`${idx * 0.35}s`}
-                repeatCount="indefinite"
-              />
-            </circle>
-            <circle
-              cx={cx}
-              cy={cy}
-              r={4}
-              fill="white"
-              stroke="rgba(0,0,0,0.4)"
-              strokeWidth={1}
-            />
-            <line
-              x1={dotEdgeX}
-              y1={cy}
-              x2={elbowX}
-              y2={ly}
-              stroke="rgba(255,255,255,0.25)"
-              strokeWidth={1}
-              strokeLinecap="round"
-            />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
 
 // ── Mock products ─────────────────────────────────────────────────────────────
 type Product = {
@@ -319,44 +176,27 @@ export default function CosmeticRecommendationPage() {
 
   type SessionData = {
     capturedImage: string | null;
-    landmarks: Landmark[] | null;
     analysis: SkinAnalysis | null;
   };
   const [session, setSession] = useState<SessionData>({
     capturedImage: null,
-    landmarks: null,
     analysis: null,
   });
-  const { capturedImage, landmarks, analysis } = session;
-  const [photoSize, setPhotoSize] = useState({ w: 0, h: 0 });
+  const { capturedImage, analysis } = session;
   const [page, setPage] = useState(0);
-  const photoContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
       const capturedImage = sessionStorage.getItem("skin_capture");
-      const rawLm = sessionStorage.getItem("skin_landmarks");
-      const landmarks = rawLm ? (JSON.parse(rawLm) as Landmark[]) : null;
       const rawAnalysis = sessionStorage.getItem("skin_analysis");
       const analysis = rawAnalysis
         ? (JSON.parse(rawAnalysis) as SkinAnalysis)
         : null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
-      setSession({ capturedImage, landmarks, analysis });
+      setSession({ capturedImage, analysis });
     } catch {}
   }, []);
 
-  useEffect(() => {
-    const el = photoContainerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(() =>
-      setPhotoSize({ w: el.clientWidth, h: el.clientHeight }),
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  // ── Overlay zones ─────────────────────────────────────────────────────────
   const concerns = useMemo(
     () =>
       (analysis?.concerns ?? []).map((c) => ({
@@ -365,61 +205,6 @@ export default function CosmeticRecommendationPage() {
       })),
     [analysis],
   );
-
-  const annotatedZones = useMemo<ZoneEntry[]>(() => {
-    if (!landmarks || concerns.length === 0 || photoSize.w === 0) return [];
-    const zoneMap = new Map<string, { labels: string[]; severity: string }>();
-    for (const c of concerns) {
-      for (const zone of getConcernZones(c.label)) {
-        if (!zoneMap.has(zone))
-          zoneMap.set(zone, { labels: [], severity: c.severity });
-        const entry = zoneMap.get(zone)!;
-        if (!entry.labels.includes(c.label)) entry.labels.push(c.label);
-        if (
-          c.severity === "high" ||
-          (c.severity === "medium" && entry.severity === "low")
-        )
-          entry.severity = c.severity;
-      }
-    }
-    return Array.from(zoneMap.entries())
-      .map(([zone, data]) => {
-        const anchorIdx = REGION_ANCHOR[zone];
-        if (anchorIdx === undefined || anchorIdx >= landmarks.length)
-          return null;
-        const lm = landmarks[anchorIdx];
-        return {
-          zone,
-          ...data,
-          cx: (1 - lm.x) * photoSize.w,
-          cy: lm.y * photoSize.h,
-        };
-      })
-      .filter(Boolean) as ZoneEntry[];
-  }, [landmarks, concerns, photoSize]);
-
-  const { leftEntries, rightEntries, lyMap } = useMemo(() => {
-    if (photoSize.w === 0)
-      return {
-        leftEntries: [],
-        rightEntries: [],
-        lyMap: new Map<string, number>(),
-      };
-    const left = annotatedZones.filter((e) => e.cx < photoSize.w * 0.5);
-    const right = annotatedZones.filter((e) => e.cx >= photoSize.w * 0.5);
-    const lResolved = resolveOverlaps(
-      left.map((e) => ({ cy: e.cy, rowCount: e.labels.length })),
-    );
-    const rResolved = resolveOverlaps(
-      right.map((e) => ({ cy: e.cy, rowCount: e.labels.length })),
-    );
-    const lEntries = left.map((e, i) => ({ ...e, ly: lResolved[i] }));
-    const rEntries = right.map((e, i) => ({ ...e, ly: rResolved[i] }));
-    const map = new Map<string, number>();
-    lEntries.forEach((e) => map.set(e.zone, e.ly));
-    rEntries.forEach((e) => map.set(e.zone, e.ly));
-    return { leftEntries: lEntries, rightEntries: rEntries, lyMap: map };
-  }, [annotatedZones, photoSize.w]);
 
   // ── Products ──────────────────────────────────────────────────────────────
   const products: Product[] = analysis?.recommendations?.length
@@ -451,7 +236,6 @@ export default function CosmeticRecommendationPage() {
     () => setPage((p) => Math.max(p - 1, 0)),
   );
 
-  const panelH = photoSize.h > 0 ? `${photoSize.h}px` : "62vh";
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -507,174 +291,86 @@ export default function CosmeticRecommendationPage() {
 
       {/* Body */}
       <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
-        {/* ── Photo row: [left labels] [photo + annotation] [right labels] ─ */}
+        {/* Photo — centered, clean, concern chips overlaid at bottom */}
         <motion.div
-          className="flex items-start shrink-0 pt-3"
-          style={{ paddingLeft: "6px", paddingRight: "6px", gap: "4px" }}
+          className="flex justify-center shrink-0 px-4 pt-3"
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Left label panel */}
           <div
             style={{
-              flex: 1,
-              minWidth: 0,
               position: "relative",
-              height: panelH,
-              zIndex: 1,
-            }}
-          >
-            {photoSize.h > 0 &&
-              leftEntries.map((entry) => (
-                <div
-                  key={entry.zone}
-                  style={{
-                    position: "absolute",
-                    top: entry.ly,
-                    right: 0,
-                    transform: "translateY(-50%)",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: "8px",
-                      background: "rgba(255,255,255,0.08)",
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "2px",
-                    }}
-                  >
-                    {entry.labels.map((label) => (
-                      <span
-                        key={label}
-                        style={{
-                          color: "rgba(255,255,255,0.85)",
-                          fontSize: "10px",
-                          fontWeight: 500,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </div>
-
-          {/* Photo */}
-          <div
-            ref={photoContainerRef}
-            style={{
-              position: "relative",
-              flexShrink: 0,
-              aspectRatio: "9 / 16",
-              height: "62vh",
-              borderRadius: "16px",
+              height: "32vh",
+              aspectRatio: "3 / 4",
+              borderRadius: "14px",
+              overflow: "hidden",
               border: "1px solid rgba(255,255,255,0.10)",
               background: "rgba(255,255,255,0.04)",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: "16px",
-                overflow: "hidden",
-              }}
-            >
-              {capturedImage ? (
-                <Image
-                  fill
-                  unoptimized
-                  src={capturedImage}
-                  alt="Skin capture"
-                  style={{
-                    objectFit: "cover",
-                    objectPosition: "center top",
-                    transform: "scaleX(-1)",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span
-                    style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}
-                  >
-                    No capture
-                  </span>
-                </div>
-              )}
-            </div>
-            <AnimatePresence>
-              {photoSize.w > 0 && annotatedZones.length > 0 && (
-                <FaceAnnotationOverlay
-                  entries={annotatedZones}
-                  lyMap={lyMap}
-                  width={photoSize.w}
-                  height={photoSize.h}
-                />
-              )}
-            </AnimatePresence>
-          </div>
+            {capturedImage ? (
+              <Image
+                fill
+                unoptimized
+                src={capturedImage}
+                alt="Skin capture"
+                style={{
+                  objectFit: "cover",
+                  objectPosition: "center top",
+                  transform: "scaleX(-1)",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>
+                  No capture
+                </span>
+              </div>
+            )}
 
-          {/* Right label panel */}
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-              position: "relative",
-              height: panelH,
-            }}
-          >
-            {photoSize.h > 0 &&
-              rightEntries.map((entry) => (
-                <div
-                  key={entry.zone}
-                  style={{
-                    position: "absolute",
-                    top: entry.ly,
-                    left: 0,
-                    transform: "translateY(-50%)",
-                  }}
-                >
-                  <div
+            {/* AI concern chips overlaid at photo bottom */}
+            {concerns.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  padding: "20px 8px 8px",
+                  background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "4px",
+                }}
+              >
+                {concerns.map((c) => (
+                  <span
+                    key={c.label}
                     style={{
-                      padding: "4px 8px",
-                      borderRadius: "8px",
-                      background: "rgba(255,255,255,0.08)",
-                      border: "1px solid rgba(255,255,255,0.18)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "2px",
+                      padding: "2px 8px",
+                      borderRadius: "9999px",
+                      background: "rgba(255,255,255,0.12)",
+                      border: "1px solid rgba(255,255,255,0.20)",
+                      color: `rgba(255,255,255,${SEVERITY_OPACITY[c.severity]})`,
+                      fontSize: "9px",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {entry.labels.map((label) => (
-                      <span
-                        key={label}
-                        style={{
-                          color: "rgba(255,255,255,0.85)",
-                          fontSize: "10px",
-                          fontWeight: 500,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                    {c.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -785,14 +481,20 @@ export default function CosmeticRecommendationPage() {
                         width: "100%",
                         height: "100%",
                         display: "flex",
+                        flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
+                        gap: "5px",
+                        background: "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
                       }}
                     >
+                      <span style={{ color: "rgba(255,255,255,0.12)", fontSize: "22px", lineHeight: 1 }}>◯</span>
                       <span
                         style={{
-                          color: "rgba(255,255,255,0.1)",
-                          fontSize: "10px",
+                          color: "rgba(255,255,255,0.18)",
+                          fontSize: "8px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
                         }}
                       >
                         {product.category}
