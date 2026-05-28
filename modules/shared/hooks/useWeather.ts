@@ -44,6 +44,7 @@ function writeCoords(lat: number, lon: number) {
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
 
   useEffect(() => {
     function fetchWithCoords(lat: number, lon: number) {
@@ -76,6 +77,7 @@ export function useWeather() {
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
           writeCoords(coords.latitude, coords.longitude);
+          setCoords({ lat: coords.latitude, lon: coords.longitude });
           fetchWithCoords(coords.latitude, coords.longitude);
         },
         fallback,
@@ -88,5 +90,5 @@ export function useWeather() {
     }
   }, []);
 
-  return { weather, loading };
+  return { weather, loading, coords };
 }
