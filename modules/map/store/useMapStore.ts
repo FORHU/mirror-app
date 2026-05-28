@@ -12,6 +12,7 @@ interface SelectedPOI {
   name: string;
   category: string;
   address?: string;
+  distance?: number;
   location: { lat: number; lng: number };
   layerId?: string;
   fsqId?: string;
@@ -66,6 +67,8 @@ interface MapStore {
   isSearching: boolean;
   selectedDestination: Destination | null;
   nearbyPOIs: NearbyPOI[];
+  suggestedPOIs: NearbyPOI[];
+  suggestionLabel: string;
   selectedPOI: SelectedPOI | null;
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
@@ -94,6 +97,8 @@ interface MapStore {
   setDestination(location: Destination): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
+  setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
+  clearSuggestions(): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
@@ -124,6 +129,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isSearching: false,
   selectedDestination: null,
   nearbyPOIs: [],
+  suggestedPOIs: [],
+  suggestionLabel: "",
   selectedPOI: null,
   activeProfile: "car",
   showTraffic: false,
@@ -132,6 +139,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   origin: null,
 
   setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  setSuggestedPOIs: (pois, label) => set({ suggestedPOIs: pois, suggestionLabel: label }),
+  clearSuggestions: () => set({ suggestedPOIs: [], suggestionLabel: "" }),
   fetchNearbyPOIs: async ({ lat, lng }) => {
     try {
       const { pois } = await mapService.nearbyPOIs(lat, lng, 1000);

@@ -189,7 +189,21 @@ function detectIntent(
   if (/\b(stop|cancel|end)\s+navigation\b/i.test(t))
     return { type: "stop_navigation", reply: "Stopping navigation." };
 
-  // 4. Navigate to a physical place
+  // 4. Place suggestions by category
+  if (/\b(recommend|suggest|find|show|where.{0,10}eat|food|restaurant|dining|hungry)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "food", label: "Restaurants nearby" };
+  if (/\b(coffee|café|cafe|espresso|latte|cappuccino)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "coffee", label: "Coffee shops nearby" };
+  if (/\b(activities|things?\s+to\s+do|what.{0,10}do|entertainment|attraction|fun)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "activities", label: "Activities nearby" };
+  if (/\b(shop|shopping|mall|store|buy|purchase)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "shopping", label: "Shopping nearby" };
+  if (/\b(hospital|clinic|pharmacy|drug\s*store|medical|doctor|health)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "medical", label: "Medical places nearby" };
+  if (/\b(bus\s+stop|transit|transport|terminal|station|jeepney)\b/i.test(t))
+    return { type: "maps_suggest_places", category: "transit", label: "Transit nearby" };
+
+  // 5. Navigate to a physical place
   const navMatch = t.match(
     /(?:take me to|navigate to|directions? to|drive to|go to|aller à|emmène-moi à|directions? pour)\s+(.+)/i,
   );
@@ -464,6 +478,25 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           dateTime: action.dateTime,
           location: action.location,
         });
+      } else if (action.type === "maps_suggest_places") {
+        const loc = map.userLocation ?? map.homeLocation;
+        if (loc) {
+          const CATEGORY_MAP: Record<string, string> = {
+            food: "restaurant",
+            coffee: "cafe",
+            activities: "attraction",
+            shopping: "shop",
+            medical: "medical",
+            transit: "transit",
+          };
+          const fsqCategory = CATEGORY_MAP[action.category] ?? action.category;
+          mapService
+            .nearbyPOIs(loc.lat, loc.lng, 1500, fsqCategory)
+            .then(({ pois }) => {
+              useMapStore.getState().setSuggestedPOIs(pois, action.label);
+            })
+            .catch(() => {});
+        }
       } else if (action.type === "maps_preview_location") {
         sessionStorage.setItem(
           "mirror_pending_map_location",

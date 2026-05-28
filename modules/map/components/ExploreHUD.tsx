@@ -10,6 +10,7 @@ import {
   X,
   Home,
   Check,
+  MapPin,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -136,6 +137,26 @@ export const ExploreHUD = () => {
                   <div className="text-xl font-light text-white truncate">{selectedPOI.name}</div>
                 </div>
               </div>
+
+              {(selectedPOI.address || selectedPOI.distance != null) && (
+                <div className="px-4 py-2 flex items-start gap-2 border-b border-white/8">
+                  <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-white/40" />
+                  <div className="flex flex-col gap-0.5">
+                    {selectedPOI.address && (
+                      <span className="text-xs text-white/60 leading-tight">{selectedPOI.address}</span>
+                    )}
+                    {selectedPOI.distance != null && (
+                      <span className="text-xs text-white/40">
+                        {selectedPOI.distance < 100
+                          ? "Just ahead"
+                          : selectedPOI.distance < 1000
+                          ? `${Math.round(selectedPOI.distance / 10) * 10}m away`
+                          : `${(selectedPOI.distance / 1000).toFixed(1)}km away`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={() => {

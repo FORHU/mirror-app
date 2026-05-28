@@ -61,5 +61,5 @@ export function applyMirrorStyle(map: mapboxgl.Map): void {
 }
 
 export function applyStandardStyle(map: mapboxgl.Map): void {
-  map.setStyle("mapbox://styles/mapbox/dark-v11");
+  map.setStyle("mapbox://styles/mapbox/standard");
 }

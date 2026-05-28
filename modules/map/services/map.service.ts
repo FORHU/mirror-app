@@ -111,10 +111,13 @@ export const mapService = {
     lat: number,
     lng: number,
     radiusM = 1000,
+    category?: string,
   ): Promise<{ pois: NearbyPOI[] }> => {
+    const params: Record<string, unknown> = { lat, lng, radius: radiusM };
+    if (category) params.category = category;
     const res = await api.get<{ pois: NearbyPOI[] }>(
       "/api/mirror/map/nearby-pois",
-      { lat, lng, radius: radiusM },
+      params,
     );
     if (!res.ok) throw new Error("Nearby POIs fetch failed");
     return res.data!;
