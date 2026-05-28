@@ -7,6 +7,7 @@ import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -63,9 +64,12 @@ export default function OverviewPage() {
             justifyContent: "center",
           }}
         >
-          <span className="text-white font-semibold text-3xl tracking-wide select-none">
-            StyleOS
-          </span>
+          <div className="flex items-center">
+            <span className="text-white font-semibold text-3xl tracking-wide select-none">
+              StyleOS
+            </span>
+            <LanguageSelector />
+          </div>
         </div>
         <div
           style={{

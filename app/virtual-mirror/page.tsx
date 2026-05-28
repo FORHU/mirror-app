@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Menu,
   ArrowLeft,
@@ -78,6 +78,7 @@ const categories: Category[] = [
 export default function VirtualMirror() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
@@ -118,21 +119,23 @@ export default function VirtualMirror() {
     }
   }
 
-  // useEffect(() => {
-  //   async function startCamera() {
-  //     try {
-  //       const stream = await navigator.mediaDevices.getUserMedia({
-  //         video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
-  //       });
-  //       streamRef.current = stream;
-  //       if (videoRef.current) videoRef.current.srcObject = stream;
-  //     } catch {
-  //       // camera unavailable — mirror shows black
-  //     }
-  //   }
-  //   startCamera();
-  //   return () => { streamRef.current?.getTracks().forEach(t => t.stop()); };
-  // }, []);
+  useEffect(() => {
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
+        });
+        streamRef.current = stream;
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch {
+        // camera unavailable — mirror shows black
+      }
+    }
+    startCamera();
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+  }, []);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black">

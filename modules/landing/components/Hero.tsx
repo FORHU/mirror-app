@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Button } from "@/modules/shared/components/Button";
 import { useApiQuery } from "@/modules/shared/hooks/useApiQuery";
 import { LandingStats } from "@/modules/landing/api/landing-api";

@@ -3,7 +3,7 @@
 import { Car, Bike, PersonStanding } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
 import type { TransportProfile } from "../types/map.types";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 
 export default function ProfileSelector() {
   const { activeProfile, setActiveProfile, isNavigating } = useMapStore();

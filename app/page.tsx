@@ -5,15 +5,21 @@ import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import "../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 import { ROUTES } from "@/navigation";
 
 const TAGLINES = [
-  { line1: "The mirror", line2: "has opinions." },
-  { line1: "Dressed for", line2: "the moment." },
-  { line1: "Every outfit,", line2: "considered." },
-  { line1: "Step out", line2: "with intent." },
-  { line1: "Wear the", line2: "right thing." },
+  { line1: "Outfits picked,", line2: "beauty perfected." },
+  { line1: "Style matched,", line2: "routes ready." },
+  { line1: "Dress smart,", line2: "glow naturally." },
+  { line1: "From skincare", line2: "to streetwear." },
+  { line1: "Look good,", line2: "go anywhere." },
+  { line1: "Your outfit,", line2: "your destination." },
+  { line1: "Fashion, beauty,", line2: "and direction." },
+  { line1: "Styled for", line2: "every journey." },
+  { line1: "Cosmetics curated,", line2: "paths mapped." },
+  { line1: "Confidence starts", line2: "before you leave." },
 ];
 
 export default function WelcomePage() {
@@ -97,9 +103,12 @@ export default function WelcomePage() {
             justifyContent: "center",
           }}
         >
-          <span className="text-white font-semibold text-3xl tracking-wide select-none">
-            StyleOS
-          </span>
+          <div className="flex items-center">
+            <span className="text-white font-semibold text-3xl tracking-wide select-none">
+              StyleOS
+            </span>
+            <LanguageSelector />
+          </div>
         </div>
         <div
           style={{

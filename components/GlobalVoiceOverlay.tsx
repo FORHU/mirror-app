@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Send, Bot, User, Loader2, X, MessageSquare } from "lucide-react";
 import { useChatWonderStream } from "./useChatWonderStream";
 import { clsx, type ClassValue } from "clsx";

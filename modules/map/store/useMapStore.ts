@@ -60,6 +60,8 @@ interface MapStore {
   isNavigating: boolean;
   remainingDistance: number;
   remainingDuration: number;
+  currentStepIndex: number;
+  distanceToNextManeuver: number;
   activeRoute: DirectionsFormatted | null;
   lastTripGeojson: GeoJSON.FeatureCollection | null;
 
@@ -122,6 +124,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isNavigating: false,
   remainingDistance: 0,
   remainingDuration: 0,
+  currentStepIndex: 0,
+  distanceToNextManeuver: 0,
   activeRoute: null,
   lastTripGeojson: loadFromStorage("mirror_last_trip"),
 
