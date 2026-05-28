@@ -1,18 +1,14 @@
 export type FlowState =
   | "IDLE"
-  | "AUTH"
+  | "NEEDS_GENDER"
   | "AI_FASHION"
   | "AI_COSMETIC"
   | "MAP"
   | "LOCKED";
 
 export function getFlowState(pathname: string): FlowState {
-  if (
-    pathname === "/" ||
-    pathname === "/select-gender" ||
-    pathname === "/welcome"
-  ) {
-    return "AUTH";
+  if (pathname === "/" || pathname === "/select-gender") {
+    return "NEEDS_GENDER";
   }
 
   if (pathname.includes("fashion")) return "AI_FASHION";

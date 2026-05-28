@@ -16,6 +16,7 @@ import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { ROUTES } from "@/navigation";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
@@ -108,6 +109,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // Reset pending state on route change
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
+
+    // Begin a fresh chat-wonder Voice session on arrival at the Attract screen.
+    // Auth, kiosk pairing, and gender are cleared by their own owners (see ADR 0001).
+    if (pathname === ROUTES.WELCOME) {
+      sessionIdRef.current = undefined;
+      historyRef.current = [];
+      setChatHistory([]);
+    }
   }, [pathname]);
 
   // ----------------------

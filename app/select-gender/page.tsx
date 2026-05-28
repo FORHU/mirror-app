@@ -5,22 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
-import { setCachedAccessToken } from "@/modules/shared/api/api-client";
 import { authService } from "@/modules/shared/api/auth.service";
 import { setStorageData } from "@/modules/shared/utils/storage";
-import { setAuthCookie } from "@/modules/shared/utils/auth-cookie";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
+import { USER } from "@/modules/shared/constants/storage-keys";
+import { installKioskAuth } from "@/modules/shared/utils/install-kiosk-auth";
 import type { User } from "@/modules/shared/api/api.types";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { LanguageSelector } from "@/components/LanguageSelector";
-
-function getKioskToken(): string {
-  const isKiosk2 = window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2;
-  return isKiosk2
-    ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? "")
-    : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? "");
-}
 
 function SelectGenderContent() {
   const router = useRouter();
@@ -66,14 +58,14 @@ function SelectGenderContent() {
     setError(null);
 
     try {
-      const token = getKioskToken();
-      setCachedAccessToken(token);
+      // Belt-and-suspenders: Attract installs kiosk auth on /, but if a user
+      // landed here directly the call is idempotent and ensures the token is
+      // present before updateProfile fires.
+      await installKioskAuth();
       const user: User = await authService.updateProfile({ gender });
 
-      await setStorageData(ACCESS_TOKEN, token);
       await setStorageData(USER, user);
       useAuthStore.setState({ isAuthenticated: true, user });
-      setAuthCookie();
       sessionStorage.setItem("mirror_gender", gender);
 
       const next = searchParams.get("next");

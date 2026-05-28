@@ -25,13 +25,24 @@ export async function executeAction(
       return;
     }
 
+    case "maps_preview_location":
+    case "maps_get_directions":
     case "maps_navigate": {
+      const dest = action.destination || action.query;
+      if (!dest || dest.trim() === "") {
+        router.push(ROUTES.MAP);
+        return;
+      }
+
       const map = useMapStore.getState();
       const loc = map.userLocation ?? map.homeLocation ?? undefined;
 
-      const { results } = await mapService.geocode(action.destination!, loc);
+      const { results } = await mapService.geocode(dest, loc);
 
-      if (!results.length) return;
+      if (!results.length) {
+        router.push(ROUTES.MAP);
+        return;
+      }
 
       useMapStore.setState({
         selectedDestination: results[0],

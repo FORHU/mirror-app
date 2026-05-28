@@ -37,10 +37,9 @@ export function guardAction(
     };
   }
 
-  // AUTH BLOCK
-  if (flow === "AUTH") {
+  // Gender gate — fashion/cosmetics require gender; maps do not.
+  if (flow === "NEEDS_GENDER") {
     const blocked = [
-      "/map",
       "/ai-recommendation-fashion",
       "/ai-recommendation-cosmetic",
     ];
