@@ -44,7 +44,9 @@ function writeCoords(lat: number, lon: number) {
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     function fetchWithCoords(lat: number, lon: number) {

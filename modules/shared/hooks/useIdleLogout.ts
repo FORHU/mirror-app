@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES } from "@/navigation";
-import { endKioskSession } from "@/modules/shared/utils/end-kiosk-session";
 
 const DEFAULT_IDLE_MS = 5 * 60 * 1000; // 5 minutes
 const ACTIVITY_EVENTS = [
@@ -17,8 +16,8 @@ const ACTIVITY_EVENTS = [
 ] as const;
 
 /**
- * Auto-logs the user out after `timeoutMs` of no UI activity.
- * No-op when the user isn't authenticated, so it's safe to mount globally.
+ * Returns the kiosk to the Attract screen after `timeoutMs` of no UI activity.
+ * Tokens stay installed (see ADR 0002); only navigation changes.
  */
 export function useIdleLogout(timeoutMs: number = DEFAULT_IDLE_MS) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -30,14 +29,13 @@ export function useIdleLogout(timeoutMs: number = DEFAULT_IDLE_MS) {
 
     let timer: ReturnType<typeof setTimeout>;
 
-    const fireLogout = async () => {
-      await endKioskSession();
+    const returnToAttract = () => {
       router.push(ROUTES.WELCOME);
     };
 
     const reset = () => {
       clearTimeout(timer);
-      timer = setTimeout(fireLogout, timeoutMs);
+      timer = setTimeout(returnToAttract, timeoutMs);
     };
 
     ACTIVITY_EVENTS.forEach((e) =>

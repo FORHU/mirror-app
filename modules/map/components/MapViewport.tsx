@@ -5,18 +5,36 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/modules/shared/config/device.config";
 import { useMapStore } from "../store/useMapStore";
-import { applyMirrorStyle } from "../utils/mirrorStyle";
 import RouteLayer from "./RouteLayer";
 import UserPuck from "./UserPuck";
 import DestinationPin from "./DestinationPin";
+import NearbyPOILayer from "./NearbyPOILayer";
 import { useMapCamera } from "../hooks/useMapCamera";
+
+const REFETCH_THRESHOLD_M = 500;
+
+function haversineM(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6_371_000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, showTerrain, setMap } =
+  const lastFetchRef = useRef<{ lat: number; lng: number } | null>(null);
+  const { homeLocation, setSelectedPOI, showTraffic, setMap, fetchNearbyPOIs } =
     useMapStore();
 
   // Use camera hook
@@ -27,32 +45,46 @@ const MapViewport = () => {
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      style: "mapbox://styles/mapbox/standard",
       center: [homeLocation.lng, homeLocation.lat],
       zoom: 15,
       pitch: 0,
       bearing: 0,
-      antialias: true,
+    });
+
+    mapInstance.on("style.load", () => {
+      mapInstance.setConfigProperty(
+        "basemap",
+        "showPointOfInterestLabels",
+        true,
+      );
+      mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });
 
     mapInstance.on("load", () => {
-      mapInstance.addLayer({
-        id: "3d-buildings",
-        source: "composite",
-        "source-layer": "building",
-        filter: ["==", "extrude", "true"],
-        type: "fill-extrusion",
-        paint: {
-          "fill-extrusion-color": "#141414",
-          "fill-extrusion-height": ["get", "height"],
-          "fill-extrusion-base": ["get", "min_height"],
-          "fill-extrusion-opacity": 0.6,
-        },
-      });
-
-      applyMirrorStyle(mapInstance);
       setLocalMap(mapInstance);
       setMap(mapInstance);
+
+      // Initial POI fetch on map load
+      if (homeLocation) {
+        lastFetchRef.current = homeLocation;
+        fetchNearbyPOIs(homeLocation);
+      }
+
+      // Re-fetch POIs on pan when center drifts > 500m from last fetch
+      let moveTimer: ReturnType<typeof setTimeout> | null = null;
+      mapInstance.on("moveend", () => {
+        if (moveTimer) clearTimeout(moveTimer);
+        moveTimer = setTimeout(() => {
+          const center = mapInstance.getCenter();
+          const current = { lat: center.lat, lng: center.lng };
+          const last = lastFetchRef.current;
+          if (!last || haversineM(last, current) > REFETCH_THRESHOLD_M) {
+            lastFetchRef.current = current;
+            fetchNearbyPOIs(current);
+          }
+        }, 400);
+      });
 
       // Handle map clicks for discovery
       mapInstance.on("click", (e) => {
@@ -92,25 +124,15 @@ const MapViewport = () => {
       });
     });
 
-    mapInstance.on("style.load", () => {
-      applyMirrorStyle(mapInstance);
-    });
-
-    // Re-apply after first idle so all sprite/tiles are loaded
-    mapInstance.once("idle", () => {
-      applyMirrorStyle(mapInstance);
-    });
-
     return () => {
       mapInstance.remove();
     };
-  }, [homeLocation, setMap, setSelectedPOI]); // Only init once when homeLocation is ready
+  }, [homeLocation, setMap, setSelectedPOI, fetchNearbyPOIs]); // Only init once when homeLocation is ready
 
-  // Handle Traffic and Terrain toggles
+  // Handle Traffic toggle
   useEffect(() => {
     if (!map) return;
 
-    // Traffic — add Mapbox traffic tileset on demand, hide/show without removing
     const TRAFFIC_SRC = "mapbox-traffic-v1";
     const TRAFFIC_LAYER = "traffic-congestion";
 
@@ -153,28 +175,18 @@ const MapViewport = () => {
         map.setLayoutProperty(TRAFFIC_LAYER, "visibility", "none");
       }
     }
-
-    // Terrain
-    if (showTerrain) {
-      if (!map.getSource("mapbox-dem")) {
-        map.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-      }
-      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
-    } else {
-      map.setTerrain(null);
-    }
-  }, [map, showTraffic, showTerrain]);
+  }, [map, showTraffic]);
 
   return (
-    <div ref={mapContainerRef} className="w-full h-full">
+    <div
+      ref={mapContainerRef}
+      className="w-full h-full"
+      style={{ filter: "brightness(0.75)" }}
+    >
       {map && (
         <>
           <RouteLayer map={map} />
+          <NearbyPOILayer map={map} />
           <UserPuck map={map} />
           <DestinationPin map={map} />
         </>

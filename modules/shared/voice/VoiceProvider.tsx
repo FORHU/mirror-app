@@ -16,12 +16,14 @@ import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { ROUTES } from "@/navigation";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
 import { SYSTEM_RESPONSES } from "./responses";
 import { runKernel } from "./orchestration/kernel";
 import { executeAction } from "./orchestration/actionExecutor";
+import { guardAction } from "./orchestration/actionGuard";
 import {
   ConfirmationState,
   createIdleConfirmation,
@@ -31,6 +33,7 @@ import {
 
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
+const CHAT_SESSION_KEY = "mirror_chat_session";
 
 function float32ToInt16(f: Float32Array): Int16Array {
   const out = new Int16Array(f.length);
@@ -59,6 +62,8 @@ export interface VoiceContextValue {
   unregisterPage: () => void;
   aiEvents: unknown[];
   chatHistory: Array<{ user: string; assistant: string }>;
+  transcriptOpen: boolean;
+  setTranscriptOpen: (v: boolean) => void;
 }
 
 const VoiceContext = createContext<VoiceContextValue | null>(null);
@@ -79,6 +84,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [aiEvents, setAiEvents] = useState<unknown[]>([]);
+  const [transcriptOpen, setTranscriptOpen] = useState(true);
   const [chatHistory, setChatHistory] = useState<
     Array<{ user: string; assistant: string }>
   >([]);
@@ -105,9 +111,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [error]);
 
+  // Hydrate the chat-wonder sessionId from sessionStorage so it survives page
+  // reloads on non-Attract routes. Cleared only when arriving at /.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = sessionStorage.getItem(CHAT_SESSION_KEY);
+    if (stored) sessionIdRef.current = stored;
+  }, []);
+
   // Reset pending state on route change
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
+
+    // Begin a fresh chat-wonder Voice session on arrival at the Attract screen.
+    // Auth, kiosk pairing, and gender are cleared by their own owners (see ADR 0001).
+    if (pathname === ROUTES.WELCOME) {
+      sessionIdRef.current = undefined;
+      sessionStorage.removeItem(CHAT_SESSION_KEY);
+      historyRef.current = [];
+      queueMicrotask(() => setChatHistory([]));
+    }
   }, [pathname]);
 
   // ----------------------
@@ -234,7 +257,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
         language: useMirrorStore.getState().voiceLanguage,
-        gender: useAuthStore.getState().user?.gender ?? sessionStorage.getItem("mirror_gender") ?? undefined,
+        gender:
+          useAuthStore.getState().user?.gender ??
+          sessionStorage.getItem("mirror_gender") ??
+          undefined,
       };
 
       const language = useMirrorStore.getState().voiceLanguage;
@@ -275,13 +301,20 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const actionToRun = confirmationRef.current.action;
             confirmationRef.current = createIdleConfirmation();
 
-            await executeAction(
-              actionToRun,
-              router,
-              pathname,
-              onActionRef.current ?? undefined,
-            );
-            r = SYSTEM_RESPONSES.defaultOpen;
+            // Re-check the guard on confirmation. Block rules still apply
+            // (e.g. NEEDS_GENDER) even after the user said yes.
+            const guard = guardAction(actionToRun, pathname);
+            if (guard.allowed && guard.action) {
+              await executeAction(
+                guard.action,
+                router,
+                pathname,
+                onActionRef.current ?? undefined,
+              );
+              r = SYSTEM_RESPONSES.defaultOpen;
+            } else {
+              r = guard.reply ?? SYSTEM_RESPONSES.cancelled;
+            }
             audioBuffer = await mapService.tts(r);
             bypassMainExecution = true;
           } else if (isNo) {
@@ -302,16 +335,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         r = res.reply;
         events = res.events ?? [];
         audioBuffer = res.audio;
-        if (res.sessionId) sessionIdRef.current = res.sessionId;
+        if (res.sessionId) {
+          sessionIdRef.current = res.sessionId;
+          sessionStorage.setItem(CHAT_SESSION_KEY, res.sessionId);
+        }
 
-        const cogAction = res.action as {
-          type: string;
-          payload?: Record<string, unknown>;
-        } | null;
+        const cogAction = res.action as
+          | ({
+              type: string;
+              payload?: Record<string, unknown>;
+            } & Record<string, unknown>)
+          | null;
         let chatAction: ChatWonderAction | null = null;
 
         if (cogAction) {
-          const { type, payload, ...rest } = cogAction as any;
+          const { type, payload, ...rest } = cogAction;
           chatAction = {
             type,
             ...(payload ?? {}),
@@ -319,25 +357,32 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           } as ChatWonderAction;
         }
 
-        // 🧠 RUN UI KERNEL
-        const result = await runKernel(
-          chatAction,
-          pathname,
-          router,
-          onActionRef.current ?? undefined,
-        );
-
-        if (result.requiresConfirmation && result.action) {
-          confirmationRef.current = createPendingConfirmation(
-            result.action,
-            result.reply || r,
+        // Server-driven confirmation takes precedence: if the cognitive
+        // service flagged this action as requiring confirmation, store it as
+        // pending and DO NOT execute. The TTS reply already asks the user.
+        if (chatAction && res.requiresConfirmation) {
+          confirmationRef.current = createPendingConfirmation(chatAction, r);
+        } else {
+          // 🧠 RUN UI KERNEL
+          const result = await runKernel(
+            chatAction,
+            pathname,
+            router,
+            onActionRef.current ?? undefined,
           );
-          r = result.reply || r;
-          audioBuffer = await mapService.tts(r);
-        } else if (result.reply) {
-          // If the kernel intercepted with a custom reply (e.g. Gender Guard)
-          r = result.reply;
-          audioBuffer = await mapService.tts(r);
+
+          if (result.requiresConfirmation && result.action) {
+            confirmationRef.current = createPendingConfirmation(
+              result.action,
+              result.reply || r,
+            );
+            r = result.reply || r;
+            audioBuffer = await mapService.tts(r);
+          } else if (result.reply) {
+            // If the kernel intercepted with a custom reply (e.g. Gender Guard)
+            r = result.reply;
+            audioBuffer = await mapService.tts(r);
+          }
         }
       }
 
@@ -428,6 +473,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         unregisterPage,
         aiEvents,
         chatHistory,
+        transcriptOpen,
+        setTranscriptOpen,
       }}
     >
       {children}

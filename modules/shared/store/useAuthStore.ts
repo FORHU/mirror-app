@@ -1,37 +1,17 @@
 import { create } from "zustand";
 
-let _sessionListenerRegistered = false;
-import {
-  ACCESS_TOKEN,
-  REFRESH_TOKEN,
-  USER,
-} from "@/modules/shared/constants/storage-keys";
-import {
-  getStorageData,
-  setStorageData,
-  removeStorageData,
-} from "@/modules/shared/utils/storage";
+import { ACCESS_TOKEN, USER } from "@/modules/shared/constants/storage-keys";
+import { getStorageData, setStorageData } from "@/modules/shared/utils/storage";
 import { authService } from "@/modules/shared/api/auth.service";
 import { User } from "@/modules/shared/api/api.types";
 import { setCachedAccessToken } from "@/modules/shared/api/api-client";
-import { getSocketClient } from "@/modules/shared/socket/socket-client";
-import {
-  setAuthCookie,
-  clearAuthCookie,
-} from "@/modules/shared/utils/auth-cookie";
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 
-  // Internal actions
   _init: () => Promise<void>;
-  _forceLogout: () => void;
-
-  // Public actions
-  login: (email: string, username?: string, kioskId?: string) => Promise<void>;
-  logout: (options?: { isRemote?: boolean }) => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
 
@@ -43,91 +23,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async _init() {
     if (typeof window === "undefined") return;
 
-    if (!_sessionListenerRegistered) {
-      _sessionListenerRegistered = true;
-      window.addEventListener("session_expired", () => get()._forceLogout());
-    }
-
     try {
       const [storedUser, token] = await Promise.all([
         getStorageData<User>(USER),
         getStorageData<string>(ACCESS_TOKEN),
       ]);
 
-      if (storedUser && token) {
-        setCachedAccessToken(token);
-        setAuthCookie();
-        set({ user: storedUser, isAuthenticated: true });
+      if (!token) return;
+      setCachedAccessToken(token);
 
-        // Try to refresh user data in the background.
-        // If getCurrentUser() returns 401, the response interceptor will clear
-        // _cachedAccessToken. Restore it afterwards so concurrent requests
-        // (e.g. outfit creation → try-on) don't lose their auth header.
-        try {
-          const freshUser = await authService.getCurrentUser();
-          await setStorageData(USER, freshUser);
-          set({ user: freshUser });
-        } catch (e) {
-          setCachedAccessToken(token);
-          console.warn("[useAuthStore] Background user refresh failed", e);
-        }
+      if (storedUser) {
+        set({ user: storedUser, isAuthenticated: true });
+      }
+
+      // Whenever a token is installed (e.g. from installKioskAuth on cold load),
+      // fetch the user so isAuthenticated reflects "we have an identity",
+      // not "we previously cached one." See ADR 0002.
+      try {
+        const freshUser = await authService.getCurrentUser();
+        await setStorageData(USER, freshUser);
+        set({ user: freshUser, isAuthenticated: true });
+      } catch (e) {
+        setCachedAccessToken(token);
+        console.warn("[useAuthStore] User fetch failed", e);
       }
     } catch (e) {
       console.error("[useAuthStore] Initialization error", e);
     } finally {
       set({ isLoading: false });
-    }
-  },
-
-  _forceLogout() {
-    clearAuthCookie();
-    set({ user: null, isAuthenticated: false });
-  },
-
-  async login(email, username?, kioskId?) {
-    set({ isLoading: true });
-    try {
-      const res = await authService.login(email, username, kioskId);
-      await Promise.all([
-        setStorageData(ACCESS_TOKEN, res.accessToken),
-        setStorageData(REFRESH_TOKEN, res.refreshToken),
-        setStorageData(USER, res.user),
-      ]);
-      setCachedAccessToken(res.accessToken);
-      setAuthCookie();
-      set({ user: res.user, isAuthenticated: true });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  async logout(options) {
-    set({ isLoading: true });
-    try {
-      const rt = await getStorageData<string>(REFRESH_TOKEN);
-      if (!options?.isRemote) {
-        const kioskId = await getStorageData<string>("kiosk_id");
-        if (kioskId) {
-          getSocketClient().emit("send_companion_notification", {
-            kioskId,
-            action: "force_logout",
-          });
-        }
-      }
-      if (rt) {
-        await authService.logout(rt);
-      }
-    } catch (e) {
-      console.warn("[useAuthStore] Logout API call failed", e);
-    } finally {
-      await Promise.all([
-        removeStorageData(ACCESS_TOKEN),
-        removeStorageData(REFRESH_TOKEN),
-        removeStorageData(USER),
-      ]);
-      setCachedAccessToken(null);
-      clearAuthCookie();
-      set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 

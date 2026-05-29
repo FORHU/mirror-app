@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Button } from "./Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { endKioskSession } from "@/modules/shared/utils/end-kiosk-session";
 import { Dropdown, DropdownItem } from "./Dropdown";
+import { Dialog } from "./Dialog";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
 
@@ -68,32 +69,6 @@ export const Navbar = () => {
       ),
       onClick: () => router.push(ROUTES.LOGGED_IN),
     },
-    {
-      id: "logout",
-      label: "Log out",
-      destructive: true,
-      icon: (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <polyline points="16 17 21 12 16 7" />
-          <line x1="21" x2="9" y1="12" y2="12" />
-        </svg>
-      ),
-      onClick: async () => {
-        await endKioskSession();
-        router.push(ROUTES.WELCOME);
-      },
-    },
   ];
 
   return (
@@ -105,7 +80,16 @@ export const Navbar = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto h-full flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
+        <button
+          onClick={() => {
+            if (isAuthenticated) {
+              setShowExitDialog(true);
+            } else {
+              router.push("/");
+            }
+          }}
+          className="flex items-center gap-3 group"
+        >
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-core to-brand-vibrant flex items-center justify-center glow-primary group-hover:scale-110 transition-transform duration-500 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -117,7 +101,7 @@ export const Navbar = () => {
           <span className="text-xl font-bold tracking-tighter text-gradient-2026 hidden sm:block">
             Mirror App
           </span>
-        </Link>
+        </button>
 
         <div className="hidden md:flex items-center gap-8">
           <Link
@@ -166,6 +150,20 @@ export const Navbar = () => {
           )}
         </div>
       </div>
+
+      <Dialog
+        isOpen={showExitDialog}
+        title="End Session?"
+        message="Returning to the home screen will end your current session and clear all your details. Are you sure?"
+        confirmText="Yes, end session"
+        cancelText="Cancel"
+        isDestructive={true}
+        onConfirm={() => {
+          setShowExitDialog(false);
+          router.push("/");
+        }}
+        onCancel={() => setShowExitDialog(false)}
+      />
     </nav>
   );
 };

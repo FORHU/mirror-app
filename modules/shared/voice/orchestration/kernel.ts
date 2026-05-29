@@ -34,7 +34,7 @@ export async function runKernel(
 
   return {
     executed: true,
-    reply: undefined,
+    reply: guard.reply,
     action: guard.action,
   };
 }

@@ -123,7 +123,11 @@ export default function VirtualMirror() {
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: {
+            facingMode: "user",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
         });
         streamRef.current = stream;
         if (videoRef.current) videoRef.current.srcObject = stream;

@@ -283,8 +283,16 @@ export default function WeatherWidget({
           {weather.city}
         </span>
         {/* TEST: GPS coords */}
-        <span style={{ color: "rgba(255,220,50,0.8)", fontSize: "10px", fontFamily: "monospace" }}>
-          {coords ? `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}` : "GPS…"}
+        <span
+          style={{
+            color: "rgba(255,220,50,0.8)",
+            fontSize: "10px",
+            fontFamily: "monospace",
+          }}
+        >
+          {coords
+            ? `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`
+            : "GPS…"}
         </span>
       </div>
     </div>

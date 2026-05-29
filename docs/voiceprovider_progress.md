@@ -182,46 +182,75 @@ pendingAction set by AI (requiresConfirmation: true)
 - [x] Remove hardcoded confirmation guards from `dispatchAction()`
 - [x] Refactor `stopListening()` to use the AI's `requiresConfirmation` flag
 - [x] Build successfully compiles with all new types
+- [x] Extract `flowState.ts`, `actionGuard.ts`, `actionExecutor.ts` into `orchestration/`
+- [x] Introduce `kernel.ts` to compose guard → execute as a single entry point
+- [x] Extract `confirmationState.ts` with explicit `IDLE / PENDING` state + 30s TTL
+- [x] Honor server-driven `requiresConfirmation` from the cognitive response
+- [x] Persist chat-wonder `sessionId` across reloads via `sessionStorage` (cleared at `/`)
 
 ---
 
 ## Conclusion
 
-The refactor is complete. The system has converged on a **true production-grade orchestration pipeline** that separates AI reasoning, deterministic safety rules, and UI execution.
+The refactor is complete. The system has converged on a **true production-grade orchestration pipeline** that separates AI reasoning, deterministic safety rules, and UI execution. The "next steps" separation-of-concerns work has been finished — `VoiceProvider.tsx` is now a thin I/O shell and all orchestration lives in [`orchestration/`](./orchestration/).
+
+### Current Module Layout
+
+| File                              | Responsibility                                                                                              |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `VoiceProvider.tsx`               | Mic capture, PCM encode, transcript/TTS playback, voice state machine, pre-processor (yes/no regex)         |
+| `orchestration/kernel.ts`         | `runKernel(action, pathname, router, onAction)` — composes guard → execute                                  |
+| `orchestration/actionGuard.ts`    | `guardAction()` — gender gate, AI_FASHION/AI_COSMETIC → `/map` confirmation gate, payload validation        |
+| `orchestration/actionExecutor.ts` | Pure dispatch — `navigate`, `maps_*`, `traffic_*`, `set_profile`, `calendar_*`, `maps_suggest_places`       |
+| `orchestration/flowState.ts`      | `getFlowState(pathname)` → `IDLE / NEEDS_GENDER / AI_FASHION / AI_COSMETIC / MAP / LOCKED`                  |
+| `orchestration/confirmationState.ts` | `ConfirmationState` discriminated union (`IDLE` / `PENDING`) with 30s expiry + helpers                   |
+| `types.ts`                        | `VoiceState` and shared types                                                                               |
+| `responses.ts`                    | `ROUTE_RESPONSES` (per-flow intercept copy) + `SYSTEM_RESPONSES` (cancel, gender guard, default open)       |
+| `AiEventsOverlay.tsx`             | UI overlay for AI event cards emitted alongside the reply                                                   |
+| `useVoice.ts`                     | Hook for consumers                                                                                          |
 
 ### The Final Orchestration Flow
 
 ```
-1. Voice Input (Mic)
+1. Voice Input (Mic, ScriptProcessorNode → Int16 PCM @ 16kHz)
    ↓
-2. Transcription (AWS Transcribe)
+2. Transcription (mapService.transcribe → /api/mirror/voice/transcribe)
    ↓
-3. 🧠 Cognitive Prompt Engine (SYSTEM + INTENT + ACTION RULES)
+3. 🛡  Pre-processor — Local Confirmation FSM (VoiceProvider.tsx)
+      • If ConfirmationState === PENDING and not expired:
+          - HIGH-intent override → clear pending, fall through
+          - YES → re-run guardAction on stored action, execute, speak default
+          - NO  → clear pending, speak SYSTEM_RESPONSES.cancelled
+          - UNCERTAIN → ctx.mode = "confirm_context_required", fall through
    ↓
-4. ChatWonder AI (Single reasoning brain via cognitive-voice.service)
+4. 🧠 Cognitive Prompt Engine (SYSTEM + INTENT + ACTION RULES)
    ↓
-5. CognitiveResponse Parser (Strict JSON validation)
+5. ChatWonder AI (cognitive-voice.service via mapService.ask)
    ↓
-6. 🚨 ACTION GUARDIAN (Deterministic safety filter in VoiceProvider.tsx)
+6. CognitiveResponse Parser (strict JSON: reply, action, requiresConfirmation, events, sessionId, audio)
    ↓
-7. Frontend Action Executor (Pure dispatch action mapper)
+7. 🚦 Server-driven confirmation check
+      • If res.requiresConfirmation → store as PENDING, DO NOT execute (TTS already asks)
+      • Else → runKernel(action, pathname, router, onAction)
    ↓
-8. UI / Maps / Navigation / Calendar
+8. 🚨 ACTION GUARDIAN (orchestration/actionGuard.ts)
+      • Schema validation (type, route presence)
+      • Gender gate (fashion/cosmetic → redirect to /select-gender)
+      • Flow transition gate (AI_FASHION|AI_COSMETIC → /map requires confirmation)
+   ↓
+9. Frontend Action Executor (orchestration/actionExecutor.ts — pure dispatch)
+   ↓
+10. UI / Maps / Navigation / Calendar / TTS playback → state returns to idle
 ```
 
 ### Key Highlights
 
-- **No Regex FSM**: The AI fully drives the intent and route logic.
-- **Deterministic Action Firewall**: Replaced the simple `actionGuardian` with a flow-aware `guardAction`. It validates payloads (Schema Validation), enforces the Gender Lock, and strictly governs Flow Transitions based on the user's current location in the app.
-- **FlowState Kernel**: The app's current context is now formally mapped to a `FlowState` (`AUTH`, `AI_FASHION`, `MAP`, etc.), serving as the single source of truth for the Action Firewall.
-- **Pure Dispatcher**: `dispatchAction()` has been stripped of all business logic and routing guards. It blindly executes whatever passes through the Guardian.
-
-### Next Steps: Separation of Concerns
-
-Currently, `VoiceProvider.tsx` mixes three distinct responsibilities:
-
-1. **Safety**: `guardAction` firewall logic.
-2. **State Management**: `FlowState` tracking and `pendingAction` queuing.
-3. **Execution**: `dispatchAction` routing and store updates.
-
-The next evolutionary step is to extract these into discrete, testable modules (e.g. `flowState.ts`, `actionGuard.ts`, `actionExecutor.ts`) to make the core `VoiceProvider` significantly lighter and easier to debug.
+- **No Regex FSM for intent**: ChatWonder fully drives intent and route logic. The only regex left is the local pre-processor for yes/no/high-intent overrides during a pending confirmation — kept local for latency and to survive transient network failures.
+- **Two-tier confirmation**:
+  1. **Server-driven** — cognitive response sets `requiresConfirmation: true` and writes the TTS prompt itself.
+  2. **Client-driven** — `guardAction` can also gate a transition (e.g. AI_FASHION → /map) using `ROUTE_RESPONSES[*].intercept`.
+  Both paths store a `PENDING` `ConfirmationState` with a 30s TTL; the pre-processor resolves it on the next utterance.
+- **Deterministic Action Firewall**: `guardAction` is flow-aware, validates payloads, enforces the Gender Lock, and governs Flow Transitions based on the user's current `FlowState`.
+- **FlowState Kernel**: Pathname → `FlowState` is the single source of truth for the Action Firewall.
+- **Pure Dispatcher**: `executeAction` has no business logic or routing guards — it blindly executes whatever passed the Guardian, and falls back to the page-registered `onAction` for page-local events.
+- **Session continuity**: `sessionId` from the cognitive response is mirrored into `sessionStorage` so chat-wonder context survives page reloads on non-Attract routes, and is cleared on arrival at `/`.

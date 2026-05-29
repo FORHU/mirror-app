@@ -12,6 +12,7 @@ interface SelectedPOI {
   name: string;
   category: string;
   address?: string;
+  distance?: number;
   location: { lat: number; lng: number };
   layerId?: string;
   fsqId?: string;
@@ -57,10 +58,10 @@ interface MapStore {
   mapStyle: "mirror" | "standard";
   cameraMode: "follow" | "overview" | "free";
   isNavigating: boolean;
-  currentStepIndex: number;
-  distanceToNextManeuver: number;
   remainingDistance: number;
   remainingDuration: number;
+  currentStepIndex: number;
+  distanceToNextManeuver: number;
   activeRoute: DirectionsFormatted | null;
   lastTripGeojson: GeoJSON.FeatureCollection | null;
 
@@ -68,10 +69,11 @@ interface MapStore {
   isSearching: boolean;
   selectedDestination: Destination | null;
   nearbyPOIs: NearbyPOI[];
+  suggestedPOIs: NearbyPOI[];
+  suggestionLabel: string;
   selectedPOI: SelectedPOI | null;
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
-  showTerrain: boolean;
   isRouting: boolean;
   userLocation: Location | null;
   origin: Location | null;
@@ -93,17 +95,18 @@ interface MapStore {
   setCameraMode(mode: "follow" | "overview" | "free"): void;
   toggleMapStyle(): void;
   toggleTraffic(): void;
-  toggleTerrain(): void;
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
+  setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
+  clearSuggestions(): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   startNavigation(): void;
   stopNavigation(): void;
   clearNavigation(): void;
-  updateNavigationProgress(location: Location): void;
+  patchHomeLocation(coords: Location): Promise<void>;
   fetchCommuteEta(): Promise<void>;
 }
 
@@ -119,10 +122,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
   mapStyle: "mirror",
   cameraMode: "free",
   isNavigating: false,
-  currentStepIndex: 0,
-  distanceToNextManeuver: 0,
   remainingDistance: 0,
   remainingDuration: 0,
+  currentStepIndex: 0,
+  distanceToNextManeuver: 0,
   activeRoute: null,
   lastTripGeojson: loadFromStorage("mirror_last_trip"),
 
@@ -130,15 +133,19 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isSearching: false,
   selectedDestination: null,
   nearbyPOIs: [],
+  suggestedPOIs: [],
+  suggestionLabel: "",
   selectedPOI: null,
   activeProfile: "car",
   showTraffic: false,
-  showTerrain: false,
   isRouting: false,
   userLocation: null,
   origin: null,
 
   setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  setSuggestedPOIs: (pois, label) =>
+    set({ suggestedPOIs: pois, suggestionLabel: label }),
+  clearSuggestions: () => set({ suggestedPOIs: [], suggestionLabel: "" }),
   fetchNearbyPOIs: async ({ lat, lng }) => {
     try {
       const { pois } = await mapService.nearbyPOIs(lat, lng, 1000);
@@ -197,7 +204,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   toggleMapStyle: () =>
     set((s) => ({ mapStyle: s.mapStyle === "mirror" ? "standard" : "mirror" })),
   toggleTraffic: () => set((s) => ({ showTraffic: !s.showTraffic })),
-  toggleTerrain: () => set((s) => ({ showTerrain: !s.showTerrain })),
 
   searchLocations: async (query) => {
     set({ isSearching: true });
@@ -304,7 +310,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   startNavigation: () => {
     if (!get().activeRoute) return;
-    set({ isNavigating: true, cameraMode: "follow", currentStepIndex: 0 });
+    set({ isNavigating: true, cameraMode: "follow" });
   },
 
   stopNavigation: () => {
@@ -332,7 +338,10 @@ export const useMapStore = create<MapStore>((set, get) => ({
     });
   },
 
-  updateNavigationProgress: () => {},
+  patchHomeLocation: async (coords) => {
+    await mapService.setHomeLocation(coords);
+    set({ homeLocation: coords, origin: coords });
+  },
 
   fetchCommuteEta: async () => {
     const { workLocation, homeLocation, userLocation, activeProfile } = get();

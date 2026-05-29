@@ -46,7 +46,18 @@ export type ChatWonderAction =
       type: "set_profile";
       profile: "car" | "motorcycle" | "bicycle" | "walking";
     }
-  | { type: "select_gender"; gender: "MALE" | "FEMALE" };
+  | { type: "select_gender"; gender: "MALE" | "FEMALE" }
+  | {
+      type: "maps_suggest_places";
+      category:
+        | "food"
+        | "coffee"
+        | "activities"
+        | "shopping"
+        | "medical"
+        | "transit";
+      label: string;
+    };
 
 export interface ChatWonderResponse {
   intent: string;

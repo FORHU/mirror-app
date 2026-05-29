@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type ComponentType } from "react";
 import { useMapStore } from "../store/useMapStore";
-import { API_URL } from "@/modules/shared/config/device.config";
 import * as Icons from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -22,7 +21,7 @@ const WeatherWidget = () => {
     if (!homeLocation) return;
     try {
       const res = await fetch(
-        `${API_URL}/api/mirror/weather?lat=${homeLocation.lat}&lng=${homeLocation.lng}`,
+        `/api/mirror/weather?lat=${homeLocation.lat}&lng=${homeLocation.lng}`,
       );
       const data = await res.json();
       setWeather(data);
