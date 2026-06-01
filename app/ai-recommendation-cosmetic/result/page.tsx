@@ -186,7 +186,11 @@ export default function CosmeticResultPage() {
                 unoptimized
                 src={capturedImage}
                 alt="Skin capture"
-                style={{ objectFit: "cover", objectPosition: "center top", transform: "scaleX(-1)" }}
+                style={{
+                  objectFit: "cover",
+                  objectPosition: "center top",
+                  transform: "scaleX(-1)",
+                }}
               />
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>

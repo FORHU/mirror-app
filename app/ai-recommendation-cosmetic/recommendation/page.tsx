@@ -184,6 +184,7 @@ export default function CosmeticRecommendationPage() {
   });
   const { capturedImage, analysis } = session;
   const [page, setPage] = useState(0);
+  const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
@@ -207,7 +208,7 @@ export default function CosmeticRecommendationPage() {
   );
 
   // ── Products ──────────────────────────────────────────────────────────────
-  const products: Product[] = analysis?.recommendations?.length
+  const allProducts: Product[] = analysis?.recommendations?.length
     ? analysis.recommendations.map((r) => ({
         id: r.cosmeticProduct.id,
         name: r.cosmeticProduct.name,
@@ -225,6 +226,9 @@ export default function CosmeticRecommendationPage() {
         imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
       }))
     : MOCK_PRODUCTS;
+  const products = allProducts.filter(
+    (product) => product.imageUrl && !failedImageIds.has(product.id),
+  );
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE);
   const pagedProducts = products.slice(
@@ -235,6 +239,12 @@ export default function CosmeticRecommendationPage() {
     () => setPage((p) => Math.min(p + 1, totalPages - 1)),
     () => setPage((p) => Math.max(p - 1, 0)),
   );
+
+  useEffect(() => {
+    setPage((currentPage) =>
+      totalPages > 0 ? Math.min(currentPage, totalPages - 1) : 0,
+    );
+  }, [totalPages]);
 
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
@@ -465,13 +475,20 @@ export default function CosmeticRecommendationPage() {
                     background: "rgba(255,255,255,0.03)",
                   }}
                 >
-                  {product.imageUrl ? (
+                  {product.imageUrl && !failedImageIds.has(product.id) ? (
                     <Image
                       fill
                       unoptimized
                       src={product.imageUrl}
                       alt={product.name}
                       draggable={false}
+                      onError={() =>
+                        setFailedImageIds((current) => {
+                          const next = new Set(current);
+                          next.add(product.id);
+                          return next;
+                        })
+                      }
                       style={{ objectFit: "contain" }}
                       className="pointer-events-none"
                     />

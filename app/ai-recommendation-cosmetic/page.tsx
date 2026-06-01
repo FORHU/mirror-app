@@ -228,6 +228,8 @@ export default function CosmeticPage() {
 
     try {
       sessionStorage.setItem("skin_capture", dataUrl);
+      sessionStorage.removeItem("skin_analysis");
+      sessionStorage.removeItem("skin_analysis_id");
     } catch {}
     if (latestLandmarksRef.current) {
       try {
@@ -331,9 +333,17 @@ export default function CosmeticPage() {
         loadScript(FACE_MESH_CDN),
         loadScript(CAMERA_UTILS_CDN),
       ]);
-      // Wait one frame so the <video> element is guaranteed in the DOM
-      // (loadScript resolves synchronously on re-navigation when scripts are cached)
-      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      // Poll until videoRef is in the DOM — one RAF isn't enough on cached
+      // re-navigation (e.g. voice → navigate) because loadScript resolves
+      // synchronously and the <video> element may not be rendered yet.
+      await new Promise<void>((r) => {
+        const check = () => {
+          if (!isMounted) { r(); return; }
+          if (videoRef.current) { r(); return; }
+          requestAnimationFrame(check);
+        };
+        requestAnimationFrame(check);
+      });
       if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera)
         return;
 
