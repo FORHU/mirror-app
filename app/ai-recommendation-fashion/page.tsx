@@ -18,6 +18,8 @@ import {
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
+import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
   const startX = useRef<number | null>(null);
@@ -109,6 +111,7 @@ export default function VirtualMirrorV2() {
   const [showConfirm, setShowConfirm] = useState(false);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const { weather } = useWeather();
 
   useEffect(() => {
     const fetchSuggestion = async () => {
@@ -1521,6 +1524,9 @@ export default function VirtualMirrorV2() {
           </div>
         </div>
       )}
+
+      {/* ChatWonder Chat overlay */}
+      <ChatWonderChat mode="garments" weather={weather} />
     </div>
   );
 }

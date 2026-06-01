@@ -61,7 +61,9 @@ export default function LoggedInPage() {
 
         {/* Skin Analysis */}
         <button
-          onClick={() => { window.location.href = ROUTES.AI_RECOMMENDATION_COSMETIC; }}
+          onClick={() => {
+            window.location.href = ROUTES.AI_RECOMMENDATION_COSMETIC;
+          }}
           className="glass-card-strong neon-border-white glow-white rounded-3xl py-8 h-40 flex flex-col items-center justify-center gap-5 transition-all active:scale-95"
           style={{ height: "250px" }}
         >

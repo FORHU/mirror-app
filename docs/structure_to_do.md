@@ -35,10 +35,12 @@ voice/index.ts            → re-exports providers (public API)
 ```
 
 **Update imports:**
+
 - Inside `VoiceProvider.tsx`: `./orchestration/kernel` → `../orchestration/kernel/kernel`, etc.
 - Outside `voice/`: replace `@/modules/shared/voice/VoiceProvider` with `@/modules/shared/voice` (use the barrel).
 
 **Acceptance:**
+
 - `npm run build` passes.
 - `npm run typecheck` passes.
 - App launches, mic still records, voice still works end-to-end.
@@ -69,13 +71,40 @@ export type VoiceEvent =
   | { type: "voice.mic.open"; ts: number }
   | { type: "voice.mic.close"; ts: number; durationMs: number; bytes: number }
   | { type: "voice.transcribe.start"; ts: number }
-  | { type: "voice.transcribe.end"; ts: number; latencyMs: number; transcript: string; language: string }
-  | { type: "voice.ask.start"; ts: number; transcript: string; ctxKeys: string[] }
-  | { type: "voice.ask.end"; ts: number; latencyMs: number; actionType: string | null; requiresConfirmation: boolean }
-  | { type: "voice.guard.result"; ts: number; allowed: boolean; reason?: string; redirected?: string }
+  | {
+      type: "voice.transcribe.end";
+      ts: number;
+      latencyMs: number;
+      transcript: string;
+      language: string;
+    }
+  | {
+      type: "voice.ask.start";
+      ts: number;
+      transcript: string;
+      ctxKeys: string[];
+    }
+  | {
+      type: "voice.ask.end";
+      ts: number;
+      latencyMs: number;
+      actionType: string | null;
+      requiresConfirmation: boolean;
+    }
+  | {
+      type: "voice.guard.result";
+      ts: number;
+      allowed: boolean;
+      reason?: string;
+      redirected?: string;
+    }
   | { type: "voice.action.execute"; ts: number; actionType: string }
   | { type: "voice.confirmation.pending"; ts: number; actionType: string }
-  | { type: "voice.confirmation.resolved"; ts: number; outcome: "yes" | "no" | "expired" | "override" }
+  | {
+      type: "voice.confirmation.resolved";
+      ts: number;
+      outcome: "yes" | "no" | "expired" | "override";
+    }
   | { type: "voice.tts.start"; ts: number; chars: number }
   | { type: "voice.tts.end"; ts: number; latencyMs: number }
   | { type: "voice.error"; ts: number; phase: string; message: string };
@@ -98,6 +127,7 @@ export { getBufferedEvents } from "./sinks/buffer";
 ```
 
 **Instrument `VoiceProvider.tsx`:**
+
 - `startListening` → emit `mic.open`
 - `stopListening` start → emit `mic.close` with duration + bytes
 - Before `mapService.transcribe` → `transcribe.start`; after → `transcribe.end` with `Date.now() - start`
@@ -113,6 +143,7 @@ export { getBufferedEvents } from "./sinks/buffer";
 Add a hidden `?debug=voice` query param that mounts a `<VoiceTelemetryPanel />` overlay showing the last N events from the buffer sink. Stick it next to `AiEventsOverlay`.
 
 **Acceptance:**
+
 - Run one voice turn end-to-end. Console shows 10–12 events with monotonic `ts` and sensible latencies.
 - `getBufferedEvents()` from devtools returns the same events.
 - No event has `latencyMs > 30000` (sanity floor).
@@ -196,7 +227,10 @@ export type CognitiveResponse = z.infer<typeof CognitiveResponseSchema>;
 **`cognition/parsers/parseResponse.ts` sketch:**
 
 ```ts
-import { CognitiveResponseSchema, type CognitiveResponse } from "../schemas/response";
+import {
+  CognitiveResponseSchema,
+  type CognitiveResponse,
+} from "../schemas/response";
 import { emit } from "../../telemetry/emit";
 
 export type ParseResult =
@@ -217,14 +251,17 @@ export function parseCognitiveResponse(raw: unknown): ParseResult {
 ```
 
 **Wire it in:**
+
 - In `VoiceProvider.tsx`, after `await mapService.ask(...)`, run `parseCognitiveResponse(res)` and branch on `ok`.
 - On parse failure: speak `SYSTEM_RESPONSES.cancelled` (or a new "I didn't understand that" response), do not execute, emit `voice.error`.
 
 **Update `actionGuard.ts`:**
+
 - Drop the ad-hoc `if (!action.type)` and `if (!action.route)` checks — the schema already guarantees them.
 - Keep the business rules (gender gate, flow transitions).
 
 **Acceptance:**
+
 - Force a malformed action in `mocks/chatwonder-results.json` (e.g. `{type: "navigate"}` with no `route`). Voice turn does NOT crash, falls back to a polite reply, telemetry shows `voice.error{phase:"parse"}`.
 - All happy-path actions still execute as before.
 - Build + typecheck clean.
@@ -244,10 +281,12 @@ export function parseCognitiveResponse(raw: unknown): ParseResult {
 ## Phase 4 — Streaming (follow-up, ~2 days)
 
 **Backend prerequisite** (block Phase 4 until done):
+
 - Convert `POST /api/mirror/voice/ask` to SSE or WebSocket
 - Stream tokens of `reply` as they're generated; stream `action` once decided; stream `audio` chunks last (or in parallel via a separate channel)
 
 **Frontend:**
+
 - New folder `audio/streaming/` with `streamReply.ts` (consumes SSE/WS, emits `chunk` events)
 - TTS: switch from "wait for full buffer" to "decode + play first chunk as soon as available" via `MediaSource` API or chunked `AudioBufferSource` queue
 - Telemetry: add `voice.stream.first_token`, `voice.stream.first_audio`, `voice.stream.complete`
@@ -260,15 +299,18 @@ export function parseCognitiveResponse(raw: unknown): ParseResult {
 **Depends on:** Phase 4 (streaming), and adding VAD.
 
 **New folder:** `audio/vad/`
+
 - Use [`@ricky0123/vad-web`](https://github.com/ricky0123/vad) or similar
 - Run continuously when `voiceState === "speaking"`; on speech detection → `stopPlayback()` + `startListening()`
 
 **AbortController everywhere:**
+
 - `mapService.transcribe`, `mapService.ask`, `mapService.tts` all accept an `AbortSignal`
 - Route change + user tap during `processing` aborts the in-flight request
 - Telemetry: `voice.aborted{phase}`
 
 **State machine updates:**
+
 - New transition: `speaking + speech_detected → recording` (barge-in)
 - New transition: `processing + tap → idle` (cancel)
 
@@ -277,11 +319,13 @@ export function parseCognitiveResponse(raw: unknown): ParseResult {
 ## Phase 6 — Memory (follow-up, ~2 days, needs backend)
 
 **Backend:**
+
 - Add `memoryUpdates` field to `CognitiveResponse` (the v2 doc already specced it)
 - Persist per-user preferences (preferred travel mode, frequent destinations, dietary prefs) in a new `user_voice_memory` table
 - Cognitive prompt includes memory snapshot in the context
 
 **Frontend:**
+
 - New folder `orchestration/memory/` already exists for confirmation — add `userMemory.ts` for the long-term memory cache
 - Hydrate from `/api/mirror/voice/memory` on auth
 - Apply `memoryUpdates` from each response, sync to backend

@@ -8,6 +8,8 @@ import { ROUTES } from "@/navigation";
 import WeatherWidget from "@/components/WeatherWidget";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function OverviewPage() {
     typeof window !== "undefined"
       ? sessionStorage.getItem("mirror_gender")
       : null;
+  const { weather } = useWeather();
 
   useEffect(() => {
     function tick() {
@@ -126,7 +129,9 @@ export default function OverviewPage() {
           </button>
 
           <button
-            onClick={() => { window.location.href = ROUTES.AI_RECOMMENDATION_COSMETIC; }}
+            onClick={() => {
+              window.location.href = ROUTES.AI_RECOMMENDATION_COSMETIC;
+            }}
             className="flex-1 glass-card-strong neon-border-white glow-white rounded-3xl flex flex-col items-center justify-center gap-4 transition-all active:scale-95"
           >
             <div className="icon-spotlight">
@@ -172,6 +177,9 @@ export default function OverviewPage() {
           Restart
         </button>
       </div>
+
+      {/* ChatWonder Chat overlay */}
+      <ChatWonderChat mode="overview" weather={weather} />
     </div>
   );
 }

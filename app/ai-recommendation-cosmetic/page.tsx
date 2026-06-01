@@ -7,7 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { ROUTES } from "@/navigation";
 import { api } from "@/modules/shared/api/api-client";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
+import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 // ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
 const OX = 384;
@@ -94,66 +95,6 @@ function inOval(p: { x: number; y: number }) {
 
 const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R, nose bridge
 
-// ── Mock analysis generator ───────────────────────────────────────────────────
-const SKIN_TYPES = [
-  "OILY",
-  "DRY",
-  "COMBINATION",
-  "NORMAL",
-  "SENSITIVE",
-] as const;
-const SKIN_TONES = [
-  "warm light",
-  "cool light",
-  "neutral light",
-  "warm medium",
-  "cool medium",
-  "neutral medium",
-  "warm deep",
-  "cool deep",
-  "neutral deep",
-] as const;
-const CONCERN_POOL = [
-  "enlarged pores",
-  "acne",
-  "dark circles",
-  "uneven skin tone",
-  "fine lines",
-  "oiliness",
-  "dryness",
-  "redness",
-  "hyperpigmentation",
-];
-const TIPS = [
-  "Use a gentle foaming cleanser morning and evening to control oil without stripping moisture.",
-  "Apply a hydrating serum with hyaluronic acid before moisturizer to lock in hydration.",
-  "Wear SPF 30+ daily — UV exposure worsens uneven tone and accelerates fine lines.",
-  "Incorporate a niacinamide serum to reduce pore appearance and even out skin tone.",
-];
-
-function rand(n: number) {
-  return Math.floor(Math.random() * n);
-}
-function randInt(min: number, max: number) {
-  return min + rand(max - min);
-}
-
-function buildMockAnalysis() {
-  const concerns = [...CONCERN_POOL]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, randInt(2, 5));
-  return {
-    id: "mock",
-    skinType: SKIN_TYPES[rand(SKIN_TYPES.length)],
-    skinTone: SKIN_TONES[rand(SKIN_TONES.length)],
-    hydrationPct: randInt(20, 85),
-    oilinessPct: randInt(15, 80),
-    concerns,
-    routineTip: TIPS[rand(TIPS.length)],
-    recommendations: [],
-  };
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
@@ -173,6 +114,7 @@ export default function CosmeticPage() {
   const manualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
+  const { weather } = useWeather();
 
   useEffect(() => {
     const fetchSuggestion = async () => {
@@ -327,6 +269,7 @@ export default function CosmeticPage() {
   // ── MediaPipe init ────────────────────────────────────────────────────────────
   useEffect(() => {
     let isMounted = true;
+    const currentVideo = videoRef.current;
 
     async function init() {
       await Promise.all([
@@ -338,8 +281,14 @@ export default function CosmeticPage() {
       // synchronously and the <video> element may not be rendered yet.
       await new Promise<void>((r) => {
         const check = () => {
-          if (!isMounted) { r(); return; }
-          if (videoRef.current) { r(); return; }
+          if (!isMounted) {
+            r();
+            return;
+          }
+          if (videoRef.current) {
+            r();
+            return;
+          }
           requestAnimationFrame(check);
         };
         requestAnimationFrame(check);
@@ -380,9 +329,11 @@ export default function CosmeticPage() {
       isMounted = false;
       cameraRef.current?.stop?.();
       // Release the camera hardware so the next mount can acquire it cleanly
-      if (videoRef.current?.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
-        videoRef.current.srcObject = null;
+      if (currentVideo?.srcObject) {
+        (currentVideo.srcObject as MediaStream)
+          .getTracks()
+          .forEach((t) => t.stop());
+        currentVideo.srcObject = null;
       }
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     };
@@ -607,6 +558,9 @@ export default function CosmeticPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ChatWonder Chat overlay */}
+      <ChatWonderChat mode="cosmetics" weather={weather} />
     </div>
   );
 }

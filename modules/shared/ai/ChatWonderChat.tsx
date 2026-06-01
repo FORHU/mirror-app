@@ -11,7 +11,15 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function ChatWonderChat() {
+interface ChatWonderChatProps {
+  mode?: "garments" | "cosmetics" | "overview" | "default";
+  weather?: unknown;
+}
+
+export function ChatWonderChat({
+  mode = "default",
+  weather,
+}: ChatWonderChatProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,7 +40,7 @@ export function ChatWonderChat() {
 
     const text = input;
     setInput("");
-    await sendMessage(text);
+    await sendMessage(text, { mode, weather });
   };
 
   return (

@@ -196,18 +196,18 @@ The refactor is complete. The system has converged on a **true production-grade 
 
 ### Current Module Layout
 
-| File                              | Responsibility                                                                                              |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `VoiceProvider.tsx`               | Mic capture, PCM encode, transcript/TTS playback, voice state machine, pre-processor (yes/no regex)         |
-| `orchestration/kernel.ts`         | `runKernel(action, pathname, router, onAction)` — composes guard → execute                                  |
-| `orchestration/actionGuard.ts`    | `guardAction()` — gender gate, AI_FASHION/AI_COSMETIC → `/map` confirmation gate, payload validation        |
-| `orchestration/actionExecutor.ts` | Pure dispatch — `navigate`, `maps_*`, `traffic_*`, `set_profile`, `calendar_*`, `maps_suggest_places`       |
-| `orchestration/flowState.ts`      | `getFlowState(pathname)` → `IDLE / NEEDS_GENDER / AI_FASHION / AI_COSMETIC / MAP / LOCKED`                  |
-| `orchestration/confirmationState.ts` | `ConfirmationState` discriminated union (`IDLE` / `PENDING`) with 30s expiry + helpers                   |
-| `types.ts`                        | `VoiceState` and shared types                                                                               |
-| `responses.ts`                    | `ROUTE_RESPONSES` (per-flow intercept copy) + `SYSTEM_RESPONSES` (cancel, gender guard, default open)       |
-| `AiEventsOverlay.tsx`             | UI overlay for AI event cards emitted alongside the reply                                                   |
-| `useVoice.ts`                     | Hook for consumers                                                                                          |
+| File                                 | Responsibility                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `VoiceProvider.tsx`                  | Mic capture, PCM encode, transcript/TTS playback, voice state machine, pre-processor (yes/no regex)   |
+| `orchestration/kernel.ts`            | `runKernel(action, pathname, router, onAction)` — composes guard → execute                            |
+| `orchestration/actionGuard.ts`       | `guardAction()` — gender gate, AI_FASHION/AI_COSMETIC → `/map` confirmation gate, payload validation  |
+| `orchestration/actionExecutor.ts`    | Pure dispatch — `navigate`, `maps_*`, `traffic_*`, `set_profile`, `calendar_*`, `maps_suggest_places` |
+| `orchestration/flowState.ts`         | `getFlowState(pathname)` → `IDLE / NEEDS_GENDER / AI_FASHION / AI_COSMETIC / MAP / LOCKED`            |
+| `orchestration/confirmationState.ts` | `ConfirmationState` discriminated union (`IDLE` / `PENDING`) with 30s expiry + helpers                |
+| `types.ts`                           | `VoiceState` and shared types                                                                         |
+| `responses.ts`                       | `ROUTE_RESPONSES` (per-flow intercept copy) + `SYSTEM_RESPONSES` (cancel, gender guard, default open) |
+| `AiEventsOverlay.tsx`                | UI overlay for AI event cards emitted alongside the reply                                             |
+| `useVoice.ts`                        | Hook for consumers                                                                                    |
 
 ### The Final Orchestration Flow
 
@@ -249,7 +249,7 @@ The refactor is complete. The system has converged on a **true production-grade 
 - **Two-tier confirmation**:
   1. **Server-driven** — cognitive response sets `requiresConfirmation: true` and writes the TTS prompt itself.
   2. **Client-driven** — `guardAction` can also gate a transition (e.g. AI_FASHION → /map) using `ROUTE_RESPONSES[*].intercept`.
-  Both paths store a `PENDING` `ConfirmationState` with a 30s TTL; the pre-processor resolves it on the next utterance.
+     Both paths store a `PENDING` `ConfirmationState` with a 30s TTL; the pre-processor resolves it on the next utterance.
 - **Deterministic Action Firewall**: `guardAction` is flow-aware, validates payloads, enforces the Gender Lock, and governs Flow Transitions based on the user's current `FlowState`.
 - **FlowState Kernel**: Pathname → `FlowState` is the single source of truth for the Action Firewall.
 - **Pure Dispatcher**: `executeAction` has no business logic or routing guards — it blindly executes whatever passed the Guardian, and falls back to the page-registered `onAction` for page-local events.

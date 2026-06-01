@@ -69,7 +69,9 @@ export default function CosmeticResultPage() {
       const analysis = rawAnalysis
         ? (JSON.parse(rawAnalysis) as SkinAnalysis)
         : null;
-      const existingId = !analysis ? sessionStorage.getItem("skin_analysis_id") : null;
+      const existingId = !analysis
+        ? sessionStorage.getItem("skin_analysis_id")
+        : null;
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
       setSession({ capturedImage, analysis, loading: Boolean(!analysis) });
@@ -92,11 +94,19 @@ export default function CosmeticResultPage() {
             window.location.reload();
           })
           .catch(() => {
-            sessionStorage.setItem("skin_analysis", JSON.stringify({
-              id: "mock", skinType: "Normal", skinTone: "medium",
-              hydrationPct: 55, oilinessPct: 40, concerns: [], routineTip: "",
-              recommendations: [],
-            }));
+            sessionStorage.setItem(
+              "skin_analysis",
+              JSON.stringify({
+                id: "mock",
+                skinType: "Normal",
+                skinTone: "medium",
+                hydrationPct: 55,
+                oilinessPct: 40,
+                concerns: [],
+                routineTip: "",
+                recommendations: [],
+              }),
+            );
             window.location.reload();
           });
       }
@@ -193,8 +203,20 @@ export default function CosmeticResultPage() {
                 }}
               />
             ) : (
-              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>No capture</span>
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span
+                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}
+                >
+                  No capture
+                </span>
               </div>
             )}
 
@@ -207,7 +229,8 @@ export default function CosmeticResultPage() {
                   left: 0,
                   right: 0,
                   padding: "24px 10px 10px",
-                  background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
                   display: "flex",
                   flexWrap: "wrap",
                   gap: "5px",
@@ -247,14 +270,47 @@ export default function CosmeticResultPage() {
           }}
         >
           {loading ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px" }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "16px",
+              }}
+            >
               <motion.div
                 animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}
+                transition={{
+                  duration: 1.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
               >
-                <div style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.15)", borderTopColor: "rgba(255,255,255,0.7)", animation: "spin 1s linear infinite" }} />
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", letterSpacing: "0.04em" }}>
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.15)",
+                    borderTopColor: "rgba(255,255,255,0.7)",
+                    animation: "spin 1s linear infinite",
+                  }}
+                />
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: "13px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
                   Analyzing your skin…
                 </span>
               </motion.div>

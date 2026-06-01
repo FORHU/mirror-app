@@ -240,11 +240,11 @@ export default function CosmeticRecommendationPage() {
     () => setPage((p) => Math.max(p - 1, 0)),
   );
 
-  useEffect(() => {
-    setPage((currentPage) =>
-      totalPages > 0 ? Math.min(currentPage, totalPages - 1) : 0,
-    );
-  }, [totalPages]);
+  if (totalPages > 0 && page > totalPages - 1) {
+    setPage(totalPages - 1);
+  } else if (totalPages === 0 && page !== 0) {
+    setPage(0);
+  }
 
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
@@ -341,7 +341,9 @@ export default function CosmeticRecommendationPage() {
                   justifyContent: "center",
                 }}
               >
-                <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}>
+                <span
+                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}
+                >
                   No capture
                 </span>
               </div>
@@ -356,7 +358,8 @@ export default function CosmeticRecommendationPage() {
                   left: 0,
                   right: 0,
                   padding: "20px 8px 8px",
-                  background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
                   display: "flex",
                   flexWrap: "wrap",
                   gap: "4px",
@@ -502,10 +505,19 @@ export default function CosmeticRecommendationPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "5px",
-                        background: "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
+                        background:
+                          "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
                       }}
                     >
-                      <span style={{ color: "rgba(255,255,255,0.12)", fontSize: "22px", lineHeight: 1 }}>◯</span>
+                      <span
+                        style={{
+                          color: "rgba(255,255,255,0.12)",
+                          fontSize: "22px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ◯
+                      </span>
                       <span
                         style={{
                           color: "rgba(255,255,255,0.18)",

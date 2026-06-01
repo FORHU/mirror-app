@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
-import { useIdleLogout } from "@/modules/shared/hooks/useIdleLogout";
 import { installKioskAuth } from "@/modules/shared/utils/install-kiosk-auth";
 
 export function AuthInitializer({ children }: { children: React.ReactNode }) {
