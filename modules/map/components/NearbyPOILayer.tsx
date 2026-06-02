@@ -49,7 +49,7 @@ function categoryColor(): mapboxgl.Expression {
 }
 
 export default function NearbyPOILayer({ map }: Props) {
-  const { nearbyPOIs, setSelectedPOI, isNavigating } = useMapStore();
+  const { nearbyPOIs, setSelectedPOI } = useMapStore();
   const nearbyPOIsRef = useRef(nearbyPOIs);
   useLayoutEffect(() => {
     nearbyPOIsRef.current = nearbyPOIs;
@@ -194,14 +194,14 @@ export default function NearbyPOILayer({ map }: Props) {
     ) => {
       const f = e.features?.[0];
       if (!f) return;
-      const { name, category, address, lat, lng, fsqId, photo, distance } =
+      const { name, category, address, lat, lng, placeId, photo, distance } =
         f.properties as {
           name: string;
           category: string;
           address: string;
           lat: number;
           lng: number;
-          fsqId: string;
+          placeId: string;
           photo: string;
           distance: number;
         };
@@ -211,7 +211,7 @@ export default function NearbyPOILayer({ map }: Props) {
         address,
         distance,
         location: { lng, lat },
-        fsqId,
+        placeId,
         photo: photo || null,
       });
     };
@@ -265,8 +265,8 @@ export default function NearbyPOILayer({ map }: Props) {
     if (!map) return;
     const src = map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
     if (!src) return;
-    src.setData(isNavigating ? buildGeojson([]) : buildGeojson(nearbyPOIs));
-  }, [map, nearbyPOIs, isNavigating]);
+    src.setData(buildGeojson(nearbyPOIs));
+  }, [map, nearbyPOIs]);
 
   return null;
 }
@@ -284,7 +284,7 @@ function buildGeojson(pois: NearbyPOI[]): GeoJSON.FeatureCollection {
         distance: poi.distance,
         lat: poi.lat,
         lng: poi.lng,
-        fsqId: poi.fsqId,
+        placeId: poi.placeId,
         photo: poi.photo ?? "",
       },
     })),

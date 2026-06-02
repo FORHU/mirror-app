@@ -46,7 +46,7 @@ export interface CreatedOutfit {
 export const outfitService = {
   getAll: async (): Promise<RemoteOutfit[]> => {
     const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
-      "/api/remote/outfits",
+      "/api/mirror/outfits",
     );
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch outfits");
@@ -69,7 +69,7 @@ export const outfitService = {
     if (pngBlob) {
       form.append("file", pngBlob, "outfit.png");
     }
-    const res = await api.axiosInstance.post("/api/remote/outfits", form, {
+    const res = await api.axiosInstance.post("/api/mirror/outfits", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
     return res.data.data as CreatedOutfit;

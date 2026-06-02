@@ -47,14 +47,7 @@ async function consumePendingDirections() {
     const { results } = await mapService.geocode(destination, userLoc);
     if (!results.length) return;
 
-    useMapStore.setState({
-      selectedDestination: results[0],
-      activeRoute: null,
-      isSearching: false,
-      searchResults: [],
-    });
-    await useMapStore.getState().fetchRoute();
-    useMapStore.getState().startNavigation();
+    await useMapStore.getState().setDestination(results[0]);
   } catch {}
 }
 
@@ -64,8 +57,6 @@ export default function MapPage() {
     homeLocation,
     homeLocationStatus,
     loadHomeLocation,
-    isNavigating,
-    clearNavigation,
   } = useMapStore();
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -80,18 +71,13 @@ export default function MapPage() {
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
 
-  const onAction = useCallback(
-    (action: ChatWonderAction) => {
-      if (action.type === "maps_clear") clearNavigation();
-    },
-    [clearNavigation],
-  );
+  const onAction = useCallback((_action: ChatWonderAction) => {}, []);
 
   useVoice(
     {
       route: "/map",
       pageName: "Map",
-      activeStep: isNavigating ? "navigating" : "exploring",
+      activeStep: "exploring",
     },
     onAction,
   );

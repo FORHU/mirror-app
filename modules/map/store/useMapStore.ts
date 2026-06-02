@@ -15,7 +15,7 @@ interface SelectedPOI {
   distance?: number;
   location: { lat: number; lng: number };
   layerId?: string;
-  fsqId?: string;
+  placeId?: string;
   photo?: string | null;
 }
 
@@ -29,23 +29,6 @@ type Destination = {
 
 type Location = { lat: number; lng: number };
 
-function loadFromStorage<T>(key: string): T | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const s = sessionStorage.getItem(key);
-    return s ? (JSON.parse(s) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveToStorage(key: string, value: unknown) {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
 interface MapStore {
   deviceMode: "mirror";
   map: mapboxgl.Map | null;
@@ -53,17 +36,12 @@ interface MapStore {
 
   homeLocation: Location | null;
   homeLocationStatus: "idle" | "loading" | "loaded" | "error";
-  workLocation: Location | null;
 
   mapStyle: "mirror" | "standard";
-  cameraMode: "follow" | "overview" | "free";
-  isNavigating: boolean;
-  remainingDistance: number;
-  remainingDuration: number;
-  currentStepIndex: number;
-  distanceToNextManeuver: number;
+  cameraMode: "overview" | "free";
+  routeDistance: number;
+  routeDuration: number;
   activeRoute: DirectionsFormatted | null;
-  lastTripGeojson: GeoJSON.FeatureCollection | null;
 
   searchResults: GeocodeResult[];
   isSearching: boolean;
@@ -80,19 +58,10 @@ interface MapStore {
 
   fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
 
-  commuteEta: {
-    duration: number;
-    distance: number;
-    to: "work" | "home";
-  } | null;
-  commuteEtaLoading: boolean;
-
   loadHomeLocation(): Promise<void>;
   saveHomeLocation(coords: Location): Promise<void>;
-  setWorkLocation(coords: Location): void;
-  clearWorkLocation(): void;
   setUserLocation(coords: Location): void;
-  setCameraMode(mode: "follow" | "overview" | "free"): void;
+  setCameraMode(mode: "overview" | "free"): void;
   toggleMapStyle(): void;
   toggleTraffic(): void;
   searchLocations(query: string): Promise<void>;
@@ -103,11 +72,8 @@ interface MapStore {
   clearSuggestions(): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
-  startNavigation(): void;
-  stopNavigation(): void;
-  clearNavigation(): void;
+  clearRoute(): void;
   patchHomeLocation(coords: Location): Promise<void>;
-  fetchCommuteEta(): Promise<void>;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -117,17 +83,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   homeLocation: null,
   homeLocationStatus: "idle",
-  workLocation: loadFromStorage<Location>("mirror_work_location"),
 
   mapStyle: "mirror",
-  cameraMode: "free",
-  isNavigating: false,
-  remainingDistance: 0,
-  remainingDuration: 0,
-  currentStepIndex: 0,
-  distanceToNextManeuver: 0,
+  cameraMode: "overview",
+  routeDistance: 0,
+  routeDuration: 0,
   activeRoute: null,
-  lastTripGeojson: loadFromStorage("mirror_last_trip"),
 
   searchResults: [],
   isSearching: false,
@@ -154,9 +115,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
       // silently ignore — POIs are non-critical
     }
   },
-
-  commuteEta: null,
-  commuteEtaLoading: false,
 
   loadHomeLocation: async () => {
     set({ homeLocationStatus: "loading" });
@@ -188,17 +146,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
     }
   },
 
-  setWorkLocation: (coords) => {
-    saveToStorage("mirror_work_location", coords);
-    set({ workLocation: coords });
-  },
-
-  clearWorkLocation: () => {
-    if (typeof window !== "undefined")
-      sessionStorage.removeItem("mirror_work_location");
-    set({ workLocation: null, commuteEta: null });
-  },
-
   setUserLocation: (coords) => set({ userLocation: coords }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
   toggleMapStyle: () =>
@@ -218,19 +165,20 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   fetchRoute: async () => {
-    const { selectedDestination, homeLocation, activeProfile } = get();
-    if (!selectedDestination || !homeLocation) return;
+    const { selectedDestination, homeLocation, userLocation, activeProfile } = get();
+    const origin = userLocation ?? homeLocation;
+    if (!selectedDestination || !origin) return;
     set({ isRouting: true });
     try {
       const route = await mapService.directions(
-        [homeLocation.lng, homeLocation.lat],
+        [origin.lng, origin.lat],
         [selectedDestination.lng, selectedDestination.lat],
         activeProfile,
       );
       set({
         activeRoute: route,
-        remainingDistance: route.distance,
-        remainingDuration: route.duration,
+        routeDistance: route.distance,
+        routeDuration: route.duration,
         isRouting: false,
       });
     } catch {
@@ -245,21 +193,32 @@ export const useMapStore = create<MapStore>((set, get) => ({
       searchResults: [],
     });
     get().fetchRoute();
-    if (location)
-      get().fetchNearbyPOIs({ lat: location.lat, lng: location.lng });
+  },
+
+  clearRoute: () => {
+    set({
+      activeRoute: null,
+      selectedDestination: null,
+      routeDistance: 0,
+      routeDuration: 0,
+      nearbyPOIs: [],
+      suggestedPOIs: [],
+      showTraffic: false,
+      cameraMode: "overview",
+    });
   },
 
   setSelectedPOI: (selectedPOI) => {
     set({ selectedPOI });
     if (!selectedPOI) return;
 
-    const fetchAndSetPhoto = (fsqId: string) => {
+    const fetchAndSetPhoto = (placeId: string) => {
       mapService
-        .venuePhotos(fsqId)
+        .venuePhotos(placeId)
         .then(({ photos }) => {
           if (photos.length > 0) {
             set((s) => {
-              if (s.selectedPOI && s.selectedPOI.fsqId === fsqId) {
+              if (s.selectedPOI && s.selectedPOI.placeId === placeId) {
                 return { selectedPOI: { ...s.selectedPOI, photo: photos[0] } };
               }
               return {};
@@ -269,10 +228,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
         .catch(() => {});
     };
 
-    if (selectedPOI.fsqId) {
-      fetchAndSetPhoto(selectedPOI.fsqId);
+    if (selectedPOI.placeId) {
+      fetchAndSetPhoto(selectedPOI.placeId);
     } else {
-      // Mapbox built-in label click — search Foursquare nearby to find the venue
       const { lat, lng } = selectedPOI.location;
       mapService
         .nearbyPOIs(lat, lng, 300)
@@ -282,20 +240,20 @@ export const useMapStore = create<MapStore>((set, get) => ({
             const n = p.name.toLowerCase();
             return n.includes(clickedName) || clickedName.includes(n);
           });
-          if (match?.fsqId) {
+          if (match?.placeId) {
             set((s) => {
               if (s.selectedPOI && s.selectedPOI.name === selectedPOI.name) {
                 return {
                   selectedPOI: {
                     ...s.selectedPOI,
-                    fsqId: match.fsqId,
+                    placeId: match.placeId,
                     photo: match.photo ?? null,
                   },
                 };
               }
               return {};
             });
-            fetchAndSetPhoto(match.fsqId);
+            fetchAndSetPhoto(match.placeId);
           }
         })
         .catch(() => {});
@@ -308,76 +266,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     if (dest) get().setDestination(dest);
   },
 
-  startNavigation: () => {
-    if (!get().activeRoute) return;
-    set({ isNavigating: true, cameraMode: "follow" });
-  },
-
-  stopNavigation: () => {
-    const { activeRoute } = get();
-    if (activeRoute?.geojson) {
-      saveToStorage("mirror_last_trip", activeRoute.geojson);
-      set({ lastTripGeojson: activeRoute.geojson });
-    }
-    set({
-      isNavigating: false,
-      cameraMode: "free",
-      activeRoute: null,
-      selectedDestination: null,
-      nearbyPOIs: [],
-    });
-  },
-
-  clearNavigation: () => {
-    set({
-      activeRoute: null,
-      selectedDestination: null,
-      searchResults: [],
-      isNavigating: false,
-      nearbyPOIs: [],
-    });
-  },
-
   patchHomeLocation: async (coords) => {
     await mapService.setHomeLocation(coords);
     set({ homeLocation: coords, origin: coords });
-  },
-
-  fetchCommuteEta: async () => {
-    const { workLocation, homeLocation, userLocation, activeProfile } = get();
-    const origin = userLocation ?? homeLocation;
-    if (!origin) return;
-
-    const hour = new Date().getHours();
-    const isMorning = hour >= 6 && hour < 11;
-    const isEvening = hour >= 17 && hour < 22;
-
-    let destination: Location | null = null;
-    let to: "work" | "home" = "work";
-
-    if (isMorning && workLocation) {
-      destination = workLocation;
-      to = "work";
-    } else if (isEvening && homeLocation) {
-      destination = homeLocation;
-      to = "home";
-    }
-
-    if (!destination) return;
-
-    set({ commuteEtaLoading: true });
-    try {
-      const route = await mapService.directions(
-        [origin.lng, origin.lat],
-        [destination.lng, destination.lat],
-        activeProfile,
-      );
-      set({
-        commuteEta: { duration: route.duration, distance: route.distance, to },
-        commuteEtaLoading: false,
-      });
-    } catch {
-      set({ commuteEtaLoading: false });
-    }
   },
 }));

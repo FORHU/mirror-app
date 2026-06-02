@@ -224,24 +224,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const ctx = {
         lat: loc?.lat,
         lng: loc?.lng,
-        traffic: map.showTraffic,
-        navigating: map.isNavigating,
+        trafficEnabled: map.showTraffic,
+        isRouteActive: !!map.activeRoute,
         profile: map.activeProfile,
-        remainingDistance: map.isNavigating ? map.remainingDistance : undefined,
-        remainingDuration: map.isNavigating ? map.remainingDuration : undefined,
+        routeDistance: map.activeRoute ? map.routeDistance : undefined,
+        routeDuration: map.activeRoute ? map.routeDuration : undefined,
         destinationName:
           map.selectedDestination?.name ??
           map.selectedDestination?.address ??
           undefined,
-        currentInstruction: map.isNavigating
-          ? map.activeRoute?.steps?.[map.currentStepIndex]?.instruction
-          : undefined,
-        nextManeuverDistance: map.isNavigating
-          ? map.distanceToNextManeuver
-          : undefined,
-        nextInstruction: map.isNavigating
-          ? map.activeRoute?.steps?.[map.currentStepIndex + 1]?.instruction
-          : undefined,
         currentTime: now.toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",

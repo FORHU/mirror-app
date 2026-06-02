@@ -6,9 +6,7 @@ import type { TransportProfile } from "../types/map.types";
 import { motion } from "motion/react";
 
 export default function ProfileSelector() {
-  const { activeProfile, setActiveProfile, isNavigating } = useMapStore();
-
-  if (isNavigating) return null;
+  const { activeProfile, setActiveProfile } = useMapStore();
 
   const profiles: { id: TransportProfile; icon: typeof Car; label: string }[] =
     [

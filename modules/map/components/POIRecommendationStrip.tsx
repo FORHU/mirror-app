@@ -39,7 +39,7 @@ export default function POIRecommendationStrip() {
           <div className="flex gap-3 overflow-x-auto px-5 pb-1 no-scrollbar">
             {suggestedPOIs.map((poi) => (
               <button
-                key={poi.fsqId}
+                key={poi.placeId}
                 onClick={() => {
                   setSelectedPOI({
                     name: poi.name,
@@ -47,7 +47,7 @@ export default function POIRecommendationStrip() {
                     address: poi.address,
                     distance: poi.distance,
                     location: { lat: poi.lat, lng: poi.lng },
-                    fsqId: poi.fsqId,
+                    placeId: poi.placeId,
                     photo: poi.photo,
                   });
                   clearSuggestions();
