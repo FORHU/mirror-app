@@ -210,7 +210,7 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
       return;
     }
 
-    const userInput = `[garments] ${rawText}`;
+    const userInput = `[garment] ${rawText}`;
     setTranscript(userInput);
     setStep("loading");
 
@@ -595,6 +595,58 @@ export default function VirtualMirrorV2() {
     () => setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1)),
     () => setBagsPage((p) => Math.max(p - 1, 0)),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    async function fetchAiRecommendations() {
+      let weather: Record<string, unknown> | undefined;
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+        );
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
+        if (res.ok) {
+          const json = await res.json();
+          const d = json.data ?? json;
+          weather = {
+            date: new Date().toISOString().split("T")[0],
+            description: String(d.condition ?? "").toLowerCase(),
+            estimated: false,
+            is_cold: Number(d.temperature) < 20,
+            is_hot: Number(d.temperature) >= 30,
+            is_rainy: Number(d.precipitationProb) >= 50 || String(d.condition ?? "").toLowerCase().includes("rain"),
+            lat,
+            lon,
+            temperature_c: Number(d.temperature),
+          };
+        }
+      } catch {
+        // weather is best-effort
+      }
+
+      if (cancelled) return;
+
+      try {
+        const response = await chatWonderService.message(
+          { input: "[garment] recommend outfits for today", ...(weather ? { weather } : {}) },
+          ctrl.signal,
+        );
+        if (!cancelled) handleAiComplete(response);
+      } catch {
+        // silent fail — grids show garmentService results
+      }
+    }
+
+    fetchAiRecommendations();
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Garment grids resolve independently from the outfit grid
