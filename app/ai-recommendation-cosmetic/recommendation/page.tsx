@@ -227,7 +227,11 @@ export default function CosmeticRecommendationPage() {
       }))
     : MOCK_PRODUCTS;
   const products = allProducts.filter(
-    (product) => product.imageUrl && !failedImageIds.has(product.id),
+    (product) =>
+      product.imageUrl &&
+      !failedImageIds.has(product.id) &&
+      product.name.toLowerCase() !== "example product" &&
+      product.brand.toLowerCase() !== "example brand",
   );
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE);

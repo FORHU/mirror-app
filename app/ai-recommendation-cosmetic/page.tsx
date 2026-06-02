@@ -52,19 +52,31 @@ declare global {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
+
+// Cache the in-flight promise so StrictMode double-invoke and re-navigations
+// both await the same load — avoids resolving before window.FaceMesh is set.
+const scriptLoadCache = new Map<string, Promise<void>>();
+
+function loadScript(src: string): Promise<void> {
+  if (scriptLoadCache.has(src)) return scriptLoadCache.get(src)!;
+  const p = new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
+    if (existing) {
+      // Tag exists — already fully loaded (data-loaded set on onload) or still in-flight
+      if (existing.dataset.loaded) { resolve(); return; }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load: ${src}`)), { once: true });
       return;
     }
     const s = document.createElement("script");
     s.src = src;
     s.async = true;
-    s.onload = () => resolve();
+    s.onload = () => { s.dataset.loaded = "1"; resolve(); };
     s.onerror = () => reject(new Error(`Failed to load: ${src}`));
     document.body.appendChild(s);
   });
+  scriptLoadCache.set(src, p);
+  return p;
 }
 
 // Converts MediaPipe normalised (0–1) coords → display pixels.
