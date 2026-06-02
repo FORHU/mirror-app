@@ -244,7 +244,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           day: "numeric",
         }),
         schedules,
-        currentPage: pageCtxRef.current?.pageName ?? pathname,
+        // Send the actual route (always current via usePathname) so the AI has
+        // an unambiguous, never-stale source of truth for where the user is.
+        // The friendly pageName is appended only as a hint.
+        currentPage: pageCtxRef.current?.pageName
+          ? `${pathname} (${pageCtxRef.current.pageName})`
+          : pathname,
         userOutlineId: useOutlineStore.getState().outlineId ?? undefined,
         sessionId: sessionIdRef.current,
         language: useMirrorStore.getState().voiceLanguage,

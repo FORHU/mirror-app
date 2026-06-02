@@ -1,4 +1,13 @@
 import { useState, useCallback, useRef } from "react";
+import { useMapStore } from "@/modules/map/store/useMapStore";
+
+interface ItineraryMap {
+  destination?: string;
+  lat?: number;
+  lng?: number;
+  address?: string;
+  placeId?: string;
+}
 
 export interface ChatMessage {
   id: string;
@@ -140,6 +149,27 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                 );
               } else if (parsed.type === "complete") {
                 console.log("Chat completed with data:", parsed);
+
+                // Maps: draw a route to the first resolved itinerary destination.
+                // events[].map already carries lat/lng resolved server-side by
+                // resolveItineraryLocations — no client-side geocoding needed.
+                const events = Array.isArray(parsed.events)
+                  ? (parsed.events as Array<{ map?: ItineraryMap }>)
+                  : [];
+                const stop = events.find(
+                  (e) =>
+                    typeof e?.map?.lat === "number" &&
+                    typeof e?.map?.lng === "number",
+                );
+                if (stop?.map) {
+                  useMapStore.getState().setDestination({
+                    name: stop.map.destination ?? "Destination",
+                    lat: stop.map.lat as number,
+                    lng: stop.map.lng as number,
+                    address: stop.map.address,
+                    placeId: stop.map.placeId,
+                  });
+                }
 
                 // Trigger AWS Polly TTS to play the final message audio
                 if (parsed.message) {

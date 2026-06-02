@@ -59,7 +59,11 @@ function SelectGenderContent() {
 
   useVoice({ route: "/select-gender", pageName: "Select Gender" }, (action) => {
     if (action.type === "select_gender" && action.gender) {
-      handleContinue(action.gender as "MALE" | "FEMALE");
+      // Normalize casing — the AI may emit "male"/"Male" rather than "MALE".
+      const g = String(action.gender).toUpperCase();
+      if (g === "MALE" || g === "FEMALE") {
+        handleContinue(g as "MALE" | "FEMALE");
+      }
     }
   });
 
