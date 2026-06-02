@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { FittingSlot, type SlotMap } from "@/modules/garment/types";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 
@@ -197,6 +197,10 @@ async function drawOutfit(
 
 // ── Component ──────────────────────────────────────────────────────────────
 
+export interface OutfitPreviewCanvasHandle {
+  getBlob(): Promise<Blob | null>;
+}
+
 interface Props {
   hat: RemoteGarment | null;
   top: RemoteGarment | null;
@@ -225,35 +229,49 @@ function toSlotMap({ hat, top, bottom, shoe, bag }: Props): SlotMap {
   };
 }
 
-export default function OutfitPreviewCanvas(props: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const OutfitPreviewCanvas = forwardRef<OutfitPreviewCanvasHandle, Props>(
+  function OutfitPreviewCanvas(props, ref) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const slotMap = toSlotMap(props);
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    drawOutfit(canvas, slotMap, dpr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    props.hat?.id,
-    props.top?.id,
-    props.bottom?.id,
-    props.shoe?.id,
-    props.bag?.id,
-  ]);
+    useImperativeHandle(ref, () => ({
+      getBlob(): Promise<Blob | null> {
+        return new Promise((resolve) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return resolve(null);
+          canvas.toBlob((blob) => resolve(blob), "image/png");
+        });
+      },
+    }));
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        background: "#f8f9fb",
-        borderRadius: "12px",
-      }}
-    />
-  );
-}
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const slotMap = toSlotMap(props);
+      const dpr =
+        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      drawOutfit(canvas, slotMap, dpr);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      props.hat?.id,
+      props.top?.id,
+      props.bottom?.id,
+      props.shoe?.id,
+      props.bag?.id,
+    ]);
+
+    return (
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          background: "#f8f9fb",
+          borderRadius: "12px",
+        }}
+      />
+    );
+  },
+);
+
+export default OutfitPreviewCanvas;

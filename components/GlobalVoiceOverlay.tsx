@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 
 export default function GlobalVoiceOverlay() {
   const pathname = usePathname();
-  if (pathname.startsWith("/map")) return null;
+  if (pathname.startsWith("/map") || pathname === "/ai-recommendation-fashion/test-page") return null;
   return <VoiceUI />;
 }
 

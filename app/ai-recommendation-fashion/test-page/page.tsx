@@ -3,20 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import "../../styles/glow.css";
+import "../../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import {
   garmentService,
   type RemoteGarment,
 } from "@/modules/shared/api/garment.service";
-import { api } from "@/modules/shared/api/api-client";
 import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
 import { fileUploadService } from "@/modules/shared/api/file-upload.service";
 import { tryOnService } from "@/modules/shared/api/try-on.service";
+import { chatWonderService, type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas, {
@@ -84,6 +83,276 @@ function SkeletonCell({
   );
 }
 
+const VOICE_SAMPLE_RATE = 16000;
+const VOICE_BUFFER_SIZE = 4096;
+
+function pcmFloat32ToInt16(f: Float32Array): Int16Array {
+  const out = new Int16Array(f.length);
+  for (let n = 0; n < f.length; n++) {
+    const c = Math.max(-1, Math.min(1, f[n]));
+    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
+  }
+  return out;
+}
+
+type RecordStep = "idle" | "recording" | "transcribing" | "loading" | "done" | "error";
+
+function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: ChatWonderMessageResponse) => void }) {
+  const [step, setStep] = useState<RecordStep>("idle");
+  const [transcript, setTranscript] = useState("");
+  const [aiReply, setAiReply] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Int16Array[]>([]);
+  const abortCtrlRef = useRef<AbortController | null>(null);
+  const weatherRef = useRef<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const { latitude: lat, longitude: lon } = coords;
+        try {
+          const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
+          if (!res.ok) return;
+          const json = await res.json();
+          const d = json.data ?? json;
+          weatherRef.current = {
+            date: new Date().toISOString().split("T")[0],
+            description: String(d.condition ?? "").toLowerCase(),
+            estimated: false,
+            is_cold: Number(d.temperature) < 20,
+            is_hot: Number(d.temperature) >= 30,
+            is_rainy:
+              Number(d.precipitationProb) >= 50 ||
+              String(d.condition ?? "").toLowerCase().includes("rain"),
+            lat,
+            lon,
+            temperature_c: Number(d.temperature),
+          };
+        } catch {
+          // weather is best-effort; stream works without it
+        }
+      },
+      () => { /* geolocation denied — skip weather context */ },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, []);
+
+  function cleanupMic() {
+    processorRef.current?.disconnect();
+    sourceRef.current?.disconnect();
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    audioCtxRef.current?.close();
+    processorRef.current = null;
+    sourceRef.current = null;
+    streamRef.current = null;
+    audioCtxRef.current = null;
+  }
+
+  async function startRecording() {
+    setErrorMsg("");
+    setTranscript("");
+    setAiReply("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const ctx = new AudioContext({ sampleRate: VOICE_SAMPLE_RATE });
+      const processor = ctx.createScriptProcessor(VOICE_BUFFER_SIZE, 1, 1);
+      const source = ctx.createMediaStreamSource(stream);
+      chunksRef.current = [];
+      processor.onaudioprocess = (e) => {
+        chunksRef.current.push(pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)));
+      };
+      source.connect(processor);
+      processor.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      processorRef.current = processor;
+      sourceRef.current = source;
+      streamRef.current = stream;
+      setStep("recording");
+    } catch {
+      setErrorMsg("Microphone access denied");
+      setStep("error");
+    }
+  }
+
+  async function stopAndTranscribe() {
+    setStep("transcribing");
+    const chunks = chunksRef.current;
+    cleanupMic();
+
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const combined = new Int16Array(total);
+    let offset = 0;
+    for (const c of chunks) { combined.set(c, offset); offset += c.length; }
+
+    let rawText = "";
+    try {
+      const res = await fetch("/api/mirror/voice/transcribe?lang=en-US", {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: combined.buffer,
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      rawText = (await res.text())?.trim();
+      if (!rawText) {
+        setErrorMsg("No speech detected");
+        setStep("error");
+        return;
+      }
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message ?? "Transcription failed");
+      setStep("error");
+      return;
+    }
+
+    const userInput = `[garments] ${rawText}`;
+    setTranscript(userInput);
+    setStep("loading");
+
+    abortCtrlRef.current = new AbortController();
+    try {
+      const response = await chatWonderService.message(
+        {
+          input: userInput,
+          ...(weatherRef.current ? { weather: weatherRef.current } : {}),
+        },
+        abortCtrlRef.current.signal,
+      );
+      setAiReply(response.message);
+      setStep("done");
+      onAiComplete?.(response);
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message ?? "Request failed");
+      setStep("error");
+    }
+  }
+
+  function handleToggle() {
+    if (step === "idle") return startRecording();
+    if (step === "recording") return stopAndTranscribe();
+    if (step === "done" || step === "error") {
+      abortCtrlRef.current?.abort();
+      setTranscript("");
+      setAiReply("");
+      setErrorMsg("");
+      setStep("idle");
+    }
+  }
+
+  const isRecording   = step === "recording";
+  const isBusy        = step === "transcribing" || step === "loading";
+
+  return (
+    <>
+      {(transcript || aiReply || errorMsg) && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "100px",
+            right: "20px",
+            zIndex: 9999,
+            width: "320px",
+            maxHeight: "60vh",
+            overflowY: "auto",
+            background: "rgba(10,10,18,0.88)",
+            backdropFilter: "blur(16px)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: "16px",
+            padding: "12px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          {errorMsg ? (
+            <p style={{ color: "rgba(239,68,68,0.9)", fontSize: "13px", margin: 0 }}>{errorMsg}</p>
+          ) : (
+            <>
+              {transcript && (
+                <div>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>
+                    You
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "12px", margin: 0, lineHeight: 1.5 }}>
+                    {transcript}
+                  </p>
+                </div>
+              )}
+              {(aiReply || step === "loading") && (
+                <div>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>
+                    AI
+                  </p>
+                  <p style={{ color: "white", fontSize: "13px", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {aiReply || "…"}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={handleToggle}
+        disabled={isBusy}
+        aria-label={isRecording ? "Stop recording" : "Start recording"}
+        style={{
+          position: "fixed",
+          bottom: "28px",
+          right: "20px",
+          zIndex: 9999,
+          width: 60,
+          height: 60,
+          borderRadius: "50%",
+          border: isRecording
+            ? "2px solid rgba(239,68,68,0.7)"
+            : "2px solid rgba(255,255,255,0.15)",
+          background: isRecording
+            ? "rgba(239,68,68,0.2)"
+            : "rgba(20,20,30,0.85)",
+          backdropFilter: "blur(12px)",
+          boxShadow: isRecording
+            ? "0 0 24px rgba(239,68,68,0.35)"
+            : "0 4px 24px rgba(0,0,0,0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: isBusy ? "default" : "pointer",
+          transition: "border 0.2s, background 0.2s, box-shadow 0.2s",
+        }}
+      >
+        {isBusy ? (
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              border: "2.5px solid rgba(255,255,255,0.15)",
+              borderTop: "2.5px solid white",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+        ) : isRecording ? (
+          <div style={{ width: 18, height: 18, background: "rgba(239,68,68,0.9)", borderRadius: "3px" }} />
+        ) : (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" y1="19" x2="12" y2="23" />
+            <line x1="8" y1="23" x2="16" y2="23" />
+          </svg>
+        )}
+      </button>
+    </>
+  );
+}
+
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -116,39 +385,61 @@ export default function VirtualMirrorV2() {
   const [tryOnStep, setTryOnStep] = useState<TryOnStep>("idle");
   const [tryOnResult, setTryOnResult] = useState<string | null>(null);
   const [tryOnError, setTryOnError] = useState<string | null>(null);
-  const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchSuggestion = async () => {
-      // Prefer Zustand store (set by voice); fall back to auto-fetch if empty
-      if (storeAiSuggestion) {
-        setAiSuggestion(storeAiSuggestion);
-        return;
-      }
-
-      // Automatically fetch weather-based suggestion if none exists
-      try {
-        const { useMapStore } = await import("@/modules/map/store/useMapStore");
-        const location = useMapStore.getState().userLocation;
-        const res = await api.post<{ suggestion: string }>(
-          "/api/mirror/voice/suggest",
-          {
-            type: "fashion",
-            ctx: { lat: location?.lat, lng: location?.lng },
-          },
-        );
-        if (res.data?.suggestion) {
-          setAiSuggestion(res.data.suggestion);
-          useMirrorStore.getState().setAiSuggestion(res.data.suggestion);
-        }
-      } catch (err) {
-        console.error("Failed to auto-fetch suggestion:", err);
-      }
+  function handleAiComplete(response: ChatWonderMessageResponse) {
+    type AiItem = {
+      id?: string;
+      name: string;
+      type?: string;
+      description?: string;
+      reason?: string;
+      imageUrl?: string;
+      category?: string | string[];
+      garmentType?: string[];
+      fittingSlot?: string[];
     };
 
-    fetchSuggestion();
-  }, [storeAiSuggestion]);
+    const newTops: RemoteGarment[]    = [];
+    const newBottoms: RemoteGarment[] = [];
+    const newShoes: RemoteGarment[]   = [];
+    const seen = new Set<string>();
+
+    const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
+      id: item.id ?? crypto.randomUUID(),
+      name: item.name,
+      description: item.reason ?? item.description ?? "",
+      imageUrl: item.imageUrl ?? "",
+      fittingSlot: [slot],
+      garmentType: item.garmentType ?? (item.type ? [item.type] : []),
+      category: Array.isArray(item.category) ? item.category : (item.category ? [item.category] : []),
+      tags: [],
+      gender: null,
+      silhouette: null,
+      layerLevel: null,
+      file: null,
+    });
+
+    function push(item: AiItem | undefined, bucket: RemoteGarment[], slot: string) {
+      if (!item?.id) return;
+      if (seen.has(item.id)) return;
+      seen.add(item.id);
+      bucket.push(toGarment(item, slot));
+    }
+
+    // ── /message format: response.garment_data.sets[].recommendations[] ────────
+    const sets = response.garment_data?.sets ?? [];
+    for (const s of sets) {
+      for (const r of (s.recommendations ?? []) as AiItem[]) {
+        if (r.fittingSlot?.includes("UpperGarment")) push(r, newTops,    "UpperGarment");
+        if (r.fittingSlot?.includes("LowerGarment")) push(r, newBottoms, "LowerGarment");
+        if (r.fittingSlot?.includes("FootGarment"))  push(r, newShoes,   "FootGarment");
+      }
+    }
+
+    if (newTops.length)    { setTops(newTops);       setTopsPage(0); }
+    if (newBottoms.length) { setBottoms(newBottoms); setBottomsPage(0); }
+    if (newShoes.length)   { setShoes(newShoes);     setShoesPage(0); }
+  }
 
   const clearSlots = () => {
     setSelectedHat(null);
@@ -422,23 +713,7 @@ export default function VirtualMirrorV2() {
       </header>
 
       {/* AI Suggestion Banner */}
-      {aiSuggestion && (
-        <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }}>
-          <div
-            className="p-3 rounded-xl flex items-center gap-3"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            <span className="text-xl shrink-0">✨</span>
-            <p className="text-white/90 text-sm font-medium leading-snug">
-              {aiSuggestion}
-            </p>
-          </div>
-        </div>
-      )}
+      <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — Accessories */}
@@ -1639,6 +1914,10 @@ export default function VirtualMirrorV2() {
           </div>
         </div>
       )}
+
+      <VoiceTranscribeOverlay onAiComplete={(r) => handleAiComplete(r)} />
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
