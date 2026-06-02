@@ -5,7 +5,6 @@ import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
 import {
   Navigation,
-  Settings,
   LocateFixed,
   X,
   Home,
@@ -28,13 +27,10 @@ const PANEL_ACTIVE = {
 
 export const ExploreHUD = () => {
   const {
-    isNavigating,
     selectedPOI,
     setSelectedPOI,
     setDestination,
     userLocation,
-    toggleTraffic,
-    showTraffic,
     map,
     origin,
     setUserLocation,
@@ -80,8 +76,6 @@ export const ExploreHUD = () => {
     }
   };
 
-  if (isNavigating) return null;
-
   return (
     <div className="fixed inset-0 pointer-events-none z-40">
       {/* ── Bottom-right: icon cluster ── */}
@@ -105,11 +99,6 @@ export const ExploreHUD = () => {
               <Home className="w-5 h-5 text-white/80" />
             )
           }
-        />
-        <IconButton
-          onClick={toggleTraffic}
-          active={showTraffic}
-          icon={<Settings className="w-5 h-5 text-white/80" />}
         />
       </motion.div>
 

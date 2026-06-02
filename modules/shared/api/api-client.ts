@@ -10,7 +10,7 @@ import {
   removeStorageData,
 } from "@/modules/shared/utils/storage";
 // In the browser, use relative URLs so requests go through the Next.js proxy
-// (next.config.ts rewrites /api/remote/** → backend). This avoids CORS preflight
+// (next.config.ts rewrites /api/mirror/** → backend). This avoids CORS preflight
 // failures caused by the x-platform header the backend doesn't whitelist.
 const API_BASE_URL =
   typeof window !== "undefined"
@@ -72,7 +72,7 @@ api.axiosInstance.interceptors.response.use(
       if (rt) {
         try {
           const refreshRes = await fetch(
-            `${API_BASE_URL}/api/remote/auth/refresh-token`,
+            `${API_BASE_URL}/api/mirror/auth/refresh-token`,
             {
               method: "POST",
               headers: {

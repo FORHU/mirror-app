@@ -34,7 +34,7 @@ export const garmentService = {
   getBySlot: async (fittingSlot: FittingSlot): Promise<RemoteGarment[]> => {
     const response = await api.get<
       StandardResponse<{ items: RemoteGarment[] }>
-    >("/api/remote/garments", {
+    >("/api/mirror/garments", {
       fittingSlot,
     });
     if (!response.ok) {
@@ -51,7 +51,7 @@ export const garmentService = {
   ): Promise<RemoteGarment[]> => {
     const response = await api.get<
       StandardResponse<{ items: RemoteGarment[] }>
-    >("/api/remote/garments", {
+    >("/api/mirror/garments", {
       fittingSlot,
       garmentType,
     });

@@ -2,7 +2,7 @@ import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { api } from "@/modules/shared/api/api-client";
 
 export interface NearbyPOI {
-  fsqId: string;
+  placeId: string;
   name: string;
   category: string;
   categoryIcon: string;
@@ -11,6 +11,11 @@ export interface NearbyPOI {
   address: string;
   distance: number;
   photo: string | null;
+  rating?: number;
+  openNow?: boolean;
+  weekdayDescriptions?: string[];
+  phone?: string;
+  website?: string;
 }
 
 export interface GeocodeResult {
@@ -123,9 +128,9 @@ export const mapService = {
     return res.data!;
   },
 
-  venuePhotos: async (fsqId: string): Promise<{ photos: string[] }> => {
+  venuePhotos: async (placeId: string): Promise<{ photos: string[] }> => {
     const res = await api.get<{ photos: string[] }>(
-      `/api/mirror/map/venue-photos/${encodeURIComponent(fsqId)}`,
+      `/api/mirror/map/venue-photos/${encodeURIComponent(placeId)}`,
     );
     if (!res.ok) throw new Error("Venue photos fetch failed");
     return res.data!;

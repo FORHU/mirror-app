@@ -14,13 +14,13 @@ export interface Outline {
 export const outlineService = {
   async getActive(): Promise<Outline | null> {
     const res = await api.get<{ data: Outline | null }>(
-      "/api/remote/outlines/active",
+      "/api/mirror/outlines/active",
     );
     return res.data?.data ?? null;
   },
 
   async create(): Promise<Outline> {
-    const res = await api.post<{ data: Outline }>("/api/remote/outlines", {});
+    const res = await api.post<{ data: Outline }>("/api/mirror/outlines", {});
     if (!res.data?.data) throw new Error("Failed to create outline");
     return res.data.data;
   },

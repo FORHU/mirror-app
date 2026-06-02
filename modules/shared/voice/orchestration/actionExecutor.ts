@@ -25,9 +25,7 @@ export async function executeAction(
       return;
     }
 
-    case "maps_preview_location":
-    case "maps_get_directions":
-    case "maps_navigate": {
+    case "maps_show_route": {
       const a = action as { destination?: string; query?: string };
       const dest = a.destination || a.query;
       if (!dest || dest.trim() === "") {
@@ -45,17 +43,25 @@ export async function executeAction(
         return;
       }
 
-      useMapStore.setState({
-        selectedDestination: results[0],
-        activeRoute: null,
-        isSearching: false,
-        searchResults: [],
-      });
+      if (!pathname.startsWith("/map")) {
+        router.push(ROUTES.MAP);
+      }
 
-      await useMapStore.getState().fetchRoute();
-      useMapStore.getState().startNavigation();
+      await useMapStore.getState().setDestination(results[0]);
       return;
     }
+
+    case "maps_clear_route":
+      useMapStore.getState().clearRoute();
+      return;
+
+    case "maps_camera_overview":
+      useMapStore.getState().setCameraMode("overview");
+      return;
+
+    case "maps_camera_free":
+      useMapStore.getState().setCameraMode("free");
+      return;
 
     case "traffic_on":
       if (!useMapStore.getState().showTraffic)
@@ -86,7 +92,7 @@ export async function executeAction(
 
     case "maps_suggest_places": {
       const map = useMapStore.getState();
-      const loc = map.userLocation ?? map.homeLocation;
+      const loc = map.selectedDestination ?? map.userLocation ?? map.homeLocation;
       if (!loc) return;
 
       const CATEGORY_MAP: Record<string, string> = {
@@ -97,14 +103,14 @@ export async function executeAction(
         medical: "medical",
         transit: "transit",
       };
-      const fsqCategory = CATEGORY_MAP[action.category] ?? action.category;
+      const googleCategory = CATEGORY_MAP[action.category] ?? action.category;
 
       try {
         const { pois } = await mapService.nearbyPOIs(
           loc.lat,
           loc.lng,
           1500,
-          fsqCategory,
+          googleCategory,
         );
         useMapStore.getState().setSuggestedPOIs(pois, action.label);
       } catch {
