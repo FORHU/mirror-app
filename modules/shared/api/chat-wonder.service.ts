@@ -129,10 +129,10 @@ export const chatWonderService = {
    * session ID. Does NOT clear the itinerary (see `outlineService.reset`).
    */
   async restart(): Promise<string> {
-    const res = await api.post<{ status: string; data: { sessionId: string; gender: null } }>(
-      "/api/mirror/chat-wonder/restart",
-      {},
-    );
+    const res = await api.post<{
+      status: string;
+      data: { sessionId: string; gender: null };
+    }>("/api/mirror/chat-wonder/restart", {});
     if (!res.ok || !res.data?.data?.sessionId) {
       throw new Error("Failed to restart ChatWonder session");
     }

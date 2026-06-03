@@ -5,7 +5,9 @@
  */
 let currentAudio: HTMLAudioElement | null = null;
 
-export async function playBase64Audio(audioBase64?: string | null): Promise<void> {
+export async function playBase64Audio(
+  audioBase64?: string | null,
+): Promise<void> {
   if (!audioBase64 || typeof window === "undefined") return;
 
   // Stop any reply already playing so they don't overlap.
