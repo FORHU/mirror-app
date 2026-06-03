@@ -22,7 +22,12 @@ type Phase = "starting" | "countdown" | "captured";
 function SkeletonCard({ delay }: { delay: number }) {
   const shimmer = {
     animate: { opacity: [0.35, 0.7, 0.35] },
-    transition: { duration: 1.4, repeat: Infinity, delay, ease: "easeInOut" as const },
+    transition: {
+      duration: 1.4,
+      repeat: Infinity,
+      delay,
+      ease: "easeInOut" as const,
+    },
   };
   return (
     <div
@@ -52,9 +57,33 @@ function SkeletonCard({ delay }: { delay: number }) {
           justifyContent: "center",
         }}
       >
-        <motion.div {...shimmer} style={{ height: 7, width: "55%", borderRadius: 4, background: "rgba(255,255,255,0.08)" }} />
-        <motion.div {...shimmer} style={{ height: 9, width: "85%", borderRadius: 4, background: "rgba(255,255,255,0.10)" }} />
-        <motion.div {...shimmer} style={{ height: 7, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 7,
+            width: "55%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 9,
+            width: "85%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 7,
+            width: "40%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.06)",
+          }}
+        />
       </div>
     </div>
   );
@@ -92,7 +121,10 @@ export default function CosmeticPage() {
         const location = useMapStore.getState().userLocation;
         const res = await api.post<{ suggestion: string }>(
           "/api/mirror/voice/suggest",
-          { type: "cosmetics", ctx: { lat: location?.lat, lng: location?.lng } },
+          {
+            type: "cosmetics",
+            ctx: { lat: location?.lat, lng: location?.lng },
+          },
         );
         if (res.data?.suggestion) {
           setAiSuggestion(res.data.suggestion);
@@ -184,13 +216,13 @@ export default function CosmeticPage() {
 
     start();
 
+    const videoEl = videoRef.current;
     return () => {
       cancelled = true;
       if (countdownRef.current) clearInterval(countdownRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      const v = videoRef.current;
-      if (v) v.srcObject = null;
+      if (videoEl) videoEl.srcObject = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -207,7 +239,10 @@ export default function CosmeticPage() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       {/* Header */}
-      <header className="flex items-center shrink-0 py-4 px-4" style={{ background: "rgba(0,0,0,0.85)" }}>
+      <header
+        className="flex items-center shrink-0 py-4 px-4"
+        style={{ background: "rgba(0,0,0,0.85)" }}
+      >
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 text-white/80 active:text-white transition-colors"
@@ -238,7 +273,12 @@ export default function CosmeticPage() {
               <span className="text-base shrink-0">✨</span>
               <p
                 className="text-white/85 text-xs font-medium leading-snug"
-                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
               >
                 {aiSuggestion}
               </p>
@@ -268,7 +308,11 @@ export default function CosmeticPage() {
               playsInline
               muted
               className="w-full h-full"
-              style={{ objectFit: "cover", objectPosition: "center top", transform: "scaleX(-1)" }}
+              style={{
+                objectFit: "cover",
+                objectPosition: "center top",
+                transform: "scaleX(-1)",
+              }}
             />
 
             {/* Countdown number */}
@@ -282,7 +326,14 @@ export default function CosmeticPage() {
                   exit={{ opacity: 0, scale: 0.6 }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <span style={{ fontSize: "5rem", fontWeight: 700, color: "rgba(255,255,255,0.95)", textShadow: "0 4px 30px rgba(0,0,0,0.7)" }}>
+                  <span
+                    style={{
+                      fontSize: "5rem",
+                      fontWeight: 700,
+                      color: "rgba(255,255,255,0.95)",
+                      textShadow: "0 4px 30px rgba(0,0,0,0.7)",
+                    }}
+                  >
                     {count}
                   </span>
                 </motion.div>
@@ -310,14 +361,17 @@ export default function CosmeticPage() {
                 left: 0,
                 right: 0,
                 padding: "18px 10px 8px",
-                background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
                 textAlign: "center",
               }}
             >
               <span
                 style={{
                   fontSize: "12px",
-                  color: errorMsg ? "rgba(248,113,113,0.95)" : "rgba(255,255,255,0.8)",
+                  color: errorMsg
+                    ? "rgba(248,113,113,0.95)"
+                    : "rgba(255,255,255,0.8)",
                 }}
               >
                 {caption}
@@ -327,9 +381,30 @@ export default function CosmeticPage() {
         </div>
 
         {/* Skeleton product grid — placeholder for the upcoming recommendations */}
-        <div className="flex-1 px-4 pb-3 pt-3" style={{ minHeight: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "14px", fontWeight: 600 }}>
+        <div
+          className="flex-1 px-4 pb-3 pt-3"
+          style={{
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                color: "rgba(255,255,255,0.85)",
+                fontSize: "14px",
+                fontWeight: 600,
+              }}
+            >
               Recommended Products
             </span>
             <motion.span

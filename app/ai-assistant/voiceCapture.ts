@@ -211,6 +211,7 @@ export async function captureCommand(
 }
 
 /** Duration (ms) of a mono Int16 PCM buffer at the capture sample rate. */
-export const msOf = (buf: ArrayBuffer) => (buf.byteLength / 2 / SAMPLE_RATE) * 1000;
+export const msOf = (buf: ArrayBuffer) =>
+  (buf.byteLength / 2 / SAMPLE_RATE) * 1000;
 
 export { delay };

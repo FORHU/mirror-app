@@ -43,16 +43,15 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
     setError(null);
   }, []);
 
-  const sendMessage = useCallback(
-    async function doSendMessage(
-      text: string,
-      options?: {
-        conversationId?: string;
-        mode?: "garments" | "cosmetics" | "overview" | "default";
-        weather?: unknown;
-      },
-      kioskId?: string,
-    ) {
+  const sendMessage = useCallback(async function doSendMessage(
+    text: string,
+    options?: {
+      conversationId?: string;
+      mode?: "garments" | "cosmetics" | "overview" | "default";
+      weather?: unknown;
+    },
+    kioskId?: string,
+  ) {
     if (!text.trim()) return;
 
     // Abort any ongoing stream
@@ -224,9 +223,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-    },
-    [],
-  );
+  }, []);
 
   return {
     messages,

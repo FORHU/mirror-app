@@ -62,12 +62,18 @@ function createMarkerEl(color: string): HTMLDivElement {
   return el;
 }
 
-function setMarkerSelected(el: HTMLDivElement, color: string, selected: boolean) {
+function setMarkerSelected(
+  el: HTMLDivElement,
+  color: string,
+  selected: boolean,
+) {
   Object.assign(el.style, {
     width: selected ? "22px" : "16px",
     height: selected ? "22px" : "16px",
     border: selected ? "3px solid white" : "2px solid rgba(255,255,255,0.8)",
-    boxShadow: selected ? `0 0 20px ${color}cc, 0 0 8px ${color}88` : `0 0 8px ${color}99`,
+    boxShadow: selected
+      ? `0 0 20px ${color}cc, 0 0 8px ${color}88`
+      : `0 0 8px ${color}99`,
   });
 }
 
@@ -98,29 +104,68 @@ function POIPopupContent({
       }}
     >
       {/* Photo */}
-      <div style={{ width: "100%", height: 140, overflow: "hidden", position: "relative", background: "rgba(255,255,255,0.05)" }}>
+      <div
+        style={{
+          width: "100%",
+          height: 140,
+          overflow: "hidden",
+          position: "relative",
+          background: "rgba(255,255,255,0.05)",
+        }}
+      >
         {poi.photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={poi.photo}
             alt={poi.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
           />
         ) : (
-          <div style={{ width: "100%", height: "100%", background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              background: `${color}18`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <span style={{ fontSize: 32, opacity: 0.4 }}>📍</span>
           </div>
         )}
-        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent 60%)" }} />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.55), transparent 60%)",
+          }}
+        />
         <button
           onClick={onClose}
           style={{
-            position: "absolute", top: 8, right: 8,
-            width: 26, height: 26, borderRadius: "50%",
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 26,
+            height: 26,
+            borderRadius: "50%",
             background: "rgba(0,0,0,0.65)",
             border: "1px solid rgba(255,255,255,0.18)",
-            cursor: "pointer", color: "rgba(255,255,255,0.8)",
-            fontSize: 12, fontWeight: 700, lineHeight: 1,
-            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.8)",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           ✕
@@ -130,32 +175,66 @@ function POIPopupContent({
       {/* Body */}
       <div style={{ padding: "12px 14px 14px" }}>
         {/* Category badge */}
-        <span style={{
-          display: "inline-block",
-          background: `${color}22`, color,
-          border: `1px solid ${color}44`,
-          borderRadius: 20, fontSize: 10, fontWeight: 600,
-          padding: "2px 8px", textTransform: "uppercase",
-          letterSpacing: "0.06em", marginBottom: 6,
-        }}>
+        <span
+          style={{
+            display: "inline-block",
+            background: `${color}22`,
+            color,
+            border: `1px solid ${color}44`,
+            borderRadius: 20,
+            fontSize: 10,
+            fontWeight: 600,
+            padding: "2px 8px",
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            marginBottom: 6,
+          }}
+        >
           {poi.category.replace(/_/g, " ")}
         </span>
 
         {/* Name */}
-        <div style={{ color: "#fff", fontSize: 15, fontWeight: 700, lineHeight: 1.25, marginBottom: 8 }}>
+        <div
+          style={{
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 700,
+            lineHeight: 1.25,
+            marginBottom: 8,
+          }}
+        >
           {poi.name}
         </div>
 
         {/* Rating */}
         {poi.rating != null && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6, color: "#fbbf24", fontSize: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginBottom: 6,
+              color: "#fbbf24",
+              fontSize: 12,
+            }}
+          >
             <span>★</span>
             <span style={{ fontWeight: 600 }}>{poi.rating.toFixed(1)}</span>
           </div>
         )}
 
         {/* Distance · Address */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 5, marginBottom: 5, fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 5,
+            marginBottom: 5,
+            fontSize: 11,
+            color: "rgba(255,255,255,0.5)",
+            lineHeight: 1.4,
+          }}
+        >
           <span style={{ flexShrink: 0, marginTop: 1 }}>📍</span>
           <span>
             {poi.distance < 1000
@@ -167,20 +246,44 @@ function POIPopupContent({
 
         {/* Open status */}
         {poi.openNow != null && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, fontSize: 11 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              marginBottom: 5,
+              fontSize: 11,
+            }}
+          >
             <span style={{ flexShrink: 0 }}>🕐</span>
-            <span style={{ color: poi.openNow ? "#4ade80" : "#f87171", fontWeight: 600 }}>
+            <span
+              style={{
+                color: poi.openNow ? "#4ade80" : "#f87171",
+                fontWeight: 600,
+              }}
+            >
               {poi.openNow ? "Open" : "Closed"}
             </span>
             {todayHours && (
-              <span style={{ color: "rgba(255,255,255,0.35)" }}>· {todayHours}</span>
+              <span style={{ color: "rgba(255,255,255,0.35)" }}>
+                · {todayHours}
+              </span>
             )}
           </div>
         )}
 
         {/* Phone */}
         {poi.phone && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              marginBottom: 5,
+              fontSize: 11,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
             <span style={{ flexShrink: 0 }}>📞</span>
             <span>{poi.phone}</span>
           </div>
@@ -188,9 +291,25 @@ function POIPopupContent({
 
         {/* Website */}
         {poi.website && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              marginBottom: 10,
+              fontSize: 11,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
             <span style={{ flexShrink: 0 }}>🌐</span>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 210,
+              }}
+            >
               {poi.website.replace(/^https?:\/\/(www\.)?/, "")}
             </span>
           </div>
@@ -200,13 +319,26 @@ function POIPopupContent({
         <button
           onClick={onNavigate}
           style={{
-            width: "100%", padding: "10px 0",
-            background: "#2144c0", color: "#fff",
-            border: "none", borderRadius: 10,
-            fontSize: 13, fontWeight: 700,
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            width: "100%",
+            padding: "10px 0",
+            background: "#2144c0",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
             cursor: "pointer",
-            marginTop: !poi.website && !poi.phone && poi.openNow == null && poi.rating == null ? 4 : 0,
+            marginTop:
+              !poi.website &&
+              !poi.phone &&
+              poi.openNow == null &&
+              poi.rating == null
+                ? 4
+                : 0,
           }}
         >
           <span style={{ fontSize: 11 }}>▶</span>
@@ -230,7 +362,8 @@ interface OpenEntry {
 }
 
 export default function SuggestedPOIMarkers() {
-  const { map, suggestedPOIs, setDestination, clearSuggestions } = useMapStore();
+  const { map, suggestedPOIs, setDestination, clearSuggestions } =
+    useMapStore();
   const markersRef = useRef<MarkerEntry[]>([]);
   const openRef = useRef<OpenEntry | null>(null);
 
@@ -238,7 +371,9 @@ export default function SuggestedPOIMarkers() {
     const style = document.createElement("style");
     style.textContent = POPUP_CSS;
     document.head.appendChild(style);
-    return () => { document.head.removeChild(style); };
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   useEffect(() => {
@@ -252,13 +387,19 @@ export default function SuggestedPOIMarkers() {
 
     if (!map || !suggestedPOIs.length) return;
 
-    const nearest = suggestedPOIs.reduce((a, b) => (a.distance < b.distance ? a : b));
+    const nearest = suggestedPOIs.reduce((a, b) =>
+      a.distance < b.distance ? a : b,
+    );
 
     const openPopup = (poi: NearbyPOI, el: HTMLDivElement) => {
       if (openRef.current) {
         openRef.current.popup.remove();
         openRef.current.root.unmount();
-        setMarkerSelected(openRef.current.markerEl, openRef.current.color, false);
+        setMarkerSelected(
+          openRef.current.markerEl,
+          openRef.current.color,
+          false,
+        );
         openRef.current = null;
       }
 
@@ -272,7 +413,11 @@ export default function SuggestedPOIMarkers() {
         if (openRef.current) {
           openRef.current.popup.remove();
           openRef.current.root.unmount();
-          setMarkerSelected(openRef.current.markerEl, openRef.current.color, false);
+          setMarkerSelected(
+            openRef.current.markerEl,
+            openRef.current.color,
+            false,
+          );
           openRef.current = null;
         }
       };

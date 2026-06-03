@@ -78,7 +78,9 @@ function getWakeCommand(text: string) {
   const normalized = normalizeSpeech(text);
   const wakeWord = WAKE_WORDS.find((word) => normalized.includes(word));
   if (wakeWord) {
-    const command = normalized.slice(normalized.indexOf(wakeWord) + wakeWord.length).trim();
+    const command = normalized
+      .slice(normalized.indexOf(wakeWord) + wakeWord.length)
+      .trim();
     return { command };
   }
 
@@ -104,7 +106,10 @@ function useClock() {
 }
 
 function speakText(text: string, onEnd?: () => void) {
-  if (typeof window === "undefined" || !window.speechSynthesis) { onEnd?.(); return; }
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = "en-US";
@@ -113,7 +118,10 @@ function speakText(text: string, onEnd?: () => void) {
   utter.volume = 1.0;
   const voices = window.speechSynthesis.getVoices();
   const preferred =
-    voices.find((v) => v.lang === "en-US" && /samantha|zira|female|google us/i.test(v.name)) ??
+    voices.find(
+      (v) =>
+        v.lang === "en-US" && /samantha|zira|female|google us/i.test(v.name),
+    ) ??
     voices.find((v) => v.lang.startsWith("en")) ??
     voices[0];
   if (preferred) utter.voice = preferred;
@@ -156,7 +164,9 @@ export default function AIAssistantPage() {
 
   const modeRef = useRef<Mode>("standby");
   const micRef = useRef<PersistentMic | null>(null);
-  const wakeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wakeRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const wakeLoopRef = useRef(false);
   const wakeAbortRef = useRef<AbortController | null>(null);
   const commandAbortRef = useRef<AbortController | null>(null);
@@ -164,11 +174,17 @@ export default function AIAssistantPage() {
   const messagesRef = useRef<Message[]>([GREETING]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
 
-  function setMode_(m: Mode) { modeRef.current = m; setMode(m); }
+  function setMode_(m: Mode) {
+    modeRef.current = m;
+    setMode(m);
+  }
 
   function resumeWakeListening() {
     setTranscript("");
@@ -187,8 +203,12 @@ export default function AIAssistantPage() {
     window.setTimeout(startWakeWord, 100);
   }
 
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     if (mode !== "standby") return;
@@ -201,7 +221,9 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.speechSynthesis.getVoices();
-    window.speechSynthesis.addEventListener("voiceschanged", () => window.speechSynthesis.getVoices());
+    window.speechSynthesis.addEventListener("voiceschanged", () =>
+      window.speechSynthesis.getVoices(),
+    );
   }, []);
 
   // ── Send message to AI ──────────────────────────────────────────────────────
@@ -209,7 +231,10 @@ export default function AIAssistantPage() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    setMessages((prev) => [...prev, { id: Date.now().toString(), role: "user", content: trimmed }]);
+    setMessages((prev) => [
+      ...prev,
+      { id: Date.now().toString(), role: "user", content: trimmed },
+    ]);
     setMode_("thinking");
 
     try {
@@ -224,17 +249,22 @@ export default function AIAssistantPage() {
       });
 
       const data = (await res.json()) as {
-        reply?: string; route?: string | null; routeLabel?: string | null;
+        reply?: string;
+        route?: string | null;
+        routeLabel?: string | null;
       };
 
       const reply = data.reply ?? "Sorry, something went wrong.";
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: reply,
-        route: data.route ?? null,
-        routeLabel: data.routeLabel ?? null,
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: reply,
+          route: data.route ?? null,
+          routeLabel: data.routeLabel ?? null,
+        },
+      ]);
 
       wakeLoopRef.current = false;
       wakeAbortRef.current?.abort();
@@ -254,7 +284,10 @@ export default function AIAssistantPage() {
       });
     } catch {
       const err = "I couldn't connect. Please try again.";
-      setMessages((prev) => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: err }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: "assistant", content: err },
+      ]);
       resumeWakeListening();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,8 +336,7 @@ export default function AIAssistantPage() {
         resumeWakeListening();
       }
     } catch (err) {
-      const isAbort =
-        err instanceof DOMException && err.name === "AbortError";
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
       if (!isAbort && modeRef.current === "listening") {
         resumeWakeListening();
       }
@@ -414,7 +446,8 @@ export default function AIAssistantPage() {
   useEffect(() => {
     startWakeWord();
     return () => {
-      if (wakeRestartTimerRef.current) clearTimeout(wakeRestartTimerRef.current);
+      if (wakeRestartTimerRef.current)
+        clearTimeout(wakeRestartTimerRef.current);
       wakeLoopRef.current = false;
       wakeAbortRef.current?.abort();
       commandAbortRef.current?.abort();
@@ -435,19 +468,37 @@ export default function AIAssistantPage() {
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
-
       {/* ── Header ── */}
-      <header className="flex items-center shrink-0 py-5 px-6"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <header
+        className="flex items-center shrink-0 py-5 px-6"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+      >
         <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
           <WeatherWidget iconSize={36} />
         </div>
-        <div style={{ flex: "0 0 50%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div
+          style={{
+            flex: "0 0 50%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <div className="flex items-center gap-2">
-            <Sparkles style={{ width: 16, height: 16, color: "rgba(255,255,255,0.45)" }} />
-            <span className="text-white font-semibold select-none" style={{ fontSize: "1.15rem" }}>AI Assistant</span>
+            <Sparkles
+              style={{ width: 16, height: 16, color: "rgba(255,255,255,0.45)" }}
+            />
+            <span
+              className="text-white font-semibold select-none"
+              style={{ fontSize: "1.15rem" }}
+            >
+              AI Assistant
+            </span>
           </div>
-          <span className="text-white/35 select-none" style={{ fontSize: "0.8rem", marginTop: 2 }}>
+          <span
+            className="text-white/35 select-none"
+            style={{ fontSize: "0.8rem", marginTop: 2 }}
+          >
             {time} · {day}, {date}
           </span>
         </div>
@@ -459,20 +510,49 @@ export default function AIAssistantPage() {
         <AnimatePresence mode="wait">
           <motion.div
             key={lastMessage.id}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            style={{ display: "flex", flexDirection: "column", alignItems: lastMessage.role === "user" ? "flex-end" : "flex-start" }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems:
+                lastMessage.role === "user" ? "flex-end" : "flex-start",
+            }}
           >
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", marginBottom: 6, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.28)",
+                marginBottom: 6,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
               {lastMessage.role === "user" ? "You" : "StyleOS AI"}
             </span>
-            <div style={{
-              maxWidth: "80%", padding: "18px 22px",
-              borderRadius: lastMessage.role === "user" ? "22px 22px 6px 22px" : "22px 22px 22px 6px",
-              background: lastMessage.role === "user" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.06)",
-              border: lastMessage.role === "user" ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.08)",
-              color: "rgba(255,255,255,0.9)", fontSize: "1.05rem", lineHeight: 1.6,
-            }}>
+            <div
+              style={{
+                maxWidth: "80%",
+                padding: "18px 22px",
+                borderRadius:
+                  lastMessage.role === "user"
+                    ? "22px 22px 6px 22px"
+                    : "22px 22px 22px 6px",
+                background:
+                  lastMessage.role === "user"
+                    ? "rgba(255,255,255,0.12)"
+                    : "rgba(255,255,255,0.06)",
+                border:
+                  lastMessage.role === "user"
+                    ? "1px solid rgba(255,255,255,0.15)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.9)",
+                fontSize: "1.05rem",
+                lineHeight: 1.6,
+              }}
+            >
               {lastMessage.content}
             </div>
           </motion.div>
@@ -480,11 +560,29 @@ export default function AIAssistantPage() {
 
         <AnimatePresence>
           {isThinking && (
-            <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mt-4 flex items-center gap-1">
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mt-4 flex items-center gap-1"
+            >
               {[0, 1, 2].map((i) => (
-                <motion.span key={i} animate={{ opacity: [0.2, 0.9, 0.2] }}
-                  transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
-                  style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(255,255,255,0.5)", display: "block" }} />
+                <motion.span
+                  key={i}
+                  animate={{ opacity: [0.2, 0.9, 0.2] }}
+                  transition={{
+                    duration: 1.1,
+                    repeat: Infinity,
+                    delay: i * 0.18,
+                  }}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.5)",
+                    display: "block",
+                  }}
+                />
               ))}
             </motion.div>
           )}
@@ -493,30 +591,54 @@ export default function AIAssistantPage() {
 
       {/* ── Mic — centered in remaining space ── */}
       <div className="flex-1 flex flex-col items-center justify-center gap-5">
-
-        <div style={{ position: "relative", width: 180, height: 180, overflow: "visible" }}>
-
+        <div
+          style={{
+            position: "relative",
+            width: 180,
+            height: 180,
+            overflow: "visible",
+          }}
+        >
           {/* Standby: slow breathing ring */}
           {isStandby && !isWakeListening && (
             <motion.span
               animate={{ scale: [1, 1.14, 1], opacity: [0.1, 0.25, 0.1] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)", pointerEvents: "none" }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.5)",
+                pointerEvents: "none",
+              }}
             />
           )}
 
           {/* Listening: expanding ripple rings */}
           <AnimatePresence>
-            {showListening && [0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                initial={{ scale: 1, opacity: 0.85 }}
-                animate={{ scale: 3.2 + i * 0.6, opacity: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.5, ease: "easeOut" }}
-                style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "3px solid white", pointerEvents: "none", transformOrigin: "center" }}
-              />
-            ))}
+            {showListening &&
+              [0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  initial={{ scale: 1, opacity: 0.85 }}
+                  animate={{ scale: 3.2 + i * 0.6, opacity: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 1.6,
+                    repeat: Infinity,
+                    delay: i * 0.5,
+                    ease: "easeOut",
+                  }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    border: "3px solid white",
+                    pointerEvents: "none",
+                    transformOrigin: "center",
+                  }}
+                />
+              ))}
           </AnimatePresence>
 
           {showListening && (
@@ -525,7 +647,11 @@ export default function AIAssistantPage() {
                 scale: [1, 1.08, 1],
                 opacity: [0.35, 0.75, 0.35],
               }}
-              transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+              transition={{
+                repeat: Infinity,
+                duration: 1.2,
+                ease: "easeInOut",
+              }}
               style={{
                 position: "absolute",
                 inset: 0,
@@ -541,8 +667,18 @@ export default function AIAssistantPage() {
           {isSpeaking && (
             <motion.span
               animate={{ scale: [1, 1.22, 1], opacity: [0.15, 0.45, 0.15] }}
-              transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-              style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.6)", pointerEvents: "none" }}
+              transition={{
+                duration: 1.1,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.6)",
+                pointerEvents: "none",
+              }}
             />
           )}
 
@@ -559,48 +695,113 @@ export default function AIAssistantPage() {
                     ],
                   }
                 : isSpeaking
-                ? {
-                    scale: 1,
-                    boxShadow: [
-                      "0 0 0px rgba(255,255,255,0)",
-                      "0 0 40px rgba(255,255,255,0.14)",
-                      "0 0 0px rgba(255,255,255,0)",
-                    ],
-                  }
-                : { scale: 1 }
+                  ? {
+                      scale: 1,
+                      boxShadow: [
+                        "0 0 0px rgba(255,255,255,0)",
+                        "0 0 40px rgba(255,255,255,0.14)",
+                        "0 0 0px rgba(255,255,255,0)",
+                      ],
+                    }
+                  : { scale: 1 }
             }
-            transition={showListening || isSpeaking ? { duration: 1.8, repeat: Infinity } : {}}
+            transition={
+              showListening || isSpeaking
+                ? { duration: 1.8, repeat: Infinity }
+                : {}
+            }
             style={{
-              position: "absolute", inset: 0, borderRadius: "50%",
-              background: showListening ? "rgba(79,195,247,0.2)" : isSpeaking ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.05)",
-              border: showListening ? "2px solid rgba(79,195,247,0.7)" : "2px solid rgba(255,255,255,0.1)",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background: showListening
+                ? "rgba(79,195,247,0.2)"
+                : isSpeaking
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(255,255,255,0.05)",
+              border: showListening
+                ? "2px solid rgba(79,195,247,0.7)"
+                : "2px solid rgba(255,255,255,0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               pointerEvents: "none",
               transition: "background 0.4s, border 0.4s",
             }}
           >
-            {isSpeaking
-              ? <Volume2 style={{ width: 68, height: 68, color: "rgba(255,255,255,0.75)" }} />
-              : <Mic style={{ width: 68, height: 68, color: showListening ? "white" : "rgba(255,255,255,0.35)" }} />
-            }
+            {isSpeaking ? (
+              <Volume2
+                style={{
+                  width: 68,
+                  height: 68,
+                  color: "rgba(255,255,255,0.75)",
+                }}
+              />
+            ) : (
+              <Mic
+                style={{
+                  width: 68,
+                  height: 68,
+                  color: showListening ? "white" : "rgba(255,255,255,0.35)",
+                }}
+              />
+            )}
           </motion.div>
         </div>
 
         {/* Status label */}
         <AnimatePresence mode="wait">
           {showListening && (
-            <motion.div key="listening" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-              style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, maxWidth: "65%" }}>
-              <p style={{ fontSize: "1.05rem", color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>
+            <motion.div
+              key="listening"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              style={{
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 5,
+                maxWidth: "65%",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "1.05rem",
+                  color: "rgba(255,255,255,0.75)",
+                  lineHeight: 1.5,
+                }}
+              >
                 {transcript || "Listening…"}
               </p>
               {isWakeListening && (
                 <>
-                  <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>
-                    Say <span style={{ color: "rgba(255,255,255,0.58)", fontStyle: "italic" }}>&ldquo;Hey Mirror&rdquo;</span>
+                  <p
+                    style={{
+                      fontSize: "0.82rem",
+                      color: "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    Say{" "}
+                    <span
+                      style={{
+                        color: "rgba(255,255,255,0.58)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      &ldquo;Hey Mirror&rdquo;
+                    </span>
                   </p>
                   {wakeDebug && (
-                    <p style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.22)", maxWidth: 360, lineHeight: 1.35 }}>
+                    <p
+                      style={{
+                        fontSize: "0.72rem",
+                        color: "rgba(255,255,255,0.22)",
+                        maxWidth: 360,
+                        lineHeight: 1.35,
+                      }}
+                    >
                       {wakeDebug}
                     </p>
                   )}
@@ -609,33 +810,93 @@ export default function AIAssistantPage() {
             </motion.div>
           )}
           {isSpeaking && (
-            <motion.p key="speaking" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-              style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
+            <motion.p
+              key="speaking"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              style={{
+                fontSize: "0.9rem",
+                color: "rgba(255,255,255,0.4)",
+                textAlign: "center",
+              }}
+            >
               Speaking…
             </motion.p>
           )}
           {isThinking && (
-            <motion.p key="thinking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ fontSize: "0.9rem", color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
+            <motion.p
+              key="thinking"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                fontSize: "0.9rem",
+                color: "rgba(255,255,255,0.3)",
+                textAlign: "center",
+              }}
+            >
               Thinking…
             </motion.p>
           )}
           {isStandby && !isWakeListening && (
-            <motion.div key="standby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <p style={{ fontSize: "0.88rem", color: "rgba(255,255,255,0.22)" }}>
+            <motion.div
+              key="standby"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <p
+                style={{ fontSize: "0.88rem", color: "rgba(255,255,255,0.22)" }}
+              >
                 Say{" "}
-                <span style={{ color: "rgba(255,255,255,0.45)", fontStyle: "italic" }}>&ldquo;Hey Mirror&rdquo;</span>
-                {" "}or tap
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.45)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  &ldquo;Hey Mirror&rdquo;
+                </span>{" "}
+                or tap
               </p>
               {/* Wake word listener status dot */}
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  marginTop: 2,
+                }}
+              >
                 <motion.span
                   animate={{ opacity: wakeReady ? [0.4, 1, 0.4] : 0.2 }}
-                  transition={wakeReady ? { duration: 2, repeat: Infinity } : {}}
-                  style={{ width: 6, height: 6, borderRadius: "50%", background: wakeReady ? "rgba(100,255,150,0.8)" : "rgba(255,255,255,0.2)", display: "block" }}
+                  transition={
+                    wakeReady ? { duration: 2, repeat: Infinity } : {}
+                  }
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: wakeReady
+                      ? "rgba(100,255,150,0.8)"
+                      : "rgba(255,255,255,0.2)",
+                    display: "block",
+                  }}
                 />
-                <span style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.18)" }}>
+                <span
+                  style={{
+                    fontSize: "0.72rem",
+                    color: "rgba(255,255,255,0.18)",
+                  }}
+                >
                   {wakeReady ? "always listening" : "starting mic…"}
                 </span>
               </div>

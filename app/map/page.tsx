@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
@@ -8,7 +8,6 @@ import { Loader2, ArrowLeft } from "lucide-react";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useRouter } from "next/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import WeatherWidget from "@/components/WeatherWidget";
 
 async function consumePendingLocation() {
@@ -53,11 +52,7 @@ async function consumePendingDirections() {
 
 export default function MapPage() {
   const router = useRouter();
-  const {
-    homeLocation,
-    homeLocationStatus,
-    loadHomeLocation,
-  } = useMapStore();
+  const { homeLocation, homeLocationStatus, loadHomeLocation } = useMapStore();
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -71,7 +66,7 @@ export default function MapPage() {
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
 
-  const onAction = useCallback((_action: ChatWonderAction) => {}, []);
+  const onAction = useCallback(() => {}, []);
 
   useVoice(
     {

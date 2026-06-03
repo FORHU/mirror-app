@@ -32,7 +32,11 @@ const MapViewport = () => {
     });
 
     mapInstance.on("style.load", () => {
-      mapInstance.setConfigProperty("basemap", "showPointOfInterestLabels", true);
+      mapInstance.setConfigProperty(
+        "basemap",
+        "showPointOfInterestLabels",
+        true,
+      );
       mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });
 
@@ -46,7 +50,8 @@ const MapViewport = () => {
           (f) => f.properties?.name || f.properties?.name_en,
         );
         if (namedFeature) {
-          const name = namedFeature.properties?.name || namedFeature.properties?.name_en;
+          const name =
+            namedFeature.properties?.name || namedFeature.properties?.name_en;
           setSelectedPOI({
             name,
             category:
@@ -70,7 +75,9 @@ const MapViewport = () => {
       });
     });
 
-    return () => { mapInstance.remove(); };
+    return () => {
+      mapInstance.remove();
+    };
   }, [homeLocation, setMap, setSelectedPOI]);
 
   useEffect(() => {
@@ -98,10 +105,14 @@ const MapViewport = () => {
             "line-color": [
               "match",
               ["get", "congestion"],
-              "low", "#4ade80",
-              "moderate", "#fbbf24",
-              "heavy", "#f97316",
-              "severe", "#ef4444",
+              "low",
+              "#4ade80",
+              "moderate",
+              "#fbbf24",
+              "heavy",
+              "#f97316",
+              "severe",
+              "#ef4444",
               "#4ade80",
             ],
           },

@@ -10,6 +10,7 @@ export interface PageContext {
   pageName: string;
   activeStep?: string;
   collectedData?: EventSetupData;
+  mode?: "garment";
 }
 
 export interface ChatWonderInput {
@@ -51,7 +52,8 @@ export type ChatWonderAction =
         | "medical"
         | "transit";
       label: string;
-    };
+    }
+  | { type: "GARMENT_RECOMMENDATION"; response: unknown };
 
 export interface ChatWonderResponse {
   intent: string;
