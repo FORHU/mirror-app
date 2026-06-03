@@ -202,14 +202,14 @@ export interface OutfitPreviewCanvasHandle {
 }
 
 interface Props {
-  hat: RemoteGarment | null;
+  hat?: RemoteGarment | null;
   top: RemoteGarment | null;
   bottom: RemoteGarment | null;
   shoe: RemoteGarment | null;
   bag: RemoteGarment | null;
 }
 
-function toSlotMap({ hat, top, bottom, shoe, bag }: Props): SlotMap {
+function toSlotMap({ hat = null, top, bottom, shoe, bag }: Props): SlotMap {
   const add = (slot: FittingSlot, g: RemoteGarment | null) =>
     g
       ? {

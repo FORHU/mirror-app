@@ -10,7 +10,7 @@ export default function GlobalVoiceOverlay() {
   const pathname = usePathname();
   if (
     pathname.startsWith("/map") ||
-    pathname === "/ai-recommendation-fashion/test-page" ||
+    pathname === "/ai-recommendation-fashion" ||
     pathname.startsWith("/ai-assistant")
   ) return null;
   return <VoiceUI />;
