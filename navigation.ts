@@ -17,6 +17,12 @@ export const ROUTES = {
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
+/**
+ * Flat list of the app's navigable routes, sent to ChatWonder as
+ * `sitemap_context` so it can resolve `[nav]` requests to a real route.
+ */
+export const SITEMAP_CONTEXT: string[] = Object.values(ROUTES);
+
 export const ROUTE_RULES = {
   protected: [
     ROUTES.LOGGED_IN,

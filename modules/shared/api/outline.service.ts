@@ -30,4 +30,16 @@ export const outlineService = {
     if (active) return active;
     return outlineService.create();
   },
+
+  /**
+   * RESET — clears the user's itinerary (soft-deletes all active outlines) so a
+   * page refresh starts clean. Returns the number of outlines cleared.
+   */
+  async reset(): Promise<number> {
+    const res = await api.post<{ data: { cleared: number } }>(
+      "/api/mirror/outlines/reset",
+      {},
+    );
+    return res.data?.data?.cleared ?? 0;
+  },
 };

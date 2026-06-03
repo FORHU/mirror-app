@@ -16,6 +16,7 @@ import {
 import { fileUploadService } from "@/modules/shared/api/file-upload.service";
 import { tryOnService } from "@/modules/shared/api/try-on.service";
 import { chatWonderService, type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import { playBase64Audio } from "@/modules/shared/voice/playBase64Audio";
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas, {
@@ -220,12 +221,15 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
         {
           input: userInput,
           ...(weatherRef.current ? { weather: weatherRef.current } : {}),
+          voice: true,
         },
         abortCtrlRef.current.signal,
       );
       setAiReply(response.message);
       setStep("done");
       onAiComplete?.(response);
+      // Speak the reply (best-effort — text is already shown).
+      void playBase64Audio(response.audioBase64);
     } catch (err: unknown) {
       setErrorMsg((err as Error).message ?? "Request failed");
       setStep("error");

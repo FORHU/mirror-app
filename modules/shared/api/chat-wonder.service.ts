@@ -1,6 +1,7 @@
 import { api } from "@/modules/shared/api/api-client";
 import { getStorageData } from "@/modules/shared/utils/storage";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
+import { SITEMAP_CONTEXT } from "@/navigation";
 
 const API_BASE_URL =
   typeof window !== "undefined"
@@ -12,6 +13,16 @@ const API_BASE_URL =
 export interface ChatWonderMessageRequest {
   input: string;
   weather?: Record<string, unknown>;
+  location?: { lat: number | string; lng: number | string };
+  /** Opt-in: ask the backend to synthesize TTS audio for the reply. */
+  voice?: boolean;
+  /** TTS language, e.g. "en-US", "fr-FR", "ko-KR". Defaults to en-US. */
+  lang?: string;
+  /**
+   * App routes ChatWonder may navigate to for `[nav]` requests. Defaults to the
+   * app's full SITEMAP_CONTEXT; pass an explicit list to override/narrow it.
+   */
+  sitemapContext?: string[];
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -21,6 +32,10 @@ export interface ChatWonderMessageResponse {
   intent: string;
   garment_data: ChatWonderGarmentData | null;
   cosmetics_data: unknown | null;
+  /** Place/restaurant search results per stop (null when ChatWonder sends none). */
+  maps_data: unknown[] | null;
+  /** Base64 MP3 of the spoken reply (null unless `voice: true` was sent). */
+  audioBase64: string | null;
   metadata: {
     conversationId: string;
     userMessageId: string;
@@ -95,6 +110,22 @@ export const chatWonderService = {
   },
 
   /**
+   * RESTART — for the next person at the mirror: nulls the user's stored gender
+   * and forces a brand-new ChatWonder session (clears history). Returns the new
+   * session ID. Does NOT clear the itinerary (see `outlineService.reset`).
+   */
+  async restart(): Promise<string> {
+    const res = await api.post<{ status: string; data: { sessionId: string; gender: null } }>(
+      "/api/mirror/chat-wonder/restart",
+      {},
+    );
+    if (!res.ok || !res.data?.data?.sessionId) {
+      throw new Error("Failed to restart ChatWonder session");
+    }
+    return res.data.data.sessionId;
+  },
+
+  /**
    * Send a message to the chat-wonder endpoint and return the full response.
    * Pass an AbortSignal to cancel the request mid-flight.
    */
@@ -113,6 +144,11 @@ export const chatWonderService = {
 
     const body: Record<string, unknown> = { input: request.input };
     if (request.weather) body.weather = request.weather;
+    if (request.location) body.location = request.location;
+    if (request.voice) body.voice = request.voice;
+    if (request.lang) body.lang = request.lang;
+    // Always send the app sitemap so ChatWonder can resolve `[nav]` requests.
+    body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
     let res: Response;
     try {
