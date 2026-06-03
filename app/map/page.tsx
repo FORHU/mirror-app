@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import React, { useEffect, useCallback } from "react";
 import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2 } from "lucide-react";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useRouter } from "next/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
-import WeatherWidget from "@/components/WeatherWidget";
+import MirrorHeader from "@/components/MirrorHeader";
 
 async function consumePendingLocation() {
   try {
@@ -52,20 +52,11 @@ async function consumePendingDirections() {
 
 export default function MapPage() {
   const router = useRouter();
-  const { homeLocation, homeLocationStatus, loadHomeLocation } = useMapStore();
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const time = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const day = now.toLocaleDateString([], { weekday: "long" });
-  const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
-
+  const {
+    homeLocation,
+    homeLocationStatus,
+    loadHomeLocation,
+  } = useMapStore();
   const onAction = useCallback(() => {}, []);
 
   useVoice(
@@ -116,46 +107,10 @@ export default function MapPage() {
   return (
     <main className="w-screen h-dvh bg-black relative overflow-hidden">
       {/* Header — weather left, time center, back right */}
-      <header
-        className="absolute top-0 inset-x-0 z-50 flex items-center shrink-0 py-4 px-4"
-        style={{ background: "rgba(0,0,0,0.85)" }}
-      >
-        <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
-          <WeatherWidget iconSize={32} />
-        </div>
-        <div
-          style={{
-            flex: "0 0 50%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            className="text-white font-thin select-none"
-            style={{ fontSize: "2rem", lineHeight: 1 }}
-          >
-            {time}
-          </span>
-          <span className="text-white/60 text-sm font-light select-none">
-            {day}, {date}
-          </span>
-        </div>
-        <div
-          style={{
-            flex: "0 0 25%",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={() => router.back()}
-            className="p-4 transition-all hover:scale-105 active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-        </div>
-      </header>
+      <MirrorHeader
+        onBack={() => router.back()}
+        className="absolute top-0 inset-x-0 z-50"
+      />
 
       <MapDashboard />
     </main>
