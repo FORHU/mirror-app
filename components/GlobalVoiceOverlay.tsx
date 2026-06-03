@@ -12,7 +12,8 @@ export default function GlobalVoiceOverlay() {
     pathname.startsWith("/map") ||
     pathname === "/ai-recommendation-fashion" ||
     pathname.startsWith("/ai-assistant")
-  ) return null;
+  )
+    return null;
   return <VoiceUI />;
 }
 

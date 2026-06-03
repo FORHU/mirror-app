@@ -36,7 +36,8 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
   // When route is cleared, recenter to mirror location
   useEffect(() => {
-    if (!map || activeRoute || !homeLocation || cameraMode !== "overview") return;
+    if (!map || activeRoute || !homeLocation || cameraMode !== "overview")
+      return;
 
     map.stop();
     map.easeTo({

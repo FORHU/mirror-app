@@ -56,7 +56,8 @@ export const tryOnService = {
         "Use the modelImage strictly as the positional and fitting reference for garment placement. The modelImage contains a black mannequin that defines the exact (x, y) coordinates, spacing, scale, proportions, layering order, and garment arrangement for the final composition. Fit the garments from the outfitImage precisely onto the black mannequin areas shown in the modelImage, ensuring that each garment aligns naturally and accurately within its intended position. Preserve the original garment design exactly as provided in the outfitImage, including textures, colors, logos, stitching, graphics, folds, proportions, and orientation. Do not randomly reposition, rotate, redesign, reinterpret, or disproportionately resize any garment. Maintain the original front-facing direction and ensure all garments follow the exact layout structure defined by the black mannequin in the modelImage. Once all garments are placed, remove the black mannequin entirely so that only the clothing items remain, presented as a ghost mannequin or invisible mannequin effect. The final output should appear as a clean professional fashion catalog or e-commerce mockup with a neutral studio background.",
     });
     const predictionId: string = res.data?.data?.predictionId;
-    if (!predictionId) throw new Error("Try-on failed — no predictionId returned");
+    if (!predictionId)
+      throw new Error("Try-on failed — no predictionId returned");
     return predictionId;
   },
 

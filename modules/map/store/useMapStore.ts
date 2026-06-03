@@ -165,7 +165,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   fetchRoute: async () => {
-    const { selectedDestination, homeLocation, userLocation, activeProfile } = get();
+    const { selectedDestination, homeLocation, userLocation, activeProfile } =
+      get();
     const origin = userLocation ?? homeLocation;
     if (!selectedDestination || !origin) return;
     set({ isRouting: true });

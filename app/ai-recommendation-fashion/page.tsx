@@ -13,7 +13,10 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import { chatWonderService, type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import {
+  chatWonderService,
+  type ChatWonderMessageResponse,
+} from "@/modules/shared/api/chat-wonder.service";
 import { FittingSlot } from "@/modules/garment/types";
 import WeatherWidget from "@/components/WeatherWidget";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
@@ -91,9 +94,19 @@ function pcmFloat32ToInt16(f: Float32Array): Int16Array {
   return out;
 }
 
-type RecordStep = "idle" | "recording" | "transcribing" | "loading" | "done" | "error";
+type RecordStep =
+  | "idle"
+  | "recording"
+  | "transcribing"
+  | "loading"
+  | "done"
+  | "error";
 
-function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: ChatWonderMessageResponse) => void }) {
+function VoiceTranscribeOverlay({
+  onAiComplete,
+}: {
+  onAiComplete?: (response: ChatWonderMessageResponse) => void;
+}) {
   const [step, setStep] = useState<RecordStep>("idle");
   const [transcript, setTranscript] = useState("");
   const [aiReply, setAiReply] = useState("");
@@ -125,7 +138,9 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
             is_hot: Number(d.temperature) >= 30,
             is_rainy:
               Number(d.precipitationProb) >= 50 ||
-              String(d.condition ?? "").toLowerCase().includes("rain"),
+              String(d.condition ?? "")
+                .toLowerCase()
+                .includes("rain"),
             lat,
             lon,
             temperature_c: Number(d.temperature),
@@ -134,7 +149,9 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
           // weather is best-effort; stream works without it
         }
       },
-      () => { /* geolocation denied — skip weather context */ },
+      () => {
+        /* geolocation denied — skip weather context */
+      },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }, []);
@@ -155,13 +172,18 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
     setTranscript("");
     setAiReply("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
       const ctx = new AudioContext({ sampleRate: VOICE_SAMPLE_RATE });
       const processor = ctx.createScriptProcessor(VOICE_BUFFER_SIZE, 1, 1);
       const source = ctx.createMediaStreamSource(stream);
       chunksRef.current = [];
       processor.onaudioprocess = (e) => {
-        chunksRef.current.push(pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)));
+        chunksRef.current.push(
+          pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)),
+        );
       };
       source.connect(processor);
       processor.connect(ctx.destination);
@@ -184,7 +206,10 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
     const total = chunks.reduce((n, c) => n + c.length, 0);
     const combined = new Int16Array(total);
     let offset = 0;
-    for (const c of chunks) { combined.set(c, offset); offset += c.length; }
+    for (const c of chunks) {
+      combined.set(c, offset);
+      offset += c.length;
+    }
 
     let rawText = "";
     try {
@@ -240,8 +265,8 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
     }
   }
 
-  const isRecording   = step === "recording";
-  const isBusy        = step === "transcribing" || step === "loading";
+  const isRecording = step === "recording";
+  const isBusy = step === "transcribing" || step === "loading";
 
   return (
     <>
@@ -266,25 +291,64 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
           }}
         >
           {errorMsg ? (
-            <p style={{ color: "rgba(239,68,68,0.9)", fontSize: "13px", margin: 0 }}>{errorMsg}</p>
+            <p
+              style={{
+                color: "rgba(239,68,68,0.9)",
+                fontSize: "13px",
+                margin: 0,
+              }}
+            >
+              {errorMsg}
+            </p>
           ) : (
             <>
               {transcript && (
                 <div>
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      margin: "0 0 3px 0",
+                    }}
+                  >
                     You
                   </p>
-                  <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "12px", margin: 0, lineHeight: 1.5 }}>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.75)",
+                      fontSize: "12px",
+                      margin: 0,
+                      lineHeight: 1.5,
+                    }}
+                  >
                     {transcript}
                   </p>
                 </div>
               )}
               {(aiReply || step === "loading") && (
                 <div>
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      margin: "0 0 3px 0",
+                    }}
+                  >
                     AI
                   </p>
-                  <p style={{ color: "white", fontSize: "13px", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                  <p
+                    style={{
+                      color: "white",
+                      fontSize: "13px",
+                      margin: 0,
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
                     {aiReply || "…"}
                   </p>
                 </div>
@@ -335,9 +399,25 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
             }}
           />
         ) : isRecording ? (
-          <div style={{ width: 18, height: 18, background: "rgba(239,68,68,0.9)", borderRadius: "3px" }} />
+          <div
+            style={{
+              width: 18,
+              height: 18,
+              background: "rgba(239,68,68,0.9)",
+              borderRadius: "3px",
+            }}
+          />
         ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
             <line x1="12" y1="19" x2="12" y2="23" />
@@ -368,17 +448,27 @@ export default function VirtualMirrorV2() {
     null,
   );
   const [selectedBag, setSelectedBag] = useState<RemoteGarment | null>(null);
-  const [selectedTopBase,  setSelectedTopBase]  = useState<RemoteGarment | null>(null);
-  const [selectedTopMid,   setSelectedTopMid]   = useState<RemoteGarment | null>(null);
-  const [selectedTopOuter, setSelectedTopOuter] = useState<RemoteGarment | null>(null);
+  const [selectedTopBase, setSelectedTopBase] = useState<RemoteGarment | null>(
+    null,
+  );
+  const [selectedTopMid, setSelectedTopMid] = useState<RemoteGarment | null>(
+    null,
+  );
+  const [selectedTopOuter, setSelectedTopOuter] =
+    useState<RemoteGarment | null>(null);
   const [selectedBottom, setSelectedBottom] = useState<RemoteGarment | null>(
     null,
   );
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
-  const [loadingGarments, setLoadingGarments] = useState(true);
-  const [loadingOutfits, setLoadingOutfits] = useState(true);
+
   const [showConfirm, setShowConfirm] = useState(false);
-  const aiPopulatedRef = useRef({ tops: false, bottoms: false, shoes: false, bags: false, outfits: false });
+  const aiPopulatedRef = useRef({
+    tops: false,
+    bottoms: false,
+    shoes: false,
+    bags: false,
+    outfits: false,
+  });
 
   function handleAiComplete(response: ChatWonderMessageResponse) {
     setSelectedBag(null);
@@ -402,12 +492,12 @@ export default function VirtualMirrorV2() {
       layerLevel?: string;
     };
 
-    const newTopsBase:  RemoteGarment[] = [];
-    const newTopsMid:   RemoteGarment[] = [];
+    const newTopsBase: RemoteGarment[] = [];
+    const newTopsMid: RemoteGarment[] = [];
     const newTopsOuter: RemoteGarment[] = [];
     const newBottoms: RemoteGarment[] = [];
-    const newShoes: RemoteGarment[]   = [];
-    const newBags: RemoteGarment[]    = [];
+    const newShoes: RemoteGarment[] = [];
+    const newBags: RemoteGarment[] = [];
     const seen = new Set<string>();
 
     const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
@@ -417,7 +507,11 @@ export default function VirtualMirrorV2() {
       imageUrl: item.imageUrl ?? "",
       fittingSlot: [slot],
       garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-      category: Array.isArray(item.category) ? item.category : (item.category ? [item.category] : []),
+      category: Array.isArray(item.category)
+        ? item.category
+        : item.category
+          ? [item.category]
+          : [],
       tags: [],
       gender: null,
       silhouette: null,
@@ -425,7 +519,11 @@ export default function VirtualMirrorV2() {
       file: null,
     });
 
-    function push(item: AiItem | undefined, bucket: RemoteGarment[], slot: string) {
+    function push(
+      item: AiItem | undefined,
+      bucket: RemoteGarment[],
+      slot: string,
+    ) {
       if (!item?.id) return;
       if (seen.has(item.id)) return;
       seen.add(item.id);
@@ -438,28 +536,37 @@ export default function VirtualMirrorV2() {
       for (const r of (s.recommendations ?? []) as AiItem[]) {
         if (r.fittingSlot?.includes("UpperGarment")) {
           const layer = r.layerLevel ?? "BASE";
-          if (layer === "OUTER")      push(r, newTopsOuter, "UpperGarment");
-          else if (layer === "MID")   push(r, newTopsMid,   "UpperGarment");
-          else                        push(r, newTopsBase,  "UpperGarment");
+          if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
+          else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
+          else push(r, newTopsBase, "UpperGarment");
         }
-        if (r.fittingSlot?.includes("LowerGarment")) push(r, newBottoms, "LowerGarment");
-        if (r.fittingSlot?.includes("FootGarment"))  push(r, newShoes,   "FootGarment");
-        if (r.garmentType?.includes("Bag"))          push(r, newBags,    "RightHandAccessory");
+        if (r.fittingSlot?.includes("LowerGarment"))
+          push(r, newBottoms, "LowerGarment");
+        if (r.fittingSlot?.includes("FootGarment"))
+          push(r, newShoes, "FootGarment");
+        if (r.garmentType?.includes("Bag"))
+          push(r, newBags, "RightHandAccessory");
       }
     }
 
-    aiPopulatedRef.current.tops    = true;
+    aiPopulatedRef.current.tops = true;
     aiPopulatedRef.current.bottoms = true;
-    aiPopulatedRef.current.shoes   = true;
-    aiPopulatedRef.current.bags    = true;
+    aiPopulatedRef.current.shoes = true;
+    aiPopulatedRef.current.bags = true;
     aiPopulatedRef.current.outfits = true;
 
-    setTopsBase(newTopsBase);   setTopsBasePage(0);
-    setTopsMid(newTopsMid);     setTopsMidPage(0);
-    setTopsOuter(newTopsOuter); setTopsOuterPage(0);
-    setBottoms(newBottoms); setBottomsPage(0);
-    setShoes(newShoes);     setShoesPage(0);
-    setBags(newBags);       setBagsPage(0);
+    setTopsBase(newTopsBase);
+    setTopsBasePage(0);
+    setTopsMid(newTopsMid);
+    setTopsMidPage(0);
+    setTopsOuter(newTopsOuter);
+    setTopsOuterPage(0);
+    setBottoms(newBottoms);
+    setBottomsPage(0);
+    setShoes(newShoes);
+    setShoesPage(0);
+    setBags(newBags);
+    setBagsPage(0);
 
     const newAiOutfits: RemoteOutfit[] = sets
       .filter((s) => s.outfit_imageUrl)
@@ -519,29 +626,38 @@ export default function VirtualMirrorV2() {
   const accessoryPageSize = 6;
   const topsLayerPageSize = 2;
 
-  const [topsBase,  setTopsBase]  = useState<RemoteGarment[]>([]);
-  const [topsMid,   setTopsMid]   = useState<RemoteGarment[]>([]);
+  const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
+  const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
   const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
 
-  const [topsBasePage,  setTopsBasePage]  = useState(0);
-  const [topsMidPage,   setTopsMidPage]   = useState(0);
+  const [topsBasePage, setTopsBasePage] = useState(0);
+  const [topsMidPage, setTopsMidPage] = useState(0);
   const [topsOuterPage, setTopsOuterPage] = useState(0);
 
-  const totalTopsBasePages  = Math.ceil(topsBase.length  / topsLayerPageSize);
-  const totalTopsMidPages   = Math.ceil(topsMid.length   / topsLayerPageSize);
+  const totalTopsBasePages = Math.ceil(topsBase.length / topsLayerPageSize);
+  const totalTopsMidPages = Math.ceil(topsMid.length / topsLayerPageSize);
   const totalTopsOuterPages = Math.ceil(topsOuter.length / topsLayerPageSize);
 
-  const pagedTopsBase  = topsBase.slice(topsBasePage  * topsLayerPageSize, (topsBasePage  + 1) * topsLayerPageSize);
-  const pagedTopsMid   = topsMid.slice(topsMidPage    * topsLayerPageSize, (topsMidPage   + 1) * topsLayerPageSize);
-  const pagedTopsOuter = topsOuter.slice(topsOuterPage * topsLayerPageSize, (topsOuterPage + 1) * topsLayerPageSize);
-
-  const topsBaseSwipe  = useSwipe(
-    () => setTopsBasePage((p)  => Math.min(p + 1, totalTopsBasePages  - 1)),
-    () => setTopsBasePage((p)  => Math.max(p - 1, 0)),
+  const pagedTopsBase = topsBase.slice(
+    topsBasePage * topsLayerPageSize,
+    (topsBasePage + 1) * topsLayerPageSize,
   );
-  const topsMidSwipe   = useSwipe(
-    () => setTopsMidPage((p)   => Math.min(p + 1, totalTopsMidPages   - 1)),
-    () => setTopsMidPage((p)   => Math.max(p - 1, 0)),
+  const pagedTopsMid = topsMid.slice(
+    topsMidPage * topsLayerPageSize,
+    (topsMidPage + 1) * topsLayerPageSize,
+  );
+  const pagedTopsOuter = topsOuter.slice(
+    topsOuterPage * topsLayerPageSize,
+    (topsOuterPage + 1) * topsLayerPageSize,
+  );
+
+  const topsBaseSwipe = useSwipe(
+    () => setTopsBasePage((p) => Math.min(p + 1, totalTopsBasePages - 1)),
+    () => setTopsBasePage((p) => Math.max(p - 1, 0)),
+  );
+  const topsMidSwipe = useSwipe(
+    () => setTopsMidPage((p) => Math.min(p + 1, totalTopsMidPages - 1)),
+    () => setTopsMidPage((p) => Math.max(p - 1, 0)),
   );
   const topsOuterSwipe = useSwipe(
     () => setTopsOuterPage((p) => Math.min(p + 1, totalTopsOuterPages - 1)),
@@ -599,7 +715,10 @@ export default function VirtualMirrorV2() {
       let weather: Record<string, unknown> | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+          }),
         );
         const { latitude: lat, longitude: lon } = pos.coords;
         const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
@@ -612,7 +731,11 @@ export default function VirtualMirrorV2() {
             estimated: false,
             is_cold: Number(d.temperature) < 20,
             is_hot: Number(d.temperature) >= 30,
-            is_rainy: Number(d.precipitationProb) >= 50 || String(d.condition ?? "").toLowerCase().includes("rain"),
+            is_rainy:
+              Number(d.precipitationProb) >= 50 ||
+              String(d.condition ?? "")
+                .toLowerCase()
+                .includes("rain"),
             lat,
             lon,
             temperature_c: Number(d.temperature),
@@ -626,7 +749,10 @@ export default function VirtualMirrorV2() {
 
       try {
         const response = await chatWonderService.message(
-          { input: "[garment] recommend outfits for today", ...(weather ? { weather } : {}) },
+          {
+            input: "[garment] recommend outfits for today",
+            ...(weather ? { weather } : {}),
+          },
           ctrl.signal,
         );
         if (!cancelled) handleAiComplete(response);
@@ -643,7 +769,7 @@ export default function VirtualMirrorV2() {
       cancelled = true;
       ctrl.abort();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Garment grids resolve independently from the outfit grid
@@ -652,19 +778,25 @@ export default function VirtualMirrorV2() {
         .getBySlot(FittingSlot.UpperGarment)
         .then((data) => {
           if (!aiPopulatedRef.current.tops) {
-            setTopsBase(data.filter(g => (g.layerLevel ?? "BASE") === "BASE"));
-            setTopsMid(data.filter(g => g.layerLevel === "MID"));
-            setTopsOuter(data.filter(g => g.layerLevel === "OUTER"));
+            setTopsBase(
+              data.filter((g) => (g.layerLevel ?? "BASE") === "BASE"),
+            );
+            setTopsMid(data.filter((g) => g.layerLevel === "MID"));
+            setTopsOuter(data.filter((g) => g.layerLevel === "OUTER"));
           }
         })
         .catch((err) => console.error("[Tops] fetch error:", err)),
       garmentService
         .getBySlot(FittingSlot.LowerGarment)
-        .then((data) => { if (!aiPopulatedRef.current.bottoms) setBottoms(data); })
+        .then((data) => {
+          if (!aiPopulatedRef.current.bottoms) setBottoms(data);
+        })
         .catch((err) => console.error("[Bottoms] fetch error:", err)),
       garmentService
         .getBySlot(FittingSlot.FootGarment)
-        .then((data) => { if (!aiPopulatedRef.current.shoes) setShoes(data); })
+        .then((data) => {
+          if (!aiPopulatedRef.current.shoes) setShoes(data);
+        })
         .catch((err) => console.error("[Shoes] fetch error:", err)),
       garmentService
         .getBySlot(FittingSlot.Glasses)
@@ -692,15 +824,18 @@ export default function VirtualMirrorV2() {
         .catch((err) => console.error("[Watch] fetch error:", err)),
       garmentService
         .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag")
-        .then((data) => { if (!aiPopulatedRef.current.bags) setBags(data); })
+        .then((data) => {
+          if (!aiPopulatedRef.current.bags) setBags(data);
+        })
         .catch((err) => console.error("[Bag] fetch error:", err)),
-    ]).finally(() => setLoadingGarments(false));
+    ]);
 
     outfitService
       .getAll()
-      .then((data) => { if (!aiPopulatedRef.current.outfits) setOutfits(data); })
-      .catch((err) => console.error("[Outfits] fetch error:", err))
-      .finally(() => setLoadingOutfits(false));
+      .then((data) => {
+        if (!aiPopulatedRef.current.outfits) setOutfits(data);
+      })
+      .catch((err) => console.error("[Outfits] fetch error:", err));
   }, []);
 
   const time = now.toLocaleTimeString([], {
@@ -743,7 +878,10 @@ export default function VirtualMirrorV2() {
           >
             {time}
           </span>
-          <span suppressHydrationWarning className="text-white/80 text-xl font-light select-none shrink-0">
+          <span
+            suppressHydrationWarning
+            className="text-white/80 text-xl font-light select-none shrink-0"
+          >
             {day}, {date}
           </span>
         </div>
@@ -797,7 +935,10 @@ export default function VirtualMirrorV2() {
               >
                 {aiLoading ? (
                   Array.from({ length: accessoryPageSize }).map((_, i) => (
-                    <SkeletonCell key={i} style={{ marginTop: "5px", marginBottom: "5px" }} />
+                    <SkeletonCell
+                      key={i}
+                      style={{ marginTop: "5px", marginBottom: "5px" }}
+                    />
                   ))
                 ) : bags.length === 0 ? (
                   <div
@@ -819,7 +960,10 @@ export default function VirtualMirrorV2() {
                   pagedBags.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (setSelectedBag(g), setSelectedOutfitIdx(null))}
+                      onClick={() => (
+                        setSelectedBag(g),
+                        setSelectedOutfitIdx(null)
+                      )}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
@@ -827,14 +971,20 @@ export default function VirtualMirrorV2() {
                         marginTop: "5px",
                         marginBottom: "5px",
                         cursor: "pointer",
-                        border: selectedBag?.id === g.id
-                          ? "1.5px solid rgba(255,255,255,0.6)"
-                          : "1.5px solid transparent",
+                        border:
+                          selectedBag?.id === g.id
+                            ? "1.5px solid rgba(255,255,255,0.6)"
+                            : "1.5px solid transparent",
                       }}
                     >
                       {g.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                        <img
+                          src={g.imageUrl}
+                          alt={g.name}
+                          draggable={false}
+                          className="w-full h-full object-contain pointer-events-none"
+                        />
                       )}
                     </div>
                   ))
@@ -862,7 +1012,10 @@ export default function VirtualMirrorV2() {
               </div>
             </div>
           </div>
-          <div className="flex flex-col gap-1" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <div
+            className="flex flex-col gap-1"
+            style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
+          >
             <SectionTitle label="Outfit" />
             <div
               {...outfitSwipe}
@@ -892,7 +1045,11 @@ export default function VirtualMirrorV2() {
                   Array.from({ length: 4 }).map((_, i) => (
                     <SkeletonCell
                       key={i}
-                      style={{ borderRadius: "10px", aspectRatio: "unset", height: "100%" }}
+                      style={{
+                        borderRadius: "10px",
+                        aspectRatio: "unset",
+                        height: "100%",
+                      }}
                     />
                   ))
                 ) : outfits.length === 0 ? (
@@ -1264,23 +1421,86 @@ export default function VirtualMirrorV2() {
                       <div
                         key={g.id}
                         className="flex"
-                        style={{ flexShrink: 0, height: "110px", width: "100%", alignItems: "stretch", overflow: "hidden" }}
+                        style={{
+                          flexShrink: 0,
+                          height: "110px",
+                          width: "100%",
+                          alignItems: "stretch",
+                          overflow: "hidden",
+                        }}
                       >
-                        <div style={{ flex: "0 0 38%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "8px 0 0 8px", overflow: "hidden" }}>
-                          {g.imageUrl
+                        <div
+                          style={{
+                            flex: "0 0 38%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "8px 0 0 8px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {g.imageUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
-                            : <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>No Image</span>
-                          }
+                            <img
+                              src={g.imageUrl}
+                              alt={g.name}
+                              draggable={false}
+                              className="w-full h-full object-contain pointer-events-none"
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                color: "rgba(255,255,255,0.25)",
+                                fontSize: "10px",
+                              }}
+                            >
+                              No Image
+                            </span>
+                          )}
                         </div>
-                        <div style={{ flex: 1, minWidth: 0, padding: "8px 10px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "3px", overflow: "hidden" }}>
-                          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em", overflow: "hidden", whiteSpace: "nowrap" }}>
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            padding: "8px 10px",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            gap: "3px",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.4)",
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {g.layerLevel ?? g.garmentType[0]}
                           </span>
-                          <span style={{ color: "white", fontSize: "12px", fontWeight: 600, lineHeight: 1.3, overflow: "hidden" }}>
+                          <span
+                            style={{
+                              color: "white",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              lineHeight: 1.3,
+                              overflow: "hidden",
+                            }}
+                          >
                             {g.name}
                           </span>
-                          <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "10px", lineHeight: 1.4, overflow: "hidden" }}>
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.45)",
+                              fontSize: "10px",
+                              lineHeight: 1.4,
+                              overflow: "hidden",
+                            }}
+                          >
                             {g.description}
                           </span>
                         </div>
@@ -1301,29 +1521,72 @@ export default function VirtualMirrorV2() {
           {(aiLoading || topsBase.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Base" />
-              <div {...topsBaseSwipe} style={{ touchAction: "pan-y", userSelect: "none", cursor: "grab" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
+              <div
+                {...topsBaseSwipe}
+                style={{
+                  touchAction: "pan-y",
+                  userSelect: "none",
+                  cursor: "grab",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "4px",
+                  }}
+                >
                   {aiLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => <SkeletonCell key={i} />)
+                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
+                        <SkeletonCell key={i} />
+                      ))
                     : pagedTopsBase.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() => g && (setSelectedTopBase(g), setSelectedOutfitIdx(null))}
+                          onClick={() =>
+                            g &&
+                            (setSelectedTopBase(g), setSelectedOutfitIdx(null))
+                          }
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
-                            aspectRatio: "1/1", borderRadius: "4px", cursor: "pointer",
-                            border: selectedTopBase?.id === g.id ? "1.5px solid rgba(255,255,255,0.6)" : "1.5px solid transparent",
+                            aspectRatio: "1/1",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            border:
+                              selectedTopBase?.id === g.id
+                                ? "1.5px solid rgba(255,255,255,0.6)"
+                                : "1.5px solid transparent",
                           }}
                         >
-                          {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                          {g?.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={g.imageUrl}
+                              alt={g.name}
+                              draggable={false}
+                              className="w-full h-full object-contain pointer-events-none"
+                            />
+                          )}
                         </div>
-                      ))
-                  }
+                      ))}
                 </div>
                 <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsBasePages) }).map((_, i) => (
-                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsBasePage ? 12 : 4, height: 4, background: i === topsBasePage ? "white" : "rgba(255,255,255,0.3)" }} />
-                  ))}
+                  {Array.from({ length: Math.max(1, totalTopsBasePages) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full transition-all duration-300"
+                        style={{
+                          width: i === topsBasePage ? 12 : 4,
+                          height: 4,
+                          background:
+                            i === topsBasePage
+                              ? "white"
+                              : "rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -1333,29 +1596,72 @@ export default function VirtualMirrorV2() {
           {(aiLoading || topsMid.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Mid" />
-              <div {...topsMidSwipe} style={{ touchAction: "pan-y", userSelect: "none", cursor: "grab" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
+              <div
+                {...topsMidSwipe}
+                style={{
+                  touchAction: "pan-y",
+                  userSelect: "none",
+                  cursor: "grab",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "4px",
+                  }}
+                >
                   {aiLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => <SkeletonCell key={i} />)
+                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
+                        <SkeletonCell key={i} />
+                      ))
                     : pagedTopsMid.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() => g && (setSelectedTopMid(g), setSelectedOutfitIdx(null))}
+                          onClick={() =>
+                            g &&
+                            (setSelectedTopMid(g), setSelectedOutfitIdx(null))
+                          }
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
-                            aspectRatio: "1/1", borderRadius: "4px", cursor: "pointer",
-                            border: selectedTopMid?.id === g.id ? "1.5px solid rgba(255,255,255,0.6)" : "1.5px solid transparent",
+                            aspectRatio: "1/1",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            border:
+                              selectedTopMid?.id === g.id
+                                ? "1.5px solid rgba(255,255,255,0.6)"
+                                : "1.5px solid transparent",
                           }}
                         >
-                          {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                          {g?.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={g.imageUrl}
+                              alt={g.name}
+                              draggable={false}
+                              className="w-full h-full object-contain pointer-events-none"
+                            />
+                          )}
                         </div>
-                      ))
-                  }
+                      ))}
                 </div>
                 <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsMidPages) }).map((_, i) => (
-                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsMidPage ? 12 : 4, height: 4, background: i === topsMidPage ? "white" : "rgba(255,255,255,0.3)" }} />
-                  ))}
+                  {Array.from({ length: Math.max(1, totalTopsMidPages) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full transition-all duration-300"
+                        style={{
+                          width: i === topsMidPage ? 12 : 4,
+                          height: 4,
+                          background:
+                            i === topsMidPage
+                              ? "white"
+                              : "rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -1365,29 +1671,72 @@ export default function VirtualMirrorV2() {
           {(aiLoading || topsOuter.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Outer" />
-              <div {...topsOuterSwipe} style={{ touchAction: "pan-y", userSelect: "none", cursor: "grab" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
+              <div
+                {...topsOuterSwipe}
+                style={{
+                  touchAction: "pan-y",
+                  userSelect: "none",
+                  cursor: "grab",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "4px",
+                  }}
+                >
                   {aiLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => <SkeletonCell key={i} />)
+                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
+                        <SkeletonCell key={i} />
+                      ))
                     : pagedTopsOuter.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() => g && (setSelectedTopOuter(g), setSelectedOutfitIdx(null))}
+                          onClick={() =>
+                            g &&
+                            (setSelectedTopOuter(g), setSelectedOutfitIdx(null))
+                          }
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
-                            aspectRatio: "1/1", borderRadius: "4px", cursor: "pointer",
-                            border: selectedTopOuter?.id === g.id ? "1.5px solid rgba(255,255,255,0.6)" : "1.5px solid transparent",
+                            aspectRatio: "1/1",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            border:
+                              selectedTopOuter?.id === g.id
+                                ? "1.5px solid rgba(255,255,255,0.6)"
+                                : "1.5px solid transparent",
                           }}
                         >
-                          {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
+                          {g?.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={g.imageUrl}
+                              alt={g.name}
+                              draggable={false}
+                              className="w-full h-full object-contain pointer-events-none"
+                            />
+                          )}
                         </div>
-                      ))
-                  }
+                      ))}
                 </div>
                 <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsOuterPages) }).map((_, i) => (
-                    <div key={i} className="rounded-full transition-all duration-300" style={{ width: i === topsOuterPage ? 12 : 4, height: 4, background: i === topsOuterPage ? "white" : "rgba(255,255,255,0.3)" }} />
-                  ))}
+                  {Array.from({ length: Math.max(1, totalTopsOuterPages) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full transition-all duration-300"
+                        style={{
+                          width: i === topsOuterPage ? 12 : 4,
+                          height: 4,
+                          background:
+                            i === topsOuterPage
+                              ? "white"
+                              : "rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -1411,7 +1760,9 @@ export default function VirtualMirrorV2() {
                 }}
               >
                 {aiLoading ? (
-                  Array.from({ length: pageSize }).map((_, i) => <SkeletonCell key={i} />)
+                  Array.from({ length: pageSize }).map((_, i) => (
+                    <SkeletonCell key={i} />
+                  ))
                 ) : bottoms.length === 0 ? (
                   <div
                     style={{
@@ -1432,20 +1783,29 @@ export default function VirtualMirrorV2() {
                   pagedBottoms.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (setSelectedBottom(g), setSelectedOutfitIdx(null))}
+                      onClick={() => (
+                        setSelectedBottom(g),
+                        setSelectedOutfitIdx(null)
+                      )}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
                         borderRadius: "4px",
                         cursor: "pointer",
-                        border: selectedBottom?.id === g.id
-                          ? "1.5px solid rgba(255,255,255,0.6)"
-                          : "1.5px solid transparent",
+                        border:
+                          selectedBottom?.id === g.id
+                            ? "1.5px solid rgba(255,255,255,0.6)"
+                            : "1.5px solid transparent",
                       }}
                     >
                       {g.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                        <img
+                          src={g.imageUrl}
+                          alt={g.name}
+                          draggable={false}
+                          className="w-full h-full object-contain pointer-events-none"
+                        />
                       )}
                     </div>
                   ))
@@ -1488,7 +1848,9 @@ export default function VirtualMirrorV2() {
                 }}
               >
                 {aiLoading ? (
-                  Array.from({ length: shoesPageSize }).map((_, i) => <SkeletonCell key={i} />)
+                  Array.from({ length: shoesPageSize }).map((_, i) => (
+                    <SkeletonCell key={i} />
+                  ))
                 ) : shoes.length === 0 ? (
                   <div
                     style={{
@@ -1509,20 +1871,29 @@ export default function VirtualMirrorV2() {
                   pagedShoes.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (setSelectedShoe(g), setSelectedOutfitIdx(null))}
+                      onClick={() => (
+                        setSelectedShoe(g),
+                        setSelectedOutfitIdx(null)
+                      )}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
                         borderRadius: "4px",
                         cursor: "pointer",
-                        border: selectedShoe?.id === g.id
-                          ? "1.5px solid rgba(255,255,255,0.6)"
-                          : "1.5px solid transparent",
+                        border:
+                          selectedShoe?.id === g.id
+                            ? "1.5px solid rgba(255,255,255,0.6)"
+                            : "1.5px solid transparent",
                       }}
                     >
                       {g.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />
+                        <img
+                          src={g.imageUrl}
+                          alt={g.name}
+                          draggable={false}
+                          className="w-full h-full object-contain pointer-events-none"
+                        />
                       )}
                     </div>
                   ))
@@ -1612,11 +1983,27 @@ export default function VirtualMirrorV2() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <p style={{ color: "white", fontSize: "20px", fontWeight: "700", textAlign: "center", margin: 0 }}>
+            <p
+              style={{
+                color: "white",
+                fontSize: "20px",
+                fontWeight: "700",
+                textAlign: "center",
+                margin: 0,
+              }}
+            >
               Your Look
             </p>
 
-            <div style={{ width: "100%", aspectRatio: "2/3", borderRadius: "12px", overflow: "hidden", background: "#1a1a1a" }}>
+            <div
+              style={{
+                width: "100%",
+                aspectRatio: "2/3",
+                borderRadius: "12px",
+                overflow: "hidden",
+                background: "#1a1a1a",
+              }}
+            >
               <OutfitPreviewCanvas
                 top={selectedTopOuter ?? selectedTopMid ?? selectedTopBase}
                 bottom={selectedBottom}
@@ -1627,9 +2014,15 @@ export default function VirtualMirrorV2() {
 
             <button
               style={{
-                width: "100%", padding: "12px", background: "#ffffff",
-                border: "none", borderRadius: "12px",
-                color: "#000", fontSize: "15px", fontWeight: "700", cursor: "pointer",
+                width: "100%",
+                padding: "12px",
+                background: "#ffffff",
+                border: "none",
+                borderRadius: "12px",
+                color: "#000",
+                fontSize: "15px",
+                fontWeight: "700",
+                cursor: "pointer",
               }}
               onClick={() => setShowConfirm(false)}
             >

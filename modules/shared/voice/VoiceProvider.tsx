@@ -274,7 +274,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         let weather: Record<string, unknown> | undefined;
         if (loc) {
           try {
-            const res = await fetch(`/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`);
+            const res = await fetch(
+              `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
+            );
             if (res.ok) {
               const json = await res.json();
               const d = json.data ?? json;
@@ -284,23 +286,36 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 estimated: false,
                 is_cold: Number(d.temperature) < 20,
                 is_hot: Number(d.temperature) >= 30,
-                is_rainy: Number(d.precipitationProb) >= 50 || String(d.condition ?? "").toLowerCase().includes("rain"),
+                is_rainy:
+                  Number(d.precipitationProb) >= 50 ||
+                  String(d.condition ?? "")
+                    .toLowerCase()
+                    .includes("rain"),
                 lat: loc.lat,
                 lon: loc.lng,
                 temperature_c: Number(d.temperature),
               };
             }
-          } catch { /* weather is best-effort */ }
+          } catch {
+            /* weather is best-effort */
+          }
         }
-        const garmentResponse = await chatWonderService.message(
-          { input: `[garment] ${t}`, ...(weather ? { weather } : {}) },
-        );
+        const garmentResponse = await chatWonderService.message({
+          input: `[garment] ${t}`,
+          ...(weather ? { weather } : {}),
+        });
         setReply(garmentResponse.message);
-        const newHistory = [...historyRef.current, { user: t, assistant: garmentResponse.message }].slice(-4);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: garmentResponse.message },
+        ].slice(-4);
         historyRef.current = newHistory;
         setChatHistory(newHistory);
         setVoiceState("idle");
-        onActionRef.current?.({ type: "GARMENT_RECOMMENDATION", response: garmentResponse });
+        onActionRef.current?.({
+          type: "GARMENT_RECOMMENDATION",
+          response: garmentResponse,
+        });
         return;
       }
 

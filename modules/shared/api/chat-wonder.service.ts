@@ -129,7 +129,8 @@ export const chatWonderService = {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const json = await res.json();
-    if (json.status !== "success") throw new Error(json.message ?? "Request failed");
+    if (json.status !== "success")
+      throw new Error(json.message ?? "Request failed");
 
     return json.data as ChatWonderMessageResponse;
   },

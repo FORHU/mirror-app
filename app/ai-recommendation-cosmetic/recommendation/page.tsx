@@ -33,17 +33,26 @@ function toSkinPayload(a: SkinAnalysis) {
     { type: "moisture", ui_score: Math.round(100 - a.hydrationPct) },
   ];
   const c = a.concerns ?? [];
-  if (c.some((x) => /acne/i.test(x)))             output.push({ type: "acne",          ui_score: 68 });
-  if (c.some((x) => /wrinkle|fine line/i.test(x))) output.push({ type: "wrinkle",       ui_score: 68 });
-  if (c.some((x) => /dark circle/i.test(x)))      output.push({ type: "dark_circle_v2", ui_score: 68 });
-  if (c.some((x) => /age spot|hyperpig/i.test(x)))output.push({ type: "age_spot",       ui_score: 68 });
-  if (c.some((x) => /pore/i.test(x)))             output.push({ type: "pore",           ui_score: 68 });
-  if (c.some((x) => /redness|sensitiv/i.test(x))) output.push({ type: "redness",        ui_score: 78 });
-  if (c.some((x) => /puffiness|eye bag/i.test(x)))output.push({ type: "eye_bag",        ui_score: 70 });
+  if (c.some((x) => /acne/i.test(x)))
+    output.push({ type: "acne", ui_score: 68 });
+  if (c.some((x) => /wrinkle|fine line/i.test(x)))
+    output.push({ type: "wrinkle", ui_score: 68 });
+  if (c.some((x) => /dark circle/i.test(x)))
+    output.push({ type: "dark_circle_v2", ui_score: 68 });
+  if (c.some((x) => /age spot|hyperpig/i.test(x)))
+    output.push({ type: "age_spot", ui_score: 68 });
+  if (c.some((x) => /pore/i.test(x)))
+    output.push({ type: "pore", ui_score: 68 });
+  if (c.some((x) => /redness|sensitiv/i.test(x)))
+    output.push({ type: "redness", ui_score: 78 });
+  if (c.some((x) => /puffiness|eye bag/i.test(x)))
+    output.push({ type: "eye_bag", ui_score: 70 });
   return { output };
 }
 
-async function fetchCWRecs(analysis: SkinAnalysis): Promise<CWProduct[] | null> {
+async function fetchCWRecs(
+  analysis: SkinAnalysis,
+): Promise<CWProduct[] | null> {
   try {
     let token = await getStorageData<string>(ACCESS_TOKEN);
     if (!token && typeof window !== "undefined") {
@@ -83,10 +92,15 @@ async function fetchCWRecs(analysis: SkinAnalysis): Promise<CWProduct[] | null> 
         if (!line.startsWith("data: ")) continue;
         try {
           const event = JSON.parse(line.slice(6));
-          if (event.type === "complete" && event.sets?.[0]?.recommendations?.length) {
+          if (
+            event.type === "complete" &&
+            event.sets?.[0]?.recommendations?.length
+          ) {
             return event.sets[0].recommendations as CWProduct[];
           }
-        } catch { /* keep reading */ }
+        } catch {
+          /* keep reading */
+        }
       }
     }
     return null;
@@ -122,7 +136,12 @@ const MOCK_ANALYSIS: SkinAnalysis = {
 function SkeletonCard({ delay }: { delay: number }) {
   const shimmer = {
     animate: { opacity: [0.35, 0.7, 0.35] },
-    transition: { duration: 1.4, repeat: Infinity, delay, ease: "easeInOut" as const },
+    transition: {
+      duration: 1.4,
+      repeat: Infinity,
+      delay,
+      ease: "easeInOut" as const,
+    },
   };
   return (
     <div
@@ -136,11 +155,47 @@ function SkeletonCard({ delay }: { delay: number }) {
         border: "1px solid rgba(255,255,255,0.08)",
       }}
     >
-      <motion.div {...shimmer} style={{ flex: "0 0 52%", background: "rgba(255,255,255,0.06)" }} />
-      <div style={{ flex: 1, padding: "10px", display: "flex", flexDirection: "column", gap: "6px", justifyContent: "center" }}>
-        <motion.div {...shimmer} style={{ height: 7, width: "55%", borderRadius: 4, background: "rgba(255,255,255,0.08)" }} />
-        <motion.div {...shimmer} style={{ height: 9, width: "85%", borderRadius: 4, background: "rgba(255,255,255,0.10)" }} />
-        <motion.div {...shimmer} style={{ height: 7, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+      <motion.div
+        {...shimmer}
+        style={{ flex: "0 0 52%", background: "rgba(255,255,255,0.06)" }}
+      />
+      <div
+        style={{
+          flex: 1,
+          padding: "10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          justifyContent: "center",
+        }}
+      >
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 7,
+            width: "55%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.08)",
+          }}
+        />
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 9,
+            width: "85%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+        <motion.div
+          {...shimmer}
+          style={{
+            height: 7,
+            width: "40%",
+            borderRadius: 4,
+            background: "rgba(255,255,255,0.06)",
+          }}
+        />
       </div>
     </div>
   );
@@ -325,12 +380,16 @@ export default function CosmeticRecommendationPage() {
     const fetchRecs = (a: SkinAnalysis) => {
       setCwLoading(true);
       fetchCWRecs(a)
-        .then((recs) => { if (recs?.length) setCwProducts(recs); })
+        .then((recs) => {
+          if (recs?.length) setCwProducts(recs);
+        })
         .finally(() => setCwLoading(false));
     };
 
-    const useAnalysis = (a: SkinAnalysis) => {
-      try { sessionStorage.setItem("skin_analysis", JSON.stringify(a)); } catch {}
+    const applyAnalysis = (a: SkinAnalysis) => {
+      try {
+        sessionStorage.setItem("skin_analysis", JSON.stringify(a));
+      } catch {}
       setSession((prev) => ({ ...prev, analysis: a }));
       fetchRecs(a);
     };
@@ -355,8 +414,8 @@ export default function CosmeticRecommendationPage() {
         setAnalyzing(true);
         cosmeticsService
           .getAnalysis(existingId)
-          .then(useAnalysis)
-          .catch(() => useAnalysis(MOCK_ANALYSIS))
+          .then(applyAnalysis)
+          .catch(() => applyAnalysis(MOCK_ANALYSIS))
           .finally(() => setAnalyzing(false));
       } else if (capturedImage) {
         // Fresh capture — upload, analyze, then recommend
@@ -364,8 +423,8 @@ export default function CosmeticRecommendationPage() {
         cosmeticsService
           .uploadCapture(capturedImage)
           .then(({ id }) => cosmeticsService.analyzeSkin(id))
-          .then(useAnalysis)
-          .catch(() => useAnalysis(MOCK_ANALYSIS))
+          .then(applyAnalysis)
+          .catch(() => applyAnalysis(MOCK_ANALYSIS))
           .finally(() => setAnalyzing(false));
       }
     } catch {}
@@ -603,19 +662,45 @@ export default function CosmeticRecommendationPage() {
               gap: "8px",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
               {skin ? (
                 <>
-                  <span style={{ color: "white", fontSize: "16px", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                  <span
+                    style={{
+                      color: "white",
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
                     {skin.skinType}
                   </span>
-                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px" }}>{skin.skinTone}</span>
+                  <span
+                    style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px" }}
+                  >
+                    {skin.skinTone}
+                  </span>
                 </>
               ) : (
                 <motion.div
                   animate={{ opacity: [0.35, 0.7, 0.35] }}
-                  transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-                  style={{ height: 12, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.1)" }}
+                  transition={{
+                    duration: 1.4,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  style={{
+                    height: 12,
+                    width: "40%",
+                    borderRadius: 4,
+                    background: "rgba(255,255,255,0.1)",
+                  }}
                 />
               )}
             </div>
@@ -626,19 +711,49 @@ export default function CosmeticRecommendationPage() {
                 { label: "Oiliness", value: skin?.oiliness ?? 0 },
               ] as const
             ).map(({ label, value }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "10px", width: "56px", flexShrink: 0 }}>
+              <div
+                key={label}
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.38)",
+                    fontSize: "10px",
+                    width: "56px",
+                    flexShrink: 0,
+                  }}
+                >
                   {label}
                 </span>
-                <div style={{ flex: 1, height: "3px", borderRadius: "9999px", background: "rgba(255,255,255,0.1)" }}>
+                <div
+                  style={{
+                    flex: 1,
+                    height: "3px",
+                    borderRadius: "9999px",
+                    background: "rgba(255,255,255,0.1)",
+                  }}
+                >
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: skin ? `${value}%` : "0%" }}
                     transition={{ duration: 0.7, ease: "easeOut" }}
-                    style={{ height: "100%", borderRadius: "9999px", background: "rgba(255,255,255,0.75)" }}
+                    style={{
+                      height: "100%",
+                      borderRadius: "9999px",
+                      background: "rgba(255,255,255,0.75)",
+                    }}
                   />
                 </div>
-                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "12px", fontWeight: 600, width: "30px", textAlign: "right", flexShrink: 0 }}>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.65)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    width: "30px",
+                    textAlign: "right",
+                    flexShrink: 0,
+                  }}
+                >
                   {skin ? `${value}%` : "—"}
                 </span>
               </div>
@@ -723,175 +838,177 @@ export default function CosmeticRecommendationPage() {
             }}
           >
             {busy
-              ? [0, 1, 2].map((i) => <SkeletonCard key={`sk-${i}`} delay={i * 0.2} />)
+              ? [0, 1, 2].map((i) => (
+                  <SkeletonCard key={`sk-${i}`} delay={i * 0.2} />
+                ))
               : pagedProducts.map((product, i) => (
-              <motion.div
-                key={product.id}
-                style={{
-                  borderRadius: "14px",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  minHeight: 0,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-                initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
-              >
-                {/* Image area */}
-                <div
-                  style={{
-                    flex: "0 0 52%",
-                    position: "relative",
-                    background: "rgba(255,255,255,0.03)",
-                  }}
-                >
-                  {product.imageUrl && !failedImageIds.has(product.id) ? (
-                    <Image
-                      fill
-                      unoptimized
-                      src={product.imageUrl}
-                      alt={product.name}
-                      draggable={false}
-                      onError={() =>
-                        setFailedImageIds((current) => {
-                          const next = new Set(current);
-                          next.add(product.id);
-                          return next;
-                        })
-                      }
-                      style={{ objectFit: "contain" }}
-                      className="pointer-events-none"
-                    />
-                  ) : (
+                  <motion.div
+                    key={product.id}
+                    style={{
+                      borderRadius: "14px",
+                      overflow: "hidden",
+                      display: "flex",
+                      flexDirection: "column",
+                      minHeight: 0,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.05 }}
+                  >
+                    {/* Image area */}
                     <div
                       style={{
-                        width: "100%",
-                        height: "100%",
+                        flex: "0 0 52%",
+                        position: "relative",
+                        background: "rgba(255,255,255,0.03)",
+                      }}
+                    >
+                      {product.imageUrl && !failedImageIds.has(product.id) ? (
+                        <Image
+                          fill
+                          unoptimized
+                          src={product.imageUrl}
+                          alt={product.name}
+                          draggable={false}
+                          onError={() =>
+                            setFailedImageIds((current) => {
+                              const next = new Set(current);
+                              next.add(product.id);
+                              return next;
+                            })
+                          }
+                          style={{ objectFit: "contain" }}
+                          className="pointer-events-none"
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            background:
+                              "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.12)",
+                              fontSize: "22px",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ◯
+                          </span>
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.18)",
+                              fontSize: "8px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
+                            {product.category}
+                          </span>
+                        </div>
+                      )}
+                      {/* Score */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "6px",
+                          right: "6px",
+                          padding: "2px 7px",
+                          borderRadius: "9999px",
+                          background: "rgba(0,0,0,0.55)",
+                          backdropFilter: "blur(4px)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            color: "rgba(255,255,255,0.9)",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {product.score}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Text area */}
+                    <div
+                      style={{
+                        flex: 1,
+                        minHeight: 0,
+                        padding: "8px 10px",
                         display: "flex",
                         flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "5px",
-                        background:
-                          "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
+                        gap: "3px",
+                        overflow: "hidden",
                       }}
                     >
                       <span
                         style={{
-                          color: "rgba(255,255,255,0.12)",
-                          fontSize: "22px",
-                          lineHeight: 1,
-                        }}
-                      >
-                        ◯
-                      </span>
-                      <span
-                        style={{
-                          color: "rgba(255,255,255,0.18)",
+                          color: "rgba(255,255,255,0.3)",
                           fontSize: "8px",
                           textTransform: "uppercase",
-                          letterSpacing: "0.08em",
+                          letterSpacing: "0.09em",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        {product.category}
+                        {product.category} · {product.use}
                       </span>
+                      <span
+                        style={{
+                          color: "white",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          lineHeight: 1.3,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {product.name}
+                      </span>
+                      <span
+                        style={{
+                          color: "rgba(255,255,255,0.38)",
+                          fontSize: "10px",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {product.brand}
+                      </span>
+                      {product.reason && (
+                        <span
+                          style={{
+                            color: "rgba(255,255,255,0.45)",
+                            fontSize: "9px",
+                            lineHeight: 1.35,
+                            overflow: "hidden",
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            marginTop: "1px",
+                          }}
+                        >
+                          {product.reason}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {/* Score */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "6px",
-                      right: "6px",
-                      padding: "2px 7px",
-                      borderRadius: "9999px",
-                      background: "rgba(0,0,0,0.55)",
-                      backdropFilter: "blur(4px)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.9)",
-                        fontSize: "10px",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {product.score}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Text area */}
-                <div
-                  style={{
-                    flex: 1,
-                    minHeight: 0,
-                    padding: "8px 10px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "3px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "8px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.09em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {product.category} · {product.use}
-                  </span>
-                  <span
-                    style={{
-                      color: "white",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      lineHeight: 1.3,
-                      overflow: "hidden",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                    }}
-                  >
-                    {product.name}
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.38)",
-                      fontSize: "10px",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {product.brand}
-                  </span>
-                  {product.reason && (
-                    <span
-                      style={{
-                        color: "rgba(255,255,255,0.45)",
-                        fontSize: "9px",
-                        lineHeight: 1.35,
-                        overflow: "hidden",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        marginTop: "1px",
-                      }}
-                    >
-                      {product.reason}
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            ))}
+                  </motion.div>
+                ))}
           </div>
 
           {/* Pagination dots */}
