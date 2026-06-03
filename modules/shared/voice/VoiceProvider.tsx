@@ -16,7 +16,7 @@ import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { ROUTES } from "@/navigation";
+import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
@@ -301,9 +301,20 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
         const garmentResponse = await chatWonderService.message({
-          input: `[garment] ${t}`,
+          input: `[garments] ${t}`,
+          voice: true,
+          sitemapContext: [...SITEMAP_CONTEXT, "back"],
           ...(weather ? { weather } : {}),
         });
+
+        if (garmentResponse.nav_data?.target_url) {
+          if (garmentResponse.nav_data.target_url === "back") {
+            router.back();
+          } else {
+            router.push(garmentResponse.nav_data.target_url);
+          }
+        }
+
         setReply(garmentResponse.message);
         const newHistory = [
           ...historyRef.current,
@@ -311,11 +322,146 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         ].slice(-4);
         historyRef.current = newHistory;
         setChatHistory(newHistory);
-        setVoiceState("idle");
+
+        if (garmentResponse.audioBase64) {
+          setVoiceState("speaking");
+          const audioBuffer = Buffer.from(
+            garmentResponse.audioBase64,
+            "base64",
+          );
+          const playCtx = new AudioContext();
+          playbackCtxRef.current = playCtx;
+          const decoded = await playCtx.decodeAudioData(
+            audioBuffer.buffer.slice(
+              audioBuffer.byteOffset,
+              audioBuffer.byteOffset + audioBuffer.byteLength,
+            ),
+          );
+          const src = playCtx.createBufferSource();
+          src.buffer = decoded;
+          src.connect(playCtx.destination);
+          playbackRef.current = src;
+          src.onended = () => {
+            stopPlayback();
+            setVoiceState("idle");
+          };
+          src.start(0);
+        } else {
+          setVoiceState("idle");
+        }
+
         onActionRef.current?.({
           type: "GARMENT_RECOMMENDATION",
           response: garmentResponse,
         });
+        return;
+      }
+
+      if (pageCtxRef.current?.mode === "map") {
+        const mapRes = await chatWonderService.message({
+          input: `[map] ${t}`,
+          voice: true,
+          sitemapContext: [...SITEMAP_CONTEXT, "back"],
+          history: historyRef.current
+            .map((h) => [
+              { role: "user" as const, content: h.user },
+              { role: "assistant" as const, content: h.assistant },
+            ])
+            .flat()
+            .slice(-10),
+        });
+
+        if (mapRes.nav_data?.target_url) {
+          if (mapRes.nav_data.target_url === "back") {
+            router.back();
+          } else {
+            router.push(mapRes.nav_data.target_url);
+          }
+        }
+
+        setReply(mapRes.message);
+
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: mapRes.message },
+        ].slice(-4);
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+
+        const {
+          clearPendingEvents,
+          setPendingEvents,
+          setDestination,
+          setItineraryStops,
+        } = useMapStore.getState();
+
+        clearPendingEvents();
+
+        const events = Array.isArray(mapRes.events) ? mapRes.events : [];
+        const resolved = events.filter(
+          (e) =>
+            typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number",
+        );
+        const incomplete = events.filter(
+          (e) =>
+            !(
+              typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number"
+            ),
+        );
+
+        if (incomplete.length > 0) {
+          setPendingEvents(
+            incomplete.map((e) => ({
+              eventName: e.eventName ?? "event",
+              eventType: e.eventType ?? "general",
+              timeLabel: e.timeLabel ?? "",
+              missingFields: [
+                ...(!e.timeLabel ? (["time"] as const) : []),
+                "location" as const,
+              ],
+            })),
+          );
+        }
+
+        if (incomplete.length === 0 && resolved.length > 0) {
+          const stops = resolved.map((e) => ({
+            name: e.map!.destination ?? "Destination",
+            lat: e.map!.lat as number,
+            lng: e.map!.lng as number,
+            address: e.map!.address,
+            placeId: e.map!.placeId,
+          }));
+          if (stops.length === 1) {
+            setDestination(stops[0]);
+          } else {
+            setItineraryStops(stops);
+          }
+        }
+
+        if (mapRes.audioBase64) {
+          setVoiceState("speaking");
+          const audioBuffer = Buffer.from(mapRes.audioBase64, "base64");
+          const playCtxMap = new AudioContext();
+          playbackCtxRef.current = playCtxMap;
+          const decodedMap = await playCtxMap.decodeAudioData(
+            audioBuffer.buffer.slice(
+              audioBuffer.byteOffset,
+              audioBuffer.byteOffset + audioBuffer.byteLength,
+            ),
+          );
+          const srcMap = playCtxMap.createBufferSource();
+          srcMap.buffer = decodedMap;
+          srcMap.connect(playCtxMap.destination);
+          playbackRef.current = srcMap;
+          srcMap.onended = () => {
+            stopPlayback();
+            setVoiceState("idle");
+          };
+          srcMap.start(0);
+        } else {
+          setVoiceState("idle");
+        }
+
         return;
       }
 

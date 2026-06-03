@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 
 interface ItineraryMap {
@@ -23,7 +23,7 @@ export interface UseChatWonderStreamResult {
     text: string,
     options?: {
       conversationId?: string;
-      mode?: "garments" | "cosmetics" | "overview" | "default";
+      mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
       weather?: unknown;
     },
   ) => Promise<void>;
@@ -32,6 +32,12 @@ export interface UseChatWonderStreamResult {
 
 export function useChatWonderStream(): UseChatWonderStreamResult {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +53,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
     text: string,
     options?: {
       conversationId?: string;
-      mode?: "garments" | "cosmetics" | "overview" | "default";
+      mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
       weather?: unknown;
     },
     kioskId?: string,
@@ -84,13 +90,22 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
       const tag =
         options?.mode === "garments"
-          ? " [ garments ]"
+          ? " [garments]"
           : options?.mode === "cosmetics"
-            ? " [ cosmetics ]"
+            ? " [cosmetics]"
             : options?.mode === "overview"
-              ? " [ overview ]"
-              : "";
+              ? " [overview]"
+              : options?.mode === "map"
+                ? " [map]"
+                : "";
       const finalInput = text + tag;
+
+      const history = messagesRef.current.slice(-10).map((m) => ({
+        role: (m.role === "USER" ? "user" : "assistant") as
+          | "user"
+          | "assistant",
+        content: m.content,
+      }));
 
       const response = await fetch("/api/mirror/chat-wonder/stream", {
         method: "POST",
@@ -104,6 +119,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
           conversationId: options?.conversationId,
           weather: options?.weather ?? null,
           kioskId,
+          history,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -149,25 +165,64 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
               } else if (parsed.type === "complete") {
                 console.log("Chat completed with data:", parsed);
 
-                // Maps: draw a route to the first resolved itinerary destination.
-                // events[].map already carries lat/lng resolved server-side by
-                // resolveItineraryLocations — no client-side geocoding needed.
+                const {
+                  clearPendingEvents,
+                  setPendingEvents,
+                  setDestination,
+                  setItineraryStops,
+                } = useMapStore.getState();
+
+                clearPendingEvents();
+
                 const events = Array.isArray(parsed.events)
-                  ? (parsed.events as Array<{ map?: ItineraryMap }>)
+                  ? (parsed.events as Array<{
+                      map?: ItineraryMap;
+                      eventName?: string;
+                      eventType?: string;
+                      timeLabel?: string;
+                    }>)
                   : [];
-                const stop = events.find(
+
+                const resolved = events.filter(
                   (e) =>
                     typeof e?.map?.lat === "number" &&
                     typeof e?.map?.lng === "number",
                 );
-                if (stop?.map) {
-                  useMapStore.getState().setDestination({
-                    name: stop.map.destination ?? "Destination",
-                    lat: stop.map.lat as number,
-                    lng: stop.map.lng as number,
-                    address: stop.map.address,
-                    placeId: stop.map.placeId,
-                  });
+                const incomplete = events.filter(
+                  (e) =>
+                    !(
+                      typeof e?.map?.lat === "number" &&
+                      typeof e?.map?.lng === "number"
+                    ),
+                );
+
+                if (incomplete.length > 0) {
+                  setPendingEvents(
+                    incomplete.map((e) => ({
+                      eventName: e.eventName ?? "event",
+                      eventType: e.eventType ?? "general",
+                      timeLabel: e.timeLabel ?? "",
+                      missingFields: [
+                        ...(!e.timeLabel ? (["time"] as const) : []),
+                        "location" as const,
+                      ],
+                    })),
+                  );
+                }
+
+                if (incomplete.length === 0 && resolved.length > 0) {
+                  const stops = resolved.map((e) => ({
+                    name: e.map!.destination ?? "Destination",
+                    lat: e.map!.lat as number,
+                    lng: e.map!.lng as number,
+                    address: e.map!.address,
+                    placeId: e.map!.placeId,
+                  }));
+                  if (stops.length === 1) {
+                    setDestination(stops[0]);
+                  } else {
+                    setItineraryStops(stops);
+                  }
                 }
 
                 // Trigger AWS Polly TTS to play the final message audio

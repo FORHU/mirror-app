@@ -93,9 +93,19 @@ function pcmFloat32ToInt16(f: Float32Array): Int16Array {
   return out;
 }
 
-type RecordStep = "idle" | "recording" | "transcribing" | "loading" | "done" | "error";
+type RecordStep =
+  | "idle"
+  | "recording"
+  | "transcribing"
+  | "loading"
+  | "done"
+  | "error";
 
-function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: ChatWonderMessageResponse) => void }) {
+function VoiceTranscribeOverlay({
+  onAiComplete,
+}: {
+  onAiComplete?: (response: ChatWonderMessageResponse) => void;
+}) {
   const [step, setStep] = useState<RecordStep>("idle");
   const [transcript, setTranscript] = useState("");
   const [aiReply, setAiReply] = useState("");
@@ -127,7 +137,9 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
             is_hot: Number(d.temperature) >= 30,
             is_rainy:
               Number(d.precipitationProb) >= 50 ||
-              String(d.condition ?? "").toLowerCase().includes("rain"),
+              String(d.condition ?? "")
+                .toLowerCase()
+                .includes("rain"),
             lat,
             lon,
             temperature_c: Number(d.temperature),
@@ -136,7 +148,9 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
           // weather is best-effort
         }
       },
-      () => { /* geolocation denied */ },
+      () => {
+        /* geolocation denied */
+      },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }, []);
@@ -157,13 +171,18 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
     setTranscript("");
     setAiReply("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
       const ctx = new AudioContext({ sampleRate: VOICE_SAMPLE_RATE });
       const processor = ctx.createScriptProcessor(VOICE_BUFFER_SIZE, 1, 1);
       const source = ctx.createMediaStreamSource(stream);
       chunksRef.current = [];
       processor.onaudioprocess = (e) => {
-        chunksRef.current.push(pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)));
+        chunksRef.current.push(
+          pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)),
+        );
       };
       source.connect(processor);
       processor.connect(ctx.destination);
@@ -186,7 +205,10 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
     const total = chunks.reduce((n, c) => n + c.length, 0);
     const combined = new Int16Array(total);
     let offset = 0;
-    for (const c of chunks) { combined.set(c, offset); offset += c.length; }
+    for (const c of chunks) {
+      combined.set(c, offset);
+      offset += c.length;
+    }
 
     let rawText = "";
     try {
@@ -267,19 +289,66 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
           }}
         >
           {errorMsg ? (
-            <p style={{ color: "rgba(239,68,68,0.9)", fontSize: "13px", margin: 0 }}>{errorMsg}</p>
+            <p
+              style={{
+                color: "rgba(239,68,68,0.9)",
+                fontSize: "13px",
+                margin: 0,
+              }}
+            >
+              {errorMsg}
+            </p>
           ) : (
             <>
               {transcript && (
                 <div>
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>You</p>
-                  <p style={{ color: "rgba(255,255,255,0.75)", fontSize: "12px", margin: 0, lineHeight: 1.5 }}>{transcript}</p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      margin: "0 0 3px 0",
+                    }}
+                  >
+                    You
+                  </p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.75)",
+                      fontSize: "12px",
+                      margin: 0,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {transcript}
+                  </p>
                 </div>
               )}
               {(aiReply || step === "loading") && (
                 <div>
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px 0" }}>AI</p>
-                  <p style={{ color: "white", fontSize: "13px", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{aiReply || "…"}</p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: "10px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      margin: "0 0 3px 0",
+                    }}
+                  >
+                    AI
+                  </p>
+                  <p
+                    style={{
+                      color: "white",
+                      fontSize: "13px",
+                      margin: 0,
+                      lineHeight: 1.6,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {aiReply || "…"}
+                  </p>
                 </div>
               )}
             </>
@@ -299,10 +368,16 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
           width: 60,
           height: 60,
           borderRadius: "50%",
-          border: isRecording ? "2px solid rgba(239,68,68,0.7)" : "2px solid rgba(255,255,255,0.15)",
-          background: isRecording ? "rgba(239,68,68,0.2)" : "rgba(20,20,30,0.85)",
+          border: isRecording
+            ? "2px solid rgba(239,68,68,0.7)"
+            : "2px solid rgba(255,255,255,0.15)",
+          background: isRecording
+            ? "rgba(239,68,68,0.2)"
+            : "rgba(20,20,30,0.85)",
           backdropFilter: "blur(12px)",
-          boxShadow: isRecording ? "0 0 24px rgba(239,68,68,0.35)" : "0 4px 24px rgba(0,0,0,0.5)",
+          boxShadow: isRecording
+            ? "0 0 24px rgba(239,68,68,0.35)"
+            : "0 4px 24px rgba(0,0,0,0.5)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -311,11 +386,36 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
         }}
       >
         {isBusy ? (
-          <div style={{ width: 24, height: 24, border: "2.5px solid rgba(255,255,255,0.15)", borderTop: "2.5px solid white", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              border: "2.5px solid rgba(255,255,255,0.15)",
+              borderTop: "2.5px solid white",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
         ) : isRecording ? (
-          <div style={{ width: 18, height: 18, background: "rgba(239,68,68,0.9)", borderRadius: "3px" }} />
+          <div
+            style={{
+              width: 18,
+              height: 18,
+              background: "rgba(239,68,68,0.9)",
+              borderRadius: "3px",
+            }}
+          />
         ) : (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
             <line x1="12" y1="19" x2="12" y2="23" />

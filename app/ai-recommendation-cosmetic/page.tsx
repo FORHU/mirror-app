@@ -23,7 +23,13 @@ type Phase = "starting" | "countdown" | "captured";
 // e.g. FaceDetector unavailable, so we shouldn't block the capture).
 async function detectFace(dataUrl: string): Promise<boolean | null> {
   try {
-    const FD = (window as unknown as { FaceDetector?: new (opts?: unknown) => { detect: (i: CanvasImageSource) => Promise<unknown[]> } }).FaceDetector;
+    const FD = (
+      window as unknown as {
+        FaceDetector?: new (opts?: unknown) => {
+          detect: (i: CanvasImageSource) => Promise<unknown[]>;
+        };
+      }
+    ).FaceDetector;
     if (!FD) return null;
     const detector = new FD({ fastMode: true, maxDetectedFaces: 1 });
     const img = document.createElement("img");

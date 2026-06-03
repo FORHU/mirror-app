@@ -41,8 +41,8 @@ function SelectGenderContent() {
         sessionStorage.setItem("mirror_gender", gender);
 
         const next = searchParams.get("next");
-        if (next === "cosmetic") {
-          router.push(ROUTES.LOGGED_IN);
+        if (next && next.startsWith("/")) {
+          router.push(next);
         } else {
           router.push(ROUTES.LOGGED_IN);
         }

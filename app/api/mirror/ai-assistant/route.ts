@@ -39,14 +39,17 @@ export async function POST(req: NextRequest) {
     const token = resolveAccessToken(req);
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const response = await fetch(`${API_BASE_URL}/api/mirror/chat-wonder/message`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        input: message.trim(),
-        sitemap_context: SITEMAP_CONTEXT,
-      }),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/api/mirror/chat-wonder/message`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          input: message.trim(),
+          sitemap_context: SITEMAP_CONTEXT,
+        }),
+      },
+    );
 
     const json = await response.json().catch(() => null);
     if (!response.ok || json?.status !== "success") {
