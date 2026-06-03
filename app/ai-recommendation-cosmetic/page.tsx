@@ -18,6 +18,24 @@ const COUNTDOWN_FROM = 3;
 // captured  → frame grabbed, white flash, navigating to results
 type Phase = "starting" | "countdown" | "captured";
 
+// Best-effort face check using the browser's native Shape Detection API.
+// Returns true (face found) / false (no face) / null (couldn't determine —
+// e.g. FaceDetector unavailable, so we shouldn't block the capture).
+async function detectFace(dataUrl: string): Promise<boolean | null> {
+  try {
+    const FD = (window as unknown as { FaceDetector?: new (opts?: unknown) => { detect: (i: CanvasImageSource) => Promise<unknown[]> } }).FaceDetector;
+    if (!FD) return null;
+    const detector = new FD({ fastMode: true, maxDetectedFaces: 1 });
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    await img.decode();
+    const faces = await detector.detect(img);
+    return faces.length > 0;
+  } catch {
+    return null;
+  }
+}
+
 // ── Skeleton product card — placeholder mirroring the recommendation grid ─────
 function SkeletonCard({ delay }: { delay: number }) {
   const shimmer = {
@@ -97,9 +115,13 @@ export default function CosmeticPage() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseRef = useRef<Phase>("starting");
 
+  const startCountdownRef = useRef<() => void>(() => {});
+
   const [phase, setPhase] = useState<Phase>("starting");
   const [count, setCount] = useState(COUNTDOWN_FROM);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Transient "no face" notice — shown in the caption while we auto-retry.
+  const [faceWarning, setFaceWarning] = useState<string | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
   const { weather } = useWeather();
@@ -149,6 +171,18 @@ export default function CosmeticPage() {
     canvas.getContext("2d")?.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
+    // Face gate — reject a frame with no face before committing the capture,
+    // then auto-restart the countdown so the user can try again.
+    const hasFace = await detectFace(dataUrl);
+    // Re-check: the phase can change while the async face check is in flight.
+    if ((phaseRef.current as Phase) === "captured") return;
+    if (hasFace === false) {
+      setFaceWarning("No face detected — center your face and hold still.");
+      startCountdownRef.current();
+      return;
+    }
+    setFaceWarning(null);
+
     try {
       sessionStorage.setItem("skin_capture", dataUrl);
       sessionStorage.removeItem("skin_analysis");
@@ -183,6 +217,12 @@ export default function CosmeticPage() {
       }
     }, 1000);
   }, [captureFrame, setPhaseState]);
+
+  // Keep a stable handle to the latest startCountdown so captureFrame can
+  // re-trigger it (on a no-face retry) without a useCallback dependency cycle.
+  useEffect(() => {
+    startCountdownRef.current = startCountdown;
+  }, [startCountdown]);
 
   // ── Camera setup (plain getUserMedia — no MediaPipe) ─────────────────────────
   useEffect(() => {
@@ -229,11 +269,13 @@ export default function CosmeticPage() {
 
   const caption = errorMsg
     ? errorMsg
-    : phase === "starting"
-      ? "Starting camera…"
-      : phase === "captured"
-        ? "Processing…"
-        : "Get ready — look at the camera";
+    : faceWarning
+      ? faceWarning
+      : phase === "starting"
+        ? "Starting camera…"
+        : phase === "captured"
+          ? "Processing…"
+          : "Get ready — look at the camera";
 
   // ── Render — mirrors the recommendation screen layout ────────────────────────
   return (
@@ -371,7 +413,9 @@ export default function CosmeticPage() {
                   fontSize: "12px",
                   color: errorMsg
                     ? "rgba(248,113,113,0.95)"
-                    : "rgba(255,255,255,0.8)",
+                    : faceWarning
+                      ? "rgba(251,191,36,0.95)"
+                      : "rgba(255,255,255,0.8)",
                 }}
               >
                 {caption}

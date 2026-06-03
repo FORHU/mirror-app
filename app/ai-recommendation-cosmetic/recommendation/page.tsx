@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import "../../../styles/glow.css";
-import WeatherWidget from "@/components/WeatherWidget";
+import MirrorHeader from "@/components/MirrorHeader";
 import {
   cosmeticsService,
   type SkinAnalysis,
@@ -25,6 +25,24 @@ type CWProduct = {
   imageUrl?: string;
   score?: number;
 };
+
+// Best-effort face check using the browser's native Shape Detection API.
+// Returns true (face found) / false (no face) / null (couldn't determine —
+// e.g. FaceDetector unavailable, so we shouldn't block the user).
+async function detectFace(dataUrl: string): Promise<boolean | null> {
+  try {
+    const FD = (window as unknown as { FaceDetector?: new (opts?: unknown) => { detect: (i: CanvasImageSource) => Promise<unknown[]> } }).FaceDetector;
+    if (!FD) return null;
+    const detector = new FD({ fastMode: true, maxDetectedFaces: 1 });
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    await img.decode();
+    const faces = await detector.detect(img);
+    return faces.length > 0;
+  } catch {
+    return null;
+  }
+}
 
 // Build the skin_analysis payload ChatWonder expects from a SkinAnalysis object
 function toSkinPayload(a: SkinAnalysis) {
@@ -314,16 +332,6 @@ const MOCK_PRODUCTS: Product[] = [
 
 const PAGE_SIZE = 3;
 
-// ── Clock ─────────────────────────────────────────────────────────────────────
-function useClock() {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
-
 function useSwipe(onLeft: () => void, onRight: () => void) {
   const startX = useRef<number | null>(null);
   return {
@@ -356,7 +364,6 @@ function useSwipe(onLeft: () => void, onRight: () => void) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
-  const now = useClock();
 
   type SessionData = {
     capturedImage: string | null;
@@ -372,11 +379,17 @@ export default function CosmeticRecommendationPage() {
   const [cwProducts, setCwProducts] = useState<CWProduct[] | null>(null);
   const [cwLoading, setCwLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  // "checking" → running face detection on the capture
+  // "ok"       → face found (or detector unavailable) → results proceed
+  // "none"     → no face in the photo → show the retake screen
+  const [faceState, setFaceState] = useState<"checking" | "ok" | "none">("checking");
 
   // Runs the whole pipeline that used to live on the (now-removed) result page:
   // upload the capture → analyze the skin → then fetch product recommendations.
   // The skeleton grid shows for the entire wait.
   useEffect(() => {
+    let cancelled = false;
+
     const fetchRecs = (a: SkinAnalysis) => {
       setCwLoading(true);
       fetchCWRecs(a)
@@ -387,47 +400,65 @@ export default function CosmeticRecommendationPage() {
     };
 
     const applyAnalysis = (a: SkinAnalysis) => {
-      try {
-        sessionStorage.setItem("skin_analysis", JSON.stringify(a));
-      } catch {}
+      try { sessionStorage.setItem("skin_analysis", JSON.stringify(a)); } catch {}
       setSession((prev) => ({ ...prev, analysis: a }));
       fetchRecs(a);
     };
 
-    try {
-      const capturedImage = sessionStorage.getItem("skin_capture");
-      const rawAnalysis = sessionStorage.getItem("skin_analysis");
-      const existing = rawAnalysis
-        ? (JSON.parse(rawAnalysis) as SkinAnalysis)
-        : null;
-      const existingId = !existing
-        ? sessionStorage.getItem("skin_analysis_id")
-        : null;
+    const run = async () => {
+      try {
+        const capturedImage = sessionStorage.getItem("skin_capture");
+        const rawAnalysis = sessionStorage.getItem("skin_analysis");
+        const existing = rawAnalysis
+          ? (JSON.parse(rawAnalysis) as SkinAnalysis)
+          : null;
+        const existingId = !existing
+          ? sessionStorage.getItem("skin_analysis_id")
+          : null;
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
-      setSession({ capturedImage, analysis: existing });
+        setSession({ capturedImage, analysis: existing });
 
-      if (existing) {
-        fetchRecs(existing);
-      } else if (existingId) {
-        // Resume a previously-started analysis by ID
-        setAnalyzing(true);
-        cosmeticsService
-          .getAnalysis(existingId)
-          .then(applyAnalysis)
-          .catch(() => applyAnalysis(MOCK_ANALYSIS))
-          .finally(() => setAnalyzing(false));
-      } else if (capturedImage) {
-        // Fresh capture — upload, analyze, then recommend
-        setAnalyzing(true);
-        cosmeticsService
-          .uploadCapture(capturedImage)
-          .then(({ id }) => cosmeticsService.analyzeSkin(id))
-          .then(applyAnalysis)
-          .catch(() => applyAnalysis(MOCK_ANALYSIS))
-          .finally(() => setAnalyzing(false));
+        // Face gate — only for a brand-new capture (no prior analysis to resume).
+        // If the photo clearly has no face, stop here and show the retake screen
+        // instead of inventing a bogus "Normal" result.
+        if (capturedImage && !existing && !existingId) {
+          const hasFace = await detectFace(capturedImage);
+          if (cancelled) return;
+          if (hasFace === false) {
+            setFaceState("none");
+            return;
+          }
+        }
+        if (cancelled) return;
+        setFaceState("ok");
+
+        if (existing) {
+          fetchRecs(existing);
+        } else if (existingId) {
+          // Resume a previously-started analysis by ID
+          setAnalyzing(true);
+          cosmeticsService
+            .getAnalysis(existingId)
+            .then(applyAnalysis)
+            .catch(() => applyAnalysis(MOCK_ANALYSIS))
+            .finally(() => setAnalyzing(false));
+        } else if (capturedImage) {
+          // Fresh capture — upload, analyze, then recommend
+          setAnalyzing(true);
+          cosmeticsService
+            .uploadCapture(capturedImage)
+            .then(({ id }) => cosmeticsService.analyzeSkin(id))
+            .then(applyAnalysis)
+            .catch(() => applyAnalysis(MOCK_ANALYSIS))
+            .finally(() => setAnalyzing(false));
+        }
+      } catch {
+        if (!cancelled) setFaceState("ok");
       }
-    } catch {}
+    };
+
+    run();
+    return () => { cancelled = true; };
   }, []);
 
   const concerns = useMemo(
@@ -453,8 +484,8 @@ export default function CosmeticRecommendationPage() {
     [analysis],
   );
 
-  // ── Products — prefer ChatWonder results, fall back to rule engine, then mock
-  const allProducts: Product[] = cwProducts?.length
+  // ── Products — prefer ChatWonder results, then the rule engine.
+  const sourced: Product[] = cwProducts?.length
     ? cwProducts.map((cw, i) => ({
         id: cw.id,
         name: cw.name,
@@ -482,14 +513,28 @@ export default function CosmeticRecommendationPage() {
           reason: r.reason?.split(",")[0]?.trim() ?? "",
           imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
         }))
-      : MOCK_PRODUCTS;
-  const products = allProducts.filter(
-    (product) =>
-      product.imageUrl &&
-      !failedImageIds.has(product.id) &&
-      product.name.toLowerCase() !== "example product" &&
-      product.brand.toLowerCase() !== "example brand",
+      : [];
+
+  const isExample = (p: Product) =>
+    p.name.toLowerCase() === "example product" ||
+    p.brand.toLowerCase() === "example brand";
+
+  // Real / AI picks must have a usable image so the card doesn't look broken.
+  const withImages = sourced.filter(
+    (p) => p.imageUrl && !failedImageIds.has(p.id) && !isExample(p),
   );
+
+  const stillWorking = analyzing || cwLoading;
+  // Once analysis is done, always recommend something. If no image-backed picks
+  // survived (e.g. a clean "Normal" result, or the analyze call fell back to
+  // mock data), show a general skincare set — these render fine with the
+  // built-in placeholder even without product images.
+  const products =
+    withImages.length > 0
+      ? withImages
+      : stillWorking
+        ? []
+        : MOCK_PRODUCTS.filter((p) => !failedImageIds.has(p.id) && !isExample(p));
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE);
   const pagedProducts = products.slice(
@@ -497,8 +542,11 @@ export default function CosmeticRecommendationPage() {
     (page + 1) * PAGE_SIZE,
   );
 
-  // Still working (analyzing skin or fetching recs) and nothing to show yet.
-  const busy = (analyzing || cwLoading) && products.length === 0;
+  // Still working (checking for a face, analyzing skin, or fetching recs) and
+  // nothing to show yet.
+  const busy =
+    (faceState === "checking" || analyzing || cwLoading) &&
+    products.length === 0;
   const swipe = useSwipe(
     () => setPage((p) => Math.min(p + 1, totalPages - 1)),
     () => setPage((p) => Math.max(p - 1, 0)),
@@ -510,56 +558,83 @@ export default function CosmeticRecommendationPage() {
     setPage(0);
   }
 
-  const time = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const day = now.toLocaleDateString([], { weekday: "long" });
-  const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
+  // ── No face detected — show a clear retake prompt instead of a fake result ──
+  if (faceState === "none") {
+    return (
+      <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
+        <header
+          className="flex items-center shrink-0 py-4 px-4"
+          style={{ background: "rgba(0,0,0,0.85)" }}
+        >
+          <button
+            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+            className="p-2 -ml-2 text-white/80 active:text-white transition-colors"
+          >
+            <ArrowLeft className="w-7 h-7" />
+          </button>
+          <h1 className="flex-1 text-center text-white font-bold text-2xl pr-9">
+            Skin Analysis
+          </h1>
+        </header>
+
+        <motion.div
+          className="flex-1 flex flex-col items-center justify-center px-8 text-center"
+          style={{ gap: "18px" }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: "9999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "44px",
+              background: "rgba(248,113,113,0.10)",
+              border: "1px solid rgba(248,113,113,0.35)",
+            }}
+          >
+            🙈
+          </div>
+          <h2 style={{ color: "white", fontSize: "22px", fontWeight: 700 }}>
+            No face detected
+          </h2>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.55)",
+              fontSize: "14px",
+              lineHeight: 1.5,
+              maxWidth: "320px",
+            }}
+          >
+            We couldn&apos;t find a face in your photo. Move a little closer and
+            look directly at the camera, then try again.
+          </p>
+          <button
+            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+            className="px-9 py-3 rounded-full font-semibold text-sm tracking-wide"
+            style={{
+              marginTop: "6px",
+              background: "rgba(72,199,142,0.18)",
+              border: "1px solid rgba(72,199,142,0.55)",
+              color: "rgba(72,199,142,0.95)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            📸 Retake photo
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       {/* Header */}
-      <header
-        className="flex items-center shrink-0 py-4 px-4"
-        style={{ background: "rgba(0,0,0,0.85)" }}
-      >
-        <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
-          <WeatherWidget iconSize={32} />
-        </div>
-        <div
-          style={{
-            flex: "0 0 50%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
-        >
-          <span
-            className="text-white font-thin select-none"
-            style={{ fontSize: "2rem", lineHeight: 1 }}
-          >
-            {time}
-          </span>
-          <span className="text-white/60 text-sm font-light select-none">
-            {day}, {date}
-          </span>
-        </div>
-        <div
-          style={{
-            flex: "0 0 25%",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
-            className="p-4 transition-all hover:scale-105 active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-        </div>
-      </header>
+      <MirrorHeader onBack={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)} />
 
       {/* Body */}
       <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
