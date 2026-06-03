@@ -1,8 +1,9 @@
 "use client";
 
-import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
+import { Mic, MicOff, Loader2, Volume2, MessageSquare, Navigation, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useMapStore } from "../store/useMapStore";
 
 const PANEL = {
   background: "rgba(0,0,0,0.85)",
@@ -22,6 +23,11 @@ export default function MapMicPill() {
   } = useVoiceContext();
   const showTranscript = transcriptOpen;
   const setShowTranscript = setTranscriptOpen;
+
+  const selectedDestination = useMapStore((s) => s.selectedDestination);
+  const suggestedPOIs = useMapStore((s) => s.suggestedPOIs);
+  const isNavigating = !!selectedDestination;
+  const isRecommending = !isNavigating && suggestedPOIs.length > 0;
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -54,38 +60,85 @@ export default function MapMicPill() {
       ? "1px solid rgba(255,255,255,0.3)"
       : "1px solid rgba(255,255,255,0.12)";
 
+  // Lift pill above the nav bar (≈96px tall) when routing
+  const bottomOffset = isNavigating ? "bottom-28" : "bottom-8";
+
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-none">
-      {/* Transcript bubble — shown only when toggled on */}
+    <div className={`fixed ${bottomOffset} left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-none transition-all duration-300`}>
+      {/* Transcript bubble — wide, fixed height, shown only when toggled on */}
       <AnimatePresence>
         {showTranscript && hasContent && (
           <motion.div
             key="bubble"
-            initial={{ opacity: 0, y: 10, scale: 0.97 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.97 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-none w-80 rounded-2xl px-4 py-3"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-none w-[88vw] rounded-2xl px-4 py-2.5"
             style={PANEL}
           >
             {error ? (
-              <p className="text-xs text-red-400">{error}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-red-400 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0">
+                  Error
+                </span>
+                <p className="text-red-400 text-xs truncate">{error}</p>
+              </div>
             ) : (
-              <>
+              <div className="flex flex-col gap-1">
                 {transcript && (
-                  <p className="text-xs text-white/50 leading-tight mb-1">
-                    <span className="font-semibold text-white/70">You:</span>{" "}
-                    {transcript}
-                  </p>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
+                      You
+                    </span>
+                    <p className="text-white/65 text-xs leading-relaxed line-clamp-1">{transcript}</p>
+                  </div>
                 )}
                 {reply && (
-                  <p className="text-sm text-white/90 leading-snug">
-                    <span className="font-semibold text-white/60">AI:</span>{" "}
-                    {reply}
-                  </p>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
+                      AI
+                    </span>
+                    <p className="text-white/90 text-xs leading-relaxed line-clamp-3">{reply}</p>
+                  </div>
                 )}
-              </>
+              </div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mode context indicator */}
+      <AnimatePresence>
+        {(isNavigating || isRecommending) && (
+          <motion.div
+            key="mode-badge"
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.85 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full"
+            style={{
+              background: isNavigating
+                ? "rgba(33,68,192,0.25)"
+                : "rgba(139,92,246,0.25)",
+              border: isNavigating
+                ? "1px solid rgba(96,165,250,0.4)"
+                : "1px solid rgba(167,139,250,0.4)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            {isNavigating ? (
+              <Navigation className="w-3 h-3 text-blue-400" />
+            ) : (
+              <Sparkles className="w-3 h-3 text-violet-400" />
+            )}
+            <span
+              className="text-[10px] font-semibold uppercase tracking-widest"
+              style={{ color: isNavigating ? "rgb(96,165,250)" : "rgb(167,139,250)" }}
+            >
+              {isNavigating ? "Navigating" : "Exploring"}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>

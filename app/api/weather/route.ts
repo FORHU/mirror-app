@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
   ]);
 
   const cityName = city.status === "fulfilled" ? city.value : "Unknown";
-  if (meteo.status === "rejected") {
+  if (meteo.status === "rejected" || !meteo.value?.current) {
     return NextResponse.json({ temp: null, code: 0, city: cityName });
   }
 

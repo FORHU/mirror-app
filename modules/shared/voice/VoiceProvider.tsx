@@ -26,6 +26,14 @@ import { executeAction } from "./orchestration/actionExecutor";
 import { guardAction } from "./orchestration/actionGuard";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import {
+  buildMapInput,
+  mapPlaceToNearbyPOI,
+  curatePOIs,
+  buildPOITTS,
+  matchPOIFromTranscript,
+} from "@/modules/map/utils/chatWonderMapUtils";
+import type { NearbyPOI } from "@/modules/map/services/map.service";
+import {
   ConfirmationState,
   createIdleConfirmation,
   createPendingConfirmation,
@@ -100,9 +108,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
+  const curatedPOIsRef = useRef<NearbyPOI[]>([]);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
+  const mapSessionInitRef = useRef(false);
 
   // Auto-clear voice error after 5 seconds
   useEffect(() => {
@@ -123,6 +133,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // Reset pending state on route change
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
+    curatedPOIsRef.current = [];
+    if (!pathname.startsWith("/map")) mapSessionInitRef.current = false;
 
     // Begin a fresh chat-wonder Voice session on arrival at the Attract screen.
     // Auth, kiosk pairing, and gender are cleared by their own owners (see ADR 0001).
@@ -255,8 +267,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         sessionId: sessionIdRef.current,
         language: useMirrorStore.getState().voiceLanguage,
         gender:
-          useAuthStore.getState().user?.gender ??
-          sessionStorage.getItem("mirror_gender") ??
+          useAuthStore.getState().user?.gender ||
+          sessionStorage.getItem("mirror_gender") ||
           undefined,
       };
 
@@ -357,56 +369,116 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (pageCtxRef.current?.mode === "map") {
-        const mapRes = await chatWonderService.message({
-          input: `[map] ${t}`,
-          voice: true,
-          sitemapContext: [...SITEMAP_CONTEXT, "back"],
-          history: historyRef.current
-            .map((h) => [
-              { role: "user" as const, content: h.user },
-              { role: "assistant" as const, content: h.assistant },
-            ])
-            .flat()
-            .slice(-10),
-        });
-
-        if (mapRes.nav_data?.target_url) {
-          if (mapRes.nav_data.target_url === "back") {
-            router.back();
-          } else {
-            router.push(mapRes.nav_data.target_url);
+      // Maps mode: use chat-wonder/message for both directions and recommendations
+      if (pathname.startsWith("/map")) {
+        // Client-side voice matcher — intercept if curated POIs are pending
+        if (curatedPOIsRef.current.length > 0) {
+          const matched = matchPOIFromTranscript(t, curatedPOIsRef.current);
+          if (matched) {
+            curatedPOIsRef.current = [];
+            useMapStore.getState().setDestination({
+              name: matched.name,
+              lat: matched.lat,
+              lng: matched.lng,
+              address: matched.address,
+              placeId: matched.placeId,
+            });
+            useMapStore.getState().clearSuggestions();
+            const confirmReply = `Taking you to ${matched.name}.`;
+            const confirmAudio = await mapService.tts(confirmReply);
+            setReply(confirmReply);
+            const confirmHistory = [
+              ...historyRef.current,
+              { user: t, assistant: confirmReply },
+            ].slice(-4);
+            historyRef.current = confirmHistory;
+            setChatHistory(confirmHistory);
+            setVoiceState("speaking");
+            if (confirmAudio) {
+              const playCtx = new AudioContext();
+              playbackCtxRef.current = playCtx;
+              const decoded = await playCtx.decodeAudioData(confirmAudio.slice(0));
+              const src = playCtx.createBufferSource();
+              src.buffer = decoded;
+              src.connect(playCtx.destination);
+              playbackRef.current = src;
+              src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+              src.start(0);
+            } else {
+              setVoiceState("idle");
+            }
+            return;
           }
+          // No match — abandon the POI selection, fall through to server
+          curatedPOIsRef.current = [];
+          useMapStore.getState().clearSuggestions();
         }
 
-        setReply(mapRes.message);
+        if (!mapSessionInitRef.current) {
+          await chatWonderService.getSessionId();
+          mapSessionInitRef.current = true;
+        }
 
-        const newHistory = [
-          ...historyRef.current,
-          { user: t, assistant: mapRes.message },
-        ].slice(-4);
-        historyRef.current = newHistory;
-        setChatHistory(newHistory);
+        const mapState = useMapStore.getState();
+        const mapLoc = mapState.userLocation ?? mapState.homeLocation;
+        const mapDest = mapState.selectedDestination;
+        const pending = mapState.pendingEvents;
 
-        const {
-          clearPendingEvents,
-          setPendingEvents,
-          setDestination,
-          setItineraryStops,
-        } = useMapStore.getState();
+        const history = historyRef.current
+          .flatMap((h) => [
+            { role: "user" as const, content: h.user },
+            { role: "assistant" as const, content: h.assistant },
+          ])
+          .slice(-10);
+
+        const enrichedInput = buildMapInput(
+          t,
+          mapLoc,
+          mapDest,
+          !!mapState.activeRoute,
+          pending.length > 0 ? pending : undefined,
+        );
+
+        const res = await chatWonderService.message({
+          input: enrichedInput,
+          history,
+        });
+
+        const originLat = mapLoc?.lat ?? 0;
+        const originLng = mapLoc?.lng ?? 0;
+
+        // places_data: single place → navigate, multiple → curate and suggest
+        const places = res.maps_data?.[0]?.places ?? [];
+        if (places.length === 1) {
+          useMapStore.getState().setDestination({
+            name: places[0].name,
+            lat: places[0].lat,
+            lng: places[0].lng,
+            address: places[0].address,
+            placeId: places[0].place_id,
+          });
+        } else if (places.length > 1) {
+          const allPOIs: NearbyPOI[] = places.map((p) =>
+            mapPlaceToNearbyPOI(p, originLat, originLng),
+          );
+          const curated = curatePOIs(allPOIs);
+          curatedPOIsRef.current = curated;
+          const label = res.maps_data![0].query ?? t;
+          useMapStore.getState().setSuggestedPOIs(curated, label);
+        }
+
+        // Multi-event itinerary: classify events from the response
+        const { clearPendingEvents, setPendingEvents, setDestination, setItineraryStops } =
+          useMapStore.getState();
 
         clearPendingEvents();
 
-        const events = Array.isArray(mapRes.events) ? mapRes.events : [];
-        const resolved = events.filter(
-          (e) =>
-            typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number",
+        const responseEvents = Array.isArray(res.events) ? res.events : [];
+        const resolved = responseEvents.filter(
+          (e) => typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number",
         );
-        const incomplete = events.filter(
-          (e) =>
-            !(
-              typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number"
-            ),
+        const incomplete = responseEvents.filter(
+          (e) => !(typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number"),
         );
 
         if (incomplete.length > 0) {
@@ -423,7 +495,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        if (incomplete.length === 0 && resolved.length > 0) {
+        // Only route when all events in the set are resolved
+        if (incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
           const stops = resolved.map((e) => ({
             name: e.map!.destination ?? "Destination",
             lat: e.map!.lat as number,
@@ -438,30 +511,49 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        if (mapRes.audioBase64) {
-          setVoiceState("speaking");
-          const audioBuffer = Buffer.from(mapRes.audioBase64, "base64");
-          const playCtxMap = new AudioContext();
-          playbackCtxRef.current = playCtxMap;
-          const decodedMap = await playCtxMap.decodeAudioData(
-            audioBuffer.buffer.slice(
-              audioBuffer.byteOffset,
-              audioBuffer.byteOffset + audioBuffer.byteLength,
-            ),
-          );
-          const srcMap = playCtxMap.createBufferSource();
-          srcMap.buffer = decodedMap;
-          srcMap.connect(playCtxMap.destination);
-          playbackRef.current = srcMap;
-          srcMap.onended = () => {
-            stopPlayback();
-            setVoiceState("idle");
-          };
-          srcMap.start(0);
+        // Audio resolution:
+        // - Multi-POI narration → client-built string, needs a TTS call
+        // - Everything else → use audioBase64 returned by the API (no extra round trip)
+        let mapReply: string;
+        let mapAudio: ArrayBuffer | null;
+
+        if (curatedPOIsRef.current.length > 1) {
+          mapReply = buildPOITTS(curatedPOIsRef.current);
+          mapAudio = await mapService.tts(mapReply);
+        } else {
+          mapReply = res.message;
+          if (res.audioBase64) {
+            const binary = atob(res.audioBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            mapAudio = bytes.buffer;
+          } else {
+            mapAudio = await mapService.tts(mapReply);
+          }
+        }
+
+        setReply(mapReply);
+        const mapHistory = [
+          ...historyRef.current,
+          { user: enrichedInput, assistant: mapReply },
+        ].slice(-4);
+        historyRef.current = mapHistory;
+        setChatHistory(mapHistory);
+        setVoiceState("speaking");
+
+        if (mapAudio) {
+          const playCtx = new AudioContext();
+          playbackCtxRef.current = playCtx;
+          const decoded = await playCtx.decodeAudioData(mapAudio.slice(0));
+          const src = playCtx.createBufferSource();
+          src.buffer = decoded;
+          src.connect(playCtx.destination);
+          playbackRef.current = src;
+          src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+          src.start(0);
         } else {
           setVoiceState("idle");
         }
-
         return;
       }
 
@@ -524,6 +616,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       if (!bypassMainExecution) {
         // COGNITIVE AI PIPELINE
+        const persona = pageCtxRef.current?.persona;
+        if (persona) {
+          (ctx as Record<string, unknown>).persona = persona;
+          if (loc) {
+            (ctx as Record<string, unknown>).location = {
+              lat: String(loc.lat),
+              lng: String(loc.lng),
+            };
+          }
+          const dest = map.selectedDestination;
+          if (dest) {
+            (ctx as Record<string, unknown>).destinationLocation = {
+              lat: String(dest.lat),
+              lng: String(dest.lng),
+            };
+          }
+        }
         const res = await mapService.ask(t, ctx, language);
         r = res.reply;
         events = res.events ?? [];

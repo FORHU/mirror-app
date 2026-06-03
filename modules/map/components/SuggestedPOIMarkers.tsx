@@ -6,6 +6,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { useMapStore } from "../store/useMapStore";
 import type { NearbyPOI } from "../services/map.service";
 
+// ─── Popup styles ─────────────────────────────────────────────────────────────
+
 const POPUP_CSS = `
   .spm-popup .mapboxgl-popup-content {
     background: transparent !important;
@@ -15,6 +17,8 @@ const POPUP_CSS = `
   }
   .spm-popup .mapboxgl-popup-tip { display: none !important; }
 `;
+
+// ─── Category colours ─────────────────────────────────────────────────────────
 
 const CATEGORY_COLORS: [string, string][] = [
   ["restaurant", "#f43f5e"],
@@ -46,36 +50,75 @@ function poiColor(category: string): string {
   return "#8b5cf6";
 }
 
-function createMarkerEl(color: string): HTMLDivElement {
-  const el = document.createElement("div");
-  Object.assign(el.style, {
-    width: "16px",
-    height: "16px",
+// ─── Pin element ──────────────────────────────────────────────────────────────
+// anchor="bottom" → Mapbox aligns the BOTTOM of this element to the coordinate.
+// The element is a circle with a centred triangle tail pointing downward, so
+// the very tip of the tail sits exactly on the lat/lng at all zoom levels.
+
+function createPinEl(color: string): HTMLDivElement {
+  const wrapper = document.createElement("div");
+  Object.assign(wrapper.style, {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    cursor: "pointer",
+    willChange: "transform",       // GPU compositor layer — Mapbox repositions on every frame
+    filter: `drop-shadow(0 2px 6px ${color}99)`,
+    transition: "filter 0.2s ease, transform 0.15s ease",
+  });
+
+  // Circle head
+  const head = document.createElement("div");
+  Object.assign(head.style, {
+    width: "22px",
+    height: "22px",
     borderRadius: "50%",
     background: color,
-    border: "2px solid rgba(255,255,255,0.8)",
-    boxShadow: `0 0 8px ${color}99`,
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    zIndex: "10",
+    border: "2.5px solid #fff",
+    boxSizing: "border-box",
+    flexShrink: "0",
   });
-  return el;
+
+  // Triangle tail — pure CSS, no image
+  const tail = document.createElement("div");
+  Object.assign(tail.style, {
+    width: "0",
+    height: "0",
+    borderLeft: "5px solid transparent",
+    borderRight: "5px solid transparent",
+    borderTop: `8px solid ${color}`,
+    marginTop: "-1px",            // close the gap between head and tail
+    flexShrink: "0",
+  });
+
+  wrapper.appendChild(head);
+  wrapper.appendChild(tail);
+  return wrapper;
 }
 
-function setMarkerSelected(
-  el: HTMLDivElement,
+function setPinSelected(
+  wrapper: HTMLDivElement,
   color: string,
   selected: boolean,
 ) {
-  Object.assign(el.style, {
-    width: selected ? "22px" : "16px",
-    height: selected ? "22px" : "16px",
-    border: selected ? "3px solid white" : "2px solid rgba(255,255,255,0.8)",
-    boxShadow: selected
-      ? `0 0 20px ${color}cc, 0 0 8px ${color}88`
-      : `0 0 8px ${color}99`,
+  const head = wrapper.firstElementChild as HTMLDivElement | null;
+  if (head) {
+    Object.assign(head.style, {
+      width: selected ? "28px" : "22px",
+      height: selected ? "28px" : "22px",
+      border: selected ? "3px solid #fff" : "2.5px solid #fff",
+    });
+  }
+  Object.assign(wrapper.style, {
+    filter: selected
+      ? `drop-shadow(0 0 12px ${color}cc) drop-shadow(0 2px 8px ${color}88)`
+      : `drop-shadow(0 2px 6px ${color}99)`,
+    transform: selected ? "scale(1.15)" : "scale(1)",
+    zIndex: selected ? "20" : "10",
   });
 }
+
+// ─── Popup content (React component) ─────────────────────────────────────────
 
 function POIPopupContent({
   poi,
@@ -174,7 +217,6 @@ function POIPopupContent({
 
       {/* Body */}
       <div style={{ padding: "12px 14px 14px" }}>
-        {/* Category badge */}
         <span
           style={{
             display: "inline-block",
@@ -193,7 +235,6 @@ function POIPopupContent({
           {poi.category.replace(/_/g, " ")}
         </span>
 
-        {/* Name */}
         <div
           style={{
             color: "#fff",
@@ -206,7 +247,6 @@ function POIPopupContent({
           {poi.name}
         </div>
 
-        {/* Rating */}
         {poi.rating != null && (
           <div
             style={{
@@ -223,7 +263,6 @@ function POIPopupContent({
           </div>
         )}
 
-        {/* Distance · Address */}
         <div
           style={{
             display: "flex",
@@ -237,14 +276,13 @@ function POIPopupContent({
         >
           <span style={{ flexShrink: 0, marginTop: 1 }}>📍</span>
           <span>
-            {poi.distance < 1000
-              ? `${Math.round(poi.distance / 10) * 10}m`
-              : `${(poi.distance / 1000).toFixed(1)}km`}
+            {poi.distance < 1
+              ? `${Math.round(poi.distance * 1000)}m`
+              : `${poi.distance.toFixed(1)}km`}
             {poi.address ? ` · ${poi.address}` : ""}
           </span>
         </div>
 
-        {/* Open status */}
         {poi.openNow != null && (
           <div
             style={{
@@ -272,7 +310,6 @@ function POIPopupContent({
           </div>
         )}
 
-        {/* Phone */}
         {poi.phone && (
           <div
             style={{
@@ -289,7 +326,6 @@ function POIPopupContent({
           </div>
         )}
 
-        {/* Website */}
         {poi.website && (
           <div
             style={{
@@ -315,7 +351,6 @@ function POIPopupContent({
           </div>
         )}
 
-        {/* Navigate CTA */}
         <button
           onClick={onNavigate}
           style={{
@@ -349,6 +384,8 @@ function POIPopupContent({
   );
 }
 
+// ─── Internal refs ────────────────────────────────────────────────────────────
+
 interface MarkerEntry {
   marker: mapboxgl.Marker;
   el: HTMLDivElement;
@@ -360,6 +397,8 @@ interface OpenEntry {
   markerEl: HTMLDivElement;
   color: string;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SuggestedPOIMarkers() {
   const { map, suggestedPOIs, setDestination, clearSuggestions } =
@@ -377,6 +416,7 @@ export default function SuggestedPOIMarkers() {
   }, []);
 
   useEffect(() => {
+    // Clean up previous markers
     markersRef.current.forEach(({ marker }) => marker.remove());
     markersRef.current = [];
     if (openRef.current) {
@@ -387,24 +427,16 @@ export default function SuggestedPOIMarkers() {
 
     if (!map || !suggestedPOIs.length) return;
 
-    const nearest = suggestedPOIs.reduce((a, b) =>
-      a.distance < b.distance ? a : b,
-    );
-
     const openPopup = (poi: NearbyPOI, el: HTMLDivElement) => {
       if (openRef.current) {
         openRef.current.popup.remove();
         openRef.current.root.unmount();
-        setMarkerSelected(
-          openRef.current.markerEl,
-          openRef.current.color,
-          false,
-        );
+        setPinSelected(openRef.current.markerEl, openRef.current.color, false);
         openRef.current = null;
       }
 
       const color = poiColor(poi.category);
-      setMarkerSelected(el, color, true);
+      setPinSelected(el, color, true);
 
       const container = document.createElement("div");
       const root = createRoot(container);
@@ -413,11 +445,7 @@ export default function SuggestedPOIMarkers() {
         if (openRef.current) {
           openRef.current.popup.remove();
           openRef.current.root.unmount();
-          setMarkerSelected(
-            openRef.current.markerEl,
-            openRef.current.color,
-            false,
-          );
+          setPinSelected(openRef.current.markerEl, openRef.current.color, false);
           openRef.current = null;
         }
       };
@@ -439,8 +467,9 @@ export default function SuggestedPOIMarkers() {
         />,
       );
 
+      // Offset popup above the full pin height (head 28px + tail 8px) + a gap
       const popup = new mapboxgl.Popup({
-        offset: [0, -14],
+        offset: [0, -44],
         closeButton: false,
         closeOnClick: false,
         maxWidth: "none",
@@ -455,9 +484,11 @@ export default function SuggestedPOIMarkers() {
 
     suggestedPOIs.forEach((poi) => {
       const color = poiColor(poi.category);
-      const el = createMarkerEl(color);
+      const el = createPinEl(color);
 
-      const marker = new mapboxgl.Marker({ element: el })
+      // anchor="bottom" → the bottom tip of the pin element aligns exactly with
+      // the coordinate. Mapbox recalculates CSS transform on every pan/zoom frame.
+      const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
@@ -468,9 +499,6 @@ export default function SuggestedPOIMarkers() {
 
       markersRef.current.push({ marker, el });
 
-      if (poi.placeId === nearest.placeId) {
-        setTimeout(() => openPopup(poi, el), 400);
-      }
     });
 
     return () => {

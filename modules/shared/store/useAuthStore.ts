@@ -41,8 +41,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // not "we previously cached one." See ADR 0002.
       try {
         const freshUser = await authService.getCurrentUser();
-        await setStorageData(USER, freshUser);
-        set({ user: freshUser, isAuthenticated: true });
+        // Preserve gender from current store state if the API response doesn't
+        // include it — guards against a race where _init resolves after gender
+        // selection and a stale cached /me response wipes the gender.
+        const currentGender = get().user?.gender;
+        const mergedUser = { ...freshUser, gender: freshUser.gender ?? currentGender };
+        await setStorageData(USER, mergedUser);
+        set({ user: mergedUser, isAuthenticated: true });
       } catch (e) {
         setCachedAccessToken(token);
         console.warn("[useAuthStore] User fetch failed", e);

@@ -11,6 +11,7 @@ export interface PageContext {
   activeStep?: string;
   collectedData?: EventSetupData;
   mode?: "garment" | "map";
+  persona?: string;
 }
 
 export type PendingEvent = {
@@ -38,8 +39,12 @@ export type ChatWonderAction =
     }
   | { type: "calendar_query_date"; date: string }
   | { type: "calendar_clear_event"; id: string }
+  | { type: "maps_navigate"; destination: string }
+  | { type: "maps_get_directions"; destination: string; mode?: "driving" | "walking" | "transit" }
+  | { type: "maps_preview_location"; query: string; label: string }
   | { type: "maps_show_route"; destination?: string; query?: string }
   | { type: "maps_clear_route" }
+  | { type: "stop_navigation" }
   | { type: "maps_camera_overview" }
   | { type: "maps_camera_free" }
   | { type: "traffic_on" }

@@ -7,11 +7,13 @@ import { ExploreHUD } from "./ExploreHUD";
 import MapViewport from "./MapViewport";
 import MapMicPill from "./MapMicPill";
 import SuggestedPOIMarkers from "./SuggestedPOIMarkers";
+import POICurationStack from "./POICurationStack";
 import RoutePreviewCard from "./RoutePreviewCard";
 import WeatherWidget from "./WeatherWidget";
+import DevToolsOverlay from "./DevToolsOverlay";
 
 export default function MapDashboard() {
-  const { setUserLocation, saveHomeLocation, homeLocationStatus } =
+  const { setUserLocation, saveHomeLocation, homeLocationStatus, suggestedPOIs, suggestionLabel, setDestination, clearSuggestions } =
     useMapStore();
   const { transcriptOpen, transcript, reply, error } = useVoiceContext();
   const chatVisible = transcriptOpen && !!(transcript || reply || error);
@@ -56,20 +58,27 @@ export default function MapDashboard() {
         <WeatherWidget location={weatherLocation} />
       </div>
 
-      {/* Bottom-left: route card — slides up when chat bubble is open */}
-      <div
-        className="absolute left-6 z-40 pointer-events-none"
-        style={{
-          bottom: chatVisible ? "13rem" : "7rem",
-          transition: "bottom 0.25s ease",
-        }}
-      >
-        <RoutePreviewCard />
-      </div>
+      <RoutePreviewCard />
 
       <ExploreHUD />
       <SuggestedPOIMarkers />
+      <POICurationStack
+        pois={suggestedPOIs}
+        label={suggestionLabel || undefined}
+        chatVisible={chatVisible}
+        onSelect={(poi) => {
+          setDestination({
+            name: poi.name,
+            lat: poi.lat,
+            lng: poi.lng,
+            address: poi.address,
+            placeId: poi.placeId,
+          });
+          clearSuggestions();
+        }}
+      />
       <MapMicPill />
+      <DevToolsOverlay />
     </div>
   );
 }

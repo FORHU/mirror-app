@@ -8,6 +8,8 @@ import { useMapStore } from "../store/useMapStore";
 import RouteLayer from "./RouteLayer";
 import UserPuck from "./UserPuck";
 import DestinationPin from "./DestinationPin";
+import ItineraryRouteLayer from "./ItineraryRouteLayer";
+import ItineraryPins from "./ItineraryPins";
 import { useMapCamera } from "../hooks/useMapCamera";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -32,11 +34,9 @@ const MapViewport = () => {
     });
 
     mapInstance.on("style.load", () => {
-      mapInstance.setConfigProperty(
-        "basemap",
-        "showPointOfInterestLabels",
-        true,
-      );
+      mapInstance.setConfigProperty("basemap", "showPointsOfInterest", false);
+      mapInstance.setConfigProperty("basemap", "showPointOfInterestLabels", false);
+      mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
       mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });
 
@@ -136,8 +136,10 @@ const MapViewport = () => {
       {map && (
         <>
           <RouteLayer map={map} />
+          <ItineraryRouteLayer map={map} />
           <UserPuck map={map} />
           <DestinationPin map={map} />
+          <ItineraryPins map={map} />
         </>
       )}
     </div>

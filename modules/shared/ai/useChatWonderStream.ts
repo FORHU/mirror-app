@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMapStore } from "@/modules/map/store/useMapStore";
+import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 
 interface ItineraryMap {
   destination?: string;
@@ -101,9 +102,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       const finalInput = text + tag;
 
       const history = messagesRef.current.slice(-10).map((m) => ({
-        role: (m.role === "USER" ? "user" : "assistant") as
-          | "user"
-          | "assistant",
+        role: (m.role === "USER" ? "user" : "assistant") as "user" | "assistant",
         content: m.content,
       }));
 
@@ -174,21 +173,16 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
                 clearPendingEvents();
 
-                const events = Array.isArray(parsed.events)
-                  ? (parsed.events as Array<{
-                      map?: ItineraryMap;
-                      eventName?: string;
-                      eventType?: string;
-                      timeLabel?: string;
-                    }>)
+                type ParsedEvent = { eventName?: string; eventType?: string; timeLabel?: string; map?: ItineraryMap };
+                const responseEvents = Array.isArray(parsed.events)
+                  ? (parsed.events as ParsedEvent[])
                   : [];
-
-                const resolved = events.filter(
+                const resolved = responseEvents.filter(
                   (e) =>
                     typeof e?.map?.lat === "number" &&
                     typeof e?.map?.lng === "number",
                 );
-                const incomplete = events.filter(
+                const incomplete = responseEvents.filter(
                   (e) =>
                     !(
                       typeof e?.map?.lat === "number" &&
@@ -198,15 +192,17 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
                 if (incomplete.length > 0) {
                   setPendingEvents(
-                    incomplete.map((e) => ({
-                      eventName: e.eventName ?? "event",
-                      eventType: e.eventType ?? "general",
-                      timeLabel: e.timeLabel ?? "",
-                      missingFields: [
-                        ...(!e.timeLabel ? (["time"] as const) : []),
-                        "location" as const,
-                      ],
-                    })),
+                    incomplete.map(
+                      (e): PendingEvent => ({
+                        eventName: e.eventName ?? "event",
+                        eventType: e.eventType ?? "general",
+                        timeLabel: e.timeLabel ?? "",
+                        missingFields: [
+                          ...(!e.timeLabel ? (["time"] as const) : []),
+                          "location" as const,
+                        ],
+                      }),
+                    ),
                   );
                 }
 

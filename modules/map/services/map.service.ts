@@ -12,6 +12,8 @@ export interface NearbyPOI {
   distance: number;
   photo: string | null;
   rating?: number;
+  userRatingsTotal?: number;
+  priceLevel?: number;
   openNow?: boolean;
   weekdayDescriptions?: string[];
   phone?: string;

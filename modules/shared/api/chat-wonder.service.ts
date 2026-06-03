@@ -10,6 +10,11 @@ const API_BASE_URL =
 
 // ─── Request ──────────────────────────────────────────────────────────────────
 
+export interface ChatWonderHistoryEntry {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface ChatWonderMessageRequest {
   input: string;
   weather?: Record<string, unknown>;
@@ -23,26 +28,49 @@ export interface ChatWonderMessageRequest {
    * app's full SITEMAP_CONTEXT; pass an explicit list to override/narrow it.
    */
   sitemapContext?: string[];
-  history?: { role: "user" | "assistant"; content: string }[];
+  history?: ChatWonderHistoryEntry[];
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
 
+export interface ChatWonderMapsPlace {
+  name: string;
+  address: string;
+  rating: number;
+  user_ratings_total: number;
+  place_id: string;
+  types: string[];
+  lat: number;
+  lng: number;
+  open_now: boolean;
+  photo_url: string | null;
+  price_level: number | null;
+  phone_number: string | null;
+  website: string | null;
+}
+
+export interface ChatWonderMapsData {
+  success: boolean;
+  query: string;
+  location_label: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  search_mode: string;
+  total_results: number;
+  places: ChatWonderMapsPlace[];
+}
+
 export interface ChatWonderMessageResponse {
   message: string;
+  audioBase64: string | null;
   intent: string;
   garment_data: ChatWonderGarmentData | null;
   cosmetics_data: unknown | null;
-  /** Place/restaurant search results per stop (null when ChatWonder sends none). */
-  maps_data: unknown[] | null;
-  /** Navigation decision for `[nav]` requests (null otherwise). */
+  maps_data: ChatWonderMapsData[] | null;
   nav_data: ChatWonderNavData | null;
-  /** Parsed itinerary events (if any) */
   events?: ChatWonderEvent[];
-  /** Parsed sets payload (if any) */
   sets?: unknown[];
-  /** Base64 MP3 of the spoken reply (null unless `voice: true` was sent). */
-  audioBase64: string | null;
   metadata: {
     conversationId: string;
     userMessageId: string;
@@ -178,7 +206,6 @@ export const chatWonderService = {
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
     if (request.history?.length) body.history = request.history;
-    // Always send the app sitemap so ChatWonder can resolve `[nav]` requests.
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
     let res: Response;

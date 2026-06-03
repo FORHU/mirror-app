@@ -25,6 +25,45 @@ export async function executeAction(
       return;
     }
 
+    case "maps_navigate": {
+      const dest = action.destination;
+      if (!dest?.trim()) return;
+
+      const map = useMapStore.getState();
+      const loc = map.userLocation ?? map.homeLocation ?? undefined;
+      const { results } = await mapService.geocode(dest, loc);
+      if (!results.length) return;
+
+      await useMapStore.getState().setDestination(results[0]);
+      return;
+    }
+
+    case "maps_get_directions": {
+      const dest = action.destination;
+      if (!dest?.trim()) return;
+
+      const map = useMapStore.getState();
+      const loc = map.userLocation ?? map.homeLocation ?? undefined;
+      const { results } = await mapService.geocode(dest, loc);
+      if (!results.length) return;
+
+      await useMapStore.getState().setDestination(results[0]);
+      return;
+    }
+
+    case "maps_preview_location": {
+      const query = action.query;
+      if (!query?.trim()) return;
+
+      const map = useMapStore.getState();
+      const loc = map.userLocation ?? map.homeLocation ?? undefined;
+      const { results } = await mapService.geocode(query, loc);
+      if (!results.length) return;
+
+      await useMapStore.getState().setDestination(results[0]);
+      return;
+    }
+
     case "maps_show_route": {
       const a = action as { destination?: string; query?: string };
       const dest = a.destination || a.query;
@@ -52,6 +91,7 @@ export async function executeAction(
     }
 
     case "maps_clear_route":
+    case "stop_navigation":
       useMapStore.getState().clearRoute();
       return;
 
@@ -106,17 +146,15 @@ export async function executeAction(
       };
       const googleCategory = CATEGORY_MAP[action.category] ?? action.category;
 
-      try {
-        const { pois } = await mapService.nearbyPOIs(
-          loc.lat,
-          loc.lng,
-          1500,
-          googleCategory,
-        );
-        useMapStore.getState().setSuggestedPOIs(pois, action.label);
-      } catch {
-        // silently ignore — voice reply already handles the response
-      }
+      // Fire in background — don't block the voice response
+      mapService
+        .nearbyPOIs(loc.lat, loc.lng, 1500, googleCategory)
+        .then(({ pois }) => {
+          useMapStore.getState().setSuggestedPOIs(pois, action.label);
+        })
+        .catch((err) => {
+          console.error("[maps_suggest_places] Failed to load POIs:", err);
+        });
       return;
     }
 

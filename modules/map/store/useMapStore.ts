@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { type PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
 import {
@@ -8,6 +7,7 @@ import {
   type GeocodeResult,
   type DirectionsFormatted,
 } from "../services/map.service";
+import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 
 interface SelectedPOI {
   name: string;
@@ -57,6 +57,10 @@ interface MapStore {
   userLocation: Location | null;
   origin: Location | null;
 
+  itineraryStops: Destination[];
+  itineraryRoutes: DirectionsFormatted[];
+  pendingEvents: PendingEvent[];
+
   fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
 
   loadHomeLocation(): Promise<void>;
@@ -67,6 +71,7 @@ interface MapStore {
   toggleTraffic(): void;
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
+  setItineraryStops(stops: Destination[]): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
   setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
@@ -75,12 +80,8 @@ interface MapStore {
   fetchRoute(force?: boolean): Promise<void>;
   clearRoute(): void;
   patchHomeLocation(coords: Location): Promise<void>;
-
-  pendingEvents: PendingEvent[];
-  itineraryStops: Destination[];
   setPendingEvents: (events: PendingEvent[]) => void;
   clearPendingEvents: () => void;
-  setItineraryStops: (stops: Destination[]) => void;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -109,12 +110,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isRouting: false,
   userLocation: null,
   origin: null,
-  pendingEvents: [],
   itineraryStops: [],
+  itineraryRoutes: [],
+  pendingEvents: [],
 
-  setPendingEvents: (pendingEvents) => set({ pendingEvents }),
+  setPendingEvents: (events) => set({ pendingEvents: events }),
   clearPendingEvents: () => set({ pendingEvents: [] }),
-  setItineraryStops: (itineraryStops) => set({ itineraryStops }),
 
   setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
   setSuggestedPOIs: (pois, label) =>
@@ -205,8 +206,38 @@ export const useMapStore = create<MapStore>((set, get) => ({
       selectedDestination: location,
       isSearching: false,
       searchResults: [],
+      itineraryStops: [],
+      itineraryRoutes: [],
     });
     get().fetchRoute();
+  },
+
+  setItineraryStops: async (stops) => {
+    set({
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+    const { userLocation, homeLocation, activeProfile } = get();
+    const origin = userLocation ?? homeLocation;
+    if (!origin || stops.length === 0) return;
+
+    const allPoints = [{ lat: origin.lat, lng: origin.lng }, ...stops];
+    const routes: DirectionsFormatted[] = [];
+    for (let i = 0; i < allPoints.length - 1; i++) {
+      try {
+        const route = await mapService.directions(
+          [allPoints[i].lng, allPoints[i].lat],
+          [allPoints[i + 1].lng, allPoints[i + 1].lat],
+          activeProfile,
+        );
+        routes.push(route);
+      } catch {
+        // skip failed legs silently
+      }
+    }
+    set({ itineraryRoutes: routes });
   },
 
   clearRoute: () => {
@@ -219,6 +250,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
       suggestedPOIs: [],
       showTraffic: false,
       cameraMode: "overview",
+      itineraryStops: [],
+      itineraryRoutes: [],
     });
   },
 
