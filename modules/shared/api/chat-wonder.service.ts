@@ -36,6 +36,10 @@ export interface ChatWonderMessageResponse {
   maps_data: unknown[] | null;
   /** Navigation decision for `[nav]` requests (null otherwise). */
   nav_data: ChatWonderNavData | null;
+  /** Parsed itinerary events (if any) */
+  events?: unknown[];
+  /** Parsed sets payload (if any) */
+  sets?: unknown[];
   /** Base64 MP3 of the spoken reply (null unless `voice: true` was sent). */
   audioBase64: string | null;
   metadata: {
