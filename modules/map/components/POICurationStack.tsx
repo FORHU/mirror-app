@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import type { NearbyPOI } from "@/modules/map/services/map.service";
 
@@ -16,9 +17,12 @@ function POIPhoto({ src, name }: { src: string | null; name: string }) {
 
   if (src && !failed) {
     return (
-      <img
+      <Image
         src={src}
         alt={name}
+        width={64}
+        height={64}
+        unoptimized
         onError={() => setFailed(true)}
         className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
       />
