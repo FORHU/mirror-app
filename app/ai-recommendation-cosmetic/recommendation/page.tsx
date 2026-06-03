@@ -7,14 +7,143 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import "../../../styles/glow.css";
 import WeatherWidget from "@/components/WeatherWidget";
-import { type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
+import {
+  cosmeticsService,
+  type SkinAnalysis,
+} from "@/modules/shared/api/cosmetics.service";
+import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
+import { getStorageData } from "@/modules/shared/utils/storage";
 import { ROUTES } from "@/navigation";
+
+// ── ChatWonder product shape ──────────────────────────────────────────────────
+type CWProduct = {
+  id: string;
+  name: string;
+  description?: string;
+  type?: string;
+  reason?: string;
+  imageUrl?: string;
+  score?: number;
+};
+
+// Build the skin_analysis payload ChatWonder expects from a SkinAnalysis object
+function toSkinPayload(a: SkinAnalysis) {
+  const output: { type: string; ui_score: number }[] = [
+    { type: "oiliness", ui_score: a.oilinessPct },
+    { type: "moisture", ui_score: Math.round(100 - a.hydrationPct) },
+  ];
+  const c = a.concerns ?? [];
+  if (c.some((x) => /acne/i.test(x)))             output.push({ type: "acne",          ui_score: 68 });
+  if (c.some((x) => /wrinkle|fine line/i.test(x))) output.push({ type: "wrinkle",       ui_score: 68 });
+  if (c.some((x) => /dark circle/i.test(x)))      output.push({ type: "dark_circle_v2", ui_score: 68 });
+  if (c.some((x) => /age spot|hyperpig/i.test(x)))output.push({ type: "age_spot",       ui_score: 68 });
+  if (c.some((x) => /pore/i.test(x)))             output.push({ type: "pore",           ui_score: 68 });
+  if (c.some((x) => /redness|sensitiv/i.test(x))) output.push({ type: "redness",        ui_score: 78 });
+  if (c.some((x) => /puffiness|eye bag/i.test(x)))output.push({ type: "eye_bag",        ui_score: 70 });
+  return { output };
+}
+
+async function fetchCWRecs(analysis: SkinAnalysis): Promise<CWProduct[] | null> {
+  try {
+    let token = await getStorageData<string>(ACCESS_TOKEN);
+    if (!token && typeof window !== "undefined") {
+      token =
+        window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+          ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+          : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+    }
+
+    const input =
+      `[cosmetics] Recommend the best products for my ${analysis.skinType.toLowerCase()} skin. ` +
+      `Concerns: ${analysis.concerns.join(", ") || "general maintenance"}.`;
+
+    const res = await fetch("/api/mirror/chat-wonder/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-platform": "kiosk",
+      },
+      body: JSON.stringify({ input, skin_analysis: toSkinPayload(analysis) }),
+    });
+
+    if (!res.ok || !res.body) return null;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === "complete" && event.sets?.[0]?.recommendations?.length) {
+            return event.sets[0].recommendations as CWProduct[];
+          }
+        } catch { /* keep reading */ }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function inferSeverity(label: string): "low" | "medium" | "high" {
   const l = label.toLowerCase();
   if (/severe|significant|deep|chronic/.test(l)) return "high";
   if (/moderate|enlarged|uneven|excess/.test(l)) return "medium";
   return "low";
+}
+
+function toTitleCase(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+// Fallback analysis when the backend upload/analyze fails, so products still load.
+const MOCK_ANALYSIS: SkinAnalysis = {
+  id: "mock",
+  skinType: "Normal",
+  skinTone: "medium",
+  hydrationPct: 55,
+  oilinessPct: 40,
+  concerns: [],
+  routineTip: "",
+  recommendations: [],
+};
+
+// ── Skeleton product card — shown while analyzing / fetching ──────────────────
+function SkeletonCard({ delay }: { delay: number }) {
+  const shimmer = {
+    animate: { opacity: [0.35, 0.7, 0.35] },
+    transition: { duration: 1.4, repeat: Infinity, delay, ease: "easeInOut" as const },
+  };
+  return (
+    <div
+      style={{
+        borderRadius: "14px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <motion.div {...shimmer} style={{ flex: "0 0 52%", background: "rgba(255,255,255,0.06)" }} />
+      <div style={{ flex: 1, padding: "10px", display: "flex", flexDirection: "column", gap: "6px", justifyContent: "center" }}>
+        <motion.div {...shimmer} style={{ height: 7, width: "55%", borderRadius: 4, background: "rgba(255,255,255,0.08)" }} />
+        <motion.div {...shimmer} style={{ height: 9, width: "85%", borderRadius: 4, background: "rgba(255,255,255,0.10)" }} />
+        <motion.div {...shimmer} style={{ height: 7, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+      </div>
+    </div>
+  );
 }
 
 const SEVERITY_OPACITY: Record<string, number> = {
@@ -185,16 +314,60 @@ export default function CosmeticRecommendationPage() {
   const { capturedImage, analysis } = session;
   const [page, setPage] = useState(0);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  const [cwProducts, setCwProducts] = useState<CWProduct[] | null>(null);
+  const [cwLoading, setCwLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
+  // Runs the whole pipeline that used to live on the (now-removed) result page:
+  // upload the capture → analyze the skin → then fetch product recommendations.
+  // The skeleton grid shows for the entire wait.
   useEffect(() => {
+    const fetchRecs = (a: SkinAnalysis) => {
+      setCwLoading(true);
+      fetchCWRecs(a)
+        .then((recs) => { if (recs?.length) setCwProducts(recs); })
+        .finally(() => setCwLoading(false));
+    };
+
+    const useAnalysis = (a: SkinAnalysis) => {
+      try { sessionStorage.setItem("skin_analysis", JSON.stringify(a)); } catch {}
+      setSession((prev) => ({ ...prev, analysis: a }));
+      fetchRecs(a);
+    };
+
     try {
       const capturedImage = sessionStorage.getItem("skin_capture");
       const rawAnalysis = sessionStorage.getItem("skin_analysis");
-      const analysis = rawAnalysis
+      const existing = rawAnalysis
         ? (JSON.parse(rawAnalysis) as SkinAnalysis)
         : null;
+      const existingId = !existing
+        ? sessionStorage.getItem("skin_analysis_id")
+        : null;
+
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only; effect is the correct place to read it
-      setSession({ capturedImage, analysis });
+      setSession({ capturedImage, analysis: existing });
+
+      if (existing) {
+        fetchRecs(existing);
+      } else if (existingId) {
+        // Resume a previously-started analysis by ID
+        setAnalyzing(true);
+        cosmeticsService
+          .getAnalysis(existingId)
+          .then(useAnalysis)
+          .catch(() => useAnalysis(MOCK_ANALYSIS))
+          .finally(() => setAnalyzing(false));
+      } else if (capturedImage) {
+        // Fresh capture — upload, analyze, then recommend
+        setAnalyzing(true);
+        cosmeticsService
+          .uploadCapture(capturedImage)
+          .then(({ id }) => cosmeticsService.analyzeSkin(id))
+          .then(useAnalysis)
+          .catch(() => useAnalysis(MOCK_ANALYSIS))
+          .finally(() => setAnalyzing(false));
+      }
     } catch {}
   }, []);
 
@@ -207,25 +380,50 @@ export default function CosmeticRecommendationPage() {
     [analysis],
   );
 
-  // ── Products ──────────────────────────────────────────────────────────────
-  const allProducts: Product[] = analysis?.recommendations?.length
-    ? analysis.recommendations.map((r) => ({
-        id: r.cosmeticProduct.id,
-        name: r.cosmeticProduct.name,
-        brand: r.cosmeticProduct.brand ?? "",
-        category:
-          r.cosmeticProduct.category ?? r.cosmeticProduct.type ?? "Product",
-        use:
-          r.cosmeticProduct.tags
-            ?.find((t: string) =>
-              /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
-            )
-            ?.toUpperCase() ?? "Daily",
-        score: r.score ?? 80,
-        reason: r.reason?.split(",")[0]?.trim() ?? "",
-        imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
+  // Compact skin summary shown above the product grid (replaces the result page).
+  const skin = useMemo(
+    () =>
+      analysis
+        ? {
+            skinType: toTitleCase(analysis.skinType),
+            skinTone: analysis.skinTone ?? "medium",
+            hydration: analysis.hydrationPct,
+            oiliness: analysis.oilinessPct,
+          }
+        : null,
+    [analysis],
+  );
+
+  // ── Products — prefer ChatWonder results, fall back to rule engine, then mock
+  const allProducts: Product[] = cwProducts?.length
+    ? cwProducts.map((cw, i) => ({
+        id: cw.id,
+        name: cw.name,
+        brand: "",
+        category: cw.type ?? "Skincare",
+        use: "Daily",
+        score: cw.score ?? Math.max(95 - i * 3, 70),
+        reason: cw.reason ?? cw.description ?? "",
+        imageUrl: cw.imageUrl ?? null,
       }))
-    : MOCK_PRODUCTS;
+    : analysis?.recommendations?.length
+      ? analysis.recommendations.map((r) => ({
+          id: r.cosmeticProduct.id,
+          name: r.cosmeticProduct.name,
+          brand: r.cosmeticProduct.brand ?? "",
+          category:
+            r.cosmeticProduct.category ?? r.cosmeticProduct.type ?? "Product",
+          use:
+            r.cosmeticProduct.tags
+              ?.find((t: string) =>
+                /^(am|pm|am\/pm|daily|morning|evening)/i.test(t),
+              )
+              ?.toUpperCase() ?? "Daily",
+          score: r.score ?? 80,
+          reason: r.reason?.split(",")[0]?.trim() ?? "",
+          imageUrl: r.cosmeticProduct.fileUrl?.fileUrl ?? null,
+        }))
+      : MOCK_PRODUCTS;
   const products = allProducts.filter(
     (product) =>
       product.imageUrl &&
@@ -239,6 +437,9 @@ export default function CosmeticRecommendationPage() {
     page * PAGE_SIZE,
     (page + 1) * PAGE_SIZE,
   );
+
+  // Still working (analyzing skin or fetching recs) and nothing to show yet.
+  const busy = (analyzing || cwLoading) && products.length === 0;
   const swipe = useSwipe(
     () => setPage((p) => Math.min(p + 1, totalPages - 1)),
     () => setPage((p) => Math.max(p - 1, 0)),
@@ -293,9 +494,7 @@ export default function CosmeticRecommendationPage() {
           }}
         >
           <button
-            onClick={() =>
-              router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT)
-            }
+            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
             className="p-4 transition-all hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
@@ -391,6 +590,62 @@ export default function CosmeticRecommendationPage() {
           </div>
         </motion.div>
 
+        {/* ── Compact skin summary (moved here from the old result page) ─────── */}
+        <div className="shrink-0 px-4 pt-3">
+          <div
+            style={{
+              borderRadius: "12px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              padding: "10px 14px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              {skin ? (
+                <>
+                  <span style={{ color: "white", fontSize: "16px", fontWeight: 700, letterSpacing: "-0.01em" }}>
+                    {skin.skinType}
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px" }}>{skin.skinTone}</span>
+                </>
+              ) : (
+                <motion.div
+                  animate={{ opacity: [0.35, 0.7, 0.35] }}
+                  transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+                  style={{ height: 12, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.1)" }}
+                />
+              )}
+            </div>
+
+            {(
+              [
+                { label: "Hydration", value: skin?.hydration ?? 0 },
+                { label: "Oiliness", value: skin?.oiliness ?? 0 },
+              ] as const
+            ).map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <span style={{ color: "rgba(255,255,255,0.38)", fontSize: "10px", width: "56px", flexShrink: 0 }}>
+                  {label}
+                </span>
+                <div style={{ flex: 1, height: "3px", borderRadius: "9999px", background: "rgba(255,255,255,0.1)" }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: skin ? `${value}%` : "0%" }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    style={{ height: "100%", borderRadius: "9999px", background: "rgba(255,255,255,0.75)" }}
+                  />
+                </div>
+                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "12px", fontWeight: 600, width: "30px", textAlign: "right", flexShrink: 0 }}>
+                  {skin ? `${value}%` : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── Product grid ─────────────────────────────────────────────────── */}
         <div
           className="flex-1 px-4 pb-3 pt-3"
@@ -417,8 +672,17 @@ export default function CosmeticRecommendationPage() {
                 fontWeight: 600,
               }}
             >
-              Recommended Products
+              {cwProducts?.length ? "AI Picks" : "Recommended Products"}
             </span>
+            {(analyzing || cwLoading) && (
+              <motion.span
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+                style={{ color: "rgba(72,199,142,0.8)", fontSize: "10px" }}
+              >
+                {analyzing ? "✦ analyzing skin…" : "✦ personalizing…"}
+              </motion.span>
+            )}
             <span
               style={{
                 color: "rgba(255,255,255,0.3)",
@@ -458,7 +722,9 @@ export default function CosmeticRecommendationPage() {
               touchAction: "pan-y",
             }}
           >
-            {pagedProducts.map((product, i) => (
+            {busy
+              ? [0, 1, 2].map((i) => <SkeletonCard key={`sk-${i}`} delay={i * 0.2} />)
+              : pagedProducts.map((product, i) => (
               <motion.div
                 key={product.id}
                 style={{

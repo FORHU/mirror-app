@@ -12,6 +12,7 @@ export const ROUTES = {
   QRCODE: "/qrcode",
   QRCODE_MIRROR_A: "/qrcode/mirror-a",
   MAP: "/map",
+  AI_ASSISTANT: "/ai-assistant",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

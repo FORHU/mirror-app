@@ -10,142 +10,89 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 
-// ── Oval dimensions (768 × 1366 portrait kiosk) ──────────────────────────────
-const OX = 384;
-const OY = 580;
-const RX = 330; // 660 px wide  (86 % of screen)
-const RY = 410; // 820 px tall
+// Seconds of countdown before the photo is taken automatically.
+const COUNTDOWN_FROM = 3;
 
-const FACE_MESH_CDN =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js";
-const CAMERA_UTILS_CDN =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
-const ALIGN_THRESHOLD = 20; // consecutive frames before triggering hold
-const HOLD_MS = 1500; // ms to hold before capture fires
+// starting  → acquiring the camera
+// countdown → 3-2-1 before auto-capture
+// captured  → frame grabbed, white flash, navigating to results
+type Phase = "starting" | "countdown" | "captured";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-type FaceLandmark = { x: number; y: number; z: number };
-type FaceMeshResults = { multiFaceLandmarks?: FaceLandmark[][] };
-type FaceMeshInstance = {
-  setOptions: (opts: {
-    maxNumFaces: number;
-    refineLandmarks: boolean;
-    minDetectionConfidence: number;
-    minTrackingConfidence: number;
-  }) => void;
-  onResults: (cb: (r: FaceMeshResults) => void) => void;
-  send: (input: { image: HTMLVideoElement }) => Promise<void>;
-};
-type CameraInstance = { start: () => void; stop?: () => void };
-type CapturePhase = "idle" | "holding" | "captured" | "analyzing";
-
-declare global {
-  interface Window {
-    FaceMesh: new (config: {
-      locateFile: (file: string) => string;
-    }) => FaceMeshInstance;
-    Camera: new (
-      video: HTMLVideoElement,
-      config: { onFrame: () => Promise<void>; width: number; height: number },
-    ) => CameraInstance;
-  }
+// ── Skeleton product card — placeholder mirroring the recommendation grid ─────
+function SkeletonCard({ delay }: { delay: number }) {
+  const shimmer = {
+    animate: { opacity: [0.35, 0.7, 0.35] },
+    transition: { duration: 1.4, repeat: Infinity, delay, ease: "easeInOut" as const },
+  };
+  return (
+    <div
+      style={{
+        borderRadius: "14px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      {/* Image area */}
+      <motion.div
+        {...shimmer}
+        style={{ flex: "0 0 52%", background: "rgba(255,255,255,0.06)" }}
+      />
+      {/* Text lines */}
+      <div
+        style={{
+          flex: 1,
+          padding: "10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          justifyContent: "center",
+        }}
+      >
+        <motion.div {...shimmer} style={{ height: 7, width: "55%", borderRadius: 4, background: "rgba(255,255,255,0.08)" }} />
+        <motion.div {...shimmer} style={{ height: 9, width: "85%", borderRadius: 4, background: "rgba(255,255,255,0.10)" }} />
+        <motion.div {...shimmer} style={{ height: 7, width: "40%", borderRadius: 4, background: "rgba(255,255,255,0.06)" }} />
+      </div>
+    </div>
+  );
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// Cache the in-flight promise so StrictMode double-invoke and re-navigations
-// both await the same load — avoids resolving before window.FaceMesh is set.
-const scriptLoadCache = new Map<string, Promise<void>>();
-
-function loadScript(src: string): Promise<void> {
-  if (scriptLoadCache.has(src)) return scriptLoadCache.get(src)!;
-  const p = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
-    if (existing) {
-      // Tag exists — already fully loaded (data-loaded set on onload) or still in-flight
-      if (existing.dataset.loaded) { resolve(); return; }
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error(`Failed to load: ${src}`)), { once: true });
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = src;
-    s.async = true;
-    s.onload = () => { s.dataset.loaded = "1"; resolve(); };
-    s.onerror = () => reject(new Error(`Failed to load: ${src}`));
-    document.body.appendChild(s);
-  });
-  scriptLoadCache.set(src, p);
-  return p;
-}
-
-// Converts MediaPipe normalised (0–1) coords → display pixels.
-// Accounts for object-cover scaling and the scaleX(-1) mirror flip.
-function toDisplayCoords(lm: FaceLandmark, video: HTMLVideoElement) {
-  const videoAspect = video.videoWidth / video.videoHeight;
-  const contAspect = video.clientWidth / video.clientHeight;
-  let scaledW: number, scaledH: number, offsetX: number, offsetY: number;
-  if (videoAspect > contAspect) {
-    scaledH = video.clientHeight;
-    scaledW = scaledH * videoAspect;
-    offsetX = (scaledW - video.clientWidth) / 2;
-    offsetY = 0;
-  } else {
-    scaledW = video.clientWidth;
-    scaledH = scaledW / videoAspect;
-    offsetX = 0;
-    offsetY = (scaledH - video.clientHeight) / 2;
-  }
-  const px = lm.x * scaledW - offsetX;
-  const py = lm.y * scaledH - offsetY;
-  return { x: video.clientWidth - px, y: py }; // apply mirror flip
-}
-
-function inOval(p: { x: number; y: number }) {
-  return ((p.x - OX) / RX) ** 2 + ((p.y - OY) / RY) ** 2 <= 1;
-}
-
-const CHECK_LM = [4, 152, 10, 234, 454, 1]; // nose-tip, chin, forehead, jaw L/R, nose bridge
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const cameraRef = useRef<CameraInstance | null>(null);
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const alignedFrames = useRef(0);
-  const faceAlignedRef = useRef(false);
-  const capturePhaseRef = useRef<CapturePhase>("idle");
-  const latestLandmarksRef = useRef<FaceLandmark[] | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const phaseRef = useRef<Phase>("starting");
 
-  const [isModelLoading, setIsModelLoading] = useState(true);
-  const [faceAligned, setFaceAligned] = useState(false);
-  const [capturePhase, setCapturePhase] = useState<CapturePhase>("idle");
-  const [errorMsg] = useState<string | null>(null);
-  const [manualCaptureVisible, setManualCaptureVisible] = useState(false);
-  const manualTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [phase, setPhase] = useState<Phase>("starting");
+  const [count, setCount] = useState(COUNTDOWN_FROM);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
   const { weather } = useWeather();
 
+  const setPhaseState = useCallback((next: Phase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+
+  // ── Weather-based skincare tip (banner) ──────────────────────────────────────
   useEffect(() => {
     const fetchSuggestion = async () => {
-      // Prefer Zustand store (set by voice); fall back to auto-fetch if empty
       if (storeAiSuggestion) {
         setAiSuggestion(storeAiSuggestion);
         return;
       }
-
-      // Automatically fetch weather-based suggestion if none exists
       try {
         const { useMapStore } = await import("@/modules/map/store/useMapStore");
         const location = useMapStore.getState().userLocation;
         const res = await api.post<{ suggestion: string }>(
           "/api/mirror/voice/suggest",
-          {
-            type: "cosmetics",
-            ctx: { lat: location?.lat, lng: location?.lng },
-          },
+          { type: "cosmetics", ctx: { lat: location?.lat, lng: location?.lng } },
         );
         if (res.data?.suggestion) {
           setAiSuggestion(res.data.suggestion);
@@ -155,24 +102,14 @@ export default function CosmeticPage() {
         console.error("Failed to auto-fetch suggestion:", err);
       }
     };
-
     fetchSuggestion();
   }, [storeAiSuggestion]);
 
-  const setFaceAlignedState = useCallback((nextFaceAligned: boolean) => {
-    faceAlignedRef.current = nextFaceAligned;
-    setFaceAligned(nextFaceAligned);
-  }, []);
-
-  const setCapturePhaseState = useCallback((nextCapturePhase: CapturePhase) => {
-    capturePhaseRef.current = nextCapturePhase;
-    setCapturePhase(nextCapturePhase);
-  }, []);
-
-  // ── Capture frame ────────────────────────────────────────────────────────────
+  // ── Capture the current frame and hand off to the result page ────────────────
   const captureFrame = useCallback(async () => {
+    if (phaseRef.current === "captured") return;
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.videoWidth) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -185,308 +122,124 @@ export default function CosmeticPage() {
       sessionStorage.removeItem("skin_analysis");
       sessionStorage.removeItem("skin_analysis_id");
     } catch {}
-    if (latestLandmarksRef.current) {
-      try {
-        sessionStorage.setItem(
-          "skin_landmarks",
-          JSON.stringify(latestLandmarksRef.current),
-        );
-      } catch {}
-    }
 
-    setCapturePhaseState("captured"); // triggers white flash
+    setPhaseState("captured"); // triggers white flash
+    if (countdownRef.current) clearInterval(countdownRef.current);
 
-    // Navigate after flash — result page handles the upload+analyze
+    // Navigate after the flash — the recommendation page now handles
+    // upload + analyze + product fetch (shows the skeleton meanwhile).
     await new Promise((r) => setTimeout(r, 600));
-    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT);
-  }, [router, setCapturePhaseState]);
+    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RECOMMENDATION);
+  }, [router, setPhaseState]);
 
-  // ── Face-aligned → hold → capture trigger ───────────────────────────────────
-  const beginCaptureHold = useCallback(() => {
-    if (capturePhaseRef.current !== "idle") return;
-    setCapturePhaseState("holding");
-    holdTimerRef.current = setTimeout(captureFrame, HOLD_MS);
-  }, [captureFrame, setCapturePhaseState]);
+  // ── 3-2-1 countdown, then auto-capture ───────────────────────────────────────
+  const startCountdown = useCallback(() => {
+    if (phaseRef.current === "captured") return;
+    if (countdownRef.current) clearInterval(countdownRef.current);
 
-  const cancelCaptureHold = useCallback(() => {
-    if (capturePhaseRef.current !== "holding") return;
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current);
-      holdTimerRef.current = null;
-    }
-    setCapturePhaseState("idle");
-  }, [setCapturePhaseState]);
+    let n = COUNTDOWN_FROM;
+    setCount(n);
+    setPhaseState("countdown");
 
-  // ── FaceMesh results handler ─────────────────────────────────────────────────
-  const handleResults = useCallback(
-    (results: FaceMeshResults) => {
-      if (capturePhaseRef.current !== "idle") return; // freeze detection once holding/captured/analyzing
-
-      const landmarks = results.multiFaceLandmarks?.[0];
-      const video = videoRef.current;
-      if (!video) return;
-
-      if (landmarks) latestLandmarksRef.current = landmarks;
-
-      if (!landmarks) {
-        alignedFrames.current = 0;
-        if (faceAlignedRef.current) {
-          setFaceAlignedState(false);
-          cancelCaptureHold();
-        }
-        return;
-      }
-
-      const allIn = CHECK_LM.every((i) =>
-        inOval(toDisplayCoords(landmarks[i], video)),
-      );
-
-      if (allIn) {
-        alignedFrames.current += 1;
-        if (
-          alignedFrames.current >= ALIGN_THRESHOLD &&
-          !faceAlignedRef.current
-        ) {
-          setFaceAlignedState(true);
-          beginCaptureHold();
-        }
+    countdownRef.current = setInterval(() => {
+      n -= 1;
+      if (n <= 0) {
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        captureFrame();
       } else {
-        alignedFrames.current = 0;
-        if (faceAlignedRef.current) {
-          setFaceAlignedState(false);
-          cancelCaptureHold();
+        setCount(n);
+      }
+    }, 1000);
+  }, [captureFrame, setPhaseState]);
+
+  // ── Camera setup (plain getUserMedia — no MediaPipe) ─────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            facingMode: "user",
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
         }
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) return;
+        video.srcObject = stream;
+        await video.play().catch(() => {});
+        if (!cancelled) startCountdown();
+      } catch {
+        if (!cancelled)
+          setErrorMsg("Camera unavailable — please check permissions.");
       }
-    },
-    [beginCaptureHold, cancelCaptureHold, setFaceAlignedState],
-  );
-
-  // Show manual capture button after 8s idle — fallback for poor lighting
-  useEffect(() => {
-    if (capturePhase === "idle" && !faceAligned && !isModelLoading) {
-      manualTimerRef.current = setTimeout(
-        () => setManualCaptureVisible(true),
-        8000,
-      );
-    } else {
-      if (manualTimerRef.current) clearTimeout(manualTimerRef.current);
-      if (capturePhase !== "idle")
-        setTimeout(() => setManualCaptureVisible(false), 0);
-    }
-    return () => {
-      if (manualTimerRef.current) clearTimeout(manualTimerRef.current);
-    };
-  }, [capturePhase, faceAligned, isModelLoading]);
-
-  // ── MediaPipe init ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    let isMounted = true;
-    const currentVideo = videoRef.current;
-
-    async function init() {
-      await Promise.all([
-        loadScript(FACE_MESH_CDN),
-        loadScript(CAMERA_UTILS_CDN),
-      ]);
-      // Poll until videoRef is in the DOM — one RAF isn't enough on cached
-      // re-navigation (e.g. voice → navigate) because loadScript resolves
-      // synchronously and the <video> element may not be rendered yet.
-      await new Promise<void>((r) => {
-        const check = () => {
-          if (!isMounted) {
-            r();
-            return;
-          }
-          if (videoRef.current) {
-            r();
-            return;
-          }
-          requestAnimationFrame(check);
-        };
-        requestAnimationFrame(check);
-      });
-      if (!isMounted || !videoRef.current || !window.FaceMesh || !window.Camera)
-        return;
-
-      const faceMesh = new window.FaceMesh({
-        locateFile: (f) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`,
-      });
-      faceMesh.setOptions({
-        maxNumFaces: 1,
-        refineLandmarks: false,
-        minDetectionConfidence: 0.6,
-        minTrackingConfidence: 0.5,
-      });
-      faceMesh.onResults(handleResults);
-
-      const camera = new window.Camera(videoRef.current, {
-        onFrame: async () => {
-          if (!videoRef.current) return;
-          await faceMesh.send({ image: videoRef.current });
-        },
-        width: 1920,
-        height: 1080,
-      });
-      camera.start();
-      cameraRef.current = camera;
-      if (isMounted) setIsModelLoading(false);
     }
 
-    init().catch(() => {
-      if (isMounted) setIsModelLoading(false);
-    });
+    start();
 
     return () => {
-      isMounted = false;
-      cameraRef.current?.stop?.();
-      // Release the camera hardware so the next mount can acquire it cleanly
-      if (currentVideo?.srcObject) {
-        (currentVideo.srcObject as MediaStream)
-          .getTracks()
-          .forEach((t) => t.stop());
-        currentVideo.srcObject = null;
-      }
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      cancelled = true;
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      const v = videoRef.current;
+      if (v) v.srcObject = null;
     };
-  }, [handleResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // ── Derived values ────────────────────────────────────────────────────────────
-  const ovalColor =
-    faceAligned || capturePhase !== "idle"
-      ? "rgba(72,199,142,0.95)"
-      : "rgba(255,255,255,0.85)";
-
-  const instructionText = isModelLoading
-    ? "Initializing camera…"
-    : capturePhase === "analyzing"
-      ? "Analyzing your skin…"
-      : capturePhase === "captured"
+  const caption = errorMsg
+    ? errorMsg
+    : phase === "starting"
+      ? "Starting camera…"
+      : phase === "captured"
         ? "Processing…"
-        : capturePhase === "holding"
-          ? "Hold still…"
-          : faceAligned
-            ? "Face detected"
-            : "Position your face within the guide";
+        : "Get ready — look at the camera";
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  // ── Render — mirrors the recommendation screen layout ────────────────────────
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black">
-      {/* Camera feed — horizontally mirrored */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: "scaleX(1)" }}
-      />
-
-      {/* SVG: vignette + oval border */}
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        viewBox="0 0 768 1366"
-        preserveAspectRatio="xMidYMid slice"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <mask id="face-oval-mask">
-            <rect width="768" height="1366" fill="white" />
-            <ellipse cx={OX} cy={OY} rx={RX} ry={RY} fill="black" />
-          </mask>
-          <filter id="oval-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        <rect
-          width="768"
-          height="1366"
-          fill="rgba(0,0,0,0.62)"
-          mask="url(#face-oval-mask)"
-        />
-
-        <ellipse
-          cx={OX}
-          cy={OY}
-          rx={RX}
-          ry={RY}
-          fill="none"
-          stroke={ovalColor}
-          strokeWidth={capturePhase === "holding" ? 3.5 : 2.5}
-          filter="url(#oval-glow)"
-          style={{ transition: "stroke 0.4s ease, stroke-width 0.3s ease" }}
-        />
-      </svg>
-
-      {/* Emerald pulse fill — during hold and during analysis */}
-      <AnimatePresence>
-        {(capturePhase === "holding" || capturePhase === "analyzing") && (
-          <motion.div
-            key="hold-pulse"
-            className="absolute inset-0 pointer-events-none"
-            style={{ clipPath: `ellipse(${RX}px ${RY}px at ${OX}px ${OY}px)` }}
-            animate={{ opacity: [0, 0.12, 0] }}
-            transition={{ duration: 0.75, repeat: Infinity, ease: "easeInOut" }}
-          >
-            <div className="w-full h-full bg-emerald-400" />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* White flash on capture */}
-      <AnimatePresence>
-        {capturePhase === "captured" && (
-          <motion.div
-            key="capture-flash"
-            className="absolute inset-0 bg-white pointer-events-none z-40"
-            initial={{ opacity: 0.85 }}
-            animate={{ opacity: 0 }}
-            transition={{ duration: 0.55 }}
-          />
-        )}
-      </AnimatePresence>
-
+    <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       {/* Header */}
-      <motion.div
-        className="absolute top-0 inset-x-0 z-20 flex items-center px-8 pt-10 pb-4"
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <header className="flex items-center shrink-0 py-4 px-4" style={{ background: "rgba(0,0,0,0.85)" }}>
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 text-white/80 active:text-white transition-colors"
         >
           <ArrowLeft className="w-7 h-7" />
         </button>
-        <h1 className="flex-1 text-center text-white font-bold text-2xl pr-10">
+        <h1 className="flex-1 text-center text-white font-bold text-2xl pr-9">
           Skin Analysis
         </h1>
-      </motion.div>
+      </header>
 
-      {/* AI Suggestion Banner */}
+      {/* AI suggestion tip — compact, clamped so it can't take over the screen */}
       <AnimatePresence>
         {aiSuggestion && (
           <motion.div
-            className="absolute top-24 inset-x-8 z-20"
-            initial={{ opacity: 0, y: -10 }}
+            className="shrink-0 px-4 pt-3"
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <div
-              className="p-3 rounded-xl flex items-center gap-3"
+              className="p-2.5 rounded-xl flex items-center gap-2.5"
               style={{
                 background: "rgba(0,0,0,0.4)",
-                border: "1px solid rgba(255,255,255,0.2)",
+                border: "1px solid rgba(255,255,255,0.18)",
                 backdropFilter: "blur(10px)",
               }}
             >
-              <span className="text-xl shrink-0">✨</span>
-              <p className="text-white/90 text-sm font-medium leading-snug">
+              <span className="text-base shrink-0">✨</span>
+              <p
+                className="text-white/85 text-xs font-medium leading-snug"
+                style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}
+              >
                 {aiSuggestion}
               </p>
             </div>
@@ -494,82 +247,140 @@ export default function CosmeticPage() {
         )}
       </AnimatePresence>
 
-      {/* Instruction text */}
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={instructionText}
-          className="absolute inset-x-0 z-10 text-center text-lg tracking-wide"
-          style={{
-            top: `${((OY + RY + 36) / 1366) * 100}%`,
-            color:
-              capturePhase !== "idle" || faceAligned
-                ? "rgba(72,199,142,0.95)"
-                : "rgba(255,255,255,0.60)",
-          }}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.35 }}
-        >
-          {instructionText}
-        </motion.p>
-      </AnimatePresence>
-
-      {/* Error overlay — auto-dismisses after 3s */}
-      <AnimatePresence>
-        {errorMsg && (
-          <motion.div
-            key="error-msg"
-            className="absolute inset-x-0 z-30 flex justify-center"
-            style={{ top: `${((OY + RY + 80) / 1366) * 100}%` }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
+      {/* Body — same structure as the recommendation screen */}
+      <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
+        {/* Camera preview — sits exactly where the captured photo will appear */}
+        <div className="flex justify-center shrink-0 px-4 pt-3">
+          <div
+            style={{
+              position: "relative",
+              height: "32vh",
+              aspectRatio: "3 / 4",
+              borderRadius: "14px",
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(255,255,255,0.04)",
+            }}
           >
-            <span
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full"
+              style={{ objectFit: "cover", objectPosition: "center top", transform: "scaleX(-1)" }}
+            />
+
+            {/* Countdown number */}
+            <AnimatePresence mode="wait">
+              {phase === "countdown" && (
+                <motion.div
+                  key={count}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  initial={{ opacity: 0, scale: 1.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6 }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <span style={{ fontSize: "5rem", fontWeight: 700, color: "rgba(255,255,255,0.95)", textShadow: "0 4px 30px rgba(0,0,0,0.7)" }}>
+                    {count}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* White flash on capture */}
+            <AnimatePresence>
+              {phase === "captured" && (
+                <motion.div
+                  key="capture-flash"
+                  className="absolute inset-0 bg-white pointer-events-none"
+                  initial={{ opacity: 0.85 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ duration: 0.55 }}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Caption strip at the bottom of the preview */}
+            <div
               style={{
-                color: "rgba(248,113,113,0.95)",
-                fontSize: "14px",
-                letterSpacing: "0.02em",
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: "18px 10px 8px",
+                background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+                textAlign: "center",
               }}
             >
-              {errorMsg}
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: errorMsg ? "rgba(248,113,113,0.95)" : "rgba(255,255,255,0.8)",
+                }}
+              >
+                {caption}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Skeleton product grid — placeholder for the upcoming recommendations */}
+        <div className="flex-1 px-4 pb-3 pt-3" style={{ minHeight: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: "14px", fontWeight: 600 }}>
+              Recommended Products
             </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Manual capture fallback — appears after 8s if auto-detection hasn't fired */}
-      <AnimatePresence>
-        {manualCaptureVisible && capturePhase === "idle" && (
-          <motion.div
-            key="manual-capture"
-            className="absolute inset-x-0 z-30 flex flex-col items-center gap-2"
-            style={{ top: `${((OY + RY + 120) / 1366) * 100}%` }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.4 }}
-          >
-            <p className="text-white/50 text-xs tracking-wide">
-              Having trouble? Capture manually
-            </p>
-            <button
-              onClick={captureFrame}
-              className="px-8 py-3 rounded-full font-semibold text-sm tracking-wide"
-              style={{
-                background: "rgba(72,199,142,0.15)",
-                border: "1px solid rgba(72,199,142,0.5)",
-                color: "rgba(72,199,142,0.95)",
-                backdropFilter: "blur(8px)",
-              }}
+            <motion.span
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+              style={{ color: "rgba(72,199,142,0.8)", fontSize: "10px" }}
             >
-              📸 Capture Now
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ✦ preparing…
+            </motion.span>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateRows: "repeat(1, 1fr)",
+              gap: "10px",
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <SkeletonCard key={i} delay={i * 0.2} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Capture controls */}
+      {phase !== "captured" && !errorMsg && (
+        <div className="shrink-0 pb-6 flex flex-col items-center gap-2">
+          <button
+            onClick={captureFrame}
+            className="px-9 py-3 rounded-full font-semibold text-sm tracking-wide"
+            style={{
+              background: "rgba(72,199,142,0.18)",
+              border: "1px solid rgba(72,199,142,0.55)",
+              color: "rgba(72,199,142,0.95)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            📸 Capture now
+          </button>
+          <button
+            onClick={startCountdown}
+            className="text-white/45 text-xs tracking-wide active:text-white/70 transition-colors"
+          >
+            Restart countdown
+          </button>
+        </div>
+      )}
 
       {/* ChatWonder Chat overlay */}
       <ChatWonderChat mode="cosmetics" weather={weather} />
