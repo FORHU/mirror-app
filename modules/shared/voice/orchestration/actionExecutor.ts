@@ -92,7 +92,8 @@ export async function executeAction(
 
     case "maps_suggest_places": {
       const map = useMapStore.getState();
-      const loc = map.selectedDestination ?? map.userLocation ?? map.homeLocation;
+      const loc =
+        map.selectedDestination ?? map.userLocation ?? map.homeLocation;
       if (!loc) return;
 
       const CATEGORY_MAP: Record<string, string> = {

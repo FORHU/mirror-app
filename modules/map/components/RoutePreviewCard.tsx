@@ -4,13 +4,6 @@ import { useMapStore } from "../store/useMapStore";
 import { Car, Bike, PersonStanding, X, Bike as MotoIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-const PROFILE_ICONS = {
-  car: Car,
-  motorcycle: MotoIcon,
-  bicycle: Bike,
-  walking: PersonStanding,
-};
-
 const TRANSPORT = [
   { profile: "car" as const, Icon: Car, label: "Car" },
   { profile: "motorcycle" as const, Icon: MotoIcon, label: "Moto" },
@@ -97,7 +90,9 @@ export default function RoutePreviewCard() {
                 style={activeProfile === profile ? BTN_ACTIVE : BTN_DIM}
               >
                 <Icon className="w-4 h-4 text-white/80" />
-                <span className="text-[10px] text-white/60 leading-none">{label}</span>
+                <span className="text-[10px] text-white/60 leading-none">
+                  {label}
+                </span>
               </button>
             ))}
           </div>
@@ -118,7 +113,10 @@ export default function RoutePreviewCard() {
                 </span>
                 <span
                   className="text-2xl font-light"
-                  style={{ color: "#4fc3f7", textShadow: "var(--hud-text-shadow)" }}
+                  style={{
+                    color: "#4fc3f7",
+                    textShadow: "var(--hud-text-shadow)",
+                  }}
                 >
                   {formatDistance(routeDistance)}
                 </span>
@@ -132,7 +130,10 @@ export default function RoutePreviewCard() {
                 </span>
                 <span
                   className="text-2xl font-light"
-                  style={{ color: "var(--ghost-panel-text)", textShadow: "var(--hud-text-shadow)" }}
+                  style={{
+                    color: "var(--ghost-panel-text)",
+                    textShadow: "var(--hud-text-shadow)",
+                  }}
                 >
                   {formatDuration(routeDuration)}
                 </span>

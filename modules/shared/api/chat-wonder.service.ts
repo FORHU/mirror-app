@@ -34,6 +34,8 @@ export interface ChatWonderMessageResponse {
   cosmetics_data: unknown | null;
   /** Place/restaurant search results per stop (null when ChatWonder sends none). */
   maps_data: unknown[] | null;
+  /** Navigation decision for `[nav]` requests (null otherwise). */
+  nav_data: ChatWonderNavData | null;
   /** Base64 MP3 of the spoken reply (null unless `voice: true` was sent). */
   audioBase64: string | null;
   metadata: {
@@ -41,6 +43,14 @@ export interface ChatWonderMessageResponse {
     userMessageId: string;
     aiMessageId: string;
   };
+}
+
+export interface ChatWonderNavData {
+  /** Route to navigate to — one of the app's SITEMAP_CONTEXT entries. */
+  target_url: string;
+  confidence?: number;
+  extracted_entities?: unknown | null;
+  system_message?: string;
 }
 
 export interface ChatWonderGarmentData {
@@ -165,7 +175,8 @@ export const chatWonderService = {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const json = await res.json();
-    if (json.status !== "success") throw new Error(json.message ?? "Request failed");
+    if (json.status !== "success")
+      throw new Error(json.message ?? "Request failed");
 
     return json.data as ChatWonderMessageResponse;
   },
