@@ -95,7 +95,10 @@ function pcmFloat32ToInt16(f: Float32Array): Int16Array {
 
 type RecordStep = "idle" | "recording" | "transcribing" | "loading" | "done" | "error";
 
-function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: ChatWonderMessageResponse) => void }) {
+function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
+  onAiComplete?: (response: ChatWonderMessageResponse) => void;
+  onLoadingChange?: (loading: boolean) => void;
+}) {
   const [step, setStep] = useState<RecordStep>("idle");
   const [transcript, setTranscript] = useState("");
   const [aiReply, setAiReply] = useState("");
@@ -180,6 +183,7 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
 
   async function stopAndTranscribe() {
     setStep("transcribing");
+    onLoadingChange?.(true);
     const chunks = chunksRef.current;
     cleanupMic();
 
@@ -196,13 +200,16 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
         body: combined.buffer,
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
-      rawText = (await res.text())?.trim();
+      const body = await res.json().catch(() => null);
+      rawText = (body?.transcript ?? body?.text ?? "").trim();
       if (!rawText) {
+        onLoadingChange?.(false);
         setErrorMsg("No speech detected");
         setStep("error");
         return;
       }
     } catch (err: unknown) {
+      onLoadingChange?.(false);
       setErrorMsg((err as Error).message ?? "Transcription failed");
       setStep("error");
       return;
@@ -220,10 +227,12 @@ function VoiceTranscribeOverlay({ onAiComplete }: { onAiComplete?: (response: Ch
         },
         abortCtrlRef.current.signal,
       );
+      onLoadingChange?.(false);
       setAiReply(response.message);
       setStep("done");
       onAiComplete?.(response);
     } catch (err: unknown) {
+      onLoadingChange?.(false);
       setErrorMsg((err as Error).message ?? "Request failed");
       setStep("error");
     }
@@ -332,6 +341,7 @@ export default function VirtualMirrorV2() {
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [aiLoading, setAiLoading] = useState(true);
+  const [voiceLoading, setVoiceLoading] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -761,7 +771,7 @@ export default function VirtualMirrorV2() {
                 }}
                 className="glass-card"
               >
-                {aiLoading ? (
+                {aiLoading || voiceLoading ? (
                   Array.from({ length: accessoryPageSize }).map((_, i) => (
                     <SkeletonCell
                       key={i}
@@ -869,7 +879,7 @@ export default function VirtualMirrorV2() {
                   overflow: "hidden",
                 }}
               >
-                {aiLoading ? (
+                {aiLoading || voiceLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <SkeletonCell
                       key={i}
@@ -1346,7 +1356,7 @@ export default function VirtualMirrorV2() {
           style={{ flex: "0 0 25%", width: "25%" }}
         >
           {/* Tops — Base layer */}
-          {(aiLoading || topsBase.length > 0) && (
+          {(aiLoading || voiceLoading || topsBase.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Base" />
               <div
@@ -1364,7 +1374,7 @@ export default function VirtualMirrorV2() {
                     gap: "4px",
                   }}
                 >
-                  {aiLoading
+                  {aiLoading || voiceLoading
                     ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
                         <SkeletonCell key={i} />
                       ))
@@ -1421,7 +1431,7 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Mid layer */}
-          {(aiLoading || topsMid.length > 0) && (
+          {(aiLoading || voiceLoading || topsMid.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Mid" />
               <div
@@ -1439,7 +1449,7 @@ export default function VirtualMirrorV2() {
                     gap: "4px",
                   }}
                 >
-                  {aiLoading
+                  {aiLoading || voiceLoading
                     ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
                         <SkeletonCell key={i} />
                       ))
@@ -1496,7 +1506,7 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Outer layer */}
-          {(aiLoading || topsOuter.length > 0) && (
+          {(aiLoading || voiceLoading || topsOuter.length > 0) && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Outer" />
               <div
@@ -1514,7 +1524,7 @@ export default function VirtualMirrorV2() {
                     gap: "4px",
                   }}
                 >
-                  {aiLoading
+                  {aiLoading || voiceLoading
                     ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
                         <SkeletonCell key={i} />
                       ))
@@ -1587,7 +1597,7 @@ export default function VirtualMirrorV2() {
                   gap: "4px",
                 }}
               >
-                {aiLoading ? (
+                {aiLoading || voiceLoading ? (
                   Array.from({ length: pageSize }).map((_, i) => (
                     <SkeletonCell key={i} />
                   ))
@@ -1675,7 +1685,7 @@ export default function VirtualMirrorV2() {
                   gap: "4px",
                 }}
               >
-                {aiLoading ? (
+                {aiLoading || voiceLoading ? (
                   Array.from({ length: shoesPageSize }).map((_, i) => (
                     <SkeletonCell key={i} />
                   ))
@@ -1860,7 +1870,7 @@ export default function VirtualMirrorV2() {
         </div>
       )}
 
-      <VoiceTranscribeOverlay onAiComplete={(r) => handleAiComplete(r)} />
+      <VoiceTranscribeOverlay onAiComplete={(r) => handleAiComplete(r)} onLoadingChange={setVoiceLoading} />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
