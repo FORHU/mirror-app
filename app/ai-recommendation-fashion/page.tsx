@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
-import { ROUTES } from "@/navigation";
 import {
   garmentService,
   type RemoteGarment,
@@ -240,7 +238,7 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
     try {
       const response = await chatWonderService.message(
         {
-          input: `[garment] ${rawText}`,
+          input: `[garments] ${rawText}`,
           ...(weatherRef.current ? { weather: weatherRef.current } : {}),
         },
         abortCtrlRef.current.signal,
@@ -433,8 +431,6 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
 }
 
 export default function VirtualMirrorV2() {
-  const router = useRouter();
-
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [aiLoading, setAiLoading] = useState(true);
   const [voiceLoading, setVoiceLoading] = useState(false);
@@ -775,7 +771,7 @@ export default function VirtualMirrorV2() {
       try {
         const response = await chatWonderService.message(
           {
-            input: "[garment] recommend outfits for today",
+            input: "[garments] recommend outfits for today",
             ...(weather ? { weather } : {}),
           },
           ctrl.signal,

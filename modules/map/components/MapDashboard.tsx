@@ -13,12 +13,17 @@ import WeatherWidget from "./WeatherWidget";
 import DevToolsOverlay from "./DevToolsOverlay";
 
 export default function MapDashboard() {
-  const { setUserLocation, saveHomeLocation, homeLocationStatus, suggestedPOIs, suggestionLabel, setDestination, clearSuggestions, isPanning } =
+  const { setUserLocation, saveHomeLocation, suggestedPOIs, suggestionLabel, setDestination, clearSuggestions, isPanning } =
     useMapStore();
   const { transcriptOpen, transcript, reply, error } = useVoiceContext();
   const chatVisible = transcriptOpen && !!(transcript || reply || error);
 
   const hasSavedHomeRef = useRef(false);
+
+  // WeatherWidget location: destination when route active, mirror location otherwise
+  const selectedDest = useMapStore((s) => s.selectedDestination);
+  const homeLocation = useMapStore((s) => s.homeLocation);
+  const weatherLocation = selectedDest ?? homeLocation;
 
   // Geolocation watch — auto-saves first fix as homeLocation
   useEffect(() => {
@@ -40,11 +45,6 @@ export default function MapDashboard() {
     return () => navigator.geolocation.clearWatch(watchId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // WeatherWidget location: destination when route active, mirror location otherwise
-  const selectedDest = useMapStore((s) => s.selectedDestination);
-  const homeLocation = useMapStore((s) => s.homeLocation);
-  const weatherLocation = selectedDest ?? homeLocation;
 
   return (
     <div className="relative w-full h-dvh bg-black overflow-hidden">

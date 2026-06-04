@@ -17,6 +17,7 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
+import { OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
@@ -24,7 +25,10 @@ import { SYSTEM_RESPONSES } from "./responses";
 import { runKernel } from "./orchestration/kernel";
 import { executeAction } from "./orchestration/actionExecutor";
 import { guardAction } from "./orchestration/actionGuard";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import {
+  chatWonderService,
+  resolveAccessToken,
+} from "@/modules/shared/api/chat-wonder.service";
 import {
   buildMapInput,
   isNavigationPhrase,
@@ -47,6 +51,8 @@ import {
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 4096;
 const CHAT_SESSION_KEY = "mirror_chat_session";
+const AI_ASSISTANT_WAKE_ONLY =
+  /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
 
 function float32ToInt16(f: Float32Array): Int16Array {
   const out = new Int16Array(f.length);
@@ -68,6 +74,7 @@ export interface VoiceContextValue {
   toggle: () => void;
   startListening: () => void;
   stopListening: () => void;
+  submitText: (text: string) => Promise<void>;
   registerPage: (
     ctx: PageContext,
     onAction: (action: ChatWonderAction) => void,
@@ -156,12 +163,93 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   // ----------------------
 
-  const stopPlayback = () => {
+  const stopPlayback = useCallback(() => {
     playbackRef.current?.stop();
     playbackRef.current = null;
     playbackCtxRef.current?.close();
     playbackCtxRef.current = null;
-  };
+  }, []);
+
+  const handleAIAssistantText = useCallback(
+    async (t: string) => {
+      if (AI_ASSISTANT_WAKE_ONLY.test(t.trim())) {
+        setTranscript("");
+        setReply("");
+        setVoiceState("idle");
+        return;
+      }
+
+      const history = historyRef.current
+        .flatMap((h) => [
+          { role: "user" as const, content: h.user },
+          { role: "assistant" as const, content: h.assistant },
+        ])
+        .slice(-10);
+
+      const token = await resolveAccessToken();
+      const assistantRes = await fetch("/api/mirror/ai-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-platform": "kiosk",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ message: t, history }),
+      });
+
+      const data = (await assistantRes.json().catch(() => null)) as {
+        reply?: string;
+        route?: string | null;
+      } | null;
+      const assistantReply =
+        data?.reply ??
+        (assistantRes.ok
+          ? "I'm not sure how to help with that."
+          : "Sorry, something went wrong.");
+
+      setReply(assistantReply);
+      const newHistory = [
+        ...historyRef.current,
+        { user: t, assistant: assistantReply },
+      ].slice(-4);
+      historyRef.current = newHistory;
+      setChatHistory(newHistory);
+
+      if (data?.route === ROUTES.OVERVIEW) {
+        try {
+          sessionStorage.setItem(OVERVIEW_PROMPT_KEY, t);
+        } catch {
+          /* overview just won't auto-fire */
+        }
+      }
+
+      const finish = () => {
+        if (data?.route) router.push(data.route);
+        setVoiceState("idle");
+      };
+
+      const audio = await mapService.tts(assistantReply).catch(() => null);
+      if (!audio) {
+        finish();
+        return;
+      }
+
+      setVoiceState("speaking");
+      const playCtx = new AudioContext();
+      playbackCtxRef.current = playCtx;
+      const decoded = await playCtx.decodeAudioData(audio.slice(0));
+      const src = playCtx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(playCtx.destination);
+      playbackRef.current = src;
+      src.onended = () => {
+        stopPlayback();
+        finish();
+      };
+      src.start(0);
+    },
+    [router, stopPlayback],
+  );
 
   const cleanupRecording = () => {
     processorRef.current?.disconnect();
@@ -294,6 +382,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // AI Assistant page: use the shared recorder/transcriber/TTS plumbing, but
+      // keep the deterministic assistant route for [nav] and overview handoff.
+      if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
+        await handleAIAssistantText(t);
+        return;
+      }
+
       // Garment mode: bypass the orchestration pipeline, route to chatWonderService
       if (pageCtxRef.current?.mode === "garment") {
         let weather: Record<string, unknown> | undefined;
@@ -326,7 +421,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
         const garmentResponse = await chatWonderService.message({
-          input: `[garment] ${t}`,
+          input: `[garments] ${t}`,
           voice: true,
           sitemapContext: [...SITEMAP_CONTEXT, "back"],
           ...(weather ? { weather } : {}),
@@ -972,7 +1067,33 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       );
       setVoiceState("idle");
     }
-  }, [voiceState, pathname, router]);
+  }, [voiceState, pathname, router, handleAIAssistantText, stopPlayback]);
+
+  const submitText = useCallback(
+    async (text: string) => {
+      const t = text.trim();
+      if (!t || voiceState !== "idle") return;
+
+      setError(null);
+      setReply("");
+      setTranscript(t);
+      setVoiceState("processing");
+
+      try {
+        if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
+          await handleAIAssistantText(t);
+          return;
+        }
+
+        setError("Hands-free text submission is only wired on AI Assistant.");
+        setVoiceState("idle");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Voice processing failed.");
+        setVoiceState("idle");
+      }
+    },
+    [handleAIAssistantText, pathname, voiceState],
+  );
 
   const toggle = useCallback(() => {
     if (voiceState === "idle") return startListening();
@@ -984,7 +1105,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       setVoiceState("idle");
     }
-  }, [voiceState, startListening, stopListening]);
+  }, [voiceState, startListening, stopListening, stopPlayback]);
 
   const registerPage = useCallback(
     (ctx: PageContext, onAction: (action: ChatWonderAction) => void) => {
@@ -1016,6 +1137,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         toggle,
         startListening,
         stopListening,
+        submitText,
         registerPage,
         unregisterPage,
         aiEvents,

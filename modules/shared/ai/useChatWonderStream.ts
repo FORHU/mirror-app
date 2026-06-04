@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
+import { resolveAccessToken } from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 
 interface ItineraryMap {
@@ -18,18 +19,41 @@ export interface ChatMessage {
   content: string;
 }
 
+/**
+ * Shape of the SSE `complete` event emitted by the backend chat-wonder stream.
+ * The structured tool blocks (`garment` / `cosmetics` / `maps` / `nav`) are
+ * `null` unless ChatWonder actually fired that tool. Kept loosely typed here —
+ * consumers narrow each block against the richer types in chat-wonder.service.
+ */
+export interface ChatWonderCompletePayload {
+  type: "complete";
+  message?: string;
+  garment?: unknown | null;
+  cosmetics?: unknown | null;
+  maps?: unknown | null;
+  nav?: unknown | null;
+  events?: unknown[];
+  sets?: unknown[];
+  raw?: string;
+}
+
+export interface SendMessageOptions {
+  conversationId?: string;
+  mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
+  weather?: unknown;
+  /**
+   * Optional: fires once when the stream's `complete` event arrives, carrying
+   * the full structured payload (tool results). Non-breaking — existing callers
+   * that don't pass this are unaffected.
+   */
+  onComplete?: (payload: ChatWonderCompletePayload) => void;
+}
+
 export interface UseChatWonderStreamResult {
   messages: ChatMessage[];
   isStreaming: boolean;
   error: string | null;
-  sendMessage: (
-    text: string,
-    options?: {
-      conversationId?: string;
-      mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
-      weather?: unknown;
-    },
-  ) => Promise<void>;
+  sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   clearMessages: () => void;
 }
 
@@ -55,11 +79,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   const sendMessage = useCallback(async function doSendMessage(
     text: string,
-    options?: {
-      conversationId?: string;
-      mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
-      weather?: unknown;
-    },
+    options?: SendMessageOptions,
     kioskId?: string,
   ) {
     if (!text.trim()) return;
@@ -85,21 +105,16 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
     setMessages((prev) => [...prev, { id: aiMsgId, role: "AI", content: "" }]);
 
     try {
-      // In mirror-app, we assume the token is stored somewhere or the session is handled.
-      // If there is an auth token required, you would attach it here.
-      const token =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem("access_token") || ""
-          : "";
+      const token = await resolveAccessToken();
       let finalInput = text;
       if (options?.mode === "map") {
-        finalInput = `[maps] ${text}`;
+        finalInput = `[map] ${text}`;
       } else if (options?.mode === "garments") {
-        finalInput = `[garment] ${text}`;
+        finalInput = `[garments] ${text}`;
       } else if (options?.mode === "cosmetics") {
         finalInput = `[cosmetics] ${text}`;
       } else if (options?.mode === "overview") {
-        finalInput = `[overview] ${text}`;
+        finalInput = `[overview] [map] [garments] [cosmetics] ${text}`;
       }
 
       const history = messagesRef.current.slice(-10).map((m) => ({
@@ -165,6 +180,10 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                 );
               } else if (parsed.type === "complete") {
                 console.log("Chat completed with data:", parsed);
+
+                // Surface the full structured payload (tool results) to any
+                // opt-in consumer before we run the built-in map handling.
+                options?.onComplete?.(parsed as ChatWonderCompletePayload);
 
                 const {
                   clearPendingEvents,
@@ -285,7 +304,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, []);
+  }, [router]);
 
   return {
     messages,

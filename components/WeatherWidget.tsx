@@ -225,7 +225,7 @@ export default function WeatherWidget({
 }: {
   iconSize?: number;
 }) {
-  const { weather, loading, coords } = useWeather();
+  const { weather, loading } = useWeather();
 
   if (loading) {
     return (
@@ -280,19 +280,7 @@ export default function WeatherWidget({
           {weather.temp !== null ? `${weather.temp}°C` : "--°C"}
         </span>
         <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>
-          {weather.city}
-        </span>
-        {/* TEST: GPS coords */}
-        <span
-          style={{
-            color: "rgba(255,220,50,0.8)",
-            fontSize: "10px",
-            fontFamily: "monospace",
-          }}
-        >
-          {coords
-            ? `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`
-            : "GPS…"}
+          {weather.city !== "---" ? weather.city : (weather.condition ?? "")}
         </span>
       </div>
     </div>

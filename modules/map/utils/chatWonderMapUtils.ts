@@ -208,5 +208,5 @@ export function buildMapInput(
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
 
-  return `[maps]${ctx} ${transcript}`;
+  return `[map]${ctx} ${transcript}`;
 }

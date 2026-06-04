@@ -6,6 +6,7 @@ export interface WeatherData {
   temp: number | null;
   city: string;
   code: number;
+  condition?: string;
 }
 
 const COORDS_KEY = "mirror_weather_coords";
@@ -49,18 +50,43 @@ export function useWeather() {
   );
 
   useEffect(() => {
+    function normalizeWeather(raw: unknown, fallbackCity = "---"): WeatherData {
+      const d = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const temp =
+        typeof d.temp === "number"
+          ? d.temp
+          : typeof d.temperature === "number"
+            ? Math.round(d.temperature)
+            : null;
+      const code =
+        typeof d.code === "number"
+          ? d.code
+          : typeof d.weather_code === "number"
+            ? d.weather_code
+            : 0;
+      const city = typeof d.city === "string" ? d.city : fallbackCity;
+      const condition =
+        typeof d.condition === "string" ? d.condition : undefined;
+      return { temp, code, city, condition };
+    }
+
     function fetchWithCoords(lat: number, lon: number) {
-      fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+      fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`)
         .then((r) => r.json())
-        .then((d: WeatherData) => setWeather(d))
-        .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
+        .then((d) => setWeather(normalizeWeather(d)))
+        .catch(() =>
+          fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+            .then((r) => r.json())
+            .then((d) => setWeather(normalizeWeather(d)))
+            .catch(() => setWeather({ temp: null, code: 0, city: "---" })),
+        )
         .finally(() => setLoading(false));
     }
 
     function fetchFromServer() {
       fetch("/api/weather")
         .then((r) => r.json())
-        .then((d: WeatherData) => setWeather(d))
+        .then((d) => setWeather(normalizeWeather(d)))
         .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
         .finally(() => setLoading(false));
     }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SITEMAP_CONTEXT } from "@/navigation";
+import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
 import { resolveNav } from "@/lib/navResolver";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
@@ -12,6 +12,39 @@ function resolveAccessToken(req: NextRequest) {
     return process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null;
   }
   return process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null;
+}
+
+const EVENT_HINT =
+  /\b(meeting|date|dinner|lunch|breakfast|event|appointment|interview|party|wedding|class|conference|presentation|trip|travel|visit|commute|errand)\b/i;
+const TIME_HINT =
+  /\b(today|tonight|tomorrow|morning|afternoon|evening|later|this\s+(morning|afternoon|evening|weekend)|next\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|weekend)|\d{1,2}(:\d{2})?\s*(am|pm))\b/i;
+const PLACE_HINT = /\b(in|at|near|around|to)\s+[a-z][a-z0-9 .'-]{2,}\b/i;
+const PERSONAL_PLAN_HINT =
+  /\b(i\s+(will|have|got|am|need|plan|want)|i'm|im|going|headed|heading|attending|attend|visiting|visit|traveling|travelling)\b/i;
+const PREP_HINT =
+  /\b(wear|outfit|clothes|clothing|dress|style|prepare|recommend|suggest|weather|bring|route|directions|navigate)\b/i;
+
+function resolveOverviewHandoff(rawInput: string) {
+  const input = rawInput.trim();
+  const hasEvent = EVENT_HINT.test(input);
+  const hasTime = TIME_HINT.test(input);
+  const hasPlace = PLACE_HINT.test(input);
+  const hasPersonalPlan = PERSONAL_PLAN_HINT.test(input);
+  const hasPrepNeed = PREP_HINT.test(input);
+
+  if (
+    (hasPersonalPlan && hasEvent && (hasTime || hasPlace)) ||
+    (hasPrepNeed && hasPlace && (hasTime || hasEvent))
+  ) {
+    return {
+      reply:
+        "Opening Overview so I can pull together the map, weather, and outfit context.",
+      route: ROUTES.OVERVIEW,
+      routeLabel: "Open overview",
+    };
+  }
+
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -35,6 +68,13 @@ export async function POST(req: NextRequest) {
         route: nav.target_url,
         routeLabel: "Open page",
       });
+    }
+
+    // Situation/prep prompts belong on /overview, where the existing handoff
+    // replays the original prompt through ChatWonder's streaming tool pipeline.
+    const overview = resolveOverviewHandoff(message);
+    if (overview) {
+      return NextResponse.json(overview);
     }
 
     if (!API_BASE_URL) {

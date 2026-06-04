@@ -3,7 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, Bot, User, Loader2, X, MessageSquare } from "lucide-react";
-import { useChatWonderStream } from "./useChatWonderStream";
+import {
+  useChatWonderStream,
+  type ChatWonderCompletePayload,
+} from "./useChatWonderStream";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -14,11 +17,14 @@ function cn(...inputs: ClassValue[]) {
 interface ChatWonderChatProps {
   mode?: "garments" | "cosmetics" | "overview" | "default";
   weather?: unknown;
+  /** Opt-in: receive the structured tool payload when a reply completes. */
+  onComplete?: (payload: ChatWonderCompletePayload) => void;
 }
 
 export function ChatWonderChat({
   mode = "default",
   weather,
+  onComplete,
 }: ChatWonderChatProps = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -40,7 +46,7 @@ export function ChatWonderChat({
 
     const text = input;
     setInput("");
-    await sendMessage(text, { mode, weather });
+    await sendMessage(text, { mode, weather, onComplete });
   };
 
   return (
