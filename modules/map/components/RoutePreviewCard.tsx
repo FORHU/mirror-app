@@ -44,11 +44,18 @@ export default function RoutePreviewCard() {
     activeProfile,
     isRouting,
     clearRoute,
+    itineraryStops,
+    itineraryRoutes,
   } = useMapStore();
+
+  const isItinerary = itineraryStops.length > 0;
+  const totalItineraryDistance = itineraryRoutes.reduce((s, r) => s + r.distance, 0);
+  const totalItineraryDuration = itineraryRoutes.reduce((s, r) => s + r.duration, 0);
+  const visible = !!selectedDestination || isItinerary;
 
   return (
     <AnimatePresence>
-      {selectedDestination && (
+      {visible && (
         <motion.div
           key="nav-bar"
           initial={{ y: 120, opacity: 0 }}
@@ -68,7 +75,9 @@ export default function RoutePreviewCard() {
             <div className="flex items-center gap-2 min-w-0">
               <Navigation className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
               <p className="text-sm font-semibold text-white truncate">
-                {selectedDestination.name || selectedDestination.address}
+                {isItinerary
+                  ? `${itineraryStops.length} stop${itineraryStops.length > 1 ? "s" : ""}`
+                  : selectedDestination?.name || selectedDestination?.address}
               </p>
             </div>
             <button
@@ -83,7 +92,7 @@ export default function RoutePreviewCard() {
 
           {/* Stats + transport row */}
           <div className="flex items-center justify-between px-5 pb-5">
-            {isRouting ? (
+            {isRouting || (isItinerary && itineraryRoutes.length === 0) ? (
               <p className="text-xs text-white/40 uppercase tracking-widest">
                 Calculating…
               </p>
@@ -94,7 +103,7 @@ export default function RoutePreviewCard() {
                     Distance
                   </p>
                   <p className="text-xl font-light text-blue-400">
-                    {formatDistance(routeDistance)}
+                    {formatDistance(isItinerary ? totalItineraryDistance : routeDistance)}
                   </p>
                 </div>
                 <div className="w-px h-7 bg-white/10" />
@@ -103,7 +112,7 @@ export default function RoutePreviewCard() {
                     ETA
                   </p>
                   <p className="text-xl font-light text-white/80">
-                    {formatDuration(routeDuration)}
+                    {formatDuration(isItinerary ? totalItineraryDuration : routeDuration)}
                   </p>
                 </div>
               </div>

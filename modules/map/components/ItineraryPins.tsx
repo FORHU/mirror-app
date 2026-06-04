@@ -27,6 +27,7 @@ const ItineraryPins: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         </div>
       `;
       el.style.willChange = "transform";
+      el.style.zIndex = "50";
 
       const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
         .setLngLat([stop.lng, stop.lat])

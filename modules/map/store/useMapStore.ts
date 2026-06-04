@@ -251,8 +251,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const poiResults = await Promise.all(
       stops.map(async (stop, i) => {
         try {
-          const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 300);
-          return { stopIndex: i, pois: pois.slice(0, 3) };
+          const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 600);
+          return { stopIndex: i, pois: pois.slice(0, 5) };
         } catch {
           return { stopIndex: i, pois: [] };
         }
@@ -329,10 +329,31 @@ export const useMapStore = create<MapStore>((set, get) => ({
     }
   },
 
-  setActiveProfile: (activeProfile) => {
+  setActiveProfile: async (activeProfile) => {
     set({ activeProfile });
-    const dest = get().selectedDestination;
-    if (dest) get().setDestination(dest);
+    const { selectedDestination, itineraryStops, userLocation, homeLocation } = get();
+    if (selectedDestination) {
+      get().setDestination(selectedDestination);
+    } else if (itineraryStops.length > 0) {
+      // Re-fetch all itinerary legs with the new profile (skip POI re-fetch)
+      const origin = userLocation ?? homeLocation;
+      if (!origin) return;
+      const allPoints = [{ lat: origin.lat, lng: origin.lng }, ...itineraryStops];
+      const routes: DirectionsFormatted[] = [];
+      for (let i = 0; i < allPoints.length - 1; i++) {
+        try {
+          const route = await mapService.directions(
+            [allPoints[i].lng, allPoints[i].lat],
+            [allPoints[i + 1].lng, allPoints[i + 1].lat],
+            activeProfile,
+          );
+          routes.push(route);
+        } catch {
+          // skip failed legs silently
+        }
+      }
+      set({ itineraryRoutes: routes });
+    }
   },
 
   patchHomeLocation: async (coords) => {

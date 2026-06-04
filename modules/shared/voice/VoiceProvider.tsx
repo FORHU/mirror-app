@@ -29,6 +29,8 @@ import {
   buildMapInput,
   isNavigationPhrase,
   isItineraryPhrase,
+  isFinishPhrase,
+  extractLocationFromTranscript,
   mapPlaceToNearbyPOI,
   curatePOIs,
   buildPOITTS,
@@ -111,6 +113,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const curatedPOIsRef = useRef<NearbyPOI[]>([]);
+  const itineraryStopsRef = useRef<{ name: string; lat: number; lng: number; address?: string; placeId?: string }[]>([]);
+  const isCollectingItineraryRef = useRef(false);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
@@ -136,6 +140,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
     curatedPOIsRef.current = [];
+    itineraryStopsRef.current = [];
+    isCollectingItineraryRef.current = false;
     if (!pathname.startsWith("/map")) mapSessionInitRef.current = false;
 
     // Begin a fresh chat-wonder Voice session on arrival at the Attract screen.
@@ -320,7 +326,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
         const garmentResponse = await chatWonderService.message({
-          input: `[garments] ${t}`,
+          input: `[garment] ${t}`,
           voice: true,
           sitemapContext: [...SITEMAP_CONTEXT, "back"],
           ...(weather ? { weather } : {}),
@@ -478,6 +484,82 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           useMapStore.getState().clearSuggestions();
         }
 
+        // ── Itinerary intercept — bypass ChatWonder entirely ──────────────────
+        // Finish phrase → finalise the collected itinerary
+        if (isCollectingItineraryRef.current && isFinishPhrase(t)) {
+          isCollectingItineraryRef.current = false;
+          const stops = itineraryStopsRef.current;
+          const finishReply = stops.length > 1
+            ? `Here's your full route with ${stops.length} stops!`
+            : "Here's your route!";
+          const finishAudio = await mapService.tts(finishReply);
+          setReply(finishReply);
+          const fh = [...historyRef.current, { user: t, assistant: finishReply }].slice(-4);
+          historyRef.current = fh;
+          setChatHistory(fh);
+          setVoiceState("speaking");
+          if (finishAudio) {
+            const playCtx = new AudioContext();
+            playbackCtxRef.current = playCtx;
+            const decoded = await playCtx.decodeAudioData(finishAudio.slice(0));
+            const src = playCtx.createBufferSource();
+            src.buffer = decoded;
+            src.connect(playCtx.destination);
+            playbackRef.current = src;
+            src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+            src.start(0);
+          } else { setVoiceState("idle"); }
+          return;
+        }
+
+        // Itinerary or navigation phrase → geocode and add stop directly
+        const mapStateForItinerary = useMapStore.getState();
+        const mapLocForItinerary = mapStateForItinerary.userLocation ?? mapStateForItinerary.homeLocation;
+        if (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current) {
+          const locationName = extractLocationFromTranscript(t);
+          if (locationName) {
+            try {
+              const { results } = await mapService.geocode(locationName, mapLocForItinerary ?? undefined);
+              if (results.length > 0) {
+                const dest = {
+                  name: results[0].name,
+                  lat: results[0].lat,
+                  lng: results[0].lng,
+                  address: results[0].address,
+                  placeId: results[0].placeId,
+                };
+                itineraryStopsRef.current = [...itineraryStopsRef.current, dest];
+                isCollectingItineraryRef.current = true;
+                if (itineraryStopsRef.current.length === 1) {
+                  await useMapStore.getState().setItineraryStops([dest]);
+                } else {
+                  await useMapStore.getState().setItineraryStops(itineraryStopsRef.current);
+                }
+                const stopReply = `Got it, ${dest.name} added. Any more stops?`;
+                const stopAudio = await mapService.tts(stopReply);
+                setReply(stopReply);
+                const sh = [...historyRef.current, { user: t, assistant: stopReply }].slice(-4);
+                historyRef.current = sh;
+                setChatHistory(sh);
+                setVoiceState("speaking");
+                if (stopAudio) {
+                  const playCtx = new AudioContext();
+                  playbackCtxRef.current = playCtx;
+                  const decoded = await playCtx.decodeAudioData(stopAudio.slice(0));
+                  const src = playCtx.createBufferSource();
+                  src.buffer = decoded;
+                  src.connect(playCtx.destination);
+                  playbackRef.current = src;
+                  src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+                  src.start(0);
+                } else { setVoiceState("idle"); }
+                return;
+              }
+            } catch { /* fall through to ChatWonder if geocoding fails */ }
+          }
+        }
+        // ── End itinerary intercept ────────────────────────────────────────────
+
         if (!mapSessionInitRef.current) {
           await chatWonderService.getSessionId();
           mapSessionInitRef.current = true;
@@ -515,19 +597,44 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         const responseEvents = Array.isArray(res.events) ? res.events : [];
         const hasEvents = responseEvents.length > 0;
 
+        // Overrides res.message when a single itinerary stop is confirmed — set in
+        // both the places path (MAP intent + itinerary phrase) and the
+        // itinerary_resolved path so the user is always asked "Any more stops?".
+        let itineraryConfirmReply = "";
+
         // places_data: single place → navigate, multiple → curate and suggest.
         // For direct navigation phrases ("take me to X"), always navigate to the
         // first (best) result without showing the curation stack.
         const places = hasEvents ? [] : (res.maps_data?.[0]?.places ?? []);
         const navigateDirect = places.length > 1 && (isNavigationPhrase(t) || isItineraryPhrase(t));
+        const isItineraryInput = isItineraryPhrase(t) || isCollectingItineraryRef.current;
         if (places.length === 1 || navigateDirect) {
-          useMapStore.getState().setDestination({
-            name: places[0].name,
-            lat: places[0].lat,
-            lng: places[0].lng,
-            address: places[0].address,
-            placeId: places[0].place_id,
-          });
+          if (isItineraryInput) {
+            // Itinerary-phrased single destination: use setItineraryStops so that
+            // (a) nearby POI dots are fetched, (b) the stop is in itineraryStops for
+            // future turn accumulation, and (c) we can ask "Any more stops?".
+            const dest = {
+              name: places[0].name,
+              lat: places[0].lat,
+              lng: places[0].lng,
+              address: places[0].address,
+              placeId: places[0].place_id,
+            };
+            const existingForPlaces = useMapStore.getState().itineraryStops;
+            const mergedForPlaces = [...existingForPlaces];
+            if (!mergedForPlaces.some((s) => s.name === dest.name)) mergedForPlaces.push(dest);
+            await useMapStore.getState().setItineraryStops(mergedForPlaces);
+            isCollectingItineraryRef.current = true;
+            itineraryConfirmReply = `Got it, ${dest.name} added. Any more stops?`;
+          } else {
+            useMapStore.getState().setDestination({
+              name: places[0].name,
+              lat: places[0].lat,
+              lng: places[0].lng,
+              address: places[0].address,
+              placeId: places[0].place_id,
+            });
+          }
         } else if (places.length > 1) {
           const allPOIs: NearbyPOI[] = places.map((p) =>
             mapPlaceToNearbyPOI(p, originLat, originLng),
@@ -565,23 +672,72 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        // Only route when the AI signals the itinerary is fully resolved.
-        // During sequential turn collection (itinerary_setup), the AI accumulates
-        // events in conversation history and asks "Any more stops?" — we do not
-        // draw routes yet. Routes are drawn only on itinerary_resolved.
-        const isItineraryResolved = res.intent === "itinerary_resolved";
-        if (isItineraryResolved && incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
-          const stops = resolved.map((e) => ({
+        // Accumulate resolved stops across itinerary_setup turns so that when
+        // itinerary_resolved fires (possibly with only the last new stop from
+        // ChatWonder), we still have the full picture.
+        if (resolved.length > 0) {
+          const newStops = resolved.map((e) => ({
             name: e.map!.destination ?? "Destination",
             lat: e.map!.lat as number,
             lng: e.map!.lng as number,
             address: e.map!.address,
             placeId: e.map!.placeId,
           }));
+          // Merge by name — avoid duplicates when ChatWonder re-sends prior stops
+          const existing = itineraryStopsRef.current;
+          for (const s of newStops) {
+            if (!existing.some((e) => e.name === s.name)) {
+              existing.push(s);
+            }
+          }
+          itineraryStopsRef.current = existing;
+        }
+
+        // Only route when the AI signals the itinerary is fully resolved.
+        // During sequential turn collection (itinerary_setup), the AI accumulates
+        // events in conversation history and asks "Any more stops?" — we do not
+        // draw routes yet. Routes are drawn only on itinerary_resolved.
+        const isItineraryResolved = res.intent === "itinerary_resolved";
+        let etaNarration = "";
+        // When the AI confirms a single itinerary stop it often replies with place
+        if (isItineraryResolved && incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
+          // Build the candidate list from the ref (already merged with this turn's
+          // resolved events above). Fall back to resolved.map only if the ref is empty.
+          const accumulated = itineraryStopsRef.current.length > 0
+            ? itineraryStopsRef.current
+            : resolved.map((e) => ({
+            name: e.map!.destination ?? "Destination",
+            lat: e.map!.lat as number,
+            lng: e.map!.lng as number,
+            address: e.map!.address,
+            placeId: e.map!.placeId,
+          }));
+          // Fold in any stops already drawn on the map — covers the case where a
+          // prior multi-stop draw cleared the ref (e.g. the user adds a 3rd stop
+          // after a 2-stop itinerary was committed). Works for both single-utterance
+          // ("breakfast at X, lunch at Y, dinner at Z") and turn-by-turn addition.
+          const existingMapStops = useMapStore.getState().itineraryStops;
+          const merged = [...existingMapStops];
+          for (const s of accumulated) {
+            if (!merged.some((e) => e.name === s.name)) merged.push(s);
+          }
+          const stops = merged.length > 0 ? merged : accumulated;
+          // Only clear after a multi-stop draw. Single-stop resolutions keep the
+          // ref alive so a subsequent turn can merge into it.
+          if (stops.length > 1) itineraryStopsRef.current = [];
           if (stops.length === 1) {
             setDestination(stops[0]);
+            itineraryConfirmReply = `Got it, ${stops[0].name} added. Any more stops?`;
           } else {
-            setItineraryStops(stops);
+            await setItineraryStops(stops);
+            const routes = useMapStore.getState().itineraryRoutes;
+            const totalSecs = routes.reduce((s, r) => s + r.duration, 0);
+            if (totalSecs > 0) {
+              const mins = Math.round(totalSecs / 60);
+              etaNarration = mins < 60
+                ? ` Total travel time is about ${mins} minute${mins !== 1 ? "s" : ""}.`
+                : ` Total travel time is about ${Math.floor(mins / 60)} hour${Math.floor(mins / 60) !== 1 ? "s" : ""} and ${mins % 60} minute${mins % 60 !== 1 ? "s" : ""}.`;
+            }
           }
         }
 
@@ -605,9 +761,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           mapReply = buildPOITTS(curatedPOIsRef.current);
           [mapAudio] = await Promise.all([mapService.tts(mapReply), waitForMapSettle()]);
         } else {
-          mapReply = res.message;
+          // itineraryConfirmReply overrides when a single stop was just confirmed —
+          // the AI's message is discarded in favour of "Got it, X added. Any more stops?"
+          mapReply = itineraryConfirmReply || (res.message + etaNarration);
           let rawAudio: ArrayBuffer | null = null;
-          if (res.audioBase64) {
+          if (res.audioBase64 && !itineraryConfirmReply) {
             const binary = atob(res.audioBase64);
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

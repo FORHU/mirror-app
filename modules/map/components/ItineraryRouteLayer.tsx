@@ -19,6 +19,19 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // White outline so the route pops against the dark map
+      map.addLayer({
+        id: "itinerary-route-outline",
+        type: "line",
+        source: SOURCE_ID,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 10,
+          "line-opacity": 0.25,
+        },
+      });
+
       map.addLayer({
         id: "itinerary-route-glow-outer",
         type: "line",
@@ -26,8 +39,8 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 18,
-          "line-opacity": 0.2,
+          "line-width": 20,
+          "line-opacity": 0.3,
           "line-blur": 8,
         },
       });
@@ -39,9 +52,9 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 10,
-          "line-opacity": 0.45,
-          "line-blur": 4,
+          "line-width": 12,
+          "line-opacity": 0.55,
+          "line-blur": 3,
         },
       });
 
@@ -52,7 +65,7 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 4,
+          "line-width": 6,
           "line-opacity": 1,
         },
       });

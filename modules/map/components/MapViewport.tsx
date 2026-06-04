@@ -18,17 +18,18 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, setMap } = useMapStore();
+  const { homeLocation, setSelectedPOI, showTraffic, setMap, userLocation } = useMapStore();
+  const initialCenter = homeLocation ?? userLocation;
 
   useMapCamera(map);
 
   useEffect(() => {
-    if (!mapContainerRef.current || !homeLocation) return;
+    if (!mapContainerRef.current || !initialCenter) return;
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: "mapbox://styles/mapbox/standard",
-      center: [homeLocation.lng, homeLocation.lat],
+      center: [initialCenter.lng, initialCenter.lat],
       zoom: 15,
       pitch: 0,
       bearing: 0,
@@ -79,7 +80,7 @@ const MapViewport = () => {
     return () => {
       mapInstance.remove();
     };
-  }, [homeLocation, setMap, setSelectedPOI]);
+  }, [initialCenter, setMap, setSelectedPOI]);
 
   useEffect(() => {
     if (!map) return;
