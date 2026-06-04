@@ -720,7 +720,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             if (!mergedForPlaces.some((s) => s.name === dest.name)) mergedForPlaces.push(dest);
             await useMapStore.getState().setItineraryStops(mergedForPlaces);
             isCollectingItineraryRef.current = true;
-            itineraryConfirmReply = `Got it, ${dest.name} added. Any more stops?`;
+            const placesHasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
+            const placesNearbyMention = placesHasPOIs
+              ? " I also found some nearby places around there you might want to visit!"
+              : "";
+            itineraryConfirmReply = `Got it, ${dest.name} added.${placesNearbyMention} Any more stops?`;
           } else {
             useMapStore.getState().setDestination({
               name: places[0].name,
@@ -741,7 +745,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Multi-event itinerary: classify events from the response
-        const { clearPendingEvents, setPendingEvents, setDestination, setItineraryStops } =
+        const { clearPendingEvents, setPendingEvents, setItineraryStops } =
           useMapStore.getState();
 
         clearPendingEvents();
@@ -794,7 +798,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         // draw routes yet. Routes are drawn only on itinerary_resolved.
         const isItineraryResolved = res.intent === "itinerary_resolved";
         let etaNarration = "";
-        // When the AI confirms a single itinerary stop it often replies with place
         if (isItineraryResolved && incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
           // Build the candidate list from the ref (already merged with this turn's
           // resolved events above). Fall back to resolved.map only if the ref is empty.
@@ -809,22 +812,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }));
           // Fold in any stops already drawn on the map — covers the case where a
           // prior multi-stop draw cleared the ref (e.g. the user adds a 3rd stop
-          // after a 2-stop itinerary was committed). Works for both single-utterance
-          // ("breakfast at X, lunch at Y, dinner at Z") and turn-by-turn addition.
+          // after a 2-stop itinerary was committed).
           const existingMapStops = useMapStore.getState().itineraryStops;
           const merged = [...existingMapStops];
           for (const s of accumulated) {
             if (!merged.some((e) => e.name === s.name)) merged.push(s);
           }
           const stops = merged.length > 0 ? merged : accumulated;
-          // Only clear after a multi-stop draw. Single-stop resolutions keep the
-          // ref alive so a subsequent turn can merge into it.
-          if (stops.length > 1) itineraryStopsRef.current = [];
+          itineraryStopsRef.current = []; // always clear — existingMapStops handles accumulation
+          await setItineraryStops(stops); // single or multi: always use itinerary so POIs are fetched
+          isCollectingItineraryRef.current = true;
           if (stops.length === 1) {
-            setDestination(stops[0]);
-            itineraryConfirmReply = `Got it, ${stops[0].name} added. Any more stops?`;
+            const resolvedHasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
+            const resolvedNearbyMention = resolvedHasPOIs
+              ? " I also found some nearby places around there you might want to visit!"
+              : "";
+            itineraryConfirmReply = `Got it, ${stops[0].name} added.${resolvedNearbyMention} Any more stops?`;
           } else {
-            await setItineraryStops(stops);
             const routes = useMapStore.getState().itineraryRoutes;
             const totalSecs = routes.reduce((s, r) => s + r.duration, 0);
             if (totalSecs > 0) {
