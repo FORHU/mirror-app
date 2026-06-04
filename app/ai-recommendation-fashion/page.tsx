@@ -1939,7 +1939,9 @@ export default function VirtualMirrorV2() {
               }}
             >
               <OutfitPreviewCanvas
-                top={selectedTopOuter ?? selectedTopMid ?? selectedTopBase}
+                topBase={selectedTopBase}
+                topMid={selectedTopMid}
+                topOuter={selectedTopOuter}
                 bottom={selectedBottom}
                 shoe={selectedShoe}
                 bag={selectedBag}

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SITEMAP_CONTEXT } from "@/navigation";
+import { resolveNav } from "@/lib/navResolver";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(
-  /\/$/,
-  "",
-);
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
+  .replace(/\/api\/?$/, "")
+  .replace(/\/$/, "");
 
 function resolveAccessToken(req: NextRequest) {
   const hostname = req.nextUrl.hostname;
@@ -21,6 +21,20 @@ export async function POST(req: NextRequest) {
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "Empty message" }, { status: 400 });
+    }
+
+    // Navigation short-circuit: resolve "[nav]" / "go to X" requests against the
+    // app's real routes here, deterministically, instead of relying on the
+    // ChatWonder styling agent (which doesn't understand navigation). Returns the
+    // same { reply, route, routeLabel } shape the client already handles, so
+    // page.tsx will speak the reply then router.push(route).
+    const nav = resolveNav(message);
+    if (nav) {
+      return NextResponse.json({
+        reply: `Sure — opening ${nav.label}.`,
+        route: nav.target_url,
+        routeLabel: "Open page",
+      });
     }
 
     if (!API_BASE_URL) {
