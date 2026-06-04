@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import mapboxgl from "mapbox-gl";
 import { useMapStore } from "../store/useMapStore";
+import { stopColor } from "../constants/stopColors";
 
 const SOURCE_ID = "itinerary-route";
 
@@ -23,7 +24,12 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         type: "line",
         source: SOURCE_ID,
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#a78bfa", "line-width": 18, "line-opacity": 0.2, "line-blur": 8 },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 18,
+          "line-opacity": 0.2,
+          "line-blur": 8,
+        },
       });
 
       map.addLayer({
@@ -31,7 +37,12 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         type: "line",
         source: SOURCE_ID,
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#a78bfa", "line-width": 10, "line-opacity": 0.45, "line-blur": 4 },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 10,
+          "line-opacity": 0.45,
+          "line-blur": 4,
+        },
       });
 
       map.addLayer({
@@ -39,12 +50,24 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         type: "line",
         source: SOURCE_ID,
         layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#a78bfa", "line-width": 4, "line-opacity": 1 },
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 4,
+          "line-opacity": 1,
+        },
       });
     }
 
+    // Each leg's color matches its destination stop (index i → stop i)
     const features = itineraryRoutes
-      .map((r) => r.geojson?.features?.[0])
+      .map((r, i) => {
+        const feature = r.geojson?.features?.[0];
+        if (!feature) return null;
+        return {
+          ...feature,
+          properties: { ...(feature.properties ?? {}), color: stopColor(i) },
+        };
+      })
       .filter(Boolean) as GeoJSON.Feature[];
 
     (map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource).setData({

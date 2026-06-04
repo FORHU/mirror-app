@@ -27,6 +27,8 @@ import { guardAction } from "./orchestration/actionGuard";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import {
   buildMapInput,
+  isNavigationPhrase,
+  isItineraryPhrase,
   mapPlaceToNearbyPOI,
   curatePOIs,
   buildPOITTS,
@@ -183,8 +185,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         chunksRef.current.push(float32ToInt16(e.inputBuffer.getChannelData(0)));
       };
 
+      // Route through a silent gain node so onaudioprocess keeps firing
+      // without the mic audio leaking to the speakers.
+      const silencer = ctx.createGain();
+      silencer.gain.value = 0;
       source.connect(processor);
-      processor.connect(ctx.destination);
+      processor.connect(silencer);
+      silencer.connect(ctx.destination);
 
       audioCtxRef.current = ctx;
       processorRef.current = processor;
@@ -371,6 +378,63 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       // Maps mode: use chat-wonder/message for both directions and recommendations
       if (pathname.startsWith("/map")) {
+        // In itinerary mode, match voice input against nearby POIs for each stop
+        const mapStateForPOI = useMapStore.getState();
+        if (mapStateForPOI.itineraryStops.length > 0 && mapStateForPOI.itineraryStopPOIs.length > 0) {
+          const lower = t.toLowerCase();
+          let matchedPOI = null;
+          let matchedStop = null;
+          outer: for (const { stopIndex, pois } of mapStateForPOI.itineraryStopPOIs) {
+            for (const poi of pois) {
+              if (lower.includes(poi.name.toLowerCase())) {
+                matchedPOI = poi;
+                matchedStop = mapStateForPOI.itineraryStops[stopIndex];
+                break outer;
+              }
+            }
+          }
+          if (matchedPOI && matchedStop) {
+            const dist = matchedPOI.distance ?? 0;
+            mapStateForPOI.setSelectedPOI({
+              name: matchedPOI.name,
+              category: matchedPOI.category,
+              address: matchedPOI.address,
+              distance: dist * 1000,
+              location: { lat: matchedPOI.lat, lng: matchedPOI.lng },
+              placeId: matchedPOI.placeId,
+              photo: matchedPOI.photo ?? null,
+              travelFromStop: {
+                walkingMin: Math.max(1, Math.round((dist * 60) / 5)),
+                carMin: Math.max(1, Math.round((dist * 60) / 30)),
+              },
+            });
+            const confirmReply = `Here's info on ${matchedPOI.name}.`;
+            const confirmAudio = await mapService.tts(confirmReply);
+            setReply(confirmReply);
+            const confirmHistory = [
+              ...historyRef.current,
+              { user: t, assistant: confirmReply },
+            ].slice(-4);
+            historyRef.current = confirmHistory;
+            setChatHistory(confirmHistory);
+            setVoiceState("speaking");
+            if (confirmAudio) {
+              const playCtx = new AudioContext();
+              playbackCtxRef.current = playCtx;
+              const decoded = await playCtx.decodeAudioData(confirmAudio.slice(0));
+              const src = playCtx.createBufferSource();
+              src.buffer = decoded;
+              src.connect(playCtx.destination);
+              playbackRef.current = src;
+              src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+              src.start(0);
+            } else {
+              setVoiceState("idle");
+            }
+            return;
+          }
+        }
+
         // Client-side voice matcher — intercept if curated POIs are pending
         if (curatedPOIsRef.current.length > 0) {
           const matched = matchPOIFromTranscript(t, curatedPOIsRef.current);
@@ -447,9 +511,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         const originLat = mapLoc?.lat ?? 0;
         const originLng = mapLoc?.lng ?? 0;
 
-        // places_data: single place → navigate, multiple → curate and suggest
-        const places = res.maps_data?.[0]?.places ?? [];
-        if (places.length === 1) {
+        // If events are returned, skip maps_data entirely — events take priority.
+        const responseEvents = Array.isArray(res.events) ? res.events : [];
+        const hasEvents = responseEvents.length > 0;
+
+        // places_data: single place → navigate, multiple → curate and suggest.
+        // For direct navigation phrases ("take me to X"), always navigate to the
+        // first (best) result without showing the curation stack.
+        const places = hasEvents ? [] : (res.maps_data?.[0]?.places ?? []);
+        const navigateDirect = places.length > 1 && (isNavigationPhrase(t) || isItineraryPhrase(t));
+        if (places.length === 1 || navigateDirect) {
           useMapStore.getState().setDestination({
             name: places[0].name,
             lat: places[0].lat,
@@ -473,7 +544,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         clearPendingEvents();
 
-        const responseEvents = Array.isArray(res.events) ? res.events : [];
         const resolved = responseEvents.filter(
           (e) => typeof e?.map?.lat === "number" && typeof e?.map?.lng === "number",
         );
@@ -495,8 +565,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        // Only route when all events in the set are resolved
-        if (incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
+        // Only route when the AI signals the itinerary is fully resolved.
+        // During sequential turn collection (itinerary_setup), the AI accumulates
+        // events in conversation history and asks "Any more stops?" — we do not
+        // draw routes yet. Routes are drawn only on itinerary_resolved.
+        const isItineraryResolved = res.intent === "itinerary_resolved";
+        if (isItineraryResolved && incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
           const stops = resolved.map((e) => ({
             name: e.map!.destination ?? "Destination",
             lat: e.map!.lat as number,
@@ -514,22 +588,35 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         // Audio resolution:
         // - Multi-POI narration → client-built string, needs a TTS call
         // - Everything else → use audioBase64 returned by the API (no extra round trip)
+        // In both cases, wait for the map camera to settle before playing audio
+        // so the user sees the relevant pins before hearing the narration.
+        const waitForMapSettle = () =>
+          new Promise<void>((resolve) => {
+            if (!useMapStore.getState().isPanning) { resolve(); return; }
+            const unsub = useMapStore.subscribe((state) => {
+              if (!state.isPanning) { unsub(); resolve(); }
+            });
+          });
+
         let mapReply: string;
         let mapAudio: ArrayBuffer | null;
 
         if (curatedPOIsRef.current.length > 1) {
           mapReply = buildPOITTS(curatedPOIsRef.current);
-          mapAudio = await mapService.tts(mapReply);
+          [mapAudio] = await Promise.all([mapService.tts(mapReply), waitForMapSettle()]);
         } else {
           mapReply = res.message;
+          let rawAudio: ArrayBuffer | null = null;
           if (res.audioBase64) {
             const binary = atob(res.audioBase64);
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            mapAudio = bytes.buffer;
-          } else {
-            mapAudio = await mapService.tts(mapReply);
+            rawAudio = bytes.buffer;
           }
+          [mapAudio] = await Promise.all([
+            rawAudio ? Promise.resolve(rawAudio) : mapService.tts(mapReply),
+            waitForMapSettle(),
+          ]);
         }
 
         setReply(mapReply);

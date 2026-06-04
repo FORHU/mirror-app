@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, Mic, Volume2 } from "lucide-react";
 import WeatherWidget from "@/components/WeatherWidget";
 import { mapService } from "@/modules/map/services/map.service";
+import { resolveAccessToken } from "@/modules/shared/api/chat-wonder.service";
 import {
   PersistentMic,
   captureCommand,
@@ -265,9 +266,14 @@ export default function AIAssistantPage() {
         .filter((m) => m.id !== "greeting")
         .map((m) => ({ role: m.role, content: m.content }));
 
+      const token = await resolveAccessToken();
       const res = await fetch("/api/mirror/ai-assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-platform": "kiosk",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ message: trimmed, history }),
       });
 

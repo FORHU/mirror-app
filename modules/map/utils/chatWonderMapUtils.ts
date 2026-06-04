@@ -136,6 +136,25 @@ export function matchPOIFromTranscript(
   return null;
 }
 
+const NAVIGATION_PATTERN =
+  /\b(take me to|navigate to|go to|directions to|how do i get to|get me to|drive to|walk to|bring me to|i want to go to|i need to go to|let's go to|route me|can you route|show me (the way|how to get)|bring me|head to|i('m| am) going to|going to)\b/i;
+
+/** Returns true when the transcript is a direct navigation request — route immediately, no curation. */
+export function isNavigationPhrase(transcript: string): boolean {
+  return NAVIGATION_PATTERN.test(transcript);
+}
+
+const ITINERARY_PATTERN =
+  /\b(i have|i've got|i need to go|going to|i'll be at|my|there's a)\b.{0,30}\b(meeting|lunch|dinner|breakfast|appointment|event|date|session|class|gym|party|wedding|conference)\b/i;
+
+const TIME_PATTERN =
+  /\b(this morning|this afternoon|this evening|tonight|tomorrow|at \d|for lunch|for dinner|in the morning|in the afternoon|in the evening|morning meeting|afternoon|evening)\b/i;
+
+/** Returns true when the transcript looks like an itinerary stop, not a place search. */
+export function isItineraryPhrase(transcript: string): boolean {
+  return ITINERARY_PATTERN.test(transcript) || TIME_PATTERN.test(transcript);
+}
+
 /** Embeds map context into a chat-wonder input string. */
 export function buildMapInput(
   transcript: string,
@@ -159,5 +178,12 @@ export function buildMapInput(
   }
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
-  return `[maps]${ctx} ${transcript}`;
+
+  // When the user is stating an itinerary stop (not searching for a place),
+  // add an explicit override so ChatWonder returns events[] instead of MAPS_DATA.
+  const itineraryOverride = isItineraryPhrase(transcript)
+    ? " [ITINERARY MODE: user is adding a stop, return events array only, do NOT search for nearby places or return MAPS_DATA]"
+    : "";
+
+  return `[maps]${ctx}${itineraryOverride} ${transcript}`;
 }

@@ -139,7 +139,7 @@ export interface ChatWonderRecommendation {
 
 // ─── Token helper (mirrors api-client.ts interceptor logic) ──────────────────
 
-async function resolveAccessToken(): Promise<string | null> {
+export async function resolveAccessToken(): Promise<string | null> {
   const stored = await getStorageData<string>(ACCESS_TOKEN);
   if (stored) return stored;
   if (typeof window !== "undefined") {

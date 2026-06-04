@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
-import { Navigation, LocateFixed, X, Home, Check, MapPin } from "lucide-react";
+import { Navigation, LocateFixed, X, Home, Check, MapPin, PersonStanding, Car } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PANEL = {
@@ -156,6 +156,19 @@ export const ExploreHUD = () => {
                             : `${(selectedPOI.distance / 1000).toFixed(1)}km away`}
                       </span>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {selectedPOI.travelFromStop && (
+                <div className="px-4 py-2 flex items-center gap-4 border-b border-white/8">
+                  <div className="flex items-center gap-1.5 text-xs text-white/60">
+                    <PersonStanding className="w-3.5 h-3.5 text-white/40" />
+                    {selectedPOI.travelFromStop.walkingMin} min
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-white/60">
+                    <Car className="w-3.5 h-3.5 text-white/40" />
+                    {selectedPOI.travelFromStop.carMin} min
                   </div>
                 </div>
               )}

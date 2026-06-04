@@ -18,8 +18,10 @@ interface Props {
 
 const WeatherWidget = ({ location }: Props) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const lat = location?.lat;
-  const lng = location?.lng;
+  // Round to 3 decimal places (~111m precision) to prevent GPS drift
+  // from triggering a new weather fetch on every geolocation update.
+  const lat = location?.lat != null ? Math.round(location.lat * 1000) / 1000 : undefined;
+  const lng = location?.lng != null ? Math.round(location.lng * 1000) / 1000 : undefined;
 
   useEffect(() => {
     if (lat === undefined || lng === undefined) return;

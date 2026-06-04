@@ -18,6 +18,7 @@ interface SelectedPOI {
   layerId?: string;
   placeId?: string;
   photo?: string | null;
+  travelFromStop?: { walkingMin: number; carMin: number };
 }
 
 type Destination = {
@@ -34,6 +35,9 @@ interface MapStore {
   deviceMode: "mirror";
   map: mapboxgl.Map | null;
   setMap: (map: mapboxgl.Map) => void;
+
+  isPanning: boolean;
+  setIsPanning: (v: boolean) => void;
 
   homeLocation: Location | null;
   homeLocationStatus: "idle" | "loading" | "loaded" | "error";
@@ -59,6 +63,7 @@ interface MapStore {
 
   itineraryStops: Destination[];
   itineraryRoutes: DirectionsFormatted[];
+  itineraryStopPOIs: { stopIndex: number; pois: NearbyPOI[] }[];
   pendingEvents: PendingEvent[];
 
   fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
@@ -72,6 +77,7 @@ interface MapStore {
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
   setItineraryStops(stops: Destination[]): Promise<void>;
+  setItineraryStopPOIs(data: { stopIndex: number; pois: NearbyPOI[] }[]): void;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
   setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
@@ -88,6 +94,9 @@ export const useMapStore = create<MapStore>((set, get) => ({
   deviceMode: DEVICE_MODE as "mirror",
   map: null,
   setMap: (map) => set({ map }),
+
+  isPanning: false,
+  setIsPanning: (v) => set({ isPanning: v }),
 
   homeLocation: null,
   homeLocationStatus: "idle",
@@ -112,6 +121,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
   origin: null,
   itineraryStops: [],
   itineraryRoutes: [],
+  itineraryStopPOIs: [],
   pendingEvents: [],
 
   setPendingEvents: (events) => set({ pendingEvents: events }),
@@ -146,17 +156,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   saveHomeLocation: async (coords) => {
-    set({ homeLocationStatus: "loading" });
     try {
       await mapService.setHomeLocation(coords);
-      set({
-        homeLocation: coords,
-        userLocation: coords,
-        origin: coords,
-        homeLocationStatus: "loaded",
-      });
+      set({ homeLocation: coords, userLocation: coords, origin: coords });
     } catch {
-      set({ homeLocationStatus: "error" });
+      // silently ignore — home location save is best-effort,
+      // do NOT touch homeLocationStatus (would unmount MapDashboard)
     }
   },
 
@@ -212,10 +217,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
     get().fetchRoute();
   },
 
+  setItineraryStopPOIs: (data) => set({ itineraryStopPOIs: data }),
+
   setItineraryStops: async (stops) => {
     set({
       itineraryStops: stops,
       itineraryRoutes: [],
+      itineraryStopPOIs: [],
       selectedDestination: null,
       activeRoute: null,
     });
@@ -238,6 +246,19 @@ export const useMapStore = create<MapStore>((set, get) => ({
       }
     }
     set({ itineraryRoutes: routes });
+
+    // Fetch nearby POIs for each stop in parallel (top 3, within 300m)
+    const poiResults = await Promise.all(
+      stops.map(async (stop, i) => {
+        try {
+          const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 300);
+          return { stopIndex: i, pois: pois.slice(0, 3) };
+        } catch {
+          return { stopIndex: i, pois: [] };
+        }
+      }),
+    );
+    set({ itineraryStopPOIs: poiResults });
   },
 
   clearRoute: () => {
@@ -252,6 +273,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       cameraMode: "overview",
       itineraryStops: [],
       itineraryRoutes: [],
+      itineraryStopPOIs: [],
     });
   },
 
