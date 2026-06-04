@@ -144,6 +144,35 @@ export function isNavigationPhrase(transcript: string): boolean {
   return NAVIGATION_PATTERN.test(transcript);
 }
 
+const FINISH_PHRASE_PATTERN =
+  /\b(that'?s all|done|no more|no more stops|go|let'?s go|start|start navigation|that'?s it|finished|ok go|okay go|set|we'?re good|that will do)\b/i;
+
+export function isFinishPhrase(transcript: string): boolean {
+  return FINISH_PHRASE_PATTERN.test(transcript);
+}
+
+/**
+ * Tries to extract a location name from a natural-language transcript.
+ * "meeting at Burnham Park this morning" → "Burnham Park"
+ * "lunch at Session Road" → "Session Road"
+ * "going to SM City Baguio" → "SM City Baguio"
+ */
+export function extractLocationFromTranscript(transcript: string): string | null {
+  // "at [Location]" followed by time/punctuation/end
+  const atMatch = transcript.match(
+    /\bat\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:this\s+(?:morning|afternoon|evening|night|noon)|tonight|for\s+(?:lunch|dinner|breakfast)|in\s+the\s+(?:morning|afternoon|evening)|please|can you|that|,|\.)|$)/i,
+  );
+  if (atMatch) return atMatch[1].trim();
+
+  // "to [Location]" navigation phrasing
+  const toMatch = transcript.match(
+    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:please|now|this|for|can|that|,|\.)|$)/i,
+  );
+  if (toMatch) return toMatch[1].trim();
+
+  return null;
+}
+
 const ITINERARY_PATTERN =
   /\b(i have|i've got|i need to go|going to|i'll be at|my|there's a)\b.{0,30}\b(meeting|lunch|dinner|breakfast|appointment|event|date|session|class|gym|party|wedding|conference)\b/i;
 
@@ -179,11 +208,5 @@ export function buildMapInput(
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
 
-  // When the user is stating an itinerary stop (not searching for a place),
-  // add an explicit override so ChatWonder returns events[] instead of MAPS_DATA.
-  const itineraryOverride = isItineraryPhrase(transcript)
-    ? " [ITINERARY MODE: user is adding a stop, return events array only, do NOT search for nearby places or return MAPS_DATA]"
-    : "";
-
-  return `[maps]${ctx}${itineraryOverride} ${transcript}`;
+  return `[maps]${ctx} ${transcript}`;
 }

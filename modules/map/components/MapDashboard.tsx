@@ -28,7 +28,7 @@ export default function MapDashboard() {
       ({ coords }) => {
         const loc = { lat: coords.latitude, lng: coords.longitude };
         setUserLocation(loc);
-        if (!hasSavedHomeRef.current && homeLocationStatus !== "loaded") {
+        if (!hasSavedHomeRef.current && homeLocation === null) {
           hasSavedHomeRef.current = true;
           saveHomeLocation(loc);
         }

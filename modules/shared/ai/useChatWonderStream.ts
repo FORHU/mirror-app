@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
+import { SITEMAP_CONTEXT } from "@/navigation";
 
 interface ItineraryMap {
   destination?: string;
@@ -32,6 +34,7 @@ export interface UseChatWonderStreamResult {
 }
 
 export function useChatWonderStream(): UseChatWonderStreamResult {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesRef = useRef<ChatMessage[]>([]);
 
@@ -88,18 +91,16 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         typeof window !== "undefined"
           ? sessionStorage.getItem("access_token") || ""
           : "";
-
-      const tag =
-        options?.mode === "garments"
-          ? " [garments]"
-          : options?.mode === "cosmetics"
-            ? " [cosmetics]"
-            : options?.mode === "overview"
-              ? " [overview]"
-              : options?.mode === "map"
-                ? " [map]"
-                : "";
-      const finalInput = text + tag;
+      let finalInput = text;
+      if (options?.mode === "map") {
+        finalInput = `[maps] ${text}`;
+      } else if (options?.mode === "garments") {
+        finalInput = `[garment] ${text}`;
+      } else if (options?.mode === "cosmetics") {
+        finalInput = `[cosmetics] ${text}`;
+      } else if (options?.mode === "overview") {
+        finalInput = `[overview] ${text}`;
+      }
 
       const history = messagesRef.current.slice(-10).map((m) => ({
         role: (m.role === "USER" ? "user" : "assistant") as "user" | "assistant",
@@ -119,6 +120,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
           weather: options?.weather ?? null,
           kioskId,
           history,
+          sitemap_context: SITEMAP_CONTEXT,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -218,6 +220,15 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                     setDestination(stops[0]);
                   } else {
                     setItineraryStops(stops);
+                  }
+                }
+
+                // Handle AI-driven page navigation
+                if (parsed.nav?.target_url) {
+                  if (parsed.nav.target_url === "back") {
+                    router.back();
+                  } else {
+                    router.push(parsed.nav.target_url);
                   }
                 }
 
