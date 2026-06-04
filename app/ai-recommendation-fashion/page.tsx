@@ -101,16 +101,9 @@ type RecordStep =
   | "done"
   | "error";
 
-<<<<<<< HEAD
-function VoiceTranscribeOverlay({
-  onAiComplete,
-}: {
-  onAiComplete?: (response: ChatWonderMessageResponse) => void;
-=======
 function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
   onAiComplete?: (response: ChatWonderMessageResponse) => void;
   onLoadingChange?: (loading: boolean) => void;
->>>>>>> 5b8a0fb220737b8ad20d8bc6666b596bc54e44ff
 }) {
   const [step, setStep] = useState<RecordStep>("idle");
   const [transcript, setTranscript] = useState("");
@@ -1946,7 +1939,9 @@ export default function VirtualMirrorV2() {
               }}
             >
               <OutfitPreviewCanvas
-                top={selectedTopOuter ?? selectedTopMid ?? selectedTopBase}
+                topBase={selectedTopBase}
+                topMid={selectedTopMid}
+                topOuter={selectedTopOuter}
                 bottom={selectedBottom}
                 shoe={selectedShoe}
                 bag={selectedBag}

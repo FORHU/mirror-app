@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { FittingSlot, type SlotMap } from "@/modules/garment/types";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 
-// ── Canvas compositing helpers (mirrors save-outfit logic) ─────────────────
+// ── Canvas compositing helpers ─────────────────────────────────────────────
 
 const SLOT_TO_PART: Record<FittingSlot, string> = {
   [FittingSlot.HeadGarment]: "head",
@@ -27,6 +27,9 @@ const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
   earrings: [80, 80, 180, 66],
   neck: [210, 150, 90, 69],
   torso: [100, 120, 306, 383],
+  base:  [-20, 120, 306, 383],
+  mid:   [100, 120, 306, 383],
+  outer: [250, 120, 306, 383],
   leftHand: [120, 400, 72, 132],
   rightHand: [320, 400, 72, 132],
   waist: [160, 390, 186, 63],
@@ -41,6 +44,9 @@ const GARMENT_SCALE: Record<string, number> = {
   earrings: 0.5,
   neck: 1.5,
   torso: 0.8,
+  base:  0.8,
+  mid:   0.8,
+  outer: 0.8,
   leftHand: 0.7,
   rightHand: 0.7,
   waist: 0.8,
@@ -51,7 +57,6 @@ const GARMENT_SCALE: Record<string, number> = {
 
 const DRAW_ORDER = [
   "full",
-  "torso",
   "legs",
   "feet",
   "head",
@@ -99,10 +104,7 @@ function getVisibleBounds(img: HTMLImageElement) {
   ctx.drawImage(img, 0, 0);
   try {
     const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
-    let minX = width,
-      minY = height,
-      maxX = 0,
-      maxY = 0;
+    let minX = width, minY = height, maxX = 0, maxY = 0;
     for (let y = 0; y < height; y++)
       for (let x = 0; x < width; x++)
         if (data[(y * width + x) * 4 + 3] > 8) {
@@ -112,12 +114,7 @@ function getVisibleBounds(img: HTMLImageElement) {
           maxY = Math.max(maxY, y);
         }
     if (minX <= maxX)
-      return {
-        x: minX,
-        y: minY,
-        width: maxX - minX + 1,
-        height: maxY - minY + 1,
-      };
+      return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
   } catch {
     /* tainted */
   }
@@ -127,35 +124,30 @@ function getVisibleBounds(img: HTMLImageElement) {
 function drawContained(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  tx: number,
-  ty: number,
-  tw: number,
-  th: number,
+  tx: number, ty: number, tw: number, th: number,
 ) {
   const b = getVisibleBounds(img);
   const scale = Math.min(tw / b.width, th / b.height);
-  const dw = b.width * scale,
-    dh = b.height * scale;
+  const dw = b.width * scale, dh = b.height * scale;
   ctx.drawImage(
-    img,
-    b.x,
-    b.y,
-    b.width,
-    b.height,
-    tx + (tw - dw) / 2,
-    ty + (th - dh) / 2,
-    dw,
-    dh,
+    img, b.x, b.y, b.width, b.height,
+    tx + (tw - dw) / 2, ty + (th - dh) / 2, dw, dh,
   );
+}
+
+async function loadLayer(g: RemoteGarment | null | undefined): Promise<HTMLImageElement | null> {
+  if (!g?.imageUrl) return null;
+  try { return await loadGarmentImage(g.imageUrl); }
+  catch { return null; }
 }
 
 async function drawOutfit(
   canvas: HTMLCanvasElement,
   slotMap: SlotMap,
+  topLayers: Array<HTMLImageElement | null>,
   dpr = 1,
 ) {
-  const W = 500,
-    H = 780;
+  const W = 500, H = 780;
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d")!;
@@ -173,10 +165,9 @@ async function drawOutfit(
       }
     }),
   );
-  const items = loaded.filter(Boolean) as {
-    part: string;
-    img: HTMLImageElement;
-  }[];
+  const items = loaded.filter(Boolean) as { part: string; img: HTMLImageElement }[];
+
+  // Draw non-torso parts in standard order
   DRAW_ORDER.forEach((part) => {
     const item = items.find((i) => i.part === part);
     if (!item) return;
@@ -184,14 +175,18 @@ async function drawOutfit(
     if (!pos) return;
     const [x, y, w, h] = pos;
     const s = GARMENT_SCALE[part] ?? 1;
-    drawContained(
-      ctx,
-      item.img,
-      x - (w * s - w) / 2,
-      y - (h * s - h) / 2,
-      w * s,
-      h * s,
-    );
+    drawContained(ctx, item.img, x - (w * s - w) / 2, y - (h * s - h) / 2, w * s, h * s);
+  });
+
+  // Draw top layers in order: BASE first, MID on top, OUTER on top
+  const layerKeys = ["base", "mid", "outer"] as const;
+  topLayers.forEach((img, i) => {
+    if (!img) return;
+    const key = layerKeys[i];
+    const pos = BODY_POSITIONS[key];
+    const s = GARMENT_SCALE[key] ?? 0.8;
+    const [lx, ly, lw, lh] = pos;
+    drawContained(ctx, img, lx - (lw * s - lw) / 2, ly - (lh * s - lh) / 2, lw * s, lh * s);
   });
 }
 
@@ -203,26 +198,19 @@ export interface OutfitPreviewCanvasHandle {
 
 interface Props {
   hat?: RemoteGarment | null;
-  top: RemoteGarment | null;
-  bottom: RemoteGarment | null;
-  shoe: RemoteGarment | null;
-  bag: RemoteGarment | null;
+  topBase?: RemoteGarment | null;
+  topMid?: RemoteGarment | null;
+  topOuter?: RemoteGarment | null;
+  bottom?: RemoteGarment | null;
+  shoe?: RemoteGarment | null;
+  bag?: RemoteGarment | null;
 }
 
-function toSlotMap({ hat = null, top, bottom, shoe, bag }: Props): SlotMap {
-  const add = (slot: FittingSlot, g: RemoteGarment | null) =>
-    g
-      ? {
-          [slot]: {
-            slot,
-            label: slot,
-            garment: { id: g.id, name: g.name, imageUrl: g.imageUrl, slot },
-          },
-        }
-      : {};
+function toSlotMap({ hat = null, bottom, shoe, bag }: Omit<Props, "topBase" | "topMid" | "topOuter">): SlotMap {
+  const add = (slot: FittingSlot, g: RemoteGarment | null | undefined) =>
+    g ? { [slot]: { slot, label: slot, garment: { id: g.id, name: g.name, imageUrl: g.imageUrl, slot } } } : {};
   return {
     ...add(FittingSlot.HeadGarment, hat),
-    ...add(FittingSlot.UpperGarment, top),
     ...add(FittingSlot.LowerGarment, bottom),
     ...add(FittingSlot.FootGarment, shoe),
     ...add(FittingSlot.RightHandAccessory, bag),
@@ -247,13 +235,21 @@ const OutfitPreviewCanvas = forwardRef<OutfitPreviewCanvasHandle, Props>(
       const canvas = canvasRef.current;
       if (!canvas) return;
       const slotMap = toSlotMap(props);
-      const dpr =
-        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-      drawOutfit(canvas, slotMap, dpr);
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+      Promise.all([
+        loadLayer(props.topBase),
+        loadLayer(props.topMid),
+        loadLayer(props.topOuter),
+      ]).then((topLayers) => {
+        drawOutfit(canvas, slotMap, topLayers, dpr);
+      });
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       props.hat?.id,
-      props.top?.id,
+      props.topBase?.id,
+      props.topMid?.id,
+      props.topOuter?.id,
       props.bottom?.id,
       props.shoe?.id,
       props.bag?.id,
