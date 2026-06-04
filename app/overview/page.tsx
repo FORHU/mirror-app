@@ -29,12 +29,12 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
-import {
-  useChatWonderStream,
-  type ChatWonderCompletePayload,
-} from "@/modules/shared/ai/useChatWonderStream";
+import type { ChatWonderCompletePayload } from "@/modules/shared/ai/useChatWonderStream";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import { mapService } from "@/modules/map/services/map.service";
+import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import {
   cosmeticsService,
@@ -62,6 +62,19 @@ type GarmentRecommendationAction = {
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
+type OverviewWeatherContext = {
+  date: string;
+  description: string;
+  estimated: boolean;
+  is_cold: boolean;
+  is_hot: boolean;
+  is_rainy: boolean;
+  temperature_c: number;
+  lat?: number;
+  lon?: number;
+  location?: string;
+};
+
 /** Best-effort TTS playback of the greeting (mirrors the chat-stream pattern). */
 async function speak(text: string) {
   try {
@@ -85,6 +98,67 @@ async function speak(text: string) {
   }
 }
 
+function weatherToChatContext(
+  raw: Record<string, unknown>,
+  fallback: { lat?: number; lon?: number; location?: string } = {},
+): OverviewWeatherContext | null {
+  const tempRaw = raw.temperature ?? raw.temp;
+  const temperature =
+    typeof tempRaw === "number"
+      ? tempRaw
+      : typeof tempRaw === "string" && Number.isFinite(Number(tempRaw))
+        ? Number(tempRaw)
+        : null;
+  if (temperature === null) return null;
+
+  const condition = String(raw.condition ?? "").toLowerCase();
+  const precipitation = Number(raw.precipitationProb ?? raw.precipitation ?? 0);
+
+  return {
+    date: new Date().toISOString().split("T")[0],
+    description: condition,
+    estimated: false,
+    is_cold: temperature < 20,
+    is_hot: temperature >= 30,
+    is_rainy: precipitation >= 50 || condition.includes("rain"),
+    temperature_c: temperature,
+    ...fallback,
+  };
+}
+
+async function fetchDestinationWeather(
+  lat: number,
+  lng: number,
+  location: string,
+): Promise<OverviewWeatherContext | null> {
+  const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lng}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  const data = (json.data ?? json) as Record<string, unknown>;
+  return weatherToChatContext(data, { lat, lon: lng, location });
+}
+
+async function requestGarmentsWithFreshSession(
+  input: string,
+  weather?: OverviewWeatherContext | null,
+) {
+  try {
+    return await chatWonderService.message({
+      input,
+      ...(weather ? { weather } : {}),
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("HTTP 409")) {
+      await chatWonderService.restart();
+      return chatWonderService.message({
+        input,
+        ...(weather ? { weather } : {}),
+      });
+    }
+    throw err;
+  }
+}
+
 export default function OverviewPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -102,13 +176,12 @@ export default function OverviewPage() {
   const setOutfits = useOverviewStore((s) => s.setOutfits);
   const startMap = useOverviewStore((s) => s.startMap);
   const setMap = useOverviewStore((s) => s.setMap);
+  const emptyMap = useOverviewStore((s) => s.emptyMap);
+  const failMap = useOverviewStore((s) => s.failMap);
   const reset = useOverviewStore((s) => s.reset);
 
   const greeting = useOverviewStore((s) => s.greeting);
 
-  // Programmatic ChatWonder channel used to re-fire a prompt handed over from
-  // /ai-assistant (separate instance from the visible ChatWonderChat window).
-  const { sendMessage } = useChatWonderStream();
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
@@ -236,7 +309,77 @@ export default function OverviewPage() {
     }
   }, [selectedDestination, itineraryStops, setMap]);
 
-  // ── handoff from /ai-assistant: re-fire the carried prompt through ChatWonder ──
+  const runOverviewPlan = useCallback(
+    async (prompt: string) => {
+      const destination = extractLocationFromTranscript(prompt);
+      let weatherContext =
+        weather?.temp !== null && weather?.temp !== undefined
+          ? weatherToChatContext(
+              {
+                temp: weather.temp,
+                condition: weather.condition ?? "",
+              },
+              { location: weather.city },
+            )
+          : null;
+
+      if (destination) {
+        try {
+          const { results } = await mapService.geocode(destination);
+          const place = results[0];
+          if (place) {
+            setMap({
+              name: place.name || destination,
+              address: place.address,
+              lat: place.lat,
+              lng: place.lng,
+            });
+            const destinationWeather = await fetchDestinationWeather(
+              place.lat,
+              place.lng,
+              place.name || destination,
+            );
+            if (destinationWeather) weatherContext = destinationWeather;
+          } else {
+            emptyMap();
+          }
+        } catch (err) {
+          failMap(err instanceof Error ? err.message : "Map lookup failed");
+        }
+      }
+
+      try {
+        const response = await requestGarmentsWithFreshSession(
+          [
+            "[garments]",
+            "Treat date as a romantic/social outing when relevant.",
+            "Recommend outfits for this plan using the provided destination weather.",
+            `Plan: ${prompt}`,
+            destination ? `Destination: ${destination}.` : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          weatherContext,
+        );
+
+        const { garments, outfits } = adaptGarmentData(response.garment_data);
+        setGarments(garments);
+        setOutfits(outfits);
+
+        const mapPayload = Array.isArray(response.maps_data)
+          ? response.maps_data[0]
+          : response.maps_data;
+        const m = adaptMapsData(mapPayload);
+        if (m) setMap(m);
+      } catch {
+        setGarments([]);
+        setOutfits([]);
+      }
+    },
+    [emptyMap, failMap, setGarments, setMap, setOutfits, weather],
+  );
+
+  // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
   useEffect(() => {
     if (handoffFiredRef.current) return;
 
@@ -258,11 +401,7 @@ export default function OverviewPage() {
     startOutfits();
     startMap();
 
-    void sendMessage(prompt, {
-      mode: "overview",
-      weather,
-      onComplete: handleChatComplete,
-    });
+    void runOverviewPlan(prompt);
     // Fire exactly once on mount; weather is best-effort and may still be null.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

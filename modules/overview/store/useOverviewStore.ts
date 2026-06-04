@@ -48,6 +48,8 @@ interface OverviewState {
 
   startMap: () => void;
   setMap: (data: MapTileData) => void;
+  emptyMap: () => void;
+  failMap: (error: string) => void;
 
   reset: () => void;
 }
@@ -98,6 +100,8 @@ export const useOverviewStore = create<OverviewState>((set) => ({
 
   startMap: () => set({ map: { status: "loading", data: null, error: null } }),
   setMap: (data) => set({ map: { status: "ready", data, error: null } }),
+  emptyMap: () => set({ map: { status: "empty", data: null, error: null } }),
+  failMap: (error) => set({ map: { status: "error", data: null, error } }),
 
   reset: () => set({ ...initial }),
 }));

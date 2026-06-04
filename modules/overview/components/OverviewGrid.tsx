@@ -43,7 +43,7 @@ function TileShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="glass-card-strong neon-border-white rounded-3xl flex flex-col min-h-0 overflow-hidden">
+    <div className="glass-card-strong neon-border-white rounded-3xl flex h-full flex-col min-h-0 overflow-hidden">
       <div className="flex items-center gap-3 px-5 pt-5 pb-3 shrink-0">
         <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl">
           <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
@@ -67,6 +67,65 @@ function TileShell({
           children
         )}
       </div>
+    </div>
+  );
+}
+
+function TileFrame({
+  children,
+  focused,
+}: {
+  children: React.ReactNode;
+  focused: boolean;
+}) {
+  return (
+    <motion.div
+      layout
+      className={[
+        "min-h-0",
+        focused
+          ? "h-full w-full max-w-[620px] max-h-[690px] justify-self-center"
+          : "h-full",
+      ].join(" ")}
+      transition={{ type: "spring", stiffness: 260, damping: 30 }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function PendingStrip({
+  tiles,
+}: {
+  tiles: Array<{
+    key: string;
+    title: string;
+    icon: LucideIcon;
+    status: TileState<unknown>["status"];
+  }>;
+}) {
+  if (!tiles.length) return null;
+
+  return (
+    <div className="shrink-0 flex flex-wrap items-center justify-center gap-2">
+      {tiles.map(({ key, title, icon: Icon, status }) => (
+        <div
+          key={key}
+          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45"
+        >
+          <Icon className="h-3.5 w-3.5 text-white/45" strokeWidth={1.5} />
+          <span className="font-medium text-white/60">{title}</span>
+          <span>
+            {status === "loading"
+              ? "loading"
+              : status === "error"
+                ? "needs attention"
+                : status === "empty"
+                  ? "no result"
+                  : "waiting"}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -306,51 +365,86 @@ export function OverviewGrid() {
   const outfits = useOverviewStore((s) => s.outfits);
   const map = useOverviewStore((s) => s.map);
 
+  const tiles = [
+    {
+      key: "cosmetics",
+      title: "Cosmetics",
+      subtitle: "Skin analysis & product picks",
+      icon: Sparkles,
+      state: cosmetics,
+      empty: "No products matched your skin yet.",
+      content: cosmetics.data ? <CosmeticsContent data={cosmetics.data} /> : null,
+    },
+    {
+      key: "garments",
+      title: "Garments",
+      subtitle: "Pieces picked for your plan",
+      icon: Shirt,
+      state: garments,
+      empty: "No garments recommended yet.",
+      content: garments.data ? <GarmentsContent items={garments.data} /> : null,
+    },
+    {
+      key: "outfits",
+      title: "Outfits",
+      subtitle: "Full looks, styled for the occasion",
+      icon: WandSparkles,
+      state: outfits,
+      empty: "No complete looks yet.",
+      content: outfits.data ? <OutfitsContent items={outfits.data} /> : null,
+    },
+    {
+      key: "map",
+      title: "Map",
+      subtitle: "Where you're headed",
+      icon: MapPin,
+      state: map,
+      empty: "No destination set yet.",
+      content: map.data ? <MapContent data={map.data} /> : null,
+    },
+  ];
+
+  const readyTiles = tiles.filter((tile) => tile.state.status === "ready");
+  const pendingTiles = tiles.filter((tile) => tile.state.status !== "ready");
+  const visibleTiles = readyTiles.length ? readyTiles : tiles;
+  const focused = readyTiles.length === 1;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
-      <TileShell
-        title="Cosmetics"
-        subtitle="Skin analysis & product picks"
-        icon={Sparkles}
-        status={cosmetics.status}
-        error={cosmetics.error}
-        empty="No products matched your skin yet."
+    <div className="flex-1 min-h-0 flex flex-col gap-4">
+      <div
+        className={[
+          "grid flex-1 min-h-0 gap-4",
+          focused
+            ? "grid-cols-1 place-items-center"
+            : "grid-cols-1 md:grid-cols-2",
+        ].join(" ")}
       >
-        {cosmetics.data && <CosmeticsContent data={cosmetics.data} />}
-      </TileShell>
+        {visibleTiles.map((tile) => (
+          <TileFrame key={tile.key} focused={focused}>
+            <TileShell
+              title={tile.title}
+              subtitle={tile.subtitle}
+              icon={tile.icon}
+              status={tile.state.status}
+              error={tile.state.error}
+              empty={tile.empty}
+            >
+              {tile.content}
+            </TileShell>
+          </TileFrame>
+        ))}
+      </div>
 
-      <TileShell
-        title="Garments"
-        subtitle="Pieces picked for your plan"
-        icon={Shirt}
-        status={garments.status}
-        error={garments.error}
-        empty="No garments recommended yet."
-      >
-        {garments.data && <GarmentsContent items={garments.data} />}
-      </TileShell>
-
-      <TileShell
-        title="Outfits"
-        subtitle="Full looks, styled for the occasion"
-        icon={WandSparkles}
-        status={outfits.status}
-        error={outfits.error}
-        empty="No complete looks yet."
-      >
-        {outfits.data && <OutfitsContent items={outfits.data} />}
-      </TileShell>
-
-      <TileShell
-        title="Map"
-        subtitle="Where you're headed"
-        icon={MapPin}
-        status={map.status}
-        error={map.error}
-        empty="No destination set yet."
-      >
-        {map.data && <MapContent data={map.data} />}
-      </TileShell>
+      {readyTiles.length > 0 && (
+        <PendingStrip
+          tiles={pendingTiles.map((tile) => ({
+            key: tile.key,
+            title: tile.title,
+            icon: tile.icon,
+            status: tile.state.status,
+          }))}
+        />
+      )}
     </div>
   );
 }

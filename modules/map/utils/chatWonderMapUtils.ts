@@ -170,6 +170,13 @@ export function extractLocationFromTranscript(transcript: string): string | null
   );
   if (toMatch) return toMatch[1].trim();
 
+  // "in [Location]" planning phrasing:
+  // "I have a date in La Union" -> "La Union"
+  const inMatch = transcript.match(
+    /\bin\s+(?!the\s)([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:today|tonight|tomorrow|this\s+(?:morning|afternoon|evening|weekend)|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|weekend)|at\s+\d|for\s+(?:lunch|dinner|breakfast)|please|can you|that|,|\.)|$)/i,
+  );
+  if (inMatch) return inMatch[1].trim();
+
   return null;
 }
 

@@ -2,7 +2,10 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
-import { resolveAccessToken } from "@/modules/shared/api/chat-wonder.service";
+import {
+  chatWonderService,
+  resolveAccessToken,
+} from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 
 interface ItineraryMap {
@@ -29,9 +32,13 @@ export interface ChatWonderCompletePayload {
   type: "complete";
   message?: string;
   garment?: unknown | null;
+  garment_data?: unknown | null;
   cosmetics?: unknown | null;
+  cosmetics_data?: unknown | null;
   maps?: unknown | null;
+  maps_data?: unknown | null;
   nav?: unknown | null;
+  nav_data?: unknown | null;
   events?: unknown[];
   sets?: unknown[];
   raw?: string;
@@ -81,6 +88,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
     text: string,
     options?: SendMessageOptions,
     kioskId?: string,
+    didRefreshSession = false,
   ) {
     if (!text.trim()) return;
 
@@ -114,7 +122,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       } else if (options?.mode === "cosmetics") {
         finalInput = `[cosmetics] ${text}`;
       } else if (options?.mode === "overview") {
-        finalInput = `[overview] [map] [garments] [cosmetics] ${text}`;
+        finalInput = `[overview] [map] [garments] [cosmetics] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
       }
 
       const history = messagesRef.current.slice(-10).map((m) => ({
@@ -141,6 +149,14 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       });
 
       if (!response.ok) {
+        if (response.status === 409 && !didRefreshSession) {
+          await chatWonderService.restart();
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== userMsgId && m.id !== aiMsgId),
+          );
+          await doSendMessage(text, options, kioskId, true);
+          return;
+        }
         throw new Error(`Server responded with status: ${response.status}`);
       }
 
@@ -181,9 +197,23 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
               } else if (parsed.type === "complete") {
                 console.log("Chat completed with data:", parsed);
 
+                const completePayload = {
+                  ...parsed,
+                  garment: parsed.garment ?? parsed.garment_data ?? null,
+                  cosmetics:
+                    parsed.cosmetics ?? parsed.cosmetics_data ?? null,
+                  maps:
+                    parsed.maps ??
+                    (Array.isArray(parsed.maps_data)
+                      ? parsed.maps_data[0]
+                      : parsed.maps_data) ??
+                    null,
+                  nav: parsed.nav ?? parsed.nav_data ?? null,
+                } as ChatWonderCompletePayload;
+
                 // Surface the full structured payload (tool results) to any
                 // opt-in consumer before we run the built-in map handling.
-                options?.onComplete?.(parsed as ChatWonderCompletePayload);
+                options?.onComplete?.(completePayload);
 
                 const {
                   clearPendingEvents,
@@ -243,11 +273,15 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                 }
 
                 // Handle AI-driven page navigation
-                if (parsed.nav?.target_url) {
-                  if (parsed.nav.target_url === "back") {
+                const nav = completePayload.nav as
+                  | { target_url?: string }
+                  | null
+                  | undefined;
+                if (nav?.target_url) {
+                  if (nav.target_url === "back") {
                     router.back();
                   } else {
-                    router.push(parsed.nav.target_url);
+                    router.push(nav.target_url);
                   }
                 }
 
@@ -276,11 +310,16 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
               } else if (parsed.type === "error") {
                 if (parsed.code === "session_expired") {
                   console.warn("Session expired, retrying message...");
+                  if (didRefreshSession) {
+                    setError(parsed.message || "ChatWonder session expired");
+                    return;
+                  }
+                  await chatWonderService.restart();
                   // Try removing the message we optimistically added so we don't double up
                   setMessages((prev) =>
                     prev.filter((m) => m.id !== userMsgId && m.id !== aiMsgId),
                   );
-                  await doSendMessage(text, options, kioskId);
+                  await doSendMessage(text, options, kioskId, true);
                   return;
                 }
                 setError(parsed.message || "Unknown ChatWonder error");
