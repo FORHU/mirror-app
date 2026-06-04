@@ -464,6 +464,34 @@ export default function VirtualMirrorV2() {
     outfits: false,
   });
 
+  type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
+  const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
+  const [swapItemId, setSwapItemId] = useState<string | null>(null);
+  const [outfitOverrides, setOutfitOverrides] = useState<Record<string, RemoteGarment>>({});
+  const outfitModified = Object.keys(outfitOverrides).length > 0;
+
+  function resolveSwapSlot(garmentType: string[], fittingSlot: string[]): SwapSlot {
+    if (garmentType.includes("Bag")) return "bags";
+    if (fittingSlot.includes("LowerGarment")) return "bottoms";
+    if (fittingSlot.includes("FootGarment")) return "shoes";
+    const t = garmentType[0] ?? "";
+    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t)) return "outer";
+    if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
+    return "base";
+  }
+
+  function applySwap(g: RemoteGarment) {
+    if (!swapItemId) return;
+    setOutfitOverrides((prev) => ({ ...prev, [swapItemId]: g }));
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }
+
+  function cancelSwap() {
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }
+
   function handleAiComplete(response: ChatWonderMessageResponse) {
     setSelectedBag(null);
     setSelectedTopBase(null);
@@ -598,6 +626,9 @@ export default function VirtualMirrorV2() {
   const selectOutfit = (idx: number) => {
     setSelectedOutfitIdx(idx);
     clearSlots();
+    setOutfitOverrides({});
+    setSwapSlot(null);
+    setSwapItemId(null);
   };
 
   const outfitPageSize = 4;
@@ -834,7 +865,7 @@ export default function VirtualMirrorV2() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
-      <MirrorHeader onBack={() => router.push(ROUTES.LOGGED_IN)} />
+      <MirrorHeader />
 
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
@@ -894,10 +925,7 @@ export default function VirtualMirrorV2() {
                   pagedBags.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (
-                        setSelectedBag(g),
-                        setSelectedOutfitIdx(null)
-                      )}
+                      onClick={() => { if (swapSlot === "bags" && swapItemId) { applySwap(g); } else { setSelectedBag(g); setSelectedOutfitIdx(null); } }}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
@@ -1232,10 +1260,20 @@ export default function VirtualMirrorV2() {
                             rank(b.garment.garmentType)
                           );
                         })
-                        .map((item) => (
+                        .map((item) => {
+                          const effective = outfitOverrides[item.id] ?? item.garment;
+                          const isSwapping = swapItemId === item.id;
+                          const isOverridden = !!outfitOverrides[item.id];
+                          return (
                           <div
                             key={item.id}
                             className="flex"
+                            onClick={() => {
+                              const slot = resolveSwapSlot(item.garment.garmentType, item.garment.fittingSlot);
+                              if (isSwapping) { cancelSwap(); return; }
+                              setSwapSlot(slot);
+                              setSwapItemId(item.id);
+                            }}
                             style={{
                               flex: "1 1 0",
                               minHeight: 0,
@@ -1243,6 +1281,14 @@ export default function VirtualMirrorV2() {
                               alignItems: "stretch",
                               overflow: "hidden",
                               background: "transparent",
+                              cursor: "pointer",
+                              border: isSwapping
+                                ? "1.5px solid rgba(255,255,255,0.6)"
+                                : isOverridden
+                                ? "1.5px solid rgba(100,220,120,0.5)"
+                                : "1.5px solid transparent",
+                              borderRadius: "8px",
+                              transition: "border-color 0.15s",
                             }}
                           >
                             <div
@@ -1255,21 +1301,16 @@ export default function VirtualMirrorV2() {
                                 overflow: "hidden",
                               }}
                             >
-                              {item.garment.imageUrl ? (
+                              {effective.imageUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
-                                  src={item.garment.imageUrl}
-                                  alt={item.garment.name}
+                                  src={effective.imageUrl}
+                                  alt={effective.name}
                                   draggable={false}
                                   className="w-full h-full object-contain pointer-events-none"
                                 />
                               ) : (
-                                <span
-                                  style={{
-                                    color: "rgba(255,255,255,0.25)",
-                                    fontSize: "10px",
-                                  }}
-                                >
+                                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>
                                   No Image
                                 </span>
                               )}
@@ -1286,42 +1327,19 @@ export default function VirtualMirrorV2() {
                                 overflow: "hidden",
                               }}
                             >
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,255,0.01)",
-                                  fontSize: "8px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.08em",
-                                  overflow: "hidden",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {item.garment.garmentType[0]}
+                              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                {isOverridden ? "Changed" : effective.garmentType?.[0]}
                               </span>
-                              <span
-                                style={{
-                                  color: "white",
-                                  fontSize: "10px",
-                                  fontWeight: 600,
-                                  lineHeight: 1.3,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                {item.garment.name}
+                              <span style={{ color: "white", fontSize: "10px", fontWeight: 600, lineHeight: 1.3, overflow: "hidden" }}>
+                                {effective.name}
                               </span>
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,0.45)",
-                                  fontSize: "9px",
-                                  lineHeight: 1.4,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                {item.garment.description}
+                              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "9px", lineHeight: 1.4, overflow: "hidden" }}>
+                                {effective.description}
                               </span>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   )}
                 </div>
@@ -1451,8 +1469,23 @@ export default function VirtualMirrorV2() {
           className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
           style={{ flex: "0 0 25%", width: "25%" }}
         >
+          {/* Cancel swap mode */}
+          {swapSlot && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "2px" }}>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Select replacement
+              </span>
+              <button
+                onClick={cancelSwap}
+                style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Tops — Base layer */}
-          {(aiLoading || voiceLoading || topsBase.length > 0) && (
+          {(aiLoading || voiceLoading || topsBase.length > 0) && (!swapSlot || swapSlot === "base") && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Base" />
               <div
@@ -1477,10 +1510,7 @@ export default function VirtualMirrorV2() {
                     : pagedTopsBase.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() =>
-                            g &&
-                            (setSelectedTopBase(g), setSelectedOutfitIdx(null))
-                          }
+                          onClick={() => { if (!g) return; if (swapSlot === "base" && swapItemId) { applySwap(g); } else { setSelectedTopBase(g); setSelectedOutfitIdx(null); } }}
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
                             aspectRatio: "1/1",
@@ -1527,7 +1557,7 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Mid layer */}
-          {(aiLoading || voiceLoading || topsMid.length > 0) && (
+          {(aiLoading || voiceLoading || topsMid.length > 0) && (!swapSlot || swapSlot === "mid") && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Mid" />
               <div
@@ -1552,10 +1582,7 @@ export default function VirtualMirrorV2() {
                     : pagedTopsMid.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() =>
-                            g &&
-                            (setSelectedTopMid(g), setSelectedOutfitIdx(null))
-                          }
+                          onClick={() => { if (!g) return; if (swapSlot === "mid" && swapItemId) { applySwap(g); } else { setSelectedTopMid(g); setSelectedOutfitIdx(null); } }}
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
                             aspectRatio: "1/1",
@@ -1602,7 +1629,7 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Outer layer */}
-          {(aiLoading || voiceLoading || topsOuter.length > 0) && (
+          {(aiLoading || voiceLoading || topsOuter.length > 0) && (!swapSlot || swapSlot === "outer") && (
             <div className="flex flex-col gap-1">
               <SectionTitle label="Outer" />
               <div
@@ -1627,10 +1654,7 @@ export default function VirtualMirrorV2() {
                     : pagedTopsOuter.map((g, i) => (
                         <div
                           key={g?.id ?? i}
-                          onClick={() =>
-                            g &&
-                            (setSelectedTopOuter(g), setSelectedOutfitIdx(null))
-                          }
+                          onClick={() => { if (!g) return; if (swapSlot === "outer" && swapItemId) { applySwap(g); } else { setSelectedTopOuter(g); setSelectedOutfitIdx(null); } }}
                           className="rounded-md overflow-hidden flex items-center justify-center"
                           style={{
                             aspectRatio: "1/1",
@@ -1676,6 +1700,7 @@ export default function VirtualMirrorV2() {
             </div>
           )}
 
+          {(!swapSlot || swapSlot === "bottoms") && (
           <div className="flex flex-col gap-1">
             <SectionTitle label="Bottoms" />
             <div
@@ -1717,10 +1742,7 @@ export default function VirtualMirrorV2() {
                   pagedBottoms.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (
-                        setSelectedBottom(g),
-                        setSelectedOutfitIdx(null)
-                      )}
+                      onClick={() => { if (swapSlot === "bottoms" && swapItemId) { applySwap(g); } else { setSelectedBottom(g); setSelectedOutfitIdx(null); } }}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
@@ -1763,7 +1785,9 @@ export default function VirtualMirrorV2() {
               </div>
             </div>
           </div>
+          )}
 
+          {(!swapSlot || swapSlot === "shoes") && (
           <div className="flex flex-col gap-1">
             <SectionTitle label="Shoes" />
             <div
@@ -1805,10 +1829,7 @@ export default function VirtualMirrorV2() {
                   pagedShoes.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => (
-                        setSelectedShoe(g),
-                        setSelectedOutfitIdx(null)
-                      )}
+                      onClick={() => { if (swapSlot === "shoes" && swapItemId) { applySwap(g); } else { setSelectedShoe(g); setSelectedOutfitIdx(null); } }}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
@@ -1851,11 +1872,12 @@ export default function VirtualMirrorV2() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </div>
 
-      {/* Create Outfit — fixed to viewport bottom center, hidden when outfit is selected */}
-      {selectedOutfitIdx === null && (
+      {/* Create Outfit — fixed to viewport bottom center, hidden when outfit is selected (unless modified) */}
+      {(selectedOutfitIdx === null || outfitModified) && (
         <button
           style={{
             position: "fixed",
@@ -1885,7 +1907,7 @@ export default function VirtualMirrorV2() {
           }
           onClick={() => setShowConfirm(true)}
         >
-          Create Outfit
+          {outfitModified ? "Customize Outfit" : "Create Outfit"}
         </button>
       )}
 
@@ -1926,7 +1948,7 @@ export default function VirtualMirrorV2() {
                 margin: 0,
               }}
             >
-              Your Look
+              {outfitModified ? "Customized Look" : "Your Look"}
             </p>
 
             <div
@@ -1938,14 +1960,46 @@ export default function VirtualMirrorV2() {
                 background: "#1a1a1a",
               }}
             >
-              <OutfitPreviewCanvas
-                topBase={selectedTopBase}
-                topMid={selectedTopMid}
-                topOuter={selectedTopOuter}
-                bottom={selectedBottom}
-                shoe={selectedShoe}
-                bag={selectedBag}
-              />
+              {(() => {
+                // When an outfit is selected (and possibly modified), derive
+                // canvas garments from outfit items + overrides.
+                // Otherwise fall back to individual slot selections.
+                let cBase: RemoteGarment | null = selectedTopBase;
+                let cMid:  RemoteGarment | null = selectedTopMid;
+                let cOuter: RemoteGarment | null = selectedTopOuter;
+                let cBottom: RemoteGarment | null = selectedBottom;
+                let cShoe:   RemoteGarment | null = selectedShoe;
+                let cBag:    RemoteGarment | null = selectedBag;
+
+                const activeOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+                if (activeOutfit) {
+                  cBase = null; cMid = null; cOuter = null;
+                  cBottom = null; cShoe = null; cBag = null;
+                  for (const item of activeOutfit.items) {
+                    const eff = (outfitOverrides[item.id] ?? item.garment) as RemoteGarment;
+                    if (eff.garmentType?.includes("Bag")) { cBag = eff; continue; }
+                    if (item.slot === "LowerGarment") { cBottom = eff; continue; }
+                    if (item.slot === "FootGarment")  { cShoe   = eff; continue; }
+                    if (item.slot === "UpperGarment") {
+                      const layer = resolveSwapSlot(eff.garmentType ?? [], eff.fittingSlot ?? []);
+                      if (layer === "outer") cOuter = eff;
+                      else if (layer === "mid") cMid = eff;
+                      else cBase = eff;
+                    }
+                  }
+                }
+
+                return (
+                  <OutfitPreviewCanvas
+                    topBase={cBase}
+                    topMid={cMid}
+                    topOuter={cOuter}
+                    bottom={cBottom}
+                    shoe={cShoe}
+                    bag={cBag}
+                  />
+                );
+              })()}
             </div>
 
             <button
