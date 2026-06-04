@@ -23,6 +23,7 @@ export interface ChatWonderMessageRequest {
    * app's full SITEMAP_CONTEXT; pass an explicit list to override/narrow it.
    */
   sitemapContext?: string[];
+  history?: { role: "user" | "assistant"; content: string }[];
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ export interface ChatWonderMessageResponse {
   /** Navigation decision for `[nav]` requests (null otherwise). */
   nav_data: ChatWonderNavData | null;
   /** Parsed itinerary events (if any) */
-  events?: unknown[];
+  events?: ChatWonderEvent[];
   /** Parsed sets payload (if any) */
   sets?: unknown[];
   /** Base64 MP3 of the spoken reply (null unless `voice: true` was sent). */
@@ -55,6 +56,21 @@ export interface ChatWonderNavData {
   confidence?: number;
   extracted_entities?: unknown | null;
   system_message?: string;
+}
+
+export interface ChatWonderEventMap {
+  destination?: string;
+  lat?: number;
+  lng?: number;
+  address?: string;
+  placeId?: string;
+}
+
+export interface ChatWonderEvent {
+  eventName?: string;
+  eventType?: string;
+  timeLabel?: string;
+  map?: ChatWonderEventMap | null;
 }
 
 export interface ChatWonderGarmentData {
@@ -129,10 +145,10 @@ export const chatWonderService = {
    * session ID. Does NOT clear the itinerary (see `outlineService.reset`).
    */
   async restart(): Promise<string> {
-    const res = await api.post<{ status: string; data: { sessionId: string; gender: null } }>(
-      "/api/mirror/chat-wonder/restart",
-      {},
-    );
+    const res = await api.post<{
+      status: string;
+      data: { sessionId: string; gender: null };
+    }>("/api/mirror/chat-wonder/restart", {});
     if (!res.ok || !res.data?.data?.sessionId) {
       throw new Error("Failed to restart ChatWonder session");
     }
@@ -161,6 +177,7 @@ export const chatWonderService = {
     if (request.location) body.location = request.location;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
+    if (request.history?.length) body.history = request.history;
     // Always send the app sitemap so ChatWonder can resolve `[nav]` requests.
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 

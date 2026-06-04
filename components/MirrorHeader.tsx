@@ -39,7 +39,10 @@ export default function MirrorHeader({
   style,
 }: MirrorHeaderProps) {
   const now = useClock();
-  const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
 
@@ -81,7 +84,9 @@ export default function MirrorHeader({
           {day}, {date}
         </span>
       </div>
-      <div style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end" }}>
+      <div
+        style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end" }}
+      >
         {rightContent}
       </div>
     </header>

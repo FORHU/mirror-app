@@ -13,6 +13,7 @@ export type GuardResult = {
 const GENDER_GATED_ROUTES = [
   "/ai-recommendation-fashion",
   "/ai-recommendation-cosmetic",
+  "/map",
 ];
 
 function hasGender(): boolean {
@@ -60,7 +61,10 @@ export function guardAction(
   ) {
     return {
       allowed: true,
-      action: { type: "navigate", route: "/select-gender" } as ChatWonderAction,
+      action: {
+        type: "navigate",
+        route: `/select-gender?next=${encodeURIComponent(action.route)}`,
+      } as ChatWonderAction,
       requiresConfirmation: false,
       reply: SYSTEM_RESPONSES.genderGuard,
     };

@@ -31,7 +31,13 @@ type CWProduct = {
 // e.g. FaceDetector unavailable, so we shouldn't block the user).
 async function detectFace(dataUrl: string): Promise<boolean | null> {
   try {
-    const FD = (window as unknown as { FaceDetector?: new (opts?: unknown) => { detect: (i: CanvasImageSource) => Promise<unknown[]> } }).FaceDetector;
+    const FD = (
+      window as unknown as {
+        FaceDetector?: new (opts?: unknown) => {
+          detect: (i: CanvasImageSource) => Promise<unknown[]>;
+        };
+      }
+    ).FaceDetector;
     if (!FD) return null;
     const detector = new FD({ fastMode: true, maxDetectedFaces: 1 });
     const img = document.createElement("img");
@@ -382,7 +388,9 @@ export default function CosmeticRecommendationPage() {
   // "checking" → running face detection on the capture
   // "ok"       → face found (or detector unavailable) → results proceed
   // "none"     → no face in the photo → show the retake screen
-  const [faceState, setFaceState] = useState<"checking" | "ok" | "none">("checking");
+  const [faceState, setFaceState] = useState<"checking" | "ok" | "none">(
+    "checking",
+  );
 
   // Runs the whole pipeline that used to live on the (now-removed) result page:
   // upload the capture → analyze the skin → then fetch product recommendations.
@@ -400,7 +408,9 @@ export default function CosmeticRecommendationPage() {
     };
 
     const applyAnalysis = (a: SkinAnalysis) => {
-      try { sessionStorage.setItem("skin_analysis", JSON.stringify(a)); } catch {}
+      try {
+        sessionStorage.setItem("skin_analysis", JSON.stringify(a));
+      } catch {}
       setSession((prev) => ({ ...prev, analysis: a }));
       fetchRecs(a);
     };
@@ -458,7 +468,9 @@ export default function CosmeticRecommendationPage() {
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const concerns = useMemo(
@@ -534,7 +546,9 @@ export default function CosmeticRecommendationPage() {
       ? withImages
       : stillWorking
         ? []
-        : MOCK_PRODUCTS.filter((p) => !failedImageIds.has(p.id) && !isExample(p));
+        : MOCK_PRODUCTS.filter(
+            (p) => !failedImageIds.has(p.id) && !isExample(p),
+          );
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE);
   const pagedProducts = products.slice(
@@ -634,7 +648,9 @@ export default function CosmeticRecommendationPage() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       {/* Header */}
-      <MirrorHeader onBack={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)} />
+      <MirrorHeader
+        onBack={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+      />
 
       {/* Body */}
       <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { type PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
 import {
@@ -74,6 +75,12 @@ interface MapStore {
   fetchRoute(force?: boolean): Promise<void>;
   clearRoute(): void;
   patchHomeLocation(coords: Location): Promise<void>;
+
+  pendingEvents: PendingEvent[];
+  itineraryStops: Destination[];
+  setPendingEvents: (events: PendingEvent[]) => void;
+  clearPendingEvents: () => void;
+  setItineraryStops: (stops: Destination[]) => void;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -102,6 +109,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
   isRouting: false,
   userLocation: null,
   origin: null,
+  pendingEvents: [],
+  itineraryStops: [],
+
+  setPendingEvents: (pendingEvents) => set({ pendingEvents }),
+  clearPendingEvents: () => set({ pendingEvents: [] }),
+  setItineraryStops: (itineraryStops) => set({ itineraryStops }),
 
   setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
   setSuggestedPOIs: (pois, label) =>

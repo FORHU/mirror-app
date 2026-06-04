@@ -10,8 +10,15 @@ export interface PageContext {
   pageName: string;
   activeStep?: string;
   collectedData?: EventSetupData;
-  mode?: "garment";
+  mode?: "garment" | "map";
 }
+
+export type PendingEvent = {
+  eventName: string;
+  eventType: string;
+  timeLabel: string;
+  missingFields: ("location" | "time")[];
+};
 
 export interface ChatWonderInput {
   transcript: string;
