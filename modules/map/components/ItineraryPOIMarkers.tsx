@@ -127,7 +127,7 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
       const stop = itineraryStops[stopIndex];
 
       pois.forEach((poi: NearbyPOI) => {
-        const dist = poi.distance ?? 0;
+        const dist = (poi.distance ?? 0) / 1000; // API returns metres; helpers expect km
 
         // Dot marker
         const el = document.createElement("div");
