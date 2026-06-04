@@ -16,6 +16,13 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
   .replace(/\/$/, "");
 
 let socket: Socket | null = null;
+let joinedUserId: string | null = null;
+
+type RegisterUserResponse = {
+  status?: "success" | "error";
+  userId?: string;
+  message?: string;
+};
 
 /** Pull the userId out of the JWT (payload field is `userId`). */
 function decodeUserId(token: string): string | null {
@@ -32,6 +39,51 @@ function decodeUserId(token: string): string | null {
   }
 }
 
+function waitForConnect(s: Socket): Promise<void> {
+  if (s.connected) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Timed out connecting to analysis socket."));
+    }, 8000);
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      s.off("connect", handleConnect);
+      s.off("connect_error", handleError);
+    };
+    const handleConnect = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    s.on("connect", handleConnect);
+    s.on("connect_error", handleError);
+  });
+}
+
+function registerUserRoom(s: Socket, userId: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error("Timed out joining analysis result room."));
+    }, 8000);
+
+    s.emit("register_user", { userId }, (response?: RegisterUserResponse) => {
+      window.clearTimeout(timeout);
+      if (response?.status === "error") {
+        reject(new Error(response.message ?? "Failed to join analysis result room."));
+        return;
+      }
+      joinedUserId = userId;
+      resolve();
+    });
+  });
+}
+
 /** Connect (once) and join the user's room, re-joining on every reconnect. */
 async function ensureSocket(): Promise<Socket | null> {
   if (typeof window === "undefined") return null;
@@ -45,13 +97,17 @@ async function ensureSocket(): Promise<Socket | null> {
       transports: ["websocket", "polling"],
       reconnection: true,
     });
+
+    socket.on("connect", () => {
+      if (!socket || !joinedUserId) return;
+      registerUserRoom(socket, joinedUserId).catch((error) => {
+        console.error("[skin-analysis] failed to rejoin result room:", error);
+      });
+    });
   }
   const s = socket;
-  const join = () => s.emit("register_user", { userId });
-  // join now if already connected, and on every (re)connect
-  if (s.connected) join();
-  s.off("connect", join); // avoid stacking duplicate handlers across calls
-  s.on("connect", join);
+  await waitForConnect(s);
+  await registerUserRoom(s, userId);
   return s;
 }
 
