@@ -48,14 +48,22 @@ export const cosmeticsService = {
     return res.data.data as { id: string; fileUrl: string };
   },
 
-  analyzeSkin: async (fileId: string): Promise<SkinAnalysis> => {
-    const res = await api.post<StandardResponse<SkinAnalysis>>(
+  // Kicks off the async analysis. The backend answers 202 ("started") and
+  // pushes the finished result over Socket.io (skin_analysis_complete), so we
+  // do NOT expect data in this response — only confirm the job was accepted.
+  startSkinAnalysis: async (fileId: string): Promise<void> => {
+    const res = await api.post<StandardResponse<unknown>>(
       "/api/mirror/skin-analyses",
       { fileId, weatherSnapshotId: null },
     );
     if (res.status === 401) throw new Error("401: Unauthorized");
-    if (!res.ok || !res.data?.data) throw new Error("Skin analysis failed");
-    return res.data.data;
+    // 202 Accepted is the happy path; anything outside 2xx is a real failure.
+    if (!res.ok) {
+      throw new Error(
+        (res.data as { message?: string })?.message ??
+          "Failed to start skin analysis",
+      );
+    }
   },
 
   getAnalysis: async (id: string): Promise<SkinAnalysis> => {

@@ -4,13 +4,15 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import "../../../styles/glow.css";
 import MirrorHeader from "@/components/MirrorHeader";
+import FaceScanGraphic from "@/components/FaceScanGraphic";
 import {
   cosmeticsService,
   type SkinAnalysis,
 } from "@/modules/shared/api/cosmetics.service";
+import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 import { getStorageData } from "@/modules/shared/utils/storage";
 import { ROUTES } from "@/navigation";
@@ -143,18 +145,6 @@ function inferSeverity(label: string): "low" | "medium" | "high" {
 function toTitleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
-
-// Fallback analysis when the backend upload/analyze fails, so products still load.
-const MOCK_ANALYSIS: SkinAnalysis = {
-  id: "mock",
-  skinType: "Normal",
-  skinTone: "medium",
-  hydrationPct: 55,
-  oilinessPct: 40,
-  concerns: [],
-  routineTip: "",
-  recommendations: [],
-};
 
 // ── Skeleton product card — shown while analyzing / fetching ──────────────────
 function SkeletonCard({ delay }: { delay: number }) {
@@ -382,6 +372,11 @@ export default function CosmeticRecommendationPage() {
   const { capturedImage, analysis } = session;
   const [page, setPage] = useState(0);
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
+  // Product whose full detail/why-recommended sheet is open (null = closed).
+  const [detail, setDetail] = useState<Product | null>(null);
+  // Real upload/analyze failure — surfaced to the user instead of silently
+  // showing a fake "Normal" result. Holds the technical message for debugging.
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [cwProducts, setCwProducts] = useState<CWProduct[] | null>(null);
   const [cwLoading, setCwLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -397,6 +392,8 @@ export default function CosmeticRecommendationPage() {
   // The skeleton grid shows for the entire wait.
   useEffect(() => {
     let cancelled = false;
+    let socketUnsub: (() => void) | null = null;
+    let analysisTimer: ReturnType<typeof setTimeout> | null = null;
 
     const fetchRecs = (a: SkinAnalysis) => {
       setCwLoading(true);
@@ -413,6 +410,15 @@ export default function CosmeticRecommendationPage() {
       } catch {}
       setSession((prev) => ({ ...prev, analysis: a }));
       fetchRecs(a);
+    };
+
+    // Surface a real failure instead of inventing a "Normal" result. We log the
+    // full error for devs and keep the message so the UI can show what broke.
+    const failAnalysis = (err: unknown, where: string) => {
+      if (cancelled) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[skin-analysis] ${where} failed:`, err);
+      setAnalysisError(msg || "Skin analysis failed");
     };
 
     const run = async () => {
@@ -450,17 +456,60 @@ export default function CosmeticRecommendationPage() {
           cosmeticsService
             .getAnalysis(existingId)
             .then(applyAnalysis)
-            .catch(() => applyAnalysis(MOCK_ANALYSIS))
+            .catch((err) => failAnalysis(err, "getAnalysis"))
             .finally(() => setAnalyzing(false));
         } else if (capturedImage) {
-          // Fresh capture — upload, analyze, then recommend
+          // Fresh capture. Analysis is ASYNC: the POST returns 202 ("started")
+          // and the real result is pushed over Socket.io. So we subscribe FIRST
+          // (to avoid racing the push), then upload + start the job, then wait
+          // for `skin_analysis_complete`. A timeout guards against a lost push.
           setAnalyzing(true);
-          cosmeticsService
-            .uploadCapture(capturedImage)
-            .then(({ id }) => cosmeticsService.analyzeSkin(id))
-            .then(applyAnalysis)
-            .catch(() => applyAnalysis(MOCK_ANALYSIS))
-            .finally(() => setAnalyzing(false));
+
+          const finish = () => {
+            if (analysisTimer) clearTimeout(analysisTimer);
+            socketUnsub?.();
+            socketUnsub = null;
+            if (!cancelled) setAnalyzing(false);
+          };
+
+          listenForSkinAnalysis({
+            onComplete: (data) => {
+              if (cancelled) return;
+              finish();
+              applyAnalysis(data as SkinAnalysis);
+            },
+            onError: (msg) => {
+              if (cancelled) return;
+              finish();
+              failAnalysis(new Error(msg), "analyze(socket)");
+            },
+          }).then((unsub) => {
+            if (cancelled) {
+              unsub();
+              return;
+            }
+            socketUnsub = unsub;
+
+            // Start the pipeline. Result arrives via the socket above, not here.
+            cosmeticsService
+              .uploadCapture(capturedImage)
+              .then(({ id }) => cosmeticsService.startSkinAnalysis(id))
+              .catch((err) => {
+                if (cancelled) return;
+                finish();
+                failAnalysis(err, "upload/start-analysis");
+              });
+
+            // Safety net: surface an error if no result lands in time.
+            analysisTimer = setTimeout(() => {
+              if (cancelled) return;
+              finish();
+              failAnalysis(
+                new Error("Timed out waiting for the analysis result."),
+                "analyze(timeout)",
+              );
+            }, 45000);
+          });
         }
       } catch {
         if (!cancelled) setFaceState("ok");
@@ -470,6 +519,8 @@ export default function CosmeticRecommendationPage() {
     run();
     return () => {
       cancelled = true;
+      if (analysisTimer) clearTimeout(analysisTimer);
+      socketUnsub?.();
     };
   }, []);
 
@@ -530,10 +581,11 @@ export default function CosmeticRecommendationPage() {
   const isExample = (p: Product) =>
     p.name.toLowerCase() === "example product" ||
     p.brand.toLowerCase() === "example brand";
+  const hasProductImage = (p: Product) => Boolean(p.imageUrl?.trim());
 
   // Real / AI picks must have a usable image so the card doesn't look broken.
   const withImages = sourced.filter(
-    (p) => p.imageUrl && !failedImageIds.has(p.id) && !isExample(p),
+    (p) => hasProductImage(p) && !failedImageIds.has(p.id) && !isExample(p),
   );
 
   const stillWorking = analyzing || cwLoading;
@@ -547,7 +599,8 @@ export default function CosmeticRecommendationPage() {
       : stillWorking
         ? []
         : MOCK_PRODUCTS.filter(
-            (p) => !failedImageIds.has(p.id) && !isExample(p),
+            (p) =>
+              hasProductImage(p) && !failedImageIds.has(p.id) && !isExample(p),
           );
 
   const totalPages = Math.ceil(products.length / PAGE_SIZE);
@@ -645,6 +698,91 @@ export default function CosmeticRecommendationPage() {
     );
   }
 
+  // ── Analysis failed — show what broke instead of a fake "Normal" result ──────
+  if (analysisError) {
+    return (
+      <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
+        <header
+          className="flex items-center shrink-0 py-4 px-4"
+          style={{ background: "rgba(0,0,0,0.85)" }}
+        >
+          <button
+            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+            className="p-2 -ml-2 text-white/80 active:text-white transition-colors"
+          >
+            <ArrowLeft className="w-7 h-7" />
+          </button>
+          <h1 className="flex-1 text-center text-white font-bold text-2xl pr-9">
+            Skin Analysis
+          </h1>
+        </header>
+
+        <motion.div
+          className="flex-1 flex flex-col items-center justify-center px-8 text-center"
+          style={{ gap: "18px" }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: "9999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "44px",
+              background: "rgba(248,113,113,0.10)",
+              border: "1px solid rgba(248,113,113,0.35)",
+            }}
+          >
+            ⚠️
+          </div>
+          <h2 style={{ color: "white", fontSize: "22px", fontWeight: 700 }}>
+            Couldn&apos;t analyze your skin
+          </h2>
+          <p
+            style={{
+              color: "rgba(255,255,255,0.55)",
+              fontSize: "14px",
+              lineHeight: 1.5,
+              maxWidth: "320px",
+            }}
+          >
+            The analysis service didn&apos;t respond. Please try again in a
+            moment.
+          </p>
+          {/* Technical detail — visible on-device so failures aren't hidden. */}
+          <code
+            style={{
+              color: "rgba(248,113,113,0.8)",
+              fontSize: "11px",
+              maxWidth: "340px",
+              wordBreak: "break-word",
+              opacity: 0.85,
+            }}
+          >
+            {analysisError}
+          </code>
+          <button
+            onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+            className="px-9 py-3 rounded-full font-semibold text-sm tracking-wide"
+            style={{
+              marginTop: "6px",
+              background: "rgba(72,199,142,0.18)",
+              border: "1px solid rgba(72,199,142,0.55)",
+              color: "rgba(72,199,142,0.95)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            🔄 Try again
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       {/* Header */}
@@ -654,53 +792,32 @@ export default function CosmeticRecommendationPage() {
 
       {/* Body */}
       <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
-        {/* Photo — centered, clean, concern chips overlaid at bottom */}
-        <motion.div
-          className="flex justify-center shrink-0 px-4 pt-3"
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+        {/* Top row: face mesh (left) + verdict (right) */}
+        <div
+          className="flex shrink-0 px-4 pt-3"
+          style={{ gap: "16px", alignItems: "stretch" }}
         >
-          <div
-            style={{
-              position: "relative",
-              height: "32vh",
-              aspectRatio: "3 / 4",
-              borderRadius: "14px",
-              overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.04)",
-            }}
+          {/* Face mesh (left) */}
+          <motion.div
+            className="shrink-0"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            {capturedImage ? (
-              <Image
-                fill
-                unoptimized
-                src={capturedImage}
-                alt="Skin capture"
-                style={{
-                  objectFit: "cover",
-                  objectPosition: "center top",
-                  transform: "scaleX(-1)",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span
-                  style={{ color: "rgba(255,255,255,0.2)", fontSize: "13px" }}
-                >
-                  No capture
-                </span>
-              </div>
-            )}
+            <div
+              style={{
+                position: "relative",
+                height: "32vh",
+                aspectRatio: "3 / 4",
+                borderRadius: "14px",
+                overflow: "hidden",
+                border: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(255,255,255,0.04)",
+              }}
+            >
+            {/* The captured selfie is used for analysis but never shown — we
+                display an abstract analyzed face-mesh graphic instead. */}
+            <FaceScanGraphic mode="analyzed" />
 
             {/* AI concern chips overlaid at photo bottom */}
             {concerns.length > 0 && (
@@ -740,19 +857,23 @@ export default function CosmeticRecommendationPage() {
           </div>
         </motion.div>
 
-        {/* ── Compact skin summary (moved here from the old result page) ─────── */}
-        <div className="shrink-0 px-4 pt-3">
+          {/* Verdict (right) — skin type + hydration/oiliness */}
           <div
-            style={{
-              borderRadius: "12px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              padding: "10px 14px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-            }}
+            className="flex-1"
+            style={{ display: "flex", alignItems: "center", minWidth: 0 }}
           >
+            <div
+              style={{
+                width: "100%",
+                borderRadius: "12px",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                padding: "14px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
             <div
               style={{
                 display: "flex",
@@ -849,6 +970,7 @@ export default function CosmeticRecommendationPage() {
                 </span>
               </div>
             ))}
+            </div>
           </div>
         </div>
 
@@ -935,6 +1057,7 @@ export default function CosmeticRecommendationPage() {
               : pagedProducts.map((product, i) => (
                   <motion.div
                     key={product.id}
+                    onClick={() => setDetail(product)}
                     style={{
                       borderRadius: "14px",
                       overflow: "hidden",
@@ -943,10 +1066,12 @@ export default function CosmeticRecommendationPage() {
                       minHeight: 0,
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
+                      cursor: "pointer",
                     }}
                     initial={{ opacity: 0, scale: 0.96, y: 8 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: i * 0.05 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     {/* Image area */}
                     <div
@@ -1082,21 +1207,43 @@ export default function CosmeticRecommendationPage() {
                         {product.brand}
                       </span>
                       {product.reason && (
-                        <span
-                          style={{
-                            color: "rgba(255,255,255,0.45)",
-                            fontSize: "9px",
-                            lineHeight: 1.35,
-                            overflow: "hidden",
-                            display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: "vertical",
-                            marginTop: "1px",
-                          }}
-                        >
-                          {product.reason}
-                        </span>
+                        <div style={{ marginTop: "2px" }}>
+                          <span
+                            style={{
+                              color: "rgba(72,199,142,0.9)",
+                              fontSize: "8px",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                            }}
+                          >
+                            Why
+                          </span>
+                          <span
+                            style={{
+                              display: "-webkit-box",
+                              color: "rgba(255,255,255,0.72)",
+                              fontSize: "10px",
+                              lineHeight: 1.35,
+                              overflow: "hidden",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                            }}
+                          >
+                            {product.reason}
+                          </span>
+                        </div>
                       )}
+                      <span
+                        style={{
+                          marginTop: "auto",
+                          color: "rgba(255,255,255,0.4)",
+                          fontSize: "9px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Tap for details ›
+                      </span>
                     </div>
                   </motion.div>
                 ))}
@@ -1135,6 +1282,208 @@ export default function CosmeticRecommendationPage() {
           )}
         </div>
       </div>
+
+      {/* Product detail / why-recommended sheet */}
+      <AnimatePresence>
+        {detail && (
+          <motion.div
+            key="product-detail"
+            onClick={() => setDetail(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 50,
+              background: "rgba(0,0,0,0.72)",
+              backdropFilter: "blur(6px)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+            }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              style={{
+                width: "100%",
+                maxHeight: "82%",
+                overflowY: "auto",
+                background: "#0d1013",
+                borderTopLeftRadius: 22,
+                borderTopRightRadius: 22,
+                border: "1px solid rgba(255,255,255,0.10)",
+                padding: "16px 18px 26px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+              }}
+            >
+              {/* grab handle */}
+              <div
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.2)",
+                  margin: "0 auto 2px",
+                }}
+              />
+
+              <div style={{ display: "flex", gap: 14 }}>
+                {/* image / placeholder */}
+                <div
+                  style={{
+                    flex: "0 0 96px",
+                    height: 96,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    position: "relative",
+                    background: "rgba(255,255,255,0.05)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {detail.imageUrl && !failedImageIds.has(detail.id) ? (
+                    <Image
+                      fill
+                      unoptimized
+                      src={detail.imageUrl}
+                      alt={detail.name}
+                      style={{ objectFit: "contain" }}
+                    />
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 26 }}>◯</span>
+                  )}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: 10,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.09em",
+                    }}
+                  >
+                    {detail.category} · {detail.use}
+                  </span>
+                  <h3
+                    style={{
+                      color: "white",
+                      fontSize: 18,
+                      fontWeight: 700,
+                      lineHeight: 1.25,
+                      margin: "3px 0 2px",
+                    }}
+                  >
+                    {detail.name}
+                  </h3>
+                  <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                    {detail.brand}
+                  </span>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "3px 10px",
+                      borderRadius: 999,
+                      background: "rgba(72,199,142,0.14)",
+                      border: "1px solid rgba(72,199,142,0.4)",
+                    }}
+                  >
+                    <span style={{ color: "rgba(72,199,142,0.95)", fontSize: 12, fontWeight: 700 }}>
+                      {detail.score}% match
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Why recommended */}
+              {detail.reason && (
+                <div
+                  style={{
+                    background: "rgba(72,199,142,0.07)",
+                    border: "1px solid rgba(72,199,142,0.22)",
+                    borderRadius: 14,
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      color: "rgba(72,199,142,0.95)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: 6,
+                    }}
+                  >
+                    ✦ Why this suits your skin
+                  </div>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {detail.reason}
+                  </p>
+                </div>
+              )}
+
+              {/* How to use */}
+              <div>
+                <div
+                  style={{
+                    color: "rgba(255,255,255,0.45)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: 4,
+                  }}
+                >
+                  When to use
+                </div>
+                <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 1.5 }}>
+                  Apply as your {detail.category.toLowerCase()} during your{" "}
+                  {detail.use === "AM"
+                    ? "morning"
+                    : detail.use === "PM"
+                      ? "evening"
+                      : "morning and evening"}{" "}
+                  routine.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setDetail(null)}
+                style={{
+                  marginTop: 4,
+                  padding: "12px",
+                  borderRadius: 12,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -9,14 +9,19 @@ import { api } from "@/modules/shared/api/api-client";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
+import FaceScanGraphic from "@/components/FaceScanGraphic";
 
-// Seconds of countdown before the photo is taken automatically.
-const COUNTDOWN_FROM = 3;
+// How long the scan visualization runs before the (silent) frame grab, giving
+// the camera time to expose/focus and the mesh time to animate.
+const SCAN_MS = 1900;
+// On a "no face" frame we retry silently this many times before giving up and
+// proceeding anyway (the results page has an analysis fallback).
+const MAX_FACE_RETRIES = 3;
 
 // starting  → acquiring the camera
-// countdown → 3-2-1 before auto-capture
+// scanning  → mesh animation running; a frame is grabbed silently at the end
 // captured  → frame grabbed, white flash, navigating to results
-type Phase = "starting" | "countdown" | "captured";
+type Phase = "starting" | "scanning" | "captured";
 
 // Best-effort face check using the browser's native Shape Detection API.
 // Returns true (face found) / false (no face) / null (couldn't determine —
@@ -118,13 +123,13 @@ export default function CosmeticPage() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<Phase>("starting");
+  const retriesRef = useRef(0);
 
-  const startCountdownRef = useRef<() => void>(() => {});
+  const autoScanRef = useRef<() => void>(() => {});
 
   const [phase, setPhase] = useState<Phase>("starting");
-  const [count, setCount] = useState(COUNTDOWN_FROM);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // Transient "no face" notice — shown in the caption while we auto-retry.
   const [faceWarning, setFaceWarning] = useState<string | null>(null);
@@ -178,13 +183,16 @@ export default function CosmeticPage() {
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
     // Face gate — reject a frame with no face before committing the capture,
-    // then auto-restart the countdown so the user can try again.
+    // then silently re-scan so the user can re-center. After a few misses we
+    // proceed anyway (results page has an analysis fallback) so we never trap
+    // the user on this screen.
     const hasFace = await detectFace(dataUrl);
     // Re-check: the phase can change while the async face check is in flight.
     if ((phaseRef.current as Phase) === "captured") return;
-    if (hasFace === false) {
-      setFaceWarning("No face detected — center your face and hold still.");
-      startCountdownRef.current();
+    if (hasFace === false && retriesRef.current < MAX_FACE_RETRIES) {
+      retriesRef.current += 1;
+      setFaceWarning("Center your face and hold still…");
+      autoScanRef.current();
       return;
     }
     setFaceWarning(null);
@@ -196,7 +204,7 @@ export default function CosmeticPage() {
     } catch {}
 
     setPhaseState("captured"); // triggers white flash
-    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
 
     // Navigate after the flash — the recommendation page now handles
     // upload + analyze + product fetch (shows the skeleton meanwhile).
@@ -204,31 +212,24 @@ export default function CosmeticPage() {
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RECOMMENDATION);
   }, [router, setPhaseState]);
 
-  // ── 3-2-1 countdown, then auto-capture ───────────────────────────────────────
-  const startCountdown = useCallback(() => {
+  // ── Silent scan, then auto-capture ───────────────────────────────────────────
+  // No countdown, no buttons — the mesh animates for SCAN_MS while the camera
+  // settles, then a frame is grabbed off-screen for analysis.
+  const autoScan = useCallback(() => {
     if (phaseRef.current === "captured") return;
-    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
 
-    let n = COUNTDOWN_FROM;
-    setCount(n);
-    setPhaseState("countdown");
-
-    countdownRef.current = setInterval(() => {
-      n -= 1;
-      if (n <= 0) {
-        if (countdownRef.current) clearInterval(countdownRef.current);
-        captureFrame();
-      } else {
-        setCount(n);
-      }
-    }, 1000);
+    setPhaseState("scanning");
+    scanTimerRef.current = setTimeout(() => {
+      captureFrame();
+    }, SCAN_MS);
   }, [captureFrame, setPhaseState]);
 
-  // Keep a stable handle to the latest startCountdown so captureFrame can
-  // re-trigger it (on a no-face retry) without a useCallback dependency cycle.
+  // Keep a stable handle to the latest autoScan so captureFrame can re-trigger
+  // it (on a no-face retry) without a useCallback dependency cycle.
   useEffect(() => {
-    startCountdownRef.current = startCountdown;
-  }, [startCountdown]);
+    autoScanRef.current = autoScan;
+  }, [autoScan]);
 
   // ── Camera setup (plain getUserMedia — no MediaPipe) ─────────────────────────
   useEffect(() => {
@@ -253,7 +254,7 @@ export default function CosmeticPage() {
         if (!video) return;
         video.srcObject = stream;
         await video.play().catch(() => {});
-        if (!cancelled) startCountdown();
+        if (!cancelled) autoScan();
       } catch {
         if (!cancelled)
           setErrorMsg("Camera unavailable — please check permissions.");
@@ -265,7 +266,7 @@ export default function CosmeticPage() {
     const videoEl = videoRef.current;
     return () => {
       cancelled = true;
-      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       if (videoEl) videoEl.srcObject = null;
@@ -281,7 +282,7 @@ export default function CosmeticPage() {
         ? "Starting camera…"
         : phase === "captured"
           ? "Processing…"
-          : "Get ready — look at the camera";
+          : "Analyzing your skin…";
 
   // ── Render — mirrors the recommendation screen layout ────────────────────────
   return (
@@ -350,6 +351,8 @@ export default function CosmeticPage() {
               background: "rgba(255,255,255,0.04)",
             }}
           >
+            {/* Camera runs only to grab a frame for analysis — it's kept under
+                the scan overlay so the raw face is never shown as a preview. */}
             <video
               ref={videoRef}
               autoPlay
@@ -357,36 +360,16 @@ export default function CosmeticPage() {
               muted
               className="w-full h-full"
               style={{
+                position: "absolute",
+                inset: 0,
                 objectFit: "cover",
                 objectPosition: "center top",
                 transform: "scaleX(-1)",
               }}
             />
 
-            {/* Countdown number */}
-            <AnimatePresence mode="wait">
-              {phase === "countdown" && (
-                <motion.div
-                  key={count}
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  initial={{ opacity: 0, scale: 1.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.6 }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <span
-                    style={{
-                      fontSize: "5rem",
-                      fontWeight: 700,
-                      color: "rgba(255,255,255,0.95)",
-                      textShadow: "0 4px 30px rgba(0,0,0,0.7)",
-                    }}
-                  >
-                    {count}
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {/* Abstract face-scan visualization (covers the live feed) */}
+            <FaceScanGraphic mode="scanning" />
 
             {/* White flash on capture */}
             <AnimatePresence>
@@ -483,11 +466,16 @@ export default function CosmeticPage() {
         </div>
       </div>
 
-      {/* Capture controls */}
-      {phase !== "captured" && !errorMsg && (
-        <div className="shrink-0 pb-6 flex flex-col items-center gap-2">
+      {/* No manual controls — capture is fully automatic. Retry only on a hard
+          camera error. */}
+      {errorMsg && (
+        <div className="shrink-0 pb-6 flex justify-center">
           <button
-            onClick={captureFrame}
+            onClick={() => {
+              setErrorMsg(null);
+              retriesRef.current = 0;
+              autoScan();
+            }}
             className="px-9 py-3 rounded-full font-semibold text-sm tracking-wide"
             style={{
               background: "rgba(72,199,142,0.18)",
@@ -496,13 +484,7 @@ export default function CosmeticPage() {
               backdropFilter: "blur(8px)",
             }}
           >
-            📸 Capture now
-          </button>
-          <button
-            onClick={startCountdown}
-            className="text-white/45 text-xs tracking-wide active:text-white/70 transition-colors"
-          >
-            Restart countdown
+            Try again
           </button>
         </div>
       )}
