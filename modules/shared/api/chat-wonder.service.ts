@@ -139,14 +139,20 @@ export interface ChatWonderRecommendation {
 
 // ─── Token helper (mirrors api-client.ts interceptor logic) ──────────────────
 
+function getKioskAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+    ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+    : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+}
+
 export async function resolveAccessToken(): Promise<string | null> {
+  const kioskToken = getKioskAccessToken();
+  if (kioskToken) return kioskToken;
+
   const stored = await getStorageData<string>(ACCESS_TOKEN);
   if (stored) return stored;
-  if (typeof window !== "undefined") {
-    return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
-      ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
-      : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
-  }
+
   return null;
 }
 

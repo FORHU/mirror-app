@@ -55,13 +55,12 @@ export const mapService = {
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
     let token: string | null = null;
     if (typeof window !== "undefined") {
-      token = sessionStorage.getItem("access_token");
+      token =
+        window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+          ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+          : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
       if (!token) {
-        // Kiosk fallback — static token baked into env at build time
-        token =
-          window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
-            ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
-            : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+        token = sessionStorage.getItem("access_token");
       }
     }
     const res = await fetch("/api/mirror/map/home-location", {

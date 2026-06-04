@@ -19,6 +19,7 @@ import {
 
 const WAKE_WINDOW_MS = 2800;
 const WAKE_INTERVAL_MS = 900;
+type HandsFreePhase = "starting" | "wake" | "command" | "processing" | "error";
 
 const WAKE_WORDS = [
   "hey mirror",
@@ -132,6 +133,8 @@ export default function AIAssistantPage() {
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
   const [handsFreeReady, setHandsFreeReady] = useState(false);
   const [handsFreeDebug, setHandsFreeDebug] = useState("");
+  const [handsFreePhase, setHandsFreePhase] =
+    useState<HandsFreePhase>("starting");
   const [restartTick, setRestartTick] = useState(0);
 
   const pageContext = useMemo(
@@ -177,7 +180,11 @@ export default function AIAssistantPage() {
       ? "Thinking"
       : isSpeaking
         ? "Speaking"
-        : handsFreeReady
+        : handsFreePhase === "command"
+          ? "Listening"
+          : handsFreePhase === "processing"
+            ? "Thinking"
+            : handsFreeReady || handsFreePhase === "wake"
           ? "Say Hey Mirror"
           : "Starting mic";
 
@@ -209,6 +216,7 @@ export default function AIAssistantPage() {
     wakeLoopRef.current = false;
     wakeAbortRef.current?.abort();
     setHandsFreeReady(false);
+    setHandsFreePhase("command");
     setHandsFreeDebug("Listening");
 
     const controller = new AbortController();
@@ -219,17 +227,22 @@ export default function AIAssistantPage() {
       const audio = await captureCommand(mic, controller.signal);
       if (msOf(audio) < MIN_TRANSCRIBE_MS) return;
 
+      setHandsFreePhase("processing");
       setHandsFreeDebug("Processing");
       const text = await mapService.transcribe(audio);
       if (text.trim()) await submitTextRef.current(text);
     } catch (err) {
       const isAbort = err instanceof DOMException && err.name === "AbortError";
-      if (!isAbort) setHandsFreeDebug("Voice unavailable");
+      if (!isAbort) {
+        setHandsFreePhase("error");
+        setHandsFreeDebug("Voice unavailable");
+      }
     } finally {
       commandAbortRef.current = null;
       micRef.current?.clear();
       if (voiceStateRef.current === "idle") {
         wakeLoopRef.current = false;
+        setHandsFreePhase("wake");
         setRestartTick((tick) => tick + 1);
       }
     }
@@ -241,6 +254,7 @@ export default function AIAssistantPage() {
 
     wakeLoopRef.current = true;
     setHandsFreeReady(false);
+    setHandsFreePhase("starting");
     setHandsFreeDebug("Starting mic");
     wakeAbortRef.current?.abort();
 
@@ -249,6 +263,7 @@ export default function AIAssistantPage() {
 
       if (voiceStateRef.current !== "idle") {
         setHandsFreeReady(false);
+        setHandsFreePhase("wake");
         setHandsFreeDebug("");
         wakeLoopRef.current = false;
         setRestartTick((tick) => tick + 1);
@@ -261,6 +276,7 @@ export default function AIAssistantPage() {
       try {
         const mic = await ensureMic();
         setHandsFreeReady(true);
+        setHandsFreePhase("wake");
         await delay(WAKE_INTERVAL_MS, controller.signal);
         if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
 
@@ -286,6 +302,7 @@ export default function AIAssistantPage() {
           if (wake) {
             wakeLoopRef.current = false;
             setHandsFreeReady(false);
+            setHandsFreePhase(wake.command ? "processing" : "command");
             setHandsFreeDebug(wake.command ? "Processing" : "Listening");
             wakeHeardRef.current = "";
             mic.clear();
@@ -303,6 +320,7 @@ export default function AIAssistantPage() {
           err instanceof DOMException && err.name === "NotAllowedError";
         if (isDenied) {
           setHandsFreeReady(false);
+          setHandsFreePhase("error");
           setHandsFreeDebug("Microphone blocked");
           wakeLoopRef.current = false;
           return;

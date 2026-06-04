@@ -20,6 +20,20 @@ const API_BASE_URL =
 // In-memory token cache to avoid hitting sessionStorage on every request
 let _cachedAccessToken: string | null = null;
 
+function getKioskAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+    ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+    : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+}
+
+function getKioskRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+    ? (process.env.NEXT_PUBLIC_USER2_REFRESH_TOKEN ?? null)
+    : (process.env.NEXT_PUBLIC_USER1_REFRESH_TOKEN ?? null);
+}
+
 export function setCachedAccessToken(token: string | null) {
   _cachedAccessToken = token;
 }
@@ -37,13 +51,9 @@ export const api = create({
 // Request interceptor — attach auth token
 api.axiosInstance.interceptors.request.use(async (config) => {
   if (!_cachedAccessToken && typeof window !== "undefined") {
-    _cachedAccessToken = await getStorageData<string>(ACCESS_TOKEN);
-    // Kiosk fallback — static token baked into env at build time
+    _cachedAccessToken = getKioskAccessToken();
     if (!_cachedAccessToken) {
-      _cachedAccessToken =
-        window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
-          ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
-          : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+      _cachedAccessToken = await getStorageData<string>(ACCESS_TOKEN);
     }
   }
   if (_cachedAccessToken) {
@@ -61,13 +71,9 @@ api.axiosInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      let rt = await getStorageData<string>(REFRESH_TOKEN);
-      // Kiosk fallback — use env refresh token if no session refresh token
-      if (!rt && typeof window !== "undefined") {
-        rt =
-          window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
-            ? (process.env.NEXT_PUBLIC_USER2_REFRESH_TOKEN ?? null)
-            : (process.env.NEXT_PUBLIC_USER1_REFRESH_TOKEN ?? null);
+      let rt = getKioskRefreshToken();
+      if (!rt) {
+        rt = await getStorageData<string>(REFRESH_TOKEN);
       }
       if (rt) {
         try {
