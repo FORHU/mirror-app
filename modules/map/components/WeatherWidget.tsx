@@ -3,21 +3,16 @@
 import { useEffect, useState, type ComponentType } from "react";
 import * as Icons from "lucide-react";
 import type { LucideProps } from "lucide-react";
-
-interface WeatherData {
-  temperature: number;
-  condition: string;
-  icon: string;
-  windspeed: number;
-  humidity: number;
-}
+import { getWeather, type WeatherCache } from "@/modules/shared/utils/weather";
 
 interface Props {
   location: { lat: number; lng: number } | null;
 }
 
+const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
 const WeatherWidget = ({ location }: Props) => {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weather, setWeather] = useState<WeatherCache | null>(null);
   const lat = location?.lat;
   const lng = location?.lng;
 
@@ -25,18 +20,13 @@ const WeatherWidget = ({ location }: Props) => {
     if (lat === undefined || lng === undefined) return;
 
     let cancelled = false;
-    const fetchWeather = async () => {
-      try {
-        const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lng}`);
-        const data = await res.json();
-        if (!cancelled) setWeather(data);
-      } catch {
-        // silently ignore
-      }
+    const load = async () => {
+      const data = await getWeather(lat, lng);
+      if (!cancelled) setWeather(data);
     };
 
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL);
     return () => {
       cancelled = true;
       clearInterval(interval);

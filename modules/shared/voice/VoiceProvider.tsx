@@ -25,6 +25,7 @@ import { runKernel } from "./orchestration/kernel";
 import { executeAction } from "./orchestration/actionExecutor";
 import { guardAction } from "./orchestration/actionGuard";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import { getWeather, toGarmentWeather } from "@/modules/shared/utils/weather";
 import {
   ConfirmationState,
   createIdleConfirmation,
@@ -271,35 +272,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       // Garment mode: bypass the orchestration pipeline, route to chatWonderService
       if (pageCtxRef.current?.mode === "garment") {
-        let weather: Record<string, unknown> | undefined;
-        if (loc) {
-          try {
-            const res = await fetch(
-              `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
-            );
-            if (res.ok) {
-              const json = await res.json();
-              const d = json.data ?? json;
-              weather = {
-                date: new Date().toISOString().split("T")[0],
-                description: String(d.condition ?? "").toLowerCase(),
-                estimated: false,
-                is_cold: Number(d.temperature) < 20,
-                is_hot: Number(d.temperature) >= 30,
-                is_rainy:
-                  Number(d.precipitationProb) >= 50 ||
-                  String(d.condition ?? "")
-                    .toLowerCase()
-                    .includes("rain"),
-                lat: loc.lat,
-                lon: loc.lng,
-                temperature_c: Number(d.temperature),
-              };
-            }
-          } catch {
-            /* weather is best-effort */
-          }
-        }
+        const weatherCache = loc ? await getWeather(loc.lat, loc.lng) : null;
+        const weather = toGarmentWeather(weatherCache);
         const garmentResponse = await chatWonderService.message({
           input: `[garments] ${t}`,
           voice: true,

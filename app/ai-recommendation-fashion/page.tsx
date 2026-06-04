@@ -16,6 +16,7 @@ import {
   chatWonderService,
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
+import { getWeather, toGarmentWeather } from "@/modules/shared/utils/weather";
 import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
@@ -122,34 +123,10 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
     if (typeof window === "undefined") return;
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        const { latitude: lat, longitude: lon } = coords;
-        try {
-          const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
-          if (!res.ok) return;
-          const json = await res.json();
-          const d = json.data ?? json;
-          weatherRef.current = {
-            date: new Date().toISOString().split("T")[0],
-            description: String(d.condition ?? "").toLowerCase(),
-            estimated: false,
-            is_cold: Number(d.temperature) < 20,
-            is_hot: Number(d.temperature) >= 30,
-            is_rainy:
-              Number(d.precipitationProb) >= 50 ||
-              String(d.condition ?? "")
-                .toLowerCase()
-                .includes("rain"),
-            lat,
-            lon,
-            temperature_c: Number(d.temperature),
-          };
-        } catch {
-          // weather is best-effort
-        }
+        const cache = await getWeather(coords.latitude, coords.longitude);
+        weatherRef.current = toGarmentWeather(cache) ?? null;
       },
-      () => {
-        /* geolocation denied */
-      },
+      () => { /* geolocation denied */ },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   }, []);
@@ -714,27 +691,8 @@ export default function VirtualMirrorV2() {
             timeout: 5000,
           }),
         );
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
-        if (res.ok) {
-          const json = await res.json();
-          const d = json.data ?? json;
-          weather = {
-            date: new Date().toISOString().split("T")[0],
-            description: String(d.condition ?? "").toLowerCase(),
-            estimated: false,
-            is_cold: Number(d.temperature) < 20,
-            is_hot: Number(d.temperature) >= 30,
-            is_rainy:
-              Number(d.precipitationProb) >= 50 ||
-              String(d.condition ?? "")
-                .toLowerCase()
-                .includes("rain"),
-            lat,
-            lon,
-            temperature_c: Number(d.temperature),
-          };
-        }
+        const cache = await getWeather(pos.coords.latitude, pos.coords.longitude);
+        weather = toGarmentWeather(cache);
       } catch {
         // weather is best-effort
       }
