@@ -53,9 +53,25 @@ const WAKE_WORDS = [
   "ok mirror",
   "hi mirror",
   "okay mirror",
+  "hello mirror",
+  "hello mere",
+  "hello miror",
+  "magic mirror",
+  "mirror mirror", // "mirror mirror on the wall"
 ];
 
-const WAKE_START_WORDS = new Set(["hey", "hay", "hi", "ok", "okay", "a"]);
+const WAKE_START_WORDS = new Set([
+  "hey",
+  "hay",
+  "hi",
+  "ok",
+  "okay",
+  "a",
+  "hello",
+  "yo",
+  "magic",
+  "morning",
+]);
 const MIRROR_WORDS = new Set([
   "mirror",
   "miror",
@@ -64,6 +80,11 @@ const MIRROR_WORDS = new Set([
   "mere",
   "nero",
   "mirra",
+  "meera",
+  "meer",
+  "mearer",
+  "mirah",
+  "murah",
 ]);
 
 function normalizeSpeech(text: string) {
@@ -78,9 +99,11 @@ function getWakeCommand(text: string) {
   const normalized = normalizeSpeech(text);
   const wakeWord = WAKE_WORDS.find((word) => normalized.includes(word));
   if (wakeWord) {
-    const command = normalized
+    let command = normalized
       .slice(normalized.indexOf(wakeWord) + wakeWord.length)
       .trim();
+    // "mirror mirror on the wall" is an incantation, not a command — drop it.
+    command = command.replace(/^(on the wall|mirror on the wall)\b/, "").trim();
     return { command };
   }
 
@@ -614,33 +637,6 @@ export default function AIAssistantPage() {
             />
           )}
 
-          {/* Listening: expanding ripple rings */}
-          <AnimatePresence>
-            {showListening &&
-              [0, 1, 2].map((i) => (
-                <motion.span
-                  key={i}
-                  initial={{ scale: 1, opacity: 0.85 }}
-                  animate={{ scale: 3.2 + i * 0.6, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{
-                    duration: 1.6,
-                    repeat: Infinity,
-                    delay: i * 0.5,
-                    ease: "easeOut",
-                  }}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    borderRadius: "50%",
-                    border: "3px solid white",
-                    pointerEvents: "none",
-                    transformOrigin: "center",
-                  }}
-                />
-              ))}
-          </AnimatePresence>
-
           {showListening && (
             <motion.span
               animate={{
@@ -769,7 +765,7 @@ export default function AIAssistantPage() {
               <p
                 style={{
                   fontSize: "1.05rem",
-                  color: "rgba(255,255,255,0.75)",
+                  color: "rgba(255,255,255,0.96)",
                   lineHeight: 1.5,
                 }}
               >
@@ -780,13 +776,13 @@ export default function AIAssistantPage() {
                   <p
                     style={{
                       fontSize: "0.82rem",
-                      color: "rgba(255,255,255,0.35)",
+                      color: "rgba(255,255,255,0.6)",
                     }}
                   >
                     Say{" "}
                     <span
                       style={{
-                        color: "rgba(255,255,255,0.58)",
+                        color: "rgba(255,255,255,0.85)",
                         fontStyle: "italic",
                       }}
                     >
@@ -796,10 +792,10 @@ export default function AIAssistantPage() {
                   {wakeDebug && (
                     <p
                       style={{
-                        fontSize: "0.72rem",
-                        color: "rgba(255,255,255,0.22)",
+                        fontSize: "0.8rem",
+                        color: "rgba(255,255,255,0.7)",
                         maxWidth: 360,
-                        lineHeight: 1.35,
+                        lineHeight: 1.4,
                       }}
                     >
                       {wakeDebug}
