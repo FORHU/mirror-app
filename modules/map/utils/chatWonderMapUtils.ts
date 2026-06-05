@@ -217,13 +217,82 @@ export function isMultiEventUtterance(transcript: string): boolean {
   if (/\band\s+(finally|then|also|afterwards)\s+(going|heading|we'?ll\s+be)\b/i.test(transcript)) return true;
   if (/\bwe'?ll\s+(also\s+)?be\s+going\s+to\b/i.test(transcript)) return true;
 
-  // Two or more location anchors ("in/at/to [Capitalized Place]") in one sentence
-  // e.g. "meeting in SM Baguio ... lunch date in La Union ... going home in Tagudin"
-  // Uses capital-letter start to avoid false positives like "in the morning"
-  const locationAnchorHits = (transcript.match(/\b(?:in|at|to)\s+[A-Z][a-zA-Z]/g) ?? []).length;
+  // Two or more location anchors: "in/at/to [place]" excluding determiners/digits/time words
+  // Case-insensitive so lowercase speech-recognition output ("in sm baguio") is caught too
+  const locationAnchorHits = (transcript.match(
+    /\b(?:in|at|to)\s+(?!the\s|a\s|an\s|this\s|that\s|my\s|our\s|\d)[a-zA-Z]/gi,
+  ) ?? []).length;
   if (locationAnchorHits >= 2) return true;
 
+  // Two or more distinct standalone event types (meeting + lunch ≠ "dinner date" which is one)
+  const standaloneEventHits = new Set(
+    (transcript.match(/\b(meeting|lunch|dinner|breakfast|appointment|conference|session|gym|wedding|party)\b/gi) ?? [])
+      .map((w) => w.toLowerCase()),
+  ).size;
+  if (standaloneEventHits >= 2) return true;
+
+  // One location anchor + a standalone event type anywhere in the sentence
+  // e.g. "date in SM Baguio and lunch in La Union" — catches mixed phrasing
+  if (locationAnchorHits >= 1 && standaloneEventHits >= 1) return true;
+
   return false;
+}
+
+/**
+ * Extracts all location names from a multi-event transcript by splitting on
+ * "and" / "," so each clause is processed independently — avoiding the
+ * boundary ambiguity that trips up a single-pass regex.
+ *
+ * "meeting in SM Baguio at 7am, lunch in La Union, going home to Tagudin"
+ * → ["SM Baguio", "La Union", "Tagudin"]
+ */
+export function extractAllLocationsFromTranscript(transcript: string): string[] {
+  // Split on "and" or "," to get one clause per potential stop
+  const segments = transcript.split(/\band\b|,/i);
+  const locations: string[] = [];
+
+  for (const seg of segments) {
+    const s = seg.trim();
+    if (!s) continue;
+
+    // Stopword lookahead — stop capture before these common words or punctuation.
+    // Using greedy {0,2} + lookahead: engine backtracks if lookahead fails at max length,
+    // so "sm baguio this morning" → tries "sm baguio this", fails at "morning", backtracks
+    // to "sm baguio" → lookahead sees " this" → passes → captures "sm baguio" ✓
+    const STOP = `(?=\\s+(?:this\\b|the\\b|at\\s+\\d|for\\s+\\w|and\\b|to\\b|so\\b|have\\b|with\\b|going\\b|will\\b|be\\b|my\\b|it\\b|there\\b)|[,.]|\\s*$)`;
+
+    // "in [place]" — max 3 words, stop at common words
+    const inM = s.match(
+      new RegExp(`\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+    );
+    if (inM) { locations.push(inM[1].trim()); continue; }
+
+    // "at [place]" — exclude bare times like "at 7am", max 3 words
+    const atM = s.match(
+      new RegExp(`\\bat\\s+(?!\\d)(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+    );
+    if (atM) { locations.push(atM[1].trim()); continue; }
+
+    // "to [place]" — exclude "to the/a/home", max 2 words
+    const toM = s.match(
+      new RegExp(`\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b)(\\w+(?:\\s+\\w+){0,1})${STOP}`, "i"),
+    );
+    if (toM) { locations.push(toM[1].trim()); continue; }
+
+    // Bare location after connector — e.g. "and la union this afternoon"
+    // Strip leading filler/event words then take up to 3 words
+    const bareM = s.match(
+      new RegExp(`^(?:(?:a|an|my|the)\\s+)?(?:(?:lunch|dinner|breakfast|date|meeting|appointment)\\s+(?:date\\s+)?)?(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+    );
+    if (bareM) {
+      const loc = bareM[1].trim();
+      if (loc.length > 2 && !/^(and|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(loc)) {
+        locations.push(loc);
+      }
+    }
+  }
+
+  return [...new Set(locations.filter((l) => l.length > 1))];
 }
 
 /**
@@ -301,12 +370,16 @@ export function buildPreciseETANarration(
 }
 
 /**
- * Returns true when the top two geocode results are far apart (> 50 km),
- * meaning the place name is ambiguous and the user needs to clarify.
+ * Returns true when any of the top 3 geocode results are > 50 km apart from
+ * the first — catches cases where proximity-based ranking hides a distant
+ * same-name location (e.g. "La Union Province" vs "La Union St, Olongapo").
  */
 export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
   if (results.length < 2) return false;
-  return haversineKm(results[0].lat, results[0].lng, results[1].lat, results[1].lng) > 50;
+  for (let i = 1; i < Math.min(results.length, 3); i++) {
+    if (haversineKm(results[0].lat, results[0].lng, results[i].lat, results[i].lng) > 50) return true;
+  }
+  return false;
 }
 
 /**
