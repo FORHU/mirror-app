@@ -58,6 +58,25 @@ const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
 
+const ITINERARY_CONFIRM_OPENERS = [
+  (name: string) => `Sounds great! I've added ${name} to your trip.`,
+  (name: string) => `Perfect! ${name} is on your route.`,
+  (name: string) => `Nice, ${name} is locked in!`,
+  (name: string) => `Great choice — ${name} is added!`,
+];
+const ITINERARY_MORE_STOPS_CLOSERS = [
+  "Anywhere else you'd like to go?",
+  "Any other stops on your list?",
+  "Where else are you headed?",
+  "Want to add another place?",
+];
+function buildItineraryConfirmReply(name: string, hasPOIs: boolean): string {
+  const opener = ITINERARY_CONFIRM_OPENERS[Math.floor(Math.random() * ITINERARY_CONFIRM_OPENERS.length)](name);
+  const closer = ITINERARY_MORE_STOPS_CLOSERS[Math.floor(Math.random() * ITINERARY_MORE_STOPS_CLOSERS.length)];
+  const poiMention = hasPOIs ? " I also spotted some interesting places nearby you might enjoy!" : "";
+  return `${opener}${poiMention} ${closer}`;
+}
+
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -162,7 +181,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const startItineraryIdleTimer = () => {
+  const startItineraryIdleTimer = useCallback(() => {
     clearItineraryIdleTimer();
     itineraryIdleTimerRef.current = setTimeout(async () => {
       if (!isCollectingItineraryRef.current) return;
@@ -186,7 +205,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     }, 12000);
-  };
+  }, []);
 
   // ----------------------
 
@@ -1197,7 +1216,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       );
       setVoiceState("idle");
     }
-  }, [pathname, router, handleAIAssistantText, stopPlayback]);
+  }, [pathname, router, stopPlayback, startItineraryIdleTimer]);
 
   const startListening = useCallback(async () => {
     if (voiceState !== "idle") return;
