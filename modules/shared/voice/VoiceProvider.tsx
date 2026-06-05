@@ -48,20 +48,9 @@ import {
   isExpired,
 } from "./orchestration/confirmationState";
 
-const SAMPLE_RATE = 16000;
-const BUFFER_SIZE = 4096;
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
-
-function float32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
-}
 
 export interface VoiceContextValue {
   voiceState: VoiceState;
@@ -111,11 +100,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const confirmationRef = useRef<ConfirmationState>(createIdleConfirmation());
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
@@ -251,7 +235,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<{ stop: () => void } | null>(null);
 
   const processTranscript = useCallback(async (t: string) => {
     setTranscript(t);
@@ -1018,38 +1002,47 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       );
       setVoiceState("idle");
     }
-  }, [voiceState, pathname, router, handleAIAssistantText, stopPlayback]);
+  }, [pathname, router, handleAIAssistantText, stopPlayback]);
 
   const startListening = useCallback(async () => {
     if (voiceState !== "idle") return;
     setError(null);
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const SR = ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as (new () => { lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean; onstart: (() => void) | null; onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void }) | undefined;
+      if (!SR) {
         setError("Speech recognition is not supported in this browser.");
         return;
       }
-      const recognition = new SpeechRecognition();
+      const recognition = new SR();
       recognition.lang = useMirrorStore.getState().voiceLanguage || 'en-US';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
+      recognition.continuous = true;
+
+      let accumulated = "";
 
       recognition.onstart = () => setVoiceState("recording");
-      recognition.onerror = (event: any) => {
-        if (event.error !== 'no-speech') setError("Speech recognition error: " + event.error);
-        setVoiceState("idle");
+      recognition.onerror = (event) => {
+        if (event.error !== "no-speech") setError("Speech recognition error: " + event.error);
+        if (event.error !== "no-speech") setVoiceState("idle");
       };
-      recognition.onresult = async (event: any) => {
-        const text = event.results[0][0].transcript;
-        if (!text || text.trim() === "") {
-          setVoiceState("idle");
-          return;
+      recognition.onresult = (event) => {
+        // Accumulate only newly finalized segments
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            accumulated += (accumulated ? " " : "") + event.results[i][0].transcript;
+          }
         }
-        setVoiceState("processing");
-        await processTranscript(text);
       };
-      recognition.onend = () => {
-        setVoiceState((prev) => prev === "recording" ? "idle" : prev);
+      recognition.onend = async () => {
+        const text = accumulated.trim();
+        if (text) {
+          setVoiceState("processing");
+          await processTranscript(text);
+        } else {
+          setVoiceState("idle");
+        }
       };
       recognitionRef.current = recognition;
       recognition.start();
