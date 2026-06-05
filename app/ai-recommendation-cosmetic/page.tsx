@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft } from "lucide-react";
@@ -9,41 +9,32 @@ import { api } from "@/modules/shared/api/api-client";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
-import FaceScanGraphic from "@/components/FaceScanGraphic";
+import {
+  useFaceAlignment,
+  type AlignState,
+} from "@/modules/shared/hooks/useFaceAlignment";
 
-// How long the scan visualization runs before the (silent) frame grab, giving
-// the camera time to expose/focus and the mesh time to animate.
-const SCAN_MS = 1900;
-// On a "no face" frame we retry silently this many times before giving up and
-// proceeding anyway (the results page has an analysis fallback).
-const MAX_FACE_RETRIES = 3;
-
-// starting  → acquiring the camera
-// scanning  → mesh animation running; a frame is grabbed silently at the end
-// captured  → frame grabbed, white flash, navigating to results
-type Phase = "starting" | "scanning" | "captured";
-
-// Best-effort face check using the browser's native Shape Detection API.
-// Returns true (face found) / false (no face) / null (couldn't determine —
-// e.g. FaceDetector unavailable, so we shouldn't block the capture).
-async function detectFace(dataUrl: string): Promise<boolean | null> {
-  try {
-    const FD = (
-      window as unknown as {
-        FaceDetector?: new (opts?: unknown) => {
-          detect: (i: CanvasImageSource) => Promise<unknown[]>;
-        };
-      }
-    ).FaceDetector;
-    if (!FD) return null;
-    const detector = new FD({ fastMode: true, maxDetectedFaces: 1 });
-    const img = document.createElement("img");
-    img.src = dataUrl;
-    await img.decode();
-    const faces = await detector.detect(img);
-    return faces.length > 0;
-  } catch {
-    return null;
+// ── On-screen guidance copy for each alignment state ──────────────────────────
+function guidanceFor(state: AlignState): string {
+  switch (state) {
+    case "starting":
+      return "Starting camera…";
+    case "unavailable":
+      return "Camera unavailable — please check permissions.";
+    case "too-far":
+      return "Move a little closer";
+    case "too-close":
+      return "Move back a bit";
+    case "off-center":
+      return "Center your face in the circle";
+    case "aligned":
+      return "Hold still…";
+    case "captured":
+      return "Got it! Analyzing your skin…";
+    case "no-face":
+    case "searching":
+    default:
+      return "Position your face in the circle";
   }
 }
 
@@ -121,26 +112,39 @@ function SkeletonCard({ delay }: { delay: number }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CosmeticPage() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const phaseRef = useRef<Phase>("starting");
-  const retriesRef = useRef(0);
-
-  const autoScanRef = useRef<() => void>(() => {});
-
-  const [phase, setPhase] = useState<Phase>("starting");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // Transient "no face" notice — shown in the caption while we auto-retry.
-  const [faceWarning, setFaceWarning] = useState<string | null>(null);
+  const [captured, setCaptured] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const storeAiSuggestion = useMirrorStore((state) => state.aiSuggestion);
   const { weather } = useWeather();
 
-  const setPhaseState = useCallback((next: Phase) => {
-    phaseRef.current = next;
-    setPhase(next);
-  }, []);
+  // ── Capture handoff — store the aligned frame and move to the results page ────
+  const handleCapture = useCallback(
+    (dataUrl: string) => {
+      setCaptured(true); // triggers the white flash
+      try {
+        sessionStorage.setItem("skin_capture", dataUrl);
+        sessionStorage.removeItem("skin_analysis");
+        sessionStorage.removeItem("skin_analysis_id");
+      } catch {}
+      // Navigate after the flash — the recommendation page handles
+      // upload + analyze + product fetch (shows the skeleton meanwhile).
+      window.setTimeout(
+        () => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RECOMMENDATION),
+        600,
+      );
+    },
+    [router],
+  );
+
+  // Live face preview + centering/distance guidance. Auto-captures once the
+  // face is centered and close enough and held steady for a moment.
+  const { videoRef, state, progress, retry } = useFaceAlignment({
+    onCapture: handleCapture,
+  });
+
+  const isError = state === "unavailable";
+  const isAligned = state === "aligned" || state === "captured";
+  const caption = guidanceFor(state);
 
   // ── Weather-based skincare tip (banner) ──────────────────────────────────────
   useEffect(() => {
@@ -169,120 +173,6 @@ export default function CosmeticPage() {
     };
     fetchSuggestion();
   }, [storeAiSuggestion]);
-
-  // ── Capture the current frame and hand off to the result page ────────────────
-  const captureFrame = useCallback(async () => {
-    if (phaseRef.current === "captured") return;
-    const video = videoRef.current;
-    if (!video || !video.videoWidth) return;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d")?.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-
-    // Face gate — reject a frame with no face before committing the capture,
-    // then silently re-scan so the user can re-center. After a few misses we
-    // proceed anyway (results page has an analysis fallback) so we never trap
-    // the user on this screen.
-    const hasFace = await detectFace(dataUrl);
-    // Re-check: the phase can change while the async face check is in flight.
-    if ((phaseRef.current as Phase) === "captured") return;
-    if (hasFace === false && retriesRef.current < MAX_FACE_RETRIES) {
-      retriesRef.current += 1;
-      setFaceWarning("Center your face and hold still…");
-      autoScanRef.current();
-      return;
-    }
-    setFaceWarning(null);
-
-    try {
-      sessionStorage.setItem("skin_capture", dataUrl);
-      sessionStorage.removeItem("skin_analysis");
-      sessionStorage.removeItem("skin_analysis_id");
-    } catch {}
-
-    setPhaseState("captured"); // triggers white flash
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-
-    // Navigate after the flash — the recommendation page now handles
-    // upload + analyze + product fetch (shows the skeleton meanwhile).
-    await new Promise((r) => setTimeout(r, 600));
-    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC_RECOMMENDATION);
-  }, [router, setPhaseState]);
-
-  // ── Silent scan, then auto-capture ───────────────────────────────────────────
-  // No countdown, no buttons — the mesh animates for SCAN_MS while the camera
-  // settles, then a frame is grabbed off-screen for analysis.
-  const autoScan = useCallback(() => {
-    if (phaseRef.current === "captured") return;
-    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-
-    setPhaseState("scanning");
-    scanTimerRef.current = setTimeout(() => {
-      captureFrame();
-    }, SCAN_MS);
-  }, [captureFrame, setPhaseState]);
-
-  // Keep a stable handle to the latest autoScan so captureFrame can re-trigger
-  // it (on a no-face retry) without a useCallback dependency cycle.
-  useEffect(() => {
-    autoScanRef.current = autoScan;
-  }, [autoScan]);
-
-  // ── Camera setup (plain getUserMedia — no MediaPipe) ─────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            facingMode: "user",
-          },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        const video = videoRef.current;
-        if (!video) return;
-        video.srcObject = stream;
-        await video.play().catch(() => {});
-        if (!cancelled) autoScan();
-      } catch {
-        if (!cancelled)
-          setErrorMsg("Camera unavailable — please check permissions.");
-      }
-    }
-
-    start();
-
-    const videoEl = videoRef.current;
-    return () => {
-      cancelled = true;
-      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      if (videoEl) videoEl.srcObject = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const caption = errorMsg
-    ? errorMsg
-    : faceWarning
-      ? faceWarning
-      : phase === "starting"
-        ? "Starting camera…"
-        : phase === "captured"
-          ? "Processing…"
-          : "Analyzing your skin…";
 
   // ── Render — mirrors the recommendation screen layout ────────────────────────
   return (
@@ -351,8 +241,8 @@ export default function CosmeticPage() {
               background: "rgba(255,255,255,0.04)",
             }}
           >
-            {/* Camera runs only to grab a frame for analysis — it's kept under
-                the scan overlay so the raw face is never shown as a preview. */}
+            {/* Live camera preview — the user can see and center themselves.
+                Mirrored so it reads like a mirror. */}
             <video
               ref={videoRef}
               autoPlay
@@ -365,15 +255,65 @@ export default function CosmeticPage() {
                 objectFit: "cover",
                 objectPosition: "center top",
                 transform: "scaleX(-1)",
+                display: isError ? "none" : "block",
               }}
             />
 
-            {/* Abstract face-scan visualization (covers the live feed) */}
-            <FaceScanGraphic mode="scanning" />
+            {/* Face-alignment guide — an oval the user lines their face up with.
+                It turns green and a ring fills while the face is held aligned. */}
+            {!isError && (
+              <svg
+                viewBox="0 0 100 133"
+                preserveAspectRatio="none"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: "none",
+                }}
+                fill="none"
+              >
+                {/* Guide oval */}
+                <motion.ellipse
+                  cx={50}
+                  cy={60}
+                  rx={33}
+                  ry={43}
+                  stroke={isAligned ? "#48C78E" : "rgba(255,255,255,0.85)"}
+                  strokeWidth={1.4}
+                  strokeDasharray="4 4"
+                  animate={
+                    isAligned
+                      ? { strokeOpacity: 1 }
+                      : { strokeOpacity: [0.45, 0.9, 0.45] }
+                  }
+                  transition={
+                    isAligned
+                      ? { duration: 0.3 }
+                      : { duration: 1.8, repeat: Infinity }
+                  }
+                />
+                {/* Capture progress ring (fills clockwise from the top) */}
+                <ellipse
+                  cx={50}
+                  cy={60}
+                  rx={33}
+                  ry={43}
+                  stroke="#48C78E"
+                  strokeWidth={2.4}
+                  strokeLinecap="round"
+                  pathLength={1}
+                  strokeDasharray={`${progress} 1`}
+                  transform="rotate(-90 50 60)"
+                  style={{ filter: "drop-shadow(0 0 4px #48C78E)" }}
+                />
+              </svg>
+            )}
 
             {/* White flash on capture */}
             <AnimatePresence>
-              {phase === "captured" && (
+              {captured && (
                 <motion.div
                   key="capture-flash"
                   className="absolute inset-0 bg-white pointer-events-none"
@@ -400,11 +340,11 @@ export default function CosmeticPage() {
               <span
                 style={{
                   fontSize: "12px",
-                  color: errorMsg
+                  color: isError
                     ? "rgba(248,113,113,0.95)"
-                    : faceWarning
-                      ? "rgba(251,191,36,0.95)"
-                      : "rgba(255,255,255,0.8)",
+                    : isAligned
+                      ? "rgba(72,199,142,0.95)"
+                      : "rgba(255,255,255,0.85)",
                 }}
               >
                 {caption}
@@ -468,14 +408,10 @@ export default function CosmeticPage() {
 
       {/* No manual controls — capture is fully automatic. Retry only on a hard
           camera error. */}
-      {errorMsg && (
+      {isError && (
         <div className="shrink-0 pb-6 flex justify-center">
           <button
-            onClick={() => {
-              setErrorMsg(null);
-              retriesRef.current = 0;
-              autoScan();
-            }}
+            onClick={retry}
             className="px-9 py-3 rounded-full font-semibold text-sm tracking-wide"
             style={{
               background: "rgba(72,199,142,0.18)",

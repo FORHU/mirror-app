@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
   const [city, meteo] = await Promise.allSettled([
     reverseGeocode(coords.lat, coords.lon),
     fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code&temperature_unit=celsius`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&temperature_unit=celsius`,
     ).then((r) => r.json()),
   ]);
 
@@ -86,9 +86,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ temp: null, code: 0, city: cityName });
   }
 
+  const cur = meteo.value.current;
   return NextResponse.json({
-    temp: Math.round(meteo.value.current.temperature_2m),
-    code: meteo.value.current.weather_code,
+    temp: Math.round(cur.temperature_2m),
+    code: cur.weather_code,
     city: cityName,
+    humidity:
+      typeof cur.relative_humidity_2m === "number"
+        ? Math.round(cur.relative_humidity_2m)
+        : null,
+    feelsLike:
+      typeof cur.apparent_temperature === "number"
+        ? Math.round(cur.apparent_temperature)
+        : null,
   });
 }
