@@ -141,7 +141,7 @@ export const mapService = {
     const res = await api.axiosInstance.post(
       "/api/mirror/voice/tts",
       { text },
-      { responseType: "arraybuffer" },
+      { responseType: "arraybuffer", timeout: 60000 },
     );
     return res.data as ArrayBuffer;
   },
@@ -151,10 +151,11 @@ export const mapService = {
     language: string = "en-US",
   ): Promise<string> => {
     const res = await api.axiosInstance.post(
-      `/api/mirror/voice/transcribe?lang=${language}`,
+      `/api/mirror/voice/transcribe?lang=${language}&provider=openai`,
       pcmBuffer,
       {
         headers: { "Content-Type": "application/octet-stream" },
+        timeout: 60000,
       },
     );
     return res.data.transcript;

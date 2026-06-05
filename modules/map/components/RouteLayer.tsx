@@ -20,21 +20,21 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // Soft outer glow
+      // Wide atmosphere halo
       map.addLayer({
         id: "route-glow-outer",
         type: "line",
         source: "route",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#3b82f6",
-          "line-width": 18,
-          "line-opacity": 0.2,
-          "line-blur": 8,
+          "line-color": "#93c5fd",
+          "line-width": 32,
+          "line-opacity": 0.25,
+          "line-blur": 14,
         },
       });
 
-      // Mid glow
+      // Inner glow
       map.addLayer({
         id: "route-glow",
         type: "line",
@@ -42,9 +42,9 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": "#3b82f6",
-          "line-width": 10,
-          "line-opacity": 0.45,
-          "line-blur": 4,
+          "line-width": 16,
+          "line-opacity": 0.55,
+          "line-blur": 5,
         },
       });
 
@@ -56,8 +56,22 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": "#3b82f6",
-          "line-width": 4,
+          "line-width": 6,
           "line-opacity": 1,
+          "line-blur": 0,
+        },
+      });
+
+      // Bright hot-centre streak
+      map.addLayer({
+        id: "route-core",
+        type: "line",
+        source: "route",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#bfdbfe",
+          "line-width": 2,
+          "line-opacity": 0.9,
           "line-blur": 0,
         },
       });

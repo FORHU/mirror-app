@@ -52,7 +52,7 @@ async function consumePendingDirections() {
 
 export default function MapPage() {
   const router = useRouter();
-  const { homeLocation, homeLocationStatus, loadHomeLocation } = useMapStore();
+  const { homeLocation, homeLocationStatus, loadHomeLocation, loadOutlineStops } = useMapStore();
   const onAction = useCallback(() => {}, []);
 
   useVoice(
@@ -73,7 +73,8 @@ export default function MapPage() {
     if (homeLocationStatus !== "loaded" || homeLocation === null) return;
     consumePendingLocation();
     consumePendingDirections();
-  }, [homeLocationStatus, homeLocation]);
+    loadOutlineStops();
+  }, [homeLocationStatus, homeLocation, loadOutlineStops]);
 
   if (homeLocationStatus === "idle" || homeLocationStatus === "loading") {
     return (

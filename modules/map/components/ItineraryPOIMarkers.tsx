@@ -100,7 +100,7 @@ interface OpenPopup { popup: mapboxgl.Popup; root: Root }
 const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
   const itineraryStopPOIs = useMapStore((s) => s.itineraryStopPOIs);
   const itineraryStops = useMapStore((s) => s.itineraryStops);
-  const setDestination = useMapStore((s) => s.setDestination);
+  const setItineraryStops = useMapStore((s) => s.setItineraryStops);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
   const popupsRef = useRef<OpenPopup[]>([]);
 
@@ -170,7 +170,24 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
             carMins={carMin(dist)}
             onClose={closeThisPopup}
             onNavigate={() => {
-              setDestination({ name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, placeId: poi.placeId });
+              // Insert the POI as a branch leg right after its parent stop so the
+              // route shows origin → stop → POI → (remaining stops). Once inserted,
+              // immediately clear the POI fetch results for the branch index so it
+              // does NOT spawn its own recommendation cards.
+              const current = useMapStore.getState().itineraryStops;
+              const branchIndex = stopIndex + 1;
+              const newStop = { name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, placeId: poi.placeId };
+              const updated = [
+                ...current.slice(0, branchIndex),
+                newStop,
+                ...current.slice(branchIndex),
+              ];
+              setItineraryStops(updated).then(() => {
+                const poiData = useMapStore.getState().itineraryStopPOIs;
+                useMapStore.getState().setItineraryStopPOIs(
+                  poiData.map((p) => p.stopIndex === branchIndex ? { ...p, pois: [] } : p),
+                );
+              });
               closeThisPopup();
             }}
           />
@@ -202,7 +219,7 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
       });
       popupsRef.current = [];
     };
-  }, [map, itineraryStopPOIs, itineraryStops, setDestination]);
+  }, [map, itineraryStopPOIs, itineraryStops, setItineraryStops]);
 
   return null;
 };

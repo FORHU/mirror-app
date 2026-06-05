@@ -8,6 +8,58 @@ import {
   type DirectionsFormatted,
 } from "../services/map.service";
 import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
+import { outlineService } from "@/modules/shared/api/outline.service";
+
+export interface ItineraryGroup {
+  label: string;
+  stops: { name: string; lat: number; lng: number; address?: string; placeId?: string }[];
+}
+
+// Shared helper — fetches routes + POIs for a set of stops from a given origin
+async function fetchRoutesAndPOIs(
+  stops: { name: string; lat: number; lng: number; address?: string; placeId?: string }[],
+  origin: { lat: number; lng: number },
+  profile: "car" | "motorcycle" | "bicycle" | "walking",
+): Promise<{ routes: DirectionsFormatted[]; pois: { stopIndex: number; pois: NearbyPOI[] }[] }> {
+  const allPoints = [origin, ...stops];
+  const routes: DirectionsFormatted[] = [];
+  for (let i = 0; i < allPoints.length - 1; i++) {
+    try {
+      const route = await mapService.directions(
+        [allPoints[i].lng, allPoints[i].lat],
+        [allPoints[i + 1].lng, allPoints[i + 1].lat],
+        profile,
+      );
+      routes.push(route);
+    } catch { /* skip failed legs */ }
+  }
+  const pois = await Promise.all(
+    stops.map(async (stop, i) => {
+      try {
+        const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 600);
+        return { stopIndex: i, pois: pois.slice(0, 5) };
+      } catch {
+        return { stopIndex: i, pois: [] };
+      }
+    }),
+  );
+  return { routes, pois };
+}
+
+// Returns the correct starting point for an itinerary group:
+// group 0 uses user/home location; group N uses the last stop of group N-1.
+function groupOrigin(
+  groupIndex: number,
+  groups: ItineraryGroup[],
+  userLoc: { lat: number; lng: number } | null,
+  homeLoc: { lat: number; lng: number } | null,
+): { lat: number; lng: number } {
+  if (groupIndex > 0 && groups[groupIndex - 1]?.stops.length > 0) {
+    const prev = groups[groupIndex - 1].stops;
+    return prev[prev.length - 1];
+  }
+  return userLoc ?? homeLoc ?? { lat: 0, lng: 0 };
+}
 
 interface SelectedPOI {
   name: string;
@@ -64,6 +116,8 @@ interface MapStore {
   itineraryStops: Destination[];
   itineraryRoutes: DirectionsFormatted[];
   itineraryStopPOIs: { stopIndex: number; pois: NearbyPOI[] }[];
+  itineraryGroups: ItineraryGroup[];
+  activeItineraryIndex: number;
   pendingEvents: PendingEvent[];
 
   fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
@@ -78,6 +132,8 @@ interface MapStore {
   setDestination(location: Destination): Promise<void>;
   setItineraryStops(stops: Destination[]): Promise<void>;
   setItineraryStopPOIs(data: { stopIndex: number; pois: NearbyPOI[] }[]): void;
+  addItineraryGroup(stops: Destination[], label?: string): Promise<void>;
+  setActiveItineraryIndex(index: number): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
   setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
@@ -88,6 +144,7 @@ interface MapStore {
   patchHomeLocation(coords: Location): Promise<void>;
   setPendingEvents: (events: PendingEvent[]) => void;
   clearPendingEvents: () => void;
+  loadOutlineStops: () => Promise<void>;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -122,6 +179,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
   itineraryStops: [],
   itineraryRoutes: [],
   itineraryStopPOIs: [],
+  itineraryGroups: [],
+  activeItineraryIndex: 0,
   pendingEvents: [],
 
   setPendingEvents: (events) => set({ pendingEvents: events }),
@@ -220,45 +279,76 @@ export const useMapStore = create<MapStore>((set, get) => ({
   setItineraryStopPOIs: (data) => set({ itineraryStopPOIs: data }),
 
   setItineraryStops: async (stops) => {
+    const { itineraryGroups, activeItineraryIndex, userLocation, homeLocation, activeProfile } = get();
+
+    // Sync with itineraryGroups — create group 0 if first time, otherwise update active group
+    let groups: ItineraryGroup[];
+    let groupIdx: number;
+    if (itineraryGroups.length === 0) {
+      groups = [{ label: "Leg 1", stops }];
+      groupIdx = 0;
+    } else {
+      groups = [...itineraryGroups];
+      groups[activeItineraryIndex] = { ...groups[activeItineraryIndex], stops };
+      groupIdx = activeItineraryIndex;
+    }
+
     set({
+      itineraryGroups: groups,
+      activeItineraryIndex: groupIdx,
       itineraryStops: stops,
       itineraryRoutes: [],
       itineraryStopPOIs: [],
       selectedDestination: null,
       activeRoute: null,
     });
-    const { userLocation, homeLocation, activeProfile } = get();
-    const origin = userLocation ?? homeLocation;
-    if (!origin || stops.length === 0) return;
 
-    const allPoints = [{ lat: origin.lat, lng: origin.lng }, ...stops];
-    const routes: DirectionsFormatted[] = [];
-    for (let i = 0; i < allPoints.length - 1; i++) {
-      try {
-        const route = await mapService.directions(
-          [allPoints[i].lng, allPoints[i].lat],
-          [allPoints[i + 1].lng, allPoints[i + 1].lat],
-          activeProfile,
-        );
-        routes.push(route);
-      } catch {
-        // skip failed legs silently
-      }
-    }
-    set({ itineraryRoutes: routes });
+    if (stops.length === 0) return;
+    const origin = groupOrigin(groupIdx, groups, userLocation, homeLocation);
+    const { routes, pois } = await fetchRoutesAndPOIs(stops, origin, activeProfile);
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+  },
 
-    // Fetch nearby POIs for each stop in parallel (top 3, within 300m)
-    const poiResults = await Promise.all(
-      stops.map(async (stop, i) => {
-        try {
-          const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 600);
-          return { stopIndex: i, pois: pois.slice(0, 5) };
-        } catch {
-          return { stopIndex: i, pois: [] };
-        }
-      }),
-    );
-    set({ itineraryStopPOIs: poiResults });
+  addItineraryGroup: async (stops, label) => {
+    const { itineraryGroups, userLocation, homeLocation, activeProfile } = get();
+    const newLabel = label ?? `Leg ${itineraryGroups.length + 1}`;
+    const newGroups = [...itineraryGroups, { label: newLabel, stops }];
+    const newIndex = newGroups.length - 1;
+
+    set({
+      itineraryGroups: newGroups,
+      activeItineraryIndex: newIndex,
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+
+    if (stops.length === 0) return;
+    const origin = groupOrigin(newIndex, newGroups, userLocation, homeLocation);
+    const { routes, pois } = await fetchRoutesAndPOIs(stops, origin, activeProfile);
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+  },
+
+  setActiveItineraryIndex: async (index) => {
+    const { itineraryGroups, userLocation, homeLocation, activeProfile } = get();
+    if (index < 0 || index >= itineraryGroups.length) return;
+
+    const stops = itineraryGroups[index].stops;
+    set({
+      activeItineraryIndex: index,
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+
+    if (stops.length === 0) return;
+    const origin = groupOrigin(index, itineraryGroups, userLocation, homeLocation);
+    const { routes, pois } = await fetchRoutesAndPOIs(stops, origin, activeProfile);
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
   },
 
   clearRoute: () => {
@@ -274,6 +364,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
       itineraryStops: [],
       itineraryRoutes: [],
       itineraryStopPOIs: [],
+      itineraryGroups: [],
+      activeItineraryIndex: 0,
     });
   },
 
@@ -331,27 +423,12 @@ export const useMapStore = create<MapStore>((set, get) => ({
 
   setActiveProfile: async (activeProfile) => {
     set({ activeProfile });
-    const { selectedDestination, itineraryStops, userLocation, homeLocation } = get();
+    const { selectedDestination, itineraryStops, itineraryGroups, activeItineraryIndex, userLocation, homeLocation } = get();
     if (selectedDestination) {
       get().setDestination(selectedDestination);
     } else if (itineraryStops.length > 0) {
-      // Re-fetch all itinerary legs with the new profile (skip POI re-fetch)
-      const origin = userLocation ?? homeLocation;
-      if (!origin) return;
-      const allPoints = [{ lat: origin.lat, lng: origin.lng }, ...itineraryStops];
-      const routes: DirectionsFormatted[] = [];
-      for (let i = 0; i < allPoints.length - 1; i++) {
-        try {
-          const route = await mapService.directions(
-            [allPoints[i].lng, allPoints[i].lat],
-            [allPoints[i + 1].lng, allPoints[i + 1].lat],
-            activeProfile,
-          );
-          routes.push(route);
-        } catch {
-          // skip failed legs silently
-        }
-      }
+      const origin = groupOrigin(activeItineraryIndex, itineraryGroups, userLocation, homeLocation);
+      const { routes } = await fetchRoutesAndPOIs(itineraryStops, origin, activeProfile);
       set({ itineraryRoutes: routes });
     }
   },
@@ -359,5 +436,71 @@ export const useMapStore = create<MapStore>((set, get) => ({
   patchHomeLocation: async (coords) => {
     await mapService.setHomeLocation(coords);
     set({ homeLocation: coords, origin: coords });
+  },
+
+  loadOutlineStops: async () => {
+    const { itineraryGroups, userLocation, homeLocation } = get();
+
+    if (itineraryGroups.length > 0) {
+      console.log("[loadOutlineStops] skipped — itinerary already has stops:", itineraryGroups);
+      return;
+    }
+
+    console.log("[loadOutlineStops] fetching active outline...");
+    try {
+      const outline = await outlineService.getActive();
+
+      if (!outline) {
+        console.log("[loadOutlineStops] no active outline found");
+        return;
+      }
+      console.log("[loadOutlineStops] outline found:", { id: outline.id, eventCount: outline.events?.length ?? 0 });
+
+      if (!outline.events?.length) {
+        console.log("[loadOutlineStops] outline has no events");
+        return;
+      }
+
+      const eventsWithDest = outline.events.filter((e) => !!e.routeDestination);
+      console.log("[loadOutlineStops] events with routeDestination:", eventsWithDest.map((e) => ({ type: e.type, timeBlock: e.timeBlock, routeDestination: e.routeDestination })));
+
+      const userLoc = userLocation ?? homeLocation ?? undefined;
+
+      const resolved = await Promise.all(
+        eventsWithDest.map(async (e) => {
+          try {
+            const { results } = await mapService.geocode(e.routeDestination!, userLoc);
+            if (!results.length) {
+              console.warn("[loadOutlineStops] geocode returned no results for:", e.routeDestination);
+              return null;
+            }
+            console.log("[loadOutlineStops] geocoded:", e.routeDestination, "→", results[0].lat, results[0].lng);
+            return {
+              name: e.routeDestination!,
+              address: results[0].address,
+              lat: results[0].lat,
+              lng: results[0].lng,
+              placeId: results[0].placeId,
+            };
+          } catch (err) {
+            console.warn("[loadOutlineStops] geocode failed for:", e.routeDestination, err);
+            return null;
+          }
+        }),
+      );
+
+      const stops = resolved.filter((s): s is NonNullable<typeof s> => s !== null);
+      console.log("[loadOutlineStops] resolved stops:", stops);
+
+      if (!stops.length) {
+        console.log("[loadOutlineStops] no stops resolved after geocoding");
+        return;
+      }
+
+      await get().setItineraryStops(stops);
+      console.log("[loadOutlineStops] itinerary set with", stops.length, "stop(s)");
+    } catch (err) {
+      console.error("[loadOutlineStops] unexpected error:", err);
+    }
   },
 }));

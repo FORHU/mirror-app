@@ -19,7 +19,7 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // White outline so the route pops against the dark map
+      // Wide atmosphere halo
       map.addLayer({
         id: "itinerary-route-outline",
         type: "line",
@@ -27,11 +27,13 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": "#ffffff",
-          "line-width": 10,
-          "line-opacity": 0.25,
+          "line-width": 36,
+          "line-opacity": 0.12,
+          "line-blur": 16,
         },
       });
 
+      // Outer colour halo
       map.addLayer({
         id: "itinerary-route-glow-outer",
         type: "line",
@@ -39,12 +41,13 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 20,
-          "line-opacity": 0.3,
-          "line-blur": 8,
+          "line-width": 28,
+          "line-opacity": 0.4,
+          "line-blur": 12,
         },
       });
 
+      // Inner glow
       map.addLayer({
         id: "itinerary-route-glow",
         type: "line",
@@ -52,12 +55,13 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 12,
-          "line-opacity": 0.55,
-          "line-blur": 3,
+          "line-width": 16,
+          "line-opacity": 0.7,
+          "line-blur": 4,
         },
       });
 
+      // Core line
       map.addLayer({
         id: "itinerary-route-line",
         type: "line",
@@ -65,8 +69,22 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
           "line-color": ["get", "color"],
-          "line-width": 6,
+          "line-width": 7,
           "line-opacity": 1,
+        },
+      });
+
+      // Bright hot-centre streak
+      map.addLayer({
+        id: "itinerary-route-core",
+        type: "line",
+        source: SOURCE_ID,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 2,
+          "line-opacity": 0.6,
+          "line-blur": 0,
         },
       });
     }

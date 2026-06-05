@@ -34,13 +34,19 @@ import {
   isNavigationPhrase,
   isItineraryPhrase,
   isFinishPhrase,
+  isMultiEventUtterance,
   extractLocationFromTranscript,
+  extractAllLocationsFromTranscript,
   mapPlaceToNearbyPOI,
   curatePOIs,
   buildPOITTS,
   matchPOIFromTranscript,
+  isAmbiguousGeocode,
+  buildDisambiguationQuestion,
+  matchCandidateFromTranscript,
+  buildPreciseETANarration,
 } from "@/modules/map/utils/chatWonderMapUtils";
-import type { NearbyPOI } from "@/modules/map/services/map.service";
+import type { NearbyPOI, GeocodeResult } from "@/modules/map/services/map.service";
 import {
   ConfirmationState,
   createIdleConfirmation,
@@ -104,8 +110,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const curatedPOIsRef = useRef<NearbyPOI[]>([]);
-  const itineraryStopsRef = useRef<{ name: string; lat: number; lng: number; address?: string; placeId?: string }[]>([]);
+  const itineraryStopsRef = useRef<{ name: string; lat: number; lng: number; address?: string; placeId?: string; timeBlock?: string; eventType?: string }[]>([]);
   const isCollectingItineraryRef = useRef(false);
+  const itineraryIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const disambiguationCandidatesRef = useRef<GeocodeResult[]>([]);
+  const isAwaitingDisambiguationRef = useRef(false);
+  const pendingMultiStopsRef = useRef<{ name: string; lat: number; lng: number; address?: string; placeId?: string }[]>([]);
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
@@ -144,6 +154,39 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       queueMicrotask(() => setChatHistory([]));
     }
   }, [pathname]);
+
+  const clearItineraryIdleTimer = () => {
+    if (itineraryIdleTimerRef.current) {
+      clearTimeout(itineraryIdleTimerRef.current);
+      itineraryIdleTimerRef.current = null;
+    }
+  };
+
+  const startItineraryIdleTimer = () => {
+    clearItineraryIdleTimer();
+    itineraryIdleTimerRef.current = setTimeout(async () => {
+      if (!isCollectingItineraryRef.current) return;
+      isCollectingItineraryRef.current = false;
+      itineraryStopsRef.current = [];
+      const closing = "Alright, your route is all set! Enjoy your trip.";
+      setReply(closing);
+      const audio = await mapService.tts(closing).catch(() => null);
+      if (audio) {
+        setVoiceState("speaking");
+        const playCtx = new AudioContext();
+        playbackCtxRef.current = playCtx;
+        const decoded = await playCtx.decodeAudioData(audio.slice(0));
+        const src = playCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(playCtx.destination);
+        playbackRef.current = src;
+        src.onended = () => { setVoiceState("idle"); };
+        src.start(0);
+      } else {
+        setVoiceState("idle");
+      }
+    }, 12000);
+  };
 
   // ----------------------
 
@@ -303,13 +346,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // AI Assistant page: use the shared recorder/transcriber/TTS plumbing, but
-      // keep the deterministic assistant route for [nav] and overview handoff.
-      if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
-        await handleAIAssistantText(t);
-        return;
-      }
-
       // Garment mode: bypass the orchestration pipeline, route to chatWonderService
       if (pageCtxRef.current?.mode === "garment") {
         let weather: Record<string, unknown> | undefined;
@@ -400,6 +436,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       // Maps mode: use chat-wonder/message for both directions and recommendations
       if (pathname.startsWith("/map")) {
+        // Sync refs with map store — if the map was cleared externally (e.g. user
+        // cleared route between tests), reset the voice refs so neither mode
+        // inherits stale state from the previous session.
+        {
+          const ms = useMapStore.getState();
+          // Never reset while awaiting a disambiguation answer — the map is still
+          // empty at that point and would incorrectly clear the pending state.
+          if (ms.itineraryStops.length === 0 && ms.itineraryGroups.length === 0 && !ms.selectedDestination && !isAwaitingDisambiguationRef.current) {
+            itineraryStopsRef.current = [];
+            isCollectingItineraryRef.current = false;
+            disambiguationCandidatesRef.current = [];
+            isAwaitingDisambiguationRef.current = false;
+            pendingMultiStopsRef.current = [];
+            clearItineraryIdleTimer();
+          }
+        }
+
         // In itinerary mode, match voice input against nearby POIs for each stop
         const mapStateForPOI = useMapStore.getState();
         if (mapStateForPOI.itineraryStops.length > 0 && mapStateForPOI.itineraryStopPOIs.length > 0) {
@@ -500,6 +553,142 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           useMapStore.getState().clearSuggestions();
         }
 
+        // ── Disambiguation resolution ─────────────────────────────────────────
+        if (isAwaitingDisambiguationRef.current && disambiguationCandidatesRef.current.length > 0) {
+          const matched = matchCandidateFromTranscript(t, disambiguationCandidatesRef.current);
+          if (matched) {
+            isAwaitingDisambiguationRef.current = false;
+            disambiguationCandidatesRef.current = [];
+            const dest = { name: matched.name, lat: matched.lat, lng: matched.lng, address: matched.address, placeId: matched.placeId };
+            const pending = pendingMultiStopsRef.current;
+            pendingMultiStopsRef.current = [];
+
+            const allNew = [dest, ...pending];
+            const existing = useMapStore.getState().itineraryStops;
+            const merged = [...existing];
+            for (const s of allNew) {
+              if (!merged.some((e) => e.name === s.name)) merged.push(s);
+            }
+            itineraryStopsRef.current = merged;
+            isCollectingItineraryRef.current = true;
+            await useMapStore.getState().setItineraryStops(merged);
+
+            const hasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
+            const disambigReply = pending.length > 0
+              ? `Got it! Added ${allNew.length} stops: ${allNew.map((s) => s.name).join(", ")}. Any more stops?`
+              : buildItineraryConfirmReply(dest.name, hasPOIs);
+            const disambigAudio = await mapService.tts(disambigReply).catch(() => null);
+            setReply(disambigReply); historyRef.current = [...historyRef.current, { user: t, assistant: disambigReply }].slice(-4); setChatHistory(historyRef.current);
+            setVoiceState("speaking");
+            if (disambigAudio) {
+              const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+              const decoded = await playCtx.decodeAudioData(disambigAudio.slice(0));
+              const src = playCtx.createBufferSource(); src.buffer = decoded; src.connect(playCtx.destination); playbackRef.current = src;
+              src.onended = () => { stopPlayback(); setVoiceState("idle"); startItineraryIdleTimer(); }; src.start(0);
+            } else { setVoiceState("idle"); startItineraryIdleTimer(); }
+          } else {
+            const top = disambiguationCandidatesRef.current.slice(0, 2);
+            const reAsk = `Sorry, I didn't catch that. Option 1: ${top[0].address}, or option 2: ${top[1]?.address ?? "the other one"}?`;
+            const reAskAudio = await mapService.tts(reAsk).catch(() => null);
+            setReply(reAsk); setVoiceState("speaking");
+            if (reAskAudio) {
+              const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+              const decoded = await playCtx.decodeAudioData(reAskAudio.slice(0));
+              const src = playCtx.createBufferSource(); src.buffer = decoded; src.connect(playCtx.destination); playbackRef.current = src;
+              src.onended = () => { stopPlayback(); setVoiceState("idle"); }; src.start(0);
+            } else { setVoiceState("idle"); }
+          }
+          return;
+        }
+
+        // ── Multi-event client-side extraction ───────────────────────────────
+        // When the user gives multiple stops in one sentence, extract & geocode
+        // them all locally instead of relying on ChatWonder (which only returns 1).
+        if (isMultiEventUtterance(t)) {
+          const locationNames = extractAllLocationsFromTranscript(t);
+          if (locationNames.length >= 2) {
+            const geocoded = await Promise.all(
+              locationNames.map(async (name) => {
+                try {
+                  // Geocode WITHOUT proximity so Mapbox returns globally diverse
+                  // results — this lets isAmbiguousGeocode catch cases like
+                  // "La Union Province" vs "La Union Street, Olongapo"
+                  const { results } = await mapService.geocode(name);
+                  if (!results.length) return null;
+                  return { name, result: results[0], allResults: results };
+                } catch { return null; }
+              }),
+            );
+            const valid = geocoded.filter((g): g is NonNullable<typeof g> => g !== null);
+            if (valid.length >= 2) {
+              // Check first ambiguous result — ask for clarification before plotting
+              const ambiguous = valid.find((g) => isAmbiguousGeocode(g.allResults));
+              if (ambiguous) {
+                // Save the already-resolved stops so they get added after the user picks
+                pendingMultiStopsRef.current = valid
+                  .filter((g) => g !== ambiguous && !isAmbiguousGeocode(g.allResults))
+                  .map((g) => ({ name: g.result.name, lat: g.result.lat, lng: g.result.lng, address: g.result.address, placeId: g.result.placeId }));
+                disambiguationCandidatesRef.current = ambiguous.allResults.slice(0, 3);
+                isAwaitingDisambiguationRef.current = true;
+                const clarifyReply = buildDisambiguationQuestion(ambiguous.name, ambiguous.allResults.slice(0, 3));
+                const clarifyAudio = await mapService.tts(clarifyReply).catch(() => null);
+                setReply(clarifyReply);
+                historyRef.current = [...historyRef.current, { user: t, assistant: clarifyReply }].slice(-4);
+                setChatHistory(historyRef.current);
+                setVoiceState("speaking");
+                if (clarifyAudio) {
+                  const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+                  const decoded = await playCtx.decodeAudioData(clarifyAudio.slice(0));
+                  const src = playCtx.createBufferSource(); src.buffer = decoded;
+                  src.connect(playCtx.destination); playbackRef.current = src;
+                  src.onended = () => { stopPlayback(); setVoiceState("idle"); }; src.start(0);
+                } else { setVoiceState("idle"); }
+                return;
+              }
+              const stops = valid.map((g) => ({
+                name: g.result.name,
+                lat: g.result.lat,
+                lng: g.result.lng,
+                address: g.result.address,
+                placeId: g.result.placeId,
+              }));
+              const existing = useMapStore.getState().itineraryStops;
+              const merged = [...existing];
+              for (const s of stops) {
+                if (!merged.some((e) => e.name === s.name)) merged.push(s);
+              }
+              await useMapStore.getState().setItineraryStops(merged);
+              itineraryStopsRef.current = merged;
+              isCollectingItineraryRef.current = true;
+              const routes = useMapStore.getState().itineraryRoutes;
+              const etaNarration = buildPreciseETANarration(merged, routes);
+              const stopPOIs = useMapStore.getState().itineraryStopPOIs;
+              const poiMentions = merged.map((stop, i) => {
+                const entry = stopPOIs.find((s) => s.stopIndex === i);
+                const top = entry?.pois.slice(0, 2) ?? [];
+                return top.length ? `near ${stop.name}: ${top.map((p) => p.name).join(" and ")}` : null;
+              }).filter(Boolean);
+              const poiLine = poiMentions.length > 0 ? ` Some spots you might enjoy — ${poiMentions.join("; ")}.` : "";
+              const names = merged.map((s) => s.name).join(", ");
+              const multiReply = `Got it! Added ${merged.length} stops: ${names}.${poiLine}${etaNarration} Any more stops?`;
+              const multiAudio = await mapService.tts(multiReply).catch(() => null);
+              setReply(multiReply);
+              historyRef.current = [...historyRef.current, { user: t, assistant: multiReply }].slice(-4);
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (multiAudio) {
+                const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(multiAudio.slice(0));
+                const src = playCtx.createBufferSource(); src.buffer = decoded;
+                src.connect(playCtx.destination); playbackRef.current = src;
+                src.onended = () => { stopPlayback(); setVoiceState("idle"); startItineraryIdleTimer(); }; src.start(0);
+              } else { setVoiceState("idle"); startItineraryIdleTimer(); }
+              return;
+            }
+          }
+          // Fewer than 2 locations extracted — fall through to ChatWonder
+        }
+
         // ── Itinerary intercept — bypass ChatWonder entirely ──────────────────
         // Finish phrase → finalise the collected itinerary
         if (isCollectingItineraryRef.current && isFinishPhrase(t)) {
@@ -529,46 +718,61 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Itinerary or navigation phrase → geocode and add stop directly
+        // Skip if multi-event utterance — let ChatWonder handle all stops at once
         const mapStateForItinerary = useMapStore.getState();
         const mapLocForItinerary = mapStateForItinerary.userLocation ?? mapStateForItinerary.homeLocation;
-        if (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current) {
+        if (!isMultiEventUtterance(t) && (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current)) {
           const locationName = extractLocationFromTranscript(t);
           if (locationName) {
             try {
               const { results } = await mapService.geocode(locationName, mapLocForItinerary ?? undefined);
+              if (results.length > 0 && isAmbiguousGeocode(results)) {
+                disambiguationCandidatesRef.current = results.slice(0, 3);
+                isAwaitingDisambiguationRef.current = true;
+                const clarifyReply = buildDisambiguationQuestion(locationName, results.slice(0, 3));
+                const clarifyAudio = await mapService.tts(clarifyReply).catch(() => null);
+                setReply(clarifyReply);
+                historyRef.current = [...historyRef.current, { user: t, assistant: clarifyReply }].slice(-4);
+                setChatHistory(historyRef.current);
+                setVoiceState("speaking");
+                if (clarifyAudio) {
+                  const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+                  const decoded = await playCtx.decodeAudioData(clarifyAudio.slice(0));
+                  const src = playCtx.createBufferSource(); src.buffer = decoded;
+                  src.connect(playCtx.destination); playbackRef.current = src;
+                  src.onended = () => { stopPlayback(); setVoiceState("idle"); }; src.start(0);
+                } else { setVoiceState("idle"); }
+                return;
+              }
               if (results.length > 0) {
-                const dest = {
-                  name: results[0].name,
-                  lat: results[0].lat,
-                  lng: results[0].lng,
-                  address: results[0].address,
-                  placeId: results[0].placeId,
-                };
-                itineraryStopsRef.current = [...itineraryStopsRef.current, dest];
-                isCollectingItineraryRef.current = true;
-                if (itineraryStopsRef.current.length === 1) {
-                  await useMapStore.getState().setItineraryStops([dest]);
+                const dest = { name: results[0].name, lat: results[0].lat, lng: results[0].lng, address: results[0].address, placeId: results[0].placeId };
+                const startingNewLeg = !isCollectingItineraryRef.current && useMapStore.getState().itineraryGroups.length > 0;
+                if (startingNewLeg) {
+                  itineraryStopsRef.current = [dest];
+                  isCollectingItineraryRef.current = true;
+                  await useMapStore.getState().addItineraryGroup([dest]);
                 } else {
-                  await useMapStore.getState().setItineraryStops(itineraryStopsRef.current);
+                  itineraryStopsRef.current = [...itineraryStopsRef.current, dest];
+                  isCollectingItineraryRef.current = true;
+                  const existingStops = useMapStore.getState().itineraryStops;
+                  const merged = [...existingStops];
+                  if (!merged.some((s) => s.name === dest.name)) merged.push(dest);
+                  await useMapStore.getState().setItineraryStops(merged);
                 }
-                const stopReply = `Got it, ${dest.name} added. Any more stops?`;
-                const stopAudio = await mapService.tts(stopReply);
+                const hasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
+                const stopReply = buildItineraryConfirmReply(dest.name, hasPOIs);
+                const stopAudio = await mapService.tts(stopReply).catch(() => null);
                 setReply(stopReply);
-                const sh = [...historyRef.current, { user: t, assistant: stopReply }].slice(-4);
-                historyRef.current = sh;
-                setChatHistory(sh);
+                historyRef.current = [...historyRef.current, { user: t, assistant: stopReply }].slice(-4);
+                setChatHistory(historyRef.current);
                 setVoiceState("speaking");
                 if (stopAudio) {
-                  const playCtx = new AudioContext();
-                  playbackCtxRef.current = playCtx;
+                  const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
                   const decoded = await playCtx.decodeAudioData(stopAudio.slice(0));
-                  const src = playCtx.createBufferSource();
-                  src.buffer = decoded;
-                  src.connect(playCtx.destination);
-                  playbackRef.current = src;
-                  src.onended = () => { stopPlayback(); setVoiceState("idle"); };
-                  src.start(0);
-                } else { setVoiceState("idle"); }
+                  const src = playCtx.createBufferSource(); src.buffer = decoded;
+                  src.connect(playCtx.destination); playbackRef.current = src;
+                  src.onended = () => { stopPlayback(); setVoiceState("idle"); startItineraryIdleTimer(); }; src.start(0);
+                } else { setVoiceState("idle"); startItineraryIdleTimer(); }
                 return;
               }
             } catch { /* fall through to ChatWonder if geocoding fails */ }
@@ -711,62 +915,49 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             lng: e.map!.lng as number,
             address: e.map!.address,
             placeId: e.map!.placeId,
+            timeBlock: e.timeLabel ?? undefined,
+            eventType: e.eventType ?? undefined,
           }));
-          // Merge by name — avoid duplicates when ChatWonder re-sends prior stops
           const existing = itineraryStopsRef.current;
           for (const s of newStops) {
-            if (!existing.some((e) => e.name === s.name)) {
-              existing.push(s);
-            }
+            if (!existing.some((e) => e.name === s.name)) existing.push(s);
           }
           itineraryStopsRef.current = existing;
         }
 
-        // Only route when the AI signals the itinerary is fully resolved.
-        // During sequential turn collection (itinerary_setup), the AI accumulates
-        // events in conversation history and asks "Any more stops?" — we do not
-        // draw routes yet. Routes are drawn only on itinerary_resolved.
+        // Draw route when: (a) itinerary_resolved OR (b) 2+ stops resolved in one
+        // turn — user gave all stops at once, no need to wait.
         const isItineraryResolved = res.intent === "itinerary_resolved";
+        const shouldDrawNow = (isItineraryResolved || resolved.length >= 2) &&
+          incomplete.length === 0 && itineraryStopsRef.current.length > 0 && places.length === 0;
         let etaNarration = "";
-        if (isItineraryResolved && incomplete.length === 0 && resolved.length > 0 && places.length === 0) {
-          // Build the candidate list from the ref (already merged with this turn's
-          // resolved events above). Fall back to resolved.map only if the ref is empty.
-          const accumulated = itineraryStopsRef.current.length > 0
-            ? itineraryStopsRef.current
-            : resolved.map((e) => ({
-            name: e.map!.destination ?? "Destination",
-            lat: e.map!.lat as number,
-            lng: e.map!.lng as number,
-            address: e.map!.address,
-            placeId: e.map!.placeId,
-          }));
-          // Fold in any stops already drawn on the map — covers the case where a
-          // prior multi-stop draw cleared the ref (e.g. the user adds a 3rd stop
-          // after a 2-stop itinerary was committed).
+        if (shouldDrawNow) {
+          const accumulated = itineraryStopsRef.current;
           const existingMapStops = useMapStore.getState().itineraryStops;
           const merged = [...existingMapStops];
           for (const s of accumulated) {
             if (!merged.some((e) => e.name === s.name)) merged.push(s);
           }
           const stops = merged.length > 0 ? merged : accumulated;
-          itineraryStopsRef.current = []; // always clear — existingMapStops handles accumulation
-          await setItineraryStops(stops); // single or multi: always use itinerary so POIs are fetched
+          itineraryStopsRef.current = [];
+          await setItineraryStops(stops);
           isCollectingItineraryRef.current = true;
           if (stops.length === 1) {
             const resolvedHasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
-            const resolvedNearbyMention = resolvedHasPOIs
-              ? " I also found some nearby places around there you might want to visit!"
-              : "";
-            itineraryConfirmReply = `Got it, ${stops[0].name} added.${resolvedNearbyMention} Any more stops?`;
+            itineraryConfirmReply = buildItineraryConfirmReply(stops[0].name, resolvedHasPOIs);
+            // Timer starts after audio finishes (see mapAudio onended below)
           } else {
             const routes = useMapStore.getState().itineraryRoutes;
-            const totalSecs = routes.reduce((s, r) => s + r.duration, 0);
-            if (totalSecs > 0) {
-              const mins = Math.round(totalSecs / 60);
-              etaNarration = mins < 60
-                ? ` Total travel time is about ${mins} minute${mins !== 1 ? "s" : ""}.`
-                : ` Total travel time is about ${Math.floor(mins / 60)} hour${Math.floor(mins / 60) !== 1 ? "s" : ""} and ${mins % 60} minute${mins % 60 !== 1 ? "s" : ""}.`;
-            }
+            etaNarration = buildPreciseETANarration(stops, routes);
+            const names = stops.map((s) => s.name).join(", ");
+            const stopPOIs = useMapStore.getState().itineraryStopPOIs;
+            const poiMentions = stops.map((stop, i) => {
+              const entry = stopPOIs.find((s) => s.stopIndex === i);
+              const top = entry?.pois.slice(0, 2) ?? [];
+              return top.length ? `near ${stop.name}: ${top.map((p) => p.name).join(" and ")}` : null;
+            }).filter(Boolean);
+            const poiLine = poiMentions.length > 0 ? ` Some spots you might enjoy — ${poiMentions.join("; ")}.` : "";
+            itineraryConfirmReply = `Got it! Added ${stops.length} stops: ${names}.${poiLine}${etaNarration} Any more stops?`;
           }
         }
 
@@ -792,7 +983,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } else {
           // itineraryConfirmReply overrides when a single stop was just confirmed —
           // the AI's message is discarded in favour of "Got it, X added. Any more stops?"
-          mapReply = itineraryConfirmReply || (res.message + etaNarration);
+          // On the map page always keep replies short — never speak a ChatWonder essay.
+          // Take only the first sentence of res.message as fallback.
+          const firstSentence = (res.message ?? "").match(/^[^.!?]+[.!?]/)?.[0] ?? (res.message ?? "").slice(0, 120);
+          mapReply = itineraryConfirmReply || (firstSentence + etaNarration);
           let rawAudio: ArrayBuffer | null = null;
           if (res.audioBase64 && !itineraryConfirmReply) {
             const binary = atob(res.audioBase64);
@@ -823,10 +1017,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           src.buffer = decoded;
           src.connect(playCtx.destination);
           playbackRef.current = src;
-          src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+          src.onended = () => { stopPlayback(); setVoiceState("idle"); if (itineraryConfirmReply) startItineraryIdleTimer(); };
           src.start(0);
         } else {
           setVoiceState("idle");
+          if (itineraryConfirmReply) startItineraryIdleTimer();
         }
         return;
       }
