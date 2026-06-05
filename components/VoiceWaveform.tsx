@@ -17,12 +17,54 @@ type Layer = {
 };
 
 const LAYERS: Layer[] = [
-  { color: "#22d3ee", amp: 0.42, freq: 1.4, speed: 0.05, phase: 0.0, width: 2.5 },
-  { color: "#d946ef", amp: 0.52, freq: 1.1, speed: -0.041, phase: 1.3, width: 2.5 },
-  { color: "#3b82f6", amp: 0.34, freq: 1.9, speed: 0.062, phase: 2.1, width: 2.0 },
-  { color: "#ec4899", amp: 0.48, freq: 0.9, speed: 0.034, phase: 3.4, width: 2.0 },
-  { color: "#a78bfa", amp: 0.30, freq: 2.3, speed: -0.055, phase: 0.7, width: 1.8 },
-  { color: "#ffffff", amp: 0.22, freq: 2.7, speed: 0.072, phase: 4.2, width: 1.4 },
+  {
+    color: "#22d3ee",
+    amp: 0.42,
+    freq: 1.4,
+    speed: 0.05,
+    phase: 0.0,
+    width: 2.5,
+  },
+  {
+    color: "#d946ef",
+    amp: 0.52,
+    freq: 1.1,
+    speed: -0.041,
+    phase: 1.3,
+    width: 2.5,
+  },
+  {
+    color: "#3b82f6",
+    amp: 0.34,
+    freq: 1.9,
+    speed: 0.062,
+    phase: 2.1,
+    width: 2.0,
+  },
+  {
+    color: "#ec4899",
+    amp: 0.48,
+    freq: 0.9,
+    speed: 0.034,
+    phase: 3.4,
+    width: 2.0,
+  },
+  {
+    color: "#a78bfa",
+    amp: 0.3,
+    freq: 2.3,
+    speed: -0.055,
+    phase: 0.7,
+    width: 1.8,
+  },
+  {
+    color: "#ffffff",
+    amp: 0.22,
+    freq: 2.7,
+    speed: 0.072,
+    phase: 4.2,
+    width: 1.4,
+  },
 ];
 
 function buildPath(

@@ -175,7 +175,15 @@ function VoiceUI({ cosmeticMode = false }: { cosmeticMode?: boolean }) {
           padding: 0,
         }}
         whileTap={{ scale: 0.95 }}
-        animate={{ width: isActive ? (cosmeticMode ? 320 : 224) : cosmeticMode ? 112 : 64 }}
+        animate={{
+          width: isActive
+            ? cosmeticMode
+              ? 320
+              : 224
+            : cosmeticMode
+              ? 112
+              : 64,
+        }}
         transition={{ type: "spring", stiffness: 320, damping: 30 }}
         aria-label="Voice assistant"
       >

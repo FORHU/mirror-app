@@ -10,10 +10,16 @@ import WeatherWidget from "@/components/WeatherWidget";
 // just render <MirrorHeader />.
 
 function useClock() {
-  const [now, setNow] = useState<Date>(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
+    // Wrap the initial state update in a timeout to avoid the synchronous setState warning
+    const timeoutId = setTimeout(() => setNow(new Date()), 0);
+    const intervalId = setInterval(() => setNow(new Date()), 1000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
   }, []);
   return now;
 }
@@ -39,12 +45,16 @@ export default function MirrorHeader({
   style,
 }: MirrorHeaderProps) {
   const now = useClock();
-  const time = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const day = now.toLocaleDateString([], { weekday: "long" });
-  const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
+  const time = now
+    ? now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+  const day = now ? now.toLocaleDateString([], { weekday: "long" }) : "";
+  const date = now
+    ? now.toLocaleDateString([], { month: "long", day: "numeric" })
+    : "";
 
   const rightContent =
     right ??

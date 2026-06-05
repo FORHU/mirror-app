@@ -1530,7 +1530,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const SR = ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) as (new () => { lang: string; interimResults: boolean; maxAlternatives: number; continuous: boolean; onstart: (() => void) | null; onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void }) | undefined;
+      const SR = ((window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition) as
+        | (new () => {
+            lang: string;
+            interimResults: boolean;
+            maxAlternatives: number;
+            continuous: boolean;
+            onstart: (() => void) | null;
+            onresult:
+              | ((e: {
+                  resultIndex: number;
+                  results: { isFinal: boolean; 0: { transcript: string } }[];
+                }) => void)
+              | null;
+            onerror: ((e: { error: string }) => void) | null;
+            onend: (() => void) | null;
+            start: () => void;
+            stop: () => void;
+          })
+        | undefined;
       if (!SR) {
         setError("Speech recognition is not supported in this browser.");
         return;

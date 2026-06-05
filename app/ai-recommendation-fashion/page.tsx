@@ -82,11 +82,26 @@ function SkeletonCell({
 }
 
 const FASHION_QUOTES = [
-  { text: "Fashion is the armor to survive the reality of everyday life.", author: "Bill Cunningham" },
-  { text: "Style is a way to say who you are without having to speak.", author: "Rachel Zoe" },
-  { text: "Elegance is not about being noticed, it's about being remembered.", author: "Giorgio Armani" },
-  { text: "Fashion is what you buy. Style is what you do with it.", author: "Unknown" },
-  { text: "Dress shabbily and they remember the dress; dress impeccably and they remember the woman.", author: "Coco Chanel" },
+  {
+    text: "Fashion is the armor to survive the reality of everyday life.",
+    author: "Bill Cunningham",
+  },
+  {
+    text: "Style is a way to say who you are without having to speak.",
+    author: "Rachel Zoe",
+  },
+  {
+    text: "Elegance is not about being noticed, it's about being remembered.",
+    author: "Giorgio Armani",
+  },
+  {
+    text: "Fashion is what you buy. Style is what you do with it.",
+    author: "Unknown",
+  },
+  {
+    text: "Dress shabbily and they remember the dress; dress impeccably and they remember the woman.",
+    author: "Coco Chanel",
+  },
   { text: "The joy of dressing is an art.", author: "John Galliano" },
 ];
 
@@ -1149,58 +1164,92 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Base layer */}
-          {(aiLoading || voiceLoading || topsBase.length > 0) && (!swapSlot || swapSlot === "base") && (
-            <GarmentGrid
-              label="Base"
-              pagedItems={pagedTopsBase}
-              loading={aiLoading || voiceLoading}
-              pageSize={topsLayerPageSize}
-              currentPage={topsBasePage}
-              totalPages={totalTopsBasePages}
-              onNext={() => setTopsBasePage((p) => Math.min(p + 1, totalTopsBasePages - 1))}
-              onPrev={() => setTopsBasePage((p) => Math.max(p - 1, 0))}
-              onPageChange={setTopsBasePage}
-              selectedId={selectedTopBase?.id}
-              onSelect={(g) => { if (swapSlot === "base" && swapItemId) { applySwap(g); } else { setSelectedTopBase(g); setSelectedOutfitIdx(null); } }}
-              emptyMessage="No recommended Base"
-            />
-          )}
+          {(aiLoading || voiceLoading || topsBase.length > 0) &&
+            (!swapSlot || swapSlot === "base") && (
+              <GarmentGrid
+                label="Base"
+                pagedItems={pagedTopsBase}
+                loading={aiLoading || voiceLoading}
+                pageSize={topsLayerPageSize}
+                currentPage={topsBasePage}
+                totalPages={totalTopsBasePages}
+                onNext={() =>
+                  setTopsBasePage((p) =>
+                    Math.min(p + 1, totalTopsBasePages - 1),
+                  )
+                }
+                onPrev={() => setTopsBasePage((p) => Math.max(p - 1, 0))}
+                onPageChange={setTopsBasePage}
+                selectedId={selectedTopBase?.id}
+                onSelect={(g) => {
+                  if (swapSlot === "base" && swapItemId) {
+                    applySwap(g);
+                  } else {
+                    setSelectedTopBase(g);
+                    setSelectedOutfitIdx(null);
+                  }
+                }}
+                emptyMessage="No recommended Base"
+              />
+            )}
 
           {/* Tops — Mid layer */}
-          {(aiLoading || voiceLoading || topsMid.length > 0) && (!swapSlot || swapSlot === "mid") && (
-            <GarmentGrid
-              label="Mid"
-              pagedItems={pagedTopsMid}
-              loading={aiLoading || voiceLoading}
-              pageSize={topsLayerPageSize}
-              currentPage={topsMidPage}
-              totalPages={totalTopsMidPages}
-              onNext={() => setTopsMidPage((p) => Math.min(p + 1, totalTopsMidPages - 1))}
-              onPrev={() => setTopsMidPage((p) => Math.max(p - 1, 0))}
-              onPageChange={setTopsMidPage}
-              selectedId={selectedTopMid?.id}
-              onSelect={(g) => { if (swapSlot === "mid" && swapItemId) { applySwap(g); } else { setSelectedTopMid(g); setSelectedOutfitIdx(null); } }}
-              emptyMessage="No recommended Mid"
-            />
-          )}
+          {(aiLoading || voiceLoading || topsMid.length > 0) &&
+            (!swapSlot || swapSlot === "mid") && (
+              <GarmentGrid
+                label="Mid"
+                pagedItems={pagedTopsMid}
+                loading={aiLoading || voiceLoading}
+                pageSize={topsLayerPageSize}
+                currentPage={topsMidPage}
+                totalPages={totalTopsMidPages}
+                onNext={() =>
+                  setTopsMidPage((p) => Math.min(p + 1, totalTopsMidPages - 1))
+                }
+                onPrev={() => setTopsMidPage((p) => Math.max(p - 1, 0))}
+                onPageChange={setTopsMidPage}
+                selectedId={selectedTopMid?.id}
+                onSelect={(g) => {
+                  if (swapSlot === "mid" && swapItemId) {
+                    applySwap(g);
+                  } else {
+                    setSelectedTopMid(g);
+                    setSelectedOutfitIdx(null);
+                  }
+                }}
+                emptyMessage="No recommended Mid"
+              />
+            )}
 
           {/* Tops — Outer layer */}
-          {(aiLoading || voiceLoading || topsOuter.length > 0) && (!swapSlot || swapSlot === "outer") && (
-            <GarmentGrid
-              label="Outer"
-              pagedItems={pagedTopsOuter}
-              loading={aiLoading || voiceLoading}
-              pageSize={topsLayerPageSize}
-              currentPage={topsOuterPage}
-              totalPages={totalTopsOuterPages}
-              onNext={() => setTopsOuterPage((p) => Math.min(p + 1, totalTopsOuterPages - 1))}
-              onPrev={() => setTopsOuterPage((p) => Math.max(p - 1, 0))}
-              onPageChange={setTopsOuterPage}
-              selectedId={selectedTopOuter?.id}
-              onSelect={(g) => { if (swapSlot === "outer" && swapItemId) { applySwap(g); } else { setSelectedTopOuter(g); setSelectedOutfitIdx(null); } }}
-              emptyMessage="No recommended Outer"
-            />
-          )}
+          {(aiLoading || voiceLoading || topsOuter.length > 0) &&
+            (!swapSlot || swapSlot === "outer") && (
+              <GarmentGrid
+                label="Outer"
+                pagedItems={pagedTopsOuter}
+                loading={aiLoading || voiceLoading}
+                pageSize={topsLayerPageSize}
+                currentPage={topsOuterPage}
+                totalPages={totalTopsOuterPages}
+                onNext={() =>
+                  setTopsOuterPage((p) =>
+                    Math.min(p + 1, totalTopsOuterPages - 1),
+                  )
+                }
+                onPrev={() => setTopsOuterPage((p) => Math.max(p - 1, 0))}
+                onPageChange={setTopsOuterPage}
+                selectedId={selectedTopOuter?.id}
+                onSelect={(g) => {
+                  if (swapSlot === "outer" && swapItemId) {
+                    applySwap(g);
+                  } else {
+                    setSelectedTopOuter(g);
+                    setSelectedOutfitIdx(null);
+                  }
+                }}
+                emptyMessage="No recommended Outer"
+              />
+            )}
 
           {(!swapSlot || swapSlot === "bottoms") && (
             <GarmentGrid
@@ -1210,11 +1259,20 @@ export default function VirtualMirrorV2() {
               pageSize={bottomsPageSize}
               currentPage={bottomsPage}
               totalPages={totalBottomsPages}
-              onNext={() => setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1))}
+              onNext={() =>
+                setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1))
+              }
               onPrev={() => setBottomsPage((p) => Math.max(p - 1, 0))}
               onPageChange={setBottomsPage}
               selectedId={selectedBottom?.id}
-              onSelect={(g) => { if (swapSlot === "bottoms" && swapItemId) { applySwap(g); } else { setSelectedBottom(g); setSelectedOutfitIdx(null); } }}
+              onSelect={(g) => {
+                if (swapSlot === "bottoms" && swapItemId) {
+                  applySwap(g);
+                } else {
+                  setSelectedBottom(g);
+                  setSelectedOutfitIdx(null);
+                }
+              }}
               emptyMessage="No recommended Bottoms"
             />
           )}
@@ -1227,11 +1285,20 @@ export default function VirtualMirrorV2() {
               pageSize={shoesPageSize}
               currentPage={shoesPage}
               totalPages={totalShoesPages}
-              onNext={() => setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1))}
+              onNext={() =>
+                setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1))
+              }
               onPrev={() => setShoesPage((p) => Math.max(p - 1, 0))}
               onPageChange={setShoesPage}
               selectedId={selectedShoe?.id}
-              onSelect={(g) => { if (swapSlot === "shoes" && swapItemId) { applySwap(g); } else { setSelectedShoe(g); setSelectedOutfitIdx(null); } }}
+              onSelect={(g) => {
+                if (swapSlot === "shoes" && swapItemId) {
+                  applySwap(g);
+                } else {
+                  setSelectedShoe(g);
+                  setSelectedOutfitIdx(null);
+                }
+              }}
               emptyMessage="No recommended Shoes"
             />
           )}
@@ -1244,12 +1311,21 @@ export default function VirtualMirrorV2() {
               pageSize={accessoryPageSize}
               currentPage={bagsPage}
               totalPages={totalBagsPages}
-              onNext={() => setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1))}
+              onNext={() =>
+                setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1))
+              }
               onPrev={() => setBagsPage((p) => Math.max(p - 1, 0))}
               onPageChange={setBagsPage}
               columns={3}
               selectedId={selectedBag?.id}
-              onSelect={(g) => { if (swapSlot === "bags" && swapItemId) { applySwap(g); } else { setSelectedBag(g); setSelectedOutfitIdx(null); } }}
+              onSelect={(g) => {
+                if (swapSlot === "bags" && swapItemId) {
+                  applySwap(g);
+                } else {
+                  setSelectedBag(g);
+                  setSelectedOutfitIdx(null);
+                }
+              }}
               emptyMessage="No recommended Bags"
             />
           )}
@@ -1257,47 +1333,69 @@ export default function VirtualMirrorV2() {
       </div>
 
       {/* Create Outfit — fixed to viewport bottom center, hidden when outfit is selected (unless modified) */}
-      {(selectedOutfitIdx === null || outfitModified) && (() => {
-        const hasTop = !!(selectedTopBase || selectedTopMid || selectedTopOuter);
-        const canCreate = hasTop && !!selectedBottom && !!selectedShoe;
-        const isCreateMode = selectedOutfitIdx === null && !outfitModified;
-        const disabled = isCreateMode && !canCreate;
-        return (
-          <button
-            disabled={disabled}
-            style={{
-              position: "fixed",
-              bottom: "28px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 50,
-              padding: "14px 52px",
-              background: disabled ? "rgba(255,255,255,0.25)" : "#ffffff",
-              color: disabled ? "rgba(0,0,0,0.35)" : "#000",
-              border: "none",
-              borderRadius: "14px",
-              fontSize: "16px",
-              fontWeight: "700",
-              cursor: disabled ? "not-allowed" : "pointer",
-              letterSpacing: "0.4px",
-              boxShadow: disabled ? "none" : "0 4px 24px rgba(0,0,0,0.4)",
-              transition: "opacity 0.2s, transform 0.1s",
-            }}
-            onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.opacity = "0.88"; }}
-            onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.opacity = "1"; }}
-            onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "translateX(-50%) scale(0.97)"; }}
-            onMouseUp={(e) => { if (!disabled) e.currentTarget.style.transform = "translateX(-50%) scale(1)"; }}
-            onClick={() => { if (!disabled) setShowConfirm(true); }}
-          >
-            {outfitModified ? "Customize Outfit" : "Create Outfit"}
-          </button>
-        );
-      })()}
+      {(selectedOutfitIdx === null || outfitModified) &&
+        (() => {
+          const hasTop = !!(
+            selectedTopBase ||
+            selectedTopMid ||
+            selectedTopOuter
+          );
+          const canCreate = hasTop && !!selectedBottom && !!selectedShoe;
+          const isCreateMode = selectedOutfitIdx === null && !outfitModified;
+          const disabled = isCreateMode && !canCreate;
+          return (
+            <button
+              disabled={disabled}
+              style={{
+                position: "fixed",
+                bottom: "28px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 50,
+                padding: "14px 52px",
+                background: disabled ? "rgba(255,255,255,0.25)" : "#ffffff",
+                color: disabled ? "rgba(0,0,0,0.35)" : "#000",
+                border: "none",
+                borderRadius: "14px",
+                fontSize: "16px",
+                fontWeight: "700",
+                cursor: disabled ? "not-allowed" : "pointer",
+                letterSpacing: "0.4px",
+                boxShadow: disabled ? "none" : "0 4px 24px rgba(0,0,0,0.4)",
+                transition: "opacity 0.2s, transform 0.1s",
+              }}
+              onMouseEnter={(e) => {
+                if (!disabled) e.currentTarget.style.opacity = "0.88";
+              }}
+              onMouseLeave={(e) => {
+                if (!disabled) e.currentTarget.style.opacity = "1";
+              }}
+              onMouseDown={(e) => {
+                if (!disabled)
+                  e.currentTarget.style.transform =
+                    "translateX(-50%) scale(0.97)";
+              }}
+              onMouseUp={(e) => {
+                if (!disabled)
+                  e.currentTarget.style.transform = "translateX(-50%) scale(1)";
+              }}
+              onClick={() => {
+                if (!disabled) setShowConfirm(true);
+              }}
+            >
+              {outfitModified ? "Customize Outfit" : "Create Outfit"}
+            </button>
+          );
+        })()}
 
       {showConfirm && (
         <OutfitPreviewModal
           outfitModified={outfitModified}
-          activeOutfit={selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null}
+          activeOutfit={
+            selectedOutfitIdx !== null
+              ? (outfits[selectedOutfitIdx] ?? null)
+              : null
+          }
           outfitOverrides={outfitOverrides}
           selectedTopBase={selectedTopBase}
           selectedTopMid={selectedTopMid}
@@ -1309,7 +1407,10 @@ export default function VirtualMirrorV2() {
         />
       )}
 
-      <VoiceTranscribeOverlay onAiComplete={(r) => handleAiComplete(r)} onLoadingChange={setVoiceLoading} />
+      <VoiceTranscribeOverlay
+        onAiComplete={(r) => handleAiComplete(r)}
+        onLoadingChange={setVoiceLoading}
+      />
     </div>
   );
 }

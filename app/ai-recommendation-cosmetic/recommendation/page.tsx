@@ -191,7 +191,8 @@ type Product = {
 };
 
 function getRoutineMeta(product: Product, index: number) {
-  const text = `${product.category} ${product.name} ${product.reason}`.toLowerCase();
+  const text =
+    `${product.category} ${product.name} ${product.reason}`.toLowerCase();
 
   if (/clean|wash|facial/.test(text)) {
     return {
@@ -953,8 +954,7 @@ export default function CosmeticRecommendationPage() {
   const DIM = "rgba(255,255,255,0.72)";
   const FAINT = "rgba(255,255,255,0.5)";
   const ACCENT = "rgba(255,255,255,0.88)";
-  const HANDWRITTEN =
-    '"Segoe Print", "Bradley Hand", "Comic Sans MS", cursive';
+  const HANDWRITTEN = '"Segoe Print", "Bradley Hand", "Comic Sans MS", cursive';
   const panel: React.CSSProperties = {
     background: "rgba(255,255,255,0.055)",
     backdropFilter: "blur(14px)",
@@ -1260,7 +1260,7 @@ export default function CosmeticRecommendationPage() {
                         height: "100%",
                         borderRadius: "9999px",
                         background:
-                                  "linear-gradient(90deg, rgba(255,255,255,0.96), rgba(190,195,205,0.82))",
+                          "linear-gradient(90deg, rgba(255,255,255,0.96), rgba(190,195,205,0.82))",
                       }}
                     />
                   </div>
@@ -1420,9 +1420,14 @@ export default function CosmeticRecommendationPage() {
               <div style={{ ...labelStyle, marginBottom: "16px" }}>
                 More recommendations
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
                 {moreProducts.map((product, i) => {
-                  const routine = getRoutineMeta(product, i + RIGHT_COLUMN_COUNT);
+                  const routine = getRoutineMeta(
+                    product,
+                    i + RIGHT_COLUMN_COUNT,
+                  );
 
                   return (
                     <div
@@ -1441,24 +1446,25 @@ export default function CosmeticRecommendationPage() {
                           position: "relative",
                         }}
                       >
-                        {product.imageUrl && !failedImageIds.has(product.id) && (
-                          <Image
-                            fill
-                            unoptimized
-                            src={product.imageUrl}
-                            alt={product.name}
-                            draggable={false}
-                            onError={() =>
-                              setFailedImageIds((current) => {
-                                const next = new Set(current);
-                                next.add(product.id);
-                                return next;
-                              })
-                            }
-                            style={{ objectFit: "contain" }}
-                            className="pointer-events-none"
-                          />
-                        )}
+                        {product.imageUrl &&
+                          !failedImageIds.has(product.id) && (
+                            <Image
+                              fill
+                              unoptimized
+                              src={product.imageUrl}
+                              alt={product.name}
+                              draggable={false}
+                              onError={() =>
+                                setFailedImageIds((current) => {
+                                  const next = new Set(current);
+                                  next.add(product.id);
+                                  return next;
+                                })
+                              }
+                              style={{ objectFit: "contain" }}
+                              className="pointer-events-none"
+                            />
+                          )}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div
@@ -1564,9 +1570,7 @@ export default function CosmeticRecommendationPage() {
                 flexShrink: 0,
               }}
             >
-              <span
-                style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}
-              >
+              <span style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}>
                 Your skincare routine
               </span>
               <span
@@ -1728,9 +1732,7 @@ export default function CosmeticRecommendationPage() {
             </div>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }

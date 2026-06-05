@@ -6,12 +6,16 @@ import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
 
 type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
 
-function resolveSwapSlot(garmentType: string[], fittingSlot: string[]): SwapSlot {
+function resolveSwapSlot(
+  garmentType: string[],
+  fittingSlot: string[],
+): SwapSlot {
   if (garmentType.includes("Bag")) return "bags";
   if (fittingSlot.includes("LowerGarment")) return "bottoms";
   if (fittingSlot.includes("FootGarment")) return "shoes";
   const t = garmentType[0] ?? "";
-  if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t)) return "outer";
+  if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t))
+    return "outer";
   if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
   return "base";
 }
@@ -49,15 +53,31 @@ export function OutfitPreviewModal({
   let cBag: RemoteGarment | null = selectedBag;
 
   if (activeOutfit) {
-    cBase = null; cMid = null; cOuter = null;
-    cBottom = null; cShoe = null; cBag = null;
+    cBase = null;
+    cMid = null;
+    cOuter = null;
+    cBottom = null;
+    cShoe = null;
+    cBag = null;
     for (const item of activeOutfit.items) {
       const eff = (outfitOverrides[item.id] ?? item.garment) as RemoteGarment;
-      if (eff.garmentType?.includes("Bag")) { cBag = eff; continue; }
-      if (item.slot === "LowerGarment") { cBottom = eff; continue; }
-      if (item.slot === "FootGarment") { cShoe = eff; continue; }
+      if (eff.garmentType?.includes("Bag")) {
+        cBag = eff;
+        continue;
+      }
+      if (item.slot === "LowerGarment") {
+        cBottom = eff;
+        continue;
+      }
+      if (item.slot === "FootGarment") {
+        cShoe = eff;
+        continue;
+      }
       if (item.slot === "UpperGarment") {
-        const layer = resolveSwapSlot(eff.garmentType ?? [], eff.fittingSlot ?? []);
+        const layer = resolveSwapSlot(
+          eff.garmentType ?? [],
+          eff.fittingSlot ?? [],
+        );
         if (layer === "outer") cOuter = eff;
         else if (layer === "mid") cMid = eff;
         else cBase = eff;

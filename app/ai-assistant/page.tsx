@@ -234,7 +234,24 @@ export default function AIAssistantPage() {
     if (voiceStateRef.current !== "idle") return;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) as (new () => { continuous: boolean; interimResults: boolean; lang: string; onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void }) | undefined;
+    const SR = ((window as any).SpeechRecognition ??
+      (window as any).webkitSpeechRecognition) as
+      | (new () => {
+          continuous: boolean;
+          interimResults: boolean;
+          lang: string;
+          onresult:
+            | ((e: {
+                resultIndex: number;
+                results: { isFinal: boolean; 0: { transcript: string } }[];
+              }) => void)
+            | null;
+          onerror: ((e: { error: string }) => void) | null;
+          onend: (() => void) | null;
+          start: () => void;
+          stop: () => void;
+        })
+      | undefined;
     if (!SR) {
       setHandsFreePhase("error");
       setHandsFreeDebug("Speech recognition unsupported");
@@ -370,7 +387,10 @@ export default function AIAssistantPage() {
             className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer"
             onClick={() => setShowIdle(false)}
           >
-            <div className="flex items-center justify-center" style={{ minHeight: "8rem" }}>
+            <div
+              className="flex items-center justify-center"
+              style={{ minHeight: "8rem" }}
+            >
               <AnimatePresence mode="wait">
                 <motion.p
                   key={taglineIndex}
@@ -396,7 +416,11 @@ export default function AIAssistantPage() {
             <motion.div
               className="mt-10 flex flex-col items-center gap-3"
               animate={{ opacity: [0.4, 0.9, 0.4] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
             >
               <div
                 className="rounded-full border border-white/20"
