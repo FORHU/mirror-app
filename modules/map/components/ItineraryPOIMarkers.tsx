@@ -204,7 +204,6 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
 
     itineraryStopPOIs.forEach(({ stopIndex, pois }) => {
       const color = stopColor(stopIndex);
-      const stop = itineraryStops[stopIndex];
 
       pois.forEach((poi: NearbyPOI) => {
         const dist = (poi.distance ?? 0) / 1000; // API returns metres; helpers expect km

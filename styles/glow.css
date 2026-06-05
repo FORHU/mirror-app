@@ -136,6 +136,28 @@
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.cosmetic-recommendation-page,
+.cosmetic-recommendation-page * {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cosmetic-recommendation-page::-webkit-scrollbar,
+.cosmetic-recommendation-page *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @keyframes pulse-glow {
   0%,
   100% {
