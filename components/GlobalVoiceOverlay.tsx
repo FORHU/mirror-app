@@ -5,19 +5,21 @@ import { useState } from "react";
 import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { usePathname } from "next/navigation";
+import VoiceWaveform from "@/components/VoiceWaveform";
 
 export default function GlobalVoiceOverlay() {
   const pathname = usePathname();
+  const isCosmeticPage = pathname.startsWith("/ai-recommendation-cosmetic");
   if (
     pathname.startsWith("/map") ||
     pathname === "/ai-recommendation-fashion" ||
     pathname.startsWith("/ai-assistant")
   )
     return null;
-  return <VoiceUI />;
+  return <VoiceUI cosmeticMode={isCosmeticPage} />;
 }
 
-function VoiceUI() {
+function VoiceUI({ cosmeticMode = false }: { cosmeticMode?: boolean }) {
   const { voiceState, transcript, reply, error, toggle, chatHistory } =
     useVoiceContext();
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -79,7 +81,9 @@ function VoiceUI() {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className="fixed bottom-[160px] right-5 z-9999 w-72 pointer-events-none"
+            className={`fixed bottom-[160px] z-9999 w-72 pointer-events-none ${
+              cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"
+            }`}
           >
             <div
               className="rounded-2xl px-4 py-3 shadow-2xl"
@@ -113,7 +117,7 @@ function VoiceUI() {
       </AnimatePresence>
 
       {/* Toggle Chat History */}
-      {chatHistory.length > 0 && (
+      {chatHistory.length > 0 && !cosmeticMode && (
         <motion.button
           onClick={() => setIsChatOpen((o) => !o)}
           className="fixed z-9999 flex items-center justify-center rounded-full shadow-lg transition-all"
@@ -137,28 +141,54 @@ function VoiceUI() {
         </motion.button>
       )}
 
-      {/* Floating mic button — bottom-right */}
+      {/* Floating voice control — morphs into a flowing waveform while talking
+          to the AI, and is a round mic button when idle. */}
       <motion.button
         onClick={toggle}
-        className="fixed bottom-6 right-5 z-9999 flex items-center justify-center rounded-full shadow-2xl transition-all"
+        className={`fixed bottom-6 z-9999 flex items-center justify-center shadow-2xl ${
+          cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"
+        }`}
         style={{
-          width: 60,
-          height: 60,
-          background: isActive ? "rgba(79,195,247,0.2)" : "rgba(20,20,30,0.85)",
-          border: isActive
-            ? "2px solid rgba(79,195,247,0.7)"
-            : "2px solid rgba(255,255,255,0.15)",
+          height: cosmeticMode ? 112 : 64,
+          borderRadius: 9999,
+          background: cosmeticMode
+            ? isActive
+              ? "rgba(18,18,22,0.78)"
+              : "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.28), rgba(80,84,92,0.24) 58%, rgba(10,10,12,0.2))"
+            : isActive
+              ? "rgba(8,8,14,0.9)"
+              : "rgba(20,20,30,0.85)",
+          border: cosmeticMode
+            ? "none"
+            : isActive
+              ? "2px solid rgba(120,180,255,0.45)"
+              : "2px solid rgba(255,255,255,0.15)",
           backdropFilter: "blur(12px)",
-          boxShadow: isActive
-            ? "0 0 24px rgba(79,195,247,0.35)"
-            : "0 4px 24px rgba(0,0,0,0.5)",
+          boxShadow: cosmeticMode
+            ? isActive
+              ? "0 0 48px rgba(255,255,255,0.3), 0 0 120px rgba(180,190,210,0.16)"
+              : "0 0 42px rgba(255,255,255,0.24), 0 0 100px rgba(180,190,210,0.14)"
+            : isActive
+              ? "0 0 30px rgba(90,150,255,0.4)"
+              : "0 4px 24px rgba(0,0,0,0.5)",
+          overflow: "hidden",
+          padding: 0,
         }}
-        whileTap={{ scale: 0.9 }}
-        animate={isListening ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-        transition={isListening ? { repeat: Infinity, duration: 1.2 } : {}}
+        whileTap={{ scale: 0.95 }}
+        animate={{ width: isActive ? (cosmeticMode ? 320 : 224) : cosmeticMode ? 112 : 64 }}
+        transition={{ type: "spring", stiffness: 320, damping: 30 }}
         aria-label="Voice assistant"
       >
-        {micIcon}
+        {isActive || cosmeticMode ? (
+          <VoiceWaveform
+            active={isActive}
+            level={isActive ? (isProcessing ? 0.45 : 1) : 0.24}
+            width={isActive ? (cosmeticMode ? 292 : 208) : 88}
+            height={isActive ? (cosmeticMode ? 76 : 56) : 64}
+          />
+        ) : (
+          micIcon
+        )}
       </motion.button>
     </>
   );

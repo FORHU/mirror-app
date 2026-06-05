@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import {
+  useEffect,
+  useState,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import Image from "next/image";
-import { ArrowLeft, ChevronLeft, Home, Heart, User, Mic } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Mic } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import "../../../styles/glow.css";
 import {
   cosmeticsService,
@@ -166,15 +172,6 @@ function toTitleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
-// Split an AI "reason" string into up to three concise bullet points.
-function reasonToBullets(reason: string): string[] {
-  return reason
-    .split(/[.,;]\s*/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
 const SEVERITY_OPACITY: Record<string, number> = {
   high: 0.9,
   medium: 0.55,
@@ -192,6 +189,199 @@ type Product = {
   reason: string;
   imageUrl: string | null;
 };
+
+function getRoutineMeta(product: Product, index: number) {
+  const text = `${product.category} ${product.name} ${product.reason}`.toLowerCase();
+
+  if (/clean|wash|facial/.test(text)) {
+    return {
+      step: `Step ${index + 1}`,
+      action: "Cleanse",
+      note: "gentle start, happy skin",
+    };
+  }
+
+  if (/spf|sunscreen|protect|uv|sun/.test(text)) {
+    return {
+      step: `Step ${index + 1}`,
+      action: "Protect",
+      note: "daytime shield, no skipping",
+    };
+  }
+
+  if (/serum|toner|acid|exfol|niacinamide|retinol|treat/.test(text)) {
+    return {
+      step: `Step ${index + 1}`,
+      action: "Treat",
+      note: "target today's concern",
+    };
+  }
+
+  if (/cream|moist|lotion|milk|butter|hydr|balm/.test(text)) {
+    return {
+      step: `Step ${index + 1}`,
+      action: "Hydrate",
+      note: "seal in the softness",
+    };
+  }
+
+  return {
+    step: `Pick ${index + 1}`,
+    action: toTitleCase(product.category || "Skincare"),
+    note: "chosen for your skin today",
+  };
+}
+
+function RoutineProductTile({
+  product,
+  index,
+  handwrittenFont,
+  cream,
+  failedImageIds,
+  setFailedImageIds,
+}: {
+  product: Product;
+  index: number;
+  handwrittenFont: string;
+  cream: string;
+  failedImageIds: Set<string>;
+  setFailedImageIds: Dispatch<SetStateAction<Set<string>>>;
+}) {
+  const routine = getRoutineMeta(product, index);
+  const rightSide = index % 2 === 1;
+
+  return (
+    <motion.div
+      key={product.id}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.04 }}
+      style={{
+        minHeight: 520,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "4px",
+        borderRadius: "18px",
+        background: "transparent",
+        border: "none",
+        position: "relative",
+        overflow: "visible",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 28,
+          [rightSide ? "right" : "left"]: 10,
+          color: cream,
+          fontSize: "18px",
+          fontWeight: 800,
+          letterSpacing: "0.03em",
+          textTransform: "uppercase",
+          zIndex: 5,
+        }}
+      >
+        {routine.action}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          bottom: 42,
+          [rightSide ? "right" : "left"]: -2,
+          width: 140,
+          color: "rgba(255,255,255,0.8)",
+          fontFamily: handwrittenFont,
+          fontSize: "17px",
+          lineHeight: 1.25,
+          textAlign: rightSide ? "right" : "left",
+          transform: rightSide ? "rotate(5deg)" : "rotate(-5deg)",
+          zIndex: 5,
+        }}
+      >
+        {routine.note}
+      </div>
+
+      <svg
+        aria-hidden
+        viewBox="0 0 120 140"
+        style={{
+          position: "absolute",
+          top: "42%",
+          [rightSide ? "right" : "left"]: -34,
+          width: 112,
+          height: 132,
+          opacity: 0.82,
+          transform: rightSide ? "scaleX(-1)" : undefined,
+          pointerEvents: "none",
+          zIndex: 6,
+        }}
+      >
+        <path
+          d="M10 112 C28 82 30 46 86 34"
+          fill="none"
+          stroke="rgba(255,255,255,0.82)"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <path
+          d="M72 24 L88 33 L78 50"
+          fill="none"
+          stroke="rgba(255,255,255,0.82)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+
+      <div
+        style={{
+          width: "132%",
+          maxWidth: 520,
+          aspectRatio: "1 / 1",
+          overflow: "visible",
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2,
+        }}
+      >
+        {product.imageUrl && !failedImageIds.has(product.id) ? (
+          <Image
+            fill
+            unoptimized
+            src={product.imageUrl}
+            alt={product.name}
+            draggable={false}
+            onError={() =>
+              setFailedImageIds((current) => {
+                const next = new Set(current);
+                next.add(product.id);
+                return next;
+              })
+            }
+            style={{
+              objectFit: "contain",
+              transform: "scale(2)",
+            }}
+            className="pointer-events-none"
+          />
+        ) : (
+          <span
+            style={{
+              color: "rgba(255,255,255,0.15)",
+              fontSize: 40,
+            }}
+          >
+            ◯
+          </span>
+        )}
+      </div>
+    </motion.div>
+  );
+}
 
 const MOCK_PRODUCTS: Product[] = [
   {
@@ -313,8 +503,6 @@ export default function CosmeticRecommendationPage() {
   });
   const { analysis } = session;
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
-  // Product whose full detail/why-recommended sheet is open (null = closed).
-  const [detail, setDetail] = useState<Product | null>(null);
   // Real upload/analyze failure — surfaced to the user instead of silently
   // showing a fake "Normal" result. Holds the technical message for debugging.
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -331,8 +519,6 @@ export default function CosmeticRecommendationPage() {
   const [now, setNow] = useState<Date>(() => new Date());
   // Detailed weather for the left info panel.
   const [weather, setWeather] = useState<DetailedWeather | null>(null);
-  // Purely-visual "saved to favourites" toggle for the bottom nav heart.
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -626,7 +812,7 @@ export default function CosmeticRecommendationPage() {
               justifyContent: "center",
               fontSize: "44px",
               background: "rgba(248,113,113,0.10)",
-              border: "1px solid rgba(248,113,113,0.35)",
+              border: "none",
             }}
           >
             🙈
@@ -651,7 +837,7 @@ export default function CosmeticRecommendationPage() {
             style={{
               marginTop: "6px",
               background: "rgba(72,199,142,0.18)",
-              border: "1px solid rgba(72,199,142,0.55)",
+              border: "none",
               color: "rgba(72,199,142,0.95)",
               backdropFilter: "blur(8px)",
             }}
@@ -699,7 +885,7 @@ export default function CosmeticRecommendationPage() {
               justifyContent: "center",
               fontSize: "44px",
               background: "rgba(248,113,113,0.10)",
-              border: "1px solid rgba(248,113,113,0.35)",
+              border: "none",
             }}
           >
             ⚠️
@@ -736,7 +922,7 @@ export default function CosmeticRecommendationPage() {
             style={{
               marginTop: "6px",
               background: "rgba(72,199,142,0.18)",
-              border: "1px solid rgba(72,199,142,0.55)",
+              border: "none",
               color: "rgba(72,199,142,0.95)",
               backdropFilter: "blur(8px)",
             }}
@@ -748,7 +934,7 @@ export default function CosmeticRecommendationPage() {
     );
   }
 
-  // ── Warm smart-mirror layout ────────────────────────────────────────────────
+  // ── Neutral smart-mirror layout ─────────────────────────────────────────────
   const time = now.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
@@ -759,16 +945,18 @@ export default function CosmeticRecommendationPage() {
   const partOfDay =
     hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
-  // Warm palette tokens.
-  const CREAM = "rgba(255,248,242,0.95)";
-  const DIM = "rgba(245,228,214,0.6)";
-  const FAINT = "rgba(245,228,214,0.4)";
-  const GOLD = "rgba(255,201,150,0.95)";
+  // Neutral mirror palette tokens.
+  const CREAM = "rgba(255,255,255,0.96)";
+  const DIM = "rgba(255,255,255,0.72)";
+  const FAINT = "rgba(255,255,255,0.5)";
+  const ACCENT = "rgba(255,255,255,0.88)";
+  const HANDWRITTEN =
+    '"Segoe Print", "Bradley Hand", "Comic Sans MS", cursive';
   const panel: React.CSSProperties = {
-    background: "rgba(40,30,24,0.34)",
+    background: "rgba(255,255,255,0.055)",
     backdropFilter: "blur(14px)",
     WebkitBackdropFilter: "blur(14px)",
-    border: "1px solid rgba(255,214,176,0.16)",
+    border: "none",
     borderRadius: "22px",
     padding: "26px 28px",
     flex: "1 1 0",
@@ -778,7 +966,7 @@ export default function CosmeticRecommendationPage() {
     justifyContent: "center",
   };
   const labelStyle: React.CSSProperties = {
-    color: GOLD,
+    color: ACCENT,
     fontSize: "13px",
     fontWeight: 700,
     textTransform: "uppercase",
@@ -830,8 +1018,8 @@ export default function CosmeticRecommendationPage() {
   const personalizing = analyzing || cwLoading;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black">
-      {/* Warm ambient wash — kept to the edges so the center stays dark for the
+    <div className="cosmetic-recommendation-page relative w-screen h-screen overflow-hidden bg-black">
+      {/* Neutral ambient wash — kept to the edges so the center stays dark for the
           physical mirror reflection. */}
       <div
         aria-hidden
@@ -840,24 +1028,10 @@ export default function CosmeticRecommendationPage() {
           inset: 0,
           pointerEvents: "none",
           background:
-            "radial-gradient(120% 80% at 50% 0%, rgba(255,196,140,0.10) 0%, transparent 46%), radial-gradient(120% 90% at 50% 100%, rgba(255,170,110,0.09) 0%, transparent 52%)",
+            "radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,0.045) 0%, transparent 46%), radial-gradient(120% 90% at 50% 100%, rgba(255,255,255,0.035) 0%, transparent 52%)",
         }}
       />
-      {/* Glowing LED mirror frame */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: "10px",
-          borderRadius: "34px",
-          border: "2px solid rgba(255,206,160,0.55)",
-          boxShadow:
-            "0 0 22px 4px rgba(255,180,120,0.45), 0 0 60px 10px rgba(255,150,90,0.22), inset 0 0 36px rgba(255,190,130,0.12)",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Content sits inside the frame */}
+      {/* Content */}
       <div
         style={{
           position: "relative",
@@ -986,13 +1160,17 @@ export default function CosmeticRecommendationPage() {
                   marginBottom: "14px",
                 }}
               >
-                <Mic className="w-4 h-4" style={{ color: GOLD }} />
+                <Mic className="w-4 h-4" style={{ color: ACCENT }} />
                 <span style={labelStyle}>AI Suggestion</span>
                 {personalizing && (
                   <motion.span
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
-                    style={{ color: GOLD, fontSize: "12px", marginLeft: "auto" }}
+                    style={{
+                      color: ACCENT,
+                      fontSize: "12px",
+                      marginLeft: "auto",
+                    }}
                   >
                     ✦
                   </motion.span>
@@ -1083,7 +1261,7 @@ export default function CosmeticRecommendationPage() {
                         height: "100%",
                         borderRadius: "9999px",
                         background:
-                          "linear-gradient(90deg, rgba(255,210,160,0.95), rgba(255,170,110,0.9))",
+                                  "linear-gradient(90deg, rgba(255,255,255,0.96), rgba(190,195,205,0.82))",
                       }}
                     />
                   </div>
@@ -1116,9 +1294,9 @@ export default function CosmeticRecommendationPage() {
                       style={{
                         padding: "4px 12px",
                         borderRadius: "9999px",
-                        background: "rgba(255,210,170,0.10)",
-                        border: "1px solid rgba(255,210,170,0.22)",
-                        color: `rgba(255,236,220,${SEVERITY_OPACITY[c.severity]})`,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "none",
+                        color: `rgba(255,255,255,${SEVERITY_OPACITY[c.severity]})`,
                         fontSize: "11px",
                         fontWeight: 500,
                         whiteSpace: "nowrap",
@@ -1212,7 +1390,13 @@ export default function CosmeticRecommendationPage() {
                     marginBottom: "12px",
                   }}
                 >
-                  <span style={{ color: GOLD, fontSize: "16px", lineHeight: 1.5 }}>
+                  <span
+                    style={{
+                      color: ACCENT,
+                      fontSize: "16px",
+                      lineHeight: 1.5,
+                    }}
+                  >
                     ✓
                   </span>
                   <span
@@ -1247,15 +1431,15 @@ export default function CosmeticRecommendationPage() {
                   gap: "8px",
                   padding: "8px 16px",
                   borderRadius: "9999px",
-                  background: "rgba(40,30,24,0.45)",
+              background: "rgba(255,255,255,0.045)",
                   backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,214,176,0.2)",
+                  border: "none",
                 }}
               >
                 <motion.span
                   animate={{ opacity: [0.3, 1, 0.3] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
-                  style={{ color: GOLD, fontSize: "12px" }}
+                  style={{ color: ACCENT, fontSize: "12px" }}
                 >
                   ✦
                 </motion.span>
@@ -1289,7 +1473,7 @@ export default function CosmeticRecommendationPage() {
               <span
                 style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}
               >
-                Recommended Products
+                Your skincare routine
               </span>
               <span
                 style={{
@@ -1297,7 +1481,7 @@ export default function CosmeticRecommendationPage() {
                   fontSize: "14px",
                   padding: "2px 11px",
                   borderRadius: "9999px",
-                  border: "1px solid rgba(255,214,176,0.2)",
+                  border: "none",
                 }}
               >
                 {products.length}
@@ -1305,10 +1489,12 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             <div
+              className="mirror-scroll scrollbar-hidden"
               style={{
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
+                overflowX: "visible",
                 display: "flex",
                 flexDirection: "column",
                 gap: "18px",
@@ -1335,7 +1521,7 @@ export default function CosmeticRecommendationPage() {
                       padding: "18px",
                       borderRadius: "18px",
                       background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,214,176,0.1)",
+                      border: "none",
                     }}
                   >
                     <div
@@ -1418,183 +1604,29 @@ export default function CosmeticRecommendationPage() {
                     >
                       {category}
                     </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        minHeight: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "16px",
-                      }}
-                    >
-                      {items.map((product, i) => {
-                        const bullets = reasonToBullets(product.reason);
-                        return (
-                          <motion.button
-                            key={product.id}
-                            onClick={() => setDetail(product)}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: i * 0.04 }}
-                            whileTap={{ scale: 0.98 }}
-                            style={{
-                              flex: "1 1 0",
-                              minHeight: 110,
-                              maxHeight: 230,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "16px",
-                              padding: "18px",
-                              borderRadius: "18px",
-                              textAlign: "left",
-                              background: "rgba(40,30,24,0.34)",
-                              backdropFilter: "blur(10px)",
-                              border: "1px solid rgba(255,214,176,0.14)",
-                              cursor: "pointer",
-                            }}
-                          >
-                            {/* thumb */}
-                            <div
-                              style={{
-                                flex: "0 0 100px",
-                                height: 100,
-                                borderRadius: 14,
-                                overflow: "hidden",
-                                position: "relative",
-                                background: "rgba(255,255,255,0.05)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              {product.imageUrl &&
-                              !failedImageIds.has(product.id) ? (
-                                <Image
-                                  fill
-                                  unoptimized
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  draggable={false}
-                                  onError={() =>
-                                    setFailedImageIds((current) => {
-                                      const next = new Set(current);
-                                      next.add(product.id);
-                                      return next;
-                                    })
-                                  }
-                                  style={{ objectFit: "contain" }}
-                                  className="pointer-events-none"
-                                />
-                              ) : (
-                                <span
-                                  style={{
-                                    color: "rgba(255,255,255,0.15)",
-                                    fontSize: 40,
-                                  }}
-                                >
-                                  ◯
-                                </span>
-                              )}
-                            </div>
-
-                            {/* text */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "baseline",
-                                  justifyContent: "space-between",
-                                  gap: "8px",
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    color: CREAM,
-                                    fontSize: "17px",
-                                    fontWeight: 600,
-                                    lineHeight: 1.3,
-                                    overflow: "hidden",
-                                    display: "-webkit-box",
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: "vertical",
-                                  }}
-                                >
-                                  {product.name}
-                                </span>
-                                <span
-                                  style={{
-                                    color: GOLD,
-                                    fontSize: "14px",
-                                    fontWeight: 700,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {product.score}%
-                                </span>
-                              </div>
-                              {product.brand && (
-                                <div
-                                  style={{
-                                    color: FAINT,
-                                    fontSize: "13px",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    marginTop: "3px",
-                                  }}
-                                >
-                                  {product.brand}
-                                </div>
-                              )}
-                              {bullets.length > 0 ? (
-                                <ul
-                                  style={{
-                                    margin: "10px 0 0",
-                                    padding: 0,
-                                    listStyle: "none",
-                                  }}
-                                >
-                                  {bullets.map((b) => (
-                                    <li
-                                      key={b}
-                                      style={{
-                                        display: "flex",
-                                        gap: "7px",
-                                        color: DIM,
-                                        fontSize: "13px",
-                                        lineHeight: 1.5,
-                                        marginBottom: "3px",
-                                      }}
-                                    >
-                                      <span style={{ color: GOLD }}>·</span>
-                                      <span
-                                        style={{
-                                          overflow: "hidden",
-                                          display: "-webkit-box",
-                                          WebkitLineClamp: 2,
-                                          WebkitBoxOrient: "vertical",
-                                        }}
-                                      >
-                                        {b}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <div
-                                  style={{
-                                    color: FAINT,
-                                    fontSize: "13px",
-                                    marginTop: "8px",
-                                  }}
-                                >
-                                  Tap for details ›
-                                </div>
-                              )}
-                            </div>
-                          </motion.button>
-                        );
-                      })}
+                      <div
+                        style={{
+                          flex: 1,
+                          minHeight: 0,
+                          display: "grid",
+                          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                          alignContent: "start",
+                          gap: "36px 8px",
+                          overflow: "visible",
+                          padding: "0 22px",
+                        }}
+                      >
+                      {items.map((product, i) => (
+                        <RoutineProductTile
+                          key={product.id}
+                          product={product}
+                          index={i}
+                          handwrittenFont={HANDWRITTEN}
+                          cream={CREAM}
+                          failedImageIds={failedImageIds}
+                          setFailedImageIds={setFailedImageIds}
+                        />
+                      ))}
                     </div>
                   </div>
                 ))
@@ -1603,290 +1635,8 @@ export default function CosmeticRecommendationPage() {
           </div>
         </div>
 
-        {/* ── Bottom bar: mic + nav ── */}
-        <div
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "8px",
-            paddingTop: "8px",
-          }}
-        >
-          <button
-            onClick={() => router.push(ROUTES.AI_ASSISTANT)}
-            aria-label="Ask me anything"
-            style={{
-              width: 66,
-              height: 66,
-              borderRadius: "9999px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "rgba(255,200,150,0.16)",
-              border: "1px solid rgba(255,206,160,0.5)",
-              boxShadow: "0 0 24px rgba(255,180,120,0.4)",
-              cursor: "pointer",
-            }}
-          >
-            <Mic className="w-7 h-7" style={{ color: GOLD }} />
-          </button>
-          <span style={{ color: DIM, fontSize: "13px" }}>Ask me anything</span>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "42px",
-              marginTop: "6px",
-            }}
-          >
-            <button
-              onClick={() => router.push(ROUTES.OVERVIEW)}
-              aria-label="Home"
-              style={{ color: DIM }}
-            >
-              <Home className="w-7 h-7" />
-            </button>
-            <button
-              onClick={() => setSaved((s) => !s)}
-              aria-label="Save to favourites"
-              style={{ color: saved ? "rgba(255,120,120,0.95)" : DIM }}
-            >
-              <Heart
-                className="w-7 h-7"
-                fill={saved ? "currentColor" : "none"}
-              />
-            </button>
-            <button
-              onClick={() => router.push(ROUTES.LOGGED_IN)}
-              aria-label="Profile"
-              style={{ color: DIM }}
-            >
-              <User className="w-7 h-7" />
-            </button>
-          </div>
-        </div>
       </div>
 
-      {/* Product detail / why-recommended sheet */}
-      <AnimatePresence>
-        {detail && (
-          <motion.div
-            key="product-detail"
-            onClick={() => setDetail(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 50,
-              background: "rgba(0,0,0,0.72)",
-              backdropFilter: "blur(6px)",
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "center",
-            }}
-          >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
-              transition={{ type: "spring", damping: 26, stiffness: 280 }}
-              style={{
-                width: "100%",
-                maxHeight: "82%",
-                overflowY: "auto",
-                background: "#15100c",
-                borderTopLeftRadius: 22,
-                borderTopRightRadius: 22,
-                border: "1px solid rgba(255,214,176,0.16)",
-                padding: "16px 18px 26px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              {/* grab handle */}
-              <div
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 999,
-                  background: "rgba(255,214,176,0.3)",
-                  margin: "0 auto 2px",
-                }}
-              />
-
-              <div style={{ display: "flex", gap: 14 }}>
-                {/* image / placeholder */}
-                <div
-                  style={{
-                    flex: "0 0 96px",
-                    height: 96,
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    position: "relative",
-                    background: "rgba(255,255,255,0.05)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {detail.imageUrl && !failedImageIds.has(detail.id) ? (
-                    <Image
-                      fill
-                      unoptimized
-                      src={detail.imageUrl}
-                      alt={detail.name}
-                      style={{ objectFit: "contain" }}
-                    />
-                  ) : (
-                    <span
-                      style={{ color: "rgba(255,255,255,0.15)", fontSize: 26 }}
-                    >
-                      ◯
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <span
-                    style={{
-                      color: FAINT,
-                      fontSize: 10,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.09em",
-                    }}
-                  >
-                    {detail.category} · {detail.use}
-                  </span>
-                  <h3
-                    style={{
-                      color: "white",
-                      fontSize: 18,
-                      fontWeight: 700,
-                      lineHeight: 1.25,
-                      margin: "3px 0 2px",
-                    }}
-                  >
-                    {detail.name}
-                  </h3>
-                  <span style={{ color: DIM, fontSize: 13 }}>
-                    {detail.brand}
-                  </span>
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      padding: "3px 10px",
-                      borderRadius: 999,
-                      background: "rgba(255,200,150,0.14)",
-                      border: "1px solid rgba(255,206,160,0.4)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: GOLD,
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {detail.score}% match
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Why recommended */}
-              {detail.reason && (
-                <div
-                  style={{
-                    background: "rgba(255,200,150,0.07)",
-                    border: "1px solid rgba(255,206,160,0.22)",
-                    borderRadius: 14,
-                    padding: "12px 14px",
-                  }}
-                >
-                  <div
-                    style={{
-                      color: GOLD,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      marginBottom: 6,
-                    }}
-                  >
-                    ✦ Why this suits your skin
-                  </div>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.85)",
-                      fontSize: 14,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {detail.reason}
-                  </p>
-                </div>
-              )}
-
-              {/* How to use */}
-              <div>
-                <div
-                  style={{
-                    color: "rgba(255,255,255,0.45)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: 4,
-                  }}
-                >
-                  When to use
-                </div>
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.75)",
-                    fontSize: 13,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Apply as your {detail.category.toLowerCase()} during your{" "}
-                  {detail.use === "AM"
-                    ? "morning"
-                    : detail.use === "PM"
-                      ? "evening"
-                      : "morning and evening"}{" "}
-                  routine.
-                </p>
-              </div>
-
-              <button
-                onClick={() => setDetail(null)}
-                style={{
-                  marginTop: 4,
-                  padding: "12px",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,214,176,0.18)",
-                  color: "rgba(255,255,255,0.9)",
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
