@@ -688,7 +688,7 @@ export default function VirtualMirrorV2() {
               style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
             >
               {/* Outfit display */}
-              {selectedOutfit && (
+              {selectedOutfit && !(aiLoading || voiceLoading) && (
                 <div
                   style={{
                     width: "100%",
@@ -953,7 +953,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Loading state — cycling fashion quotes */}
-              {(aiLoading || voiceLoading) && !selectedOutfit && (
+              {(aiLoading || voiceLoading) && (
                 <div
                   style={{
                     flex: 1,
