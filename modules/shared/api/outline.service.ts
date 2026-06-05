@@ -1,5 +1,13 @@
 import { api } from "@/modules/shared/api/api-client";
 
+export interface OutlineEvent {
+  id: string;
+  type: string;
+  timeBlock: string;
+  routeDestination: string | null;
+  routeOrigin: string | null;
+}
+
 export interface Outline {
   id: string;
   userId: string;
@@ -9,6 +17,7 @@ export interface Outline {
   longitude: number | null;
   startTime: string | null;
   createdAt: string;
+  events: OutlineEvent[];
 }
 
 export const outlineService = {

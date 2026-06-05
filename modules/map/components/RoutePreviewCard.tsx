@@ -46,12 +46,16 @@ export default function RoutePreviewCard() {
     clearRoute,
     itineraryStops,
     itineraryRoutes,
+    itineraryGroups,
+    activeItineraryIndex,
+    setActiveItineraryIndex,
   } = useMapStore();
 
   const isItinerary = itineraryStops.length > 0;
   const totalItineraryDistance = itineraryRoutes.reduce((s, r) => s + r.distance, 0);
   const totalItineraryDuration = itineraryRoutes.reduce((s, r) => s + r.duration, 0);
   const visible = !!selectedDestination || isItinerary;
+  const activeGroup = itineraryGroups[activeItineraryIndex];
 
   return (
     <AnimatePresence>
@@ -70,19 +74,42 @@ export default function RoutePreviewCard() {
             boxShadow: "0 -8px 40px rgba(0,0,0,0.5)",
           }}
         >
+          {/* Leg tabs — only shown when there are multiple itinerary groups */}
+          {itineraryGroups.length > 1 && (
+            <div className="flex gap-2 px-5 pt-3 pb-1 overflow-x-auto"
+              style={{ scrollbarWidth: "none" }}>
+              {itineraryGroups.map((group, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveItineraryIndex(i)}
+                  className="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
+                  style={
+                    i === activeItineraryIndex
+                      ? { background: "#2144c0", color: "white", border: "1.5px solid rgba(255,255,255,0.3)" }
+                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }
+                  }
+                >
+                  {group.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Destination row */}
           <div className="flex items-center justify-between px-5 pt-4 pb-2 gap-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Navigation className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              <Navigation className="w-3.5 h-3.5 text-blue-400 shrink-0" />
               <p className="text-sm font-semibold text-white truncate">
                 {isItinerary
-                  ? `${itineraryStops.length} stop${itineraryStops.length > 1 ? "s" : ""}`
+                  ? activeGroup
+                    ? `${activeGroup.label} · ${itineraryStops.length} stop${itineraryStops.length > 1 ? "s" : ""}`
+                    : `${itineraryStops.length} stop${itineraryStops.length > 1 ? "s" : ""}`
                   : selectedDestination?.name || selectedDestination?.address}
               </p>
             </div>
             <button
               onClick={clearRoute}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center
+              className="shrink-0 w-7 h-7 flex items-center justify-center
                          rounded-full transition-colors active:scale-95"
               style={{ background: "rgba(255,255,255,0.08)" }}
             >
