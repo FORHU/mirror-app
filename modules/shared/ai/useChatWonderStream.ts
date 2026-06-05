@@ -118,11 +118,11 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       if (options?.mode === "map") {
         finalInput = `[map] ${text}`;
       } else if (options?.mode === "garments") {
-        finalInput = `[garments] ${text}`;
+        finalInput = `[garment] ${text}`;
       } else if (options?.mode === "cosmetics") {
         finalInput = `[cosmetics] ${text}`;
       } else if (options?.mode === "overview") {
-        finalInput = `[overview] [map] [garments] [cosmetics] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
+        finalInput = `[overview] [map] [garment] [cosmetics] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
       }
 
       const history = messagesRef.current.slice(-10).map((m) => ({
