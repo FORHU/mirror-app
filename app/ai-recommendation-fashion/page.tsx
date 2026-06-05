@@ -115,6 +115,7 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
   const chunksRef = useRef<Int16Array[]>([]);
   const abortCtrlRef = useRef<AbortController | null>(null);
   const weatherRef = useRef<Record<string, unknown> | null>(null);
+  const locationRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -126,6 +127,7 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
           if (!res.ok) return;
           const json = await res.json();
           const d = json.data ?? json;
+          locationRef.current = { lat, lng: lon };
           weatherRef.current = {
             date: new Date().toISOString().split("T")[0],
             description: String(d.condition ?? "").toLowerCase(),
@@ -137,8 +139,6 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
               String(d.condition ?? "")
                 .toLowerCase()
                 .includes("rain"),
-            lat,
-            lon,
             temperature_c: Number(d.temperature),
           };
         } catch {
@@ -238,8 +238,9 @@ function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
     try {
       const response = await chatWonderService.message(
         {
-          input: `[garments] ${rawText}`,
+          input: `[garment] ${rawText}`,
           ...(weatherRef.current ? { weather: weatherRef.current } : {}),
+          ...(locationRef.current ? { location: locationRef.current } : {}),
         },
         abortCtrlRef.current.signal,
       );
@@ -734,6 +735,7 @@ export default function VirtualMirrorV2() {
 
     async function fetchAiRecommendations() {
       let weather: Record<string, unknown> | undefined;
+      let location: { lat: number; lng: number } | undefined;
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
           navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -742,6 +744,7 @@ export default function VirtualMirrorV2() {
           }),
         );
         const { latitude: lat, longitude: lon } = pos.coords;
+        location = { lat, lng: lon };
         const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
         if (res.ok) {
           const json = await res.json();
@@ -757,8 +760,6 @@ export default function VirtualMirrorV2() {
               String(d.condition ?? "")
                 .toLowerCase()
                 .includes("rain"),
-            lat,
-            lon,
             temperature_c: Number(d.temperature),
           };
         }
@@ -771,8 +772,9 @@ export default function VirtualMirrorV2() {
       try {
         const response = await chatWonderService.message(
           {
-            input: "[garments] recommend outfits for today",
+            input: "[garment] recommend outfits for today. I am Male.",
             ...(weather ? { weather } : {}),
+            ...(location ? { location } : {}),
           },
           ctrl.signal,
         );

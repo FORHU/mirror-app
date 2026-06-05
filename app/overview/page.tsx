@@ -351,7 +351,7 @@ export default function OverviewPage() {
       try {
         const response = await requestGarmentsWithFreshSession(
           [
-            "[garments]",
+            "[garment]",
             "Treat date as a romantic/social outing when relevant.",
             "Recommend outfits for this plan using the provided destination weather.",
             `Plan: ${prompt}`,
