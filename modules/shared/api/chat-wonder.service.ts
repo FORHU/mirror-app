@@ -2,6 +2,7 @@ import { api } from "@/modules/shared/api/api-client";
 import { getStorageData } from "@/modules/shared/utils/storage";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 import { SITEMAP_CONTEXT } from "@/navigation";
+import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 
 const API_BASE_URL =
   typeof window !== "undefined"
@@ -228,10 +229,56 @@ export const chatWonderService = {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const json = await res.json();
-    if (json.status !== "success")
-      throw new Error(json.message ?? "Request failed");
+    const audioQueue = new AudioQueue();
+    let finalData: ChatWonderMessageResponse | null = null;
 
-    return json.data as ChatWonderMessageResponse;
+    if (res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6);
+            if (dataStr === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(dataStr);
+              if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+                audioQueue.enqueue(parsed.audioBase64);
+              } else if (parsed.type === "complete") {
+                finalData = parsed as ChatWonderMessageResponse;
+              } else if (parsed.type === "error") {
+                audioQueue.stop();
+                if (parsed.code === "session_expired") {
+                  throw new Error("Session expired. Please resend your message.");
+                }
+                throw new Error(parsed.message || "Stream error");
+              }
+            } catch (e) {
+              // ignore partial json
+            }
+          }
+        }
+      }
+    }
+
+    if (!finalData) {
+      throw new Error("Did not receive complete event");
+    }
+
+    if (finalData.audioBase64) {
+      finalData.audioBase64 = null; // Prevent double playback by callers, AudioQueue handled it
+    }
+
+    return finalData;
   },
 };

@@ -8,6 +8,7 @@ import {
 } from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
+import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 
 interface ItineraryMap {
   destination?: string;
@@ -80,6 +81,19 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   // Keep track of the AbortController so we can cancel streams if needed
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  const audioQueueRef = useRef<AudioQueue | null>(null);
+
+  useEffect(() => {
+    // Initialize AudioQueue on mount
+    audioQueueRef.current = new AudioQueue();
+    return () => {
+      // Stop and clean up on unmount
+      if (audioQueueRef.current) {
+        audioQueueRef.current.stop();
+      }
+    };
+  }, []);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -138,7 +152,12 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
           content: m.content,
         }));
 
-        const response = await fetch("/api/mirror/chat-wonder/stream", {
+        // Stop any currently playing audio before starting a new stream
+        if (audioQueueRef.current) {
+          audioQueueRef.current.stop();
+        }
+
+        const response = await fetch("/api/mirror/chat-wonder/message", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -149,6 +168,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
             input: finalInput,
             conversationId: options?.conversationId,
             weather: options?.weather ?? null,
+            voice: true,
             kioskId,
             history,
             sitemap_context: SITEMAP_CONTEXT,
@@ -202,6 +222,11 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                       msg.id === aiMsgId ? { ...msg, content: aiContent } : msg,
                     ),
                   );
+                } else if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+                  // Enqueue the incoming chunked audio for gapless playback
+                  if (audioQueueRef.current) {
+                    audioQueueRef.current.enqueue(parsed.audioBase64);
+                  }
                 } else if (parsed.type === "complete") {
                   console.log("Chat completed with data:", parsed);
 
@@ -299,31 +324,6 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                   const navTarget = stylistData?.target_url ?? nav?.target_url;
                   if (navTarget) {
                     void handleStylistTarget(navTarget, router, pathname);
-                  }
-
-                  // Trigger AWS Polly TTS to play the final message audio
-                  if (parsed.message) {
-                    fetch("/api/mirror/voice/tts", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                      },
-                      body: JSON.stringify({ text: parsed.message }),
-                    })
-                      .then(async (ttsRes) => {
-                        if (ttsRes.ok) {
-                          const blob = await ttsRes.blob();
-                          const url = URL.createObjectURL(blob);
-                          const audio = new Audio(url);
-                          audio
-                            .play()
-                            .catch((e) =>
-                              console.error("Audio play failed:", e),
-                            );
-                        }
-                      })
-                      .catch((e) => console.error("Failed to fetch TTS:", e));
                   }
                 } else if (parsed.type === "error") {
                   if (parsed.code === "session_expired") {

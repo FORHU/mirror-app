@@ -92,15 +92,52 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    const json = await response.json().catch(() => null);
-    if (!response.ok || json?.status !== "success") {
+    if (!response.ok) {
       return NextResponse.json(
-        { error: json?.message ?? "Failed to get a ChatWonder response" },
+        { error: "Failed to get a ChatWonder response" },
         { status: response.status || 500 },
       );
     }
 
-    const data = json.data ?? {};
+    if (!response.body) {
+      return NextResponse.json({ error: "Empty response body" }, { status: 500 });
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let finalJson: any = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const dataStr = line.slice(6);
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (parsed.type === "complete") {
+              finalJson = parsed;
+            } else if (parsed.type === "error") {
+              throw new Error(parsed.message || "Stream error");
+            }
+          } catch (e) {
+            // ignore partial or non-json
+          }
+        }
+      }
+    }
+
+    if (!finalJson) {
+      return NextResponse.json({ error: "Stream ended without complete payload" }, { status: 500 });
+    }
+
+    const data = finalJson ?? {};
     // Canonical nav block. `stylist_data` already prefers [STYLIST] and folds in
     // the legacy [NAV_DATA] fallback server-side, so we read a single field.
     const rawTarget =
