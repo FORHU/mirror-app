@@ -2,17 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Mic, MicOff, Loader2, Volume2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import MirrorHeader from "@/components/MirrorHeader";
-import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 
 
-const WAKE_WINDOW_MS = 2800;
-const WAKE_INTERVAL_MS = 900;
+const IDLE_TIMEOUT_MS = 480_000;
 type HandsFreePhase = "starting" | "wake" | "command" | "processing" | "error";
+
+const TAGLINES = [
+  "Ask me to navigate anywhere.",
+  'Say "Hey Mirror" to check the weather.',
+  "I can recommend outfits for your day.",
+  "Your mirror. Always ready.",
+  "Reflect. Navigate. Discover.",
+];
 
 const WAKE_WORDS = [
   "hey mirror",
@@ -117,10 +123,8 @@ function getWakeCommand(text: string) {
 
 export default function AIAssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const micRef = useRef<any>(null);
+  const micRef = useRef<{ stop: () => void; clear: () => void } | null>(null);
   const wakeLoopRef = useRef(false);
-  const wakeAbortRef = useRef<AbortController | null>(null);
-  const commandAbortRef = useRef<AbortController | null>(null);
   const wakeHeardRef = useRef("");
   const voiceStateRef = useRef("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -128,7 +132,9 @@ export default function AIAssistantPage() {
   const [handsFreeDebug, setHandsFreeDebug] = useState("");
   const [handsFreePhase, setHandsFreePhase] =
     useState<HandsFreePhase>("starting");
-  const [restartTick, setRestartTick] = useState(0);
+  const [showIdle, setShowIdle] = useState(true);
+  const [taglineIndex, setTaglineIndex] = useState(0);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pageContext = useMemo(
     () => ({
@@ -166,7 +172,47 @@ export default function AIAssistantPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, transcript, reply, error]);
 
-  const isIdle = voiceState === "idle";
+  const taglines = useMemo(() => {
+    const hour = new Date().getHours();
+    const timeTagline =
+      hour >= 5 && hour < 12
+        ? "Good morning. What's on your mind?"
+        : hour >= 17
+          ? "Good evening. Ready when you are."
+          : "Ready when you are.";
+    return [...TAGLINES, timeTagline];
+  }, []);
+
+  // Cycle taglines every 5s while idle screen is visible
+  useEffect(() => {
+    if (!showIdle) return;
+    const id = setInterval(
+      () => setTaglineIndex((i) => (i + 1) % taglines.length),
+      5000,
+    );
+    return () => clearInterval(id);
+  }, [showIdle, taglines.length]);
+
+  // Exit idle when wake word fires
+  useEffect(() => {
+    if (handsFreePhase === "command" || handsFreePhase === "processing") {
+      queueMicrotask(() => setShowIdle(false));
+    }
+  }, [handsFreePhase]);
+
+  // Inactivity timeout — return to idle after IDLE_TIMEOUT_MS
+  useEffect(() => {
+    if (showIdle) return;
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(
+      () => setShowIdle(true),
+      IDLE_TIMEOUT_MS,
+    );
+    return () => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    };
+  }, [showIdle, voiceState, chatHistory, handsFreePhase]);
+
   const status = isListening
     ? "Listening"
     : isProcessing
@@ -189,24 +235,13 @@ export default function AIAssistantPage() {
     latest?.assistant ||
     "Hi! What can I do for you?";
 
-  const micIcon = isListening ? (
-    <MicOff className="w-16 h-16 text-white" />
-  ) : isProcessing ? (
-    <Loader2 className="w-16 h-16 text-white animate-spin" />
-  ) : isSpeaking ? (
-    <Volume2 className="w-16 h-16 text-white" />
-  ) : (
-    <Mic className="w-16 h-16 text-white/75" />
-  );
-
-
-
   const startWakeWord = useCallback(() => {
     if (wakeLoopRef.current) return;
     if (voiceStateRef.current !== "idle") return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) as (new () => { continuous: boolean; interimResults: boolean; lang: string; onresult: ((e: { resultIndex: number; results: { isFinal: boolean; 0: { transcript: string } }[] }) => void) | null; onerror: ((e: { error: string }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void }) | undefined;
+    if (!SR) {
       setHandsFreePhase("error");
       setHandsFreeDebug("Speech recognition unsupported");
       return;
@@ -217,12 +252,12 @@ export default function AIAssistantPage() {
     setHandsFreePhase("wake");
     setHandsFreeDebug("Listening for wake phrase");
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
 
       let interim = "";
@@ -231,7 +266,7 @@ export default function AIAssistantPage() {
         if (event.results[i].isFinal) final += event.results[i][0].transcript;
         else interim += event.results[i][0].transcript;
       }
-      
+
       const currentText = (final + " " + interim).trim();
       if (!currentText) return;
 
@@ -245,19 +280,19 @@ export default function AIAssistantPage() {
         recognition.stop();
         setHandsFreeReady(false);
         setHandsFreePhase(wake.command ? "processing" : "command");
+        setShowIdle(false);
         setHandsFreeDebug(wake.command ? "Processing" : "Listening");
         wakeHeardRef.current = "";
 
         if (wake.command && !isWakeOnly(wake.command)) {
           submitTextRef.current(wake.command);
         } else {
-          // Trigger the standard VoiceProvider recording flow
           toggle();
         }
       }
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event) => {
       if (event.error === 'not-allowed') {
         setHandsFreeReady(false);
         setHandsFreePhase("error");
@@ -275,29 +310,29 @@ export default function AIAssistantPage() {
 
     try {
       recognition.start();
-      // Store on ref to abort on unmount
-      (micRef as any).current = { stop: () => recognition.stop(), clear: () => {} };
+      micRef.current = { stop: () => recognition.stop(), clear: () => {} };
     } catch {
       setHandsFreeDebug("Voice unavailable");
     }
   }, [toggle]);
 
   useEffect(() => {
-    startWakeWord();
+    if (showIdle) return;
+    const id = window.setTimeout(startWakeWord, 0);
     return () => {
+      window.clearTimeout(id);
       wakeLoopRef.current = false;
-      if ((micRef as any).current) {
-        (micRef as any).current.stop();
-      }
+      micRef.current?.stop();
     };
-  }, [startWakeWord]);
+  }, [startWakeWord, showIdle]);
 
   useEffect(() => {
+    if (showIdle) return;
     if (voiceState === "idle" && !wakeLoopRef.current) {
       const id = window.setTimeout(startWakeWord, 350);
       return () => window.clearTimeout(id);
     }
-  }, [restartTick, startWakeWord, voiceState]);
+  }, [startWakeWord, voiceState, showIdle]);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
@@ -310,99 +345,149 @@ export default function AIAssistantPage() {
         }
       />
 
-      <main className="flex-1 min-h-0 flex flex-col px-8 py-8">
-        <div className="text-center mb-8">
-          <div className="flex justify-center items-center gap-2">
-            <Sparkles className="w-5 h-5 text-white/45" />
-            <h1 className="text-white text-3xl font-semibold tracking-tight">
-              AI Assistant
-            </h1>
-          </div>
-        </div>
+      <AnimatePresence mode="wait">
+        {showIdle ? (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer"
+            onClick={() => setShowIdle(false)}
+          >
+            <div className="flex items-center justify-center" style={{ minHeight: "8rem" }}>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={taglineIndex}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="text-white font-thin text-center leading-[1.15] tracking-tight"
+                  style={{ fontSize: "clamp(2rem, 6.5vw, 3.75rem)" }}
+                >
+                  {taglines[taglineIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
 
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-8">
-          <AnimatePresence mode="wait">
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <div className="h-px w-12 bg-white/15" />
+              <p className="text-[10px] uppercase tracking-[0.5em] text-white/30 font-light">
+                Say &ldquo;Hey Mirror&rdquo; to begin
+              </p>
+            </div>
+
             <motion.div
-              key={`${displayUser}-${displayReply}-${voiceState}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="w-full max-w-3xl space-y-4"
+              className="mt-10 flex flex-col items-center gap-3"
+              animate={{ opacity: [0.4, 0.9, 0.4] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
             >
-              {displayUser && (
-                <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-md border border-white/15 bg-white/10 px-5 py-4">
-                    <p className="text-white/45 text-xs uppercase tracking-wide mb-1">
-                      You
+              <div
+                className="rounded-full border border-white/20"
+                style={{ width: 48, height: 48 }}
+              />
+              <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 font-light">
+                Tap to start
+              </p>
+            </motion.div>
+          </motion.div>
+        ) : (
+          <motion.main
+            key="assistant"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex-1 min-h-0 flex flex-col px-10 py-8"
+          >
+            {/* conversation — top half */}
+            <div className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl mx-auto w-full">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`${displayUser}-${displayReply}-${voiceState}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.4 }}
+                  className="flex flex-col gap-8"
+                >
+                  {displayUser && (
+                    <div className="text-right">
+                      <p className="text-white/25 text-[9px] uppercase tracking-[0.4em] font-light mb-2">
+                        You said
+                      </p>
+                      <p className="text-white/55 text-lg font-light leading-relaxed">
+                        {displayUser}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-white/25 text-[9px] uppercase tracking-[0.4em] font-light mb-2">
+                      Mirror
                     </p>
-                    <p className="text-white/90 text-base leading-relaxed">
-                      {displayUser}
+                    <p
+                      className={`font-thin leading-[1.3] tracking-tight ${
+                        error ? "text-red-300/75" : "text-white/90"
+                      }`}
+                      style={{ fontSize: "clamp(1.5rem, 4vw, 2.25rem)" }}
+                    >
+                      {displayReply}
                     </p>
                   </div>
-                </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* ambient state indicator — centered in bottom half */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <motion.button
+                type="button"
+                onClick={toggle}
+                aria-label="Toggle voice input"
+                className="rounded-full outline-none"
+                style={{
+                  width: 56,
+                  height: 56,
+                  background:
+                    isListening || handsFreePhase === "command"
+                      ? "rgba(255,255,255,0.10)"
+                      : isSpeaking
+                        ? "rgba(255,255,255,0.07)"
+                        : "rgba(255,255,255,0.04)",
+                  border:
+                    isListening || handsFreePhase === "command"
+                      ? "1px solid rgba(255,255,255,0.40)"
+                      : isSpeaking
+                        ? "1px solid rgba(255,255,255,0.25)"
+                        : "1px solid rgba(255,255,255,0.10)",
+                }}
+                animate={
+                  isListening || handsFreePhase === "command"
+                    ? { scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }
+                    : isProcessing || handsFreePhase === "processing"
+                      ? { opacity: [0.4, 0.9, 0.4] }
+                      : isSpeaking
+                        ? { scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }
+                        : { scale: 1, opacity: 0.4 }
+                }
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+              <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
+                {status}
+              </p>
+              {handsFreeDebug && (
+                <p className="text-white/20 text-[9px] tracking-wide">
+                  {handsFreeDebug}
+                </p>
               )}
+            </div>
 
-              <div className="flex justify-start">
-                <div
-                  className={`max-w-[80%] rounded-2xl rounded-tl-md border px-5 py-4 ${
-                    error
-                      ? "border-red-400/25 bg-red-500/10"
-                      : "border-white/10 bg-white/[0.055]"
-                  }`}
-                >
-                  <p className="text-white/45 text-xs uppercase tracking-wide mb-1">
-                    StyleOS AI
-                  </p>
-                  <p className="text-white/88 text-base leading-relaxed">
-                    {displayReply}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-
-          <motion.button
-            type="button"
-            onClick={toggle}
-            className="relative flex items-center justify-center rounded-full outline-none"
-            style={{
-              width: 172,
-              height: 172,
-              background: isIdle
-                ? "rgba(255,255,255,0.055)"
-                : "rgba(79,195,247,0.18)",
-              border: isIdle
-                ? "1px solid rgba(255,255,255,0.14)"
-                : "2px solid rgba(79,195,247,0.75)",
-              boxShadow: isIdle
-                ? "0 0 40px rgba(255,255,255,0.04)"
-                : "0 0 52px rgba(79,195,247,0.35)",
-            }}
-            animate={
-              isListening
-                ? { scale: [1, 1.04, 1] }
-                : isProcessing || isSpeaking
-                  ? { scale: [1, 1.025, 1] }
-                  : { scale: 1 }
-            }
-            transition={
-              isIdle ? undefined : { duration: 1.25, repeat: Infinity }
-            }
-            aria-label="Voice assistant"
-          >
-            {micIcon}
-          </motion.button>
-
-          <div className="text-center min-h-12">
-            <p className="text-white/85 text-lg">{status}</p>
-            {handsFreeDebug && (
-              <p className="text-white/35 text-sm mt-1">{handsFreeDebug}</p>
-            )}
-          </div>
-        </div>
-
-        <div ref={bottomRef} />
-      </main>
+            <div ref={bottomRef} />
+          </motion.main>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
