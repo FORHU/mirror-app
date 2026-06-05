@@ -323,35 +323,50 @@ export default function VirtualMirrorV2() {
   const [topsMidPage, setTopsMidPage] = useState(0);
   const [topsOuterPage, setTopsOuterPage] = useState(0);
 
-  const totalTopsBasePages = Math.ceil(topsBase.length / topsLayerPageSize);
-  const totalTopsMidPages = Math.ceil(topsMid.length / topsLayerPageSize);
-  const totalTopsOuterPages = Math.ceil(topsOuter.length / topsLayerPageSize);
+  const swappingGarmentId = (() => {
+    if (!swapItemId || selectedOutfitIdx === null) return null;
+    const outfit = outfits[selectedOutfitIdx];
+    if (!outfit) return null;
+    const item = outfit.items.find((i) => i.id === swapItemId);
+    if (!item) return null;
+    return (outfitOverrides[swapItemId] ?? item.garment).id;
+  })();
 
-  const pagedTopsBase = topsBase.slice(
+  const filteredTopsBase = swapSlot === "base" && swappingGarmentId ? topsBase.filter((g) => g.id !== swappingGarmentId) : topsBase;
+  const filteredTopsMid = swapSlot === "mid" && swappingGarmentId ? topsMid.filter((g) => g.id !== swappingGarmentId) : topsMid;
+  const filteredTopsOuter = swapSlot === "outer" && swappingGarmentId ? topsOuter.filter((g) => g.id !== swappingGarmentId) : topsOuter;
+
+  const totalTopsBasePages = Math.ceil(filteredTopsBase.length / topsLayerPageSize);
+  const totalTopsMidPages = Math.ceil(filteredTopsMid.length / topsLayerPageSize);
+  const totalTopsOuterPages = Math.ceil(filteredTopsOuter.length / topsLayerPageSize);
+
+  const pagedTopsBase = filteredTopsBase.slice(
     topsBasePage * topsLayerPageSize,
     (topsBasePage + 1) * topsLayerPageSize,
   );
-  const pagedTopsMid = topsMid.slice(
+  const pagedTopsMid = filteredTopsMid.slice(
     topsMidPage * topsLayerPageSize,
     (topsMidPage + 1) * topsLayerPageSize,
   );
-  const pagedTopsOuter = topsOuter.slice(
+  const pagedTopsOuter = filteredTopsOuter.slice(
     topsOuterPage * topsLayerPageSize,
     (topsOuterPage + 1) * topsLayerPageSize,
   );
 
   const [shoes, setShoes] = useState<RemoteGarment[]>([]);
   const [shoesPage, setShoesPage] = useState(0);
-  const totalShoesPages = Math.ceil(shoes.length / shoesPageSize);
-  const pagedShoes = shoes.slice(
+  const filteredShoes = swapSlot === "shoes" && swappingGarmentId ? shoes.filter((g) => g.id !== swappingGarmentId) : shoes;
+  const totalShoesPages = Math.ceil(filteredShoes.length / shoesPageSize);
+  const pagedShoes = filteredShoes.slice(
     shoesPage * shoesPageSize,
     (shoesPage + 1) * shoesPageSize,
   );
 
   const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
   const [bottomsPage, setBottomsPage] = useState(0);
-  const totalBottomsPages = Math.ceil(bottoms.length / bottomsPageSize);
-  const pagedBottoms = bottoms.slice(
+  const filteredBottoms = swapSlot === "bottoms" && swappingGarmentId ? bottoms.filter((g) => g.id !== swappingGarmentId) : bottoms;
+  const totalBottomsPages = Math.ceil(filteredBottoms.length / bottomsPageSize);
+  const pagedBottoms = filteredBottoms.slice(
     bottomsPage * bottomsPageSize,
     (bottomsPage + 1) * bottomsPageSize,
   );
@@ -365,8 +380,9 @@ export default function VirtualMirrorV2() {
   const [bags, setBags] = useState<RemoteGarment[]>([]);
 
   const [bagsPage, setBagsPage] = useState(0);
-  const totalBagsPages = Math.ceil(bags.length / accessoryPageSize);
-  const pagedBags = bags.slice(
+  const filteredBags = swapSlot === "bags" && swappingGarmentId ? bags.filter((g) => g.id !== swappingGarmentId) : bags;
+  const totalBagsPages = Math.ceil(filteredBags.length / accessoryPageSize);
+  const pagedBags = filteredBags.slice(
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
