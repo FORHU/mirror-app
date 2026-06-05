@@ -773,7 +773,12 @@ export default function CosmeticRecommendationPage() {
     (faceState === "checking" || analyzing || cwLoading) &&
     products.length === 0;
 
-  const grouped = groupByCategory(products);
+  // Keep the right column short so it barely scrolls — the picks that would
+  // fall below the fold move into the larger "More recommendations" panel on
+  // the left instead.
+  const RIGHT_COLUMN_COUNT = 4;
+  const grouped = groupByCategory(products.slice(0, RIGHT_COLUMN_COUNT));
+  const moreProducts = products.slice(RIGHT_COLUMN_COUNT);
 
   // ── No face detected — show a clear retake prompt instead of a fake result ──
   if (faceState === "none") {
@@ -956,8 +961,8 @@ export default function CosmeticRecommendationPage() {
     WebkitBackdropFilter: "blur(14px)",
     border: "none",
     borderRadius: "22px",
-    padding: "26px 28px",
-    flex: "1 1 0",
+    padding: "20px 24px",
+    flex: "0 0 auto",
     minHeight: 0,
     display: "flex",
     flexDirection: "column",
@@ -1136,7 +1141,7 @@ export default function CosmeticRecommendationPage() {
               minHeight: 0,
               display: "flex",
               flexDirection: "column",
-              gap: "20px",
+              gap: "12px",
             }}
           >
             {/* AI suggestion */}
@@ -1400,6 +1405,102 @@ export default function CosmeticRecommendationPage() {
                 </div>
               ))}
             </motion.div>
+
+            {/* More recommendations */}
+            <motion.div
+              style={{
+                ...panel,
+                padding: "18px 22px",
+                background: "rgba(255,255,255,0.04)",
+              }}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.2 }}
+            >
+              <div style={{ ...labelStyle, marginBottom: "16px" }}>
+                More recommendations
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {moreProducts.map((product, i) => {
+                  const routine = getRoutineMeta(product, i + RIGHT_COLUMN_COUNT);
+
+                  return (
+                    <div
+                      key={`more-${product.id}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "92px 1fr",
+                        alignItems: "center",
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 92,
+                          height: 92,
+                          position: "relative",
+                        }}
+                      >
+                        {product.imageUrl && !failedImageIds.has(product.id) && (
+                          <Image
+                            fill
+                            unoptimized
+                            src={product.imageUrl}
+                            alt={product.name}
+                            draggable={false}
+                            onError={() =>
+                              setFailedImageIds((current) => {
+                                const next = new Set(current);
+                                next.add(product.id);
+                                return next;
+                              })
+                            }
+                            style={{ objectFit: "contain" }}
+                            className="pointer-events-none"
+                          />
+                        )}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          style={{
+                            color: CREAM,
+                            fontSize: "16px",
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {routine.action}
+                        </div>
+                        <div
+                          style={{
+                            color: "rgba(255,255,255,0.78)",
+                            fontFamily: HANDWRITTEN,
+                            fontSize: "18px",
+                            lineHeight: 1.2,
+                            whiteSpace: "normal",
+                          }}
+                        >
+                          {routine.note}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {moreProducts.length === 0 && (
+                  <div
+                    style={{
+                      color: DIM,
+                      fontSize: "14px",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    More picks will appear once your recommendations are ready.
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
 
           {/* Center — left transparent so the physical mirror reflection shows
@@ -1424,7 +1525,7 @@ export default function CosmeticRecommendationPage() {
                   gap: "8px",
                   padding: "8px 16px",
                   borderRadius: "9999px",
-              background: "rgba(255,255,255,0.045)",
+                  background: "rgba(255,255,255,0.045)",
                   backdropFilter: "blur(10px)",
                   border: "none",
                 }}
@@ -1445,7 +1546,7 @@ export default function CosmeticRecommendationPage() {
             )}
           </div>
 
-          {/* Right column — recommended products grouped by category */}
+          {/* Right column — recommended products grouped by category (scrollable) */}
           <div
             style={{
               flex: "0 0 34%",
@@ -1597,18 +1698,18 @@ export default function CosmeticRecommendationPage() {
                     >
                       {category}
                     </div>
-                      <div
-                        style={{
-                          flex: 1,
-                          minHeight: 0,
-                          display: "grid",
-                          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                          alignContent: "start",
-                          gap: "36px 8px",
-                          overflow: "visible",
-                          padding: "0 22px",
-                        }}
-                      >
+                    <div
+                      style={{
+                        flex: 1,
+                        minHeight: 0,
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                        alignContent: "start",
+                        gap: "36px 8px",
+                        overflow: "visible",
+                        padding: "0 22px",
+                      }}
+                    >
                       {items.map((product, i) => (
                         <RoutineProductTile
                           key={product.id}
