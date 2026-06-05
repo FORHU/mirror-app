@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Home, Heart, User, Mic } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import "../../../styles/glow.css";
-import MirrorHeader from "@/components/MirrorHeader";
-import FaceScanGraphic from "@/components/FaceScanGraphic";
 import {
   cosmeticsService,
   type SkinAnalysis,
@@ -27,6 +25,28 @@ type CWProduct = {
   imageUrl?: string;
   score?: number;
 };
+
+// ── Detailed weather (humidity + feels-like) for the left info panel ──────────
+type DetailedWeather = {
+  temp: number | null;
+  code: number;
+  city: string;
+  humidity: number | null;
+  feelsLike: number | null;
+};
+
+// Small emoji glyph for the current weather code (avoids importing the internal
+// WeatherWidget icon and a second geolocation lookup).
+function weatherEmoji(code: number): string {
+  if (code === 0) return "☀️";
+  if (code === 1 || code === 2) return "⛅";
+  if (code === 3) return "☁️";
+  if ([45, 48].includes(code)) return "🌫️";
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "🌧️";
+  if ([71, 73, 75, 77].includes(code)) return "❄️";
+  if ([95, 96, 99].includes(code)) return "⛈️";
+  return "🌤️";
+}
 
 // Best-effort face check using the browser's native Shape Detection API.
 // Returns true (face found) / false (no face) / null (couldn't determine —
@@ -146,73 +166,13 @@ function toTitleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
-// ── Skeleton product card — shown while analyzing / fetching ──────────────────
-function SkeletonCard({ delay }: { delay: number }) {
-  const shimmer = {
-    animate: { opacity: [0.35, 0.7, 0.35] },
-    transition: {
-      duration: 1.4,
-      repeat: Infinity,
-      delay,
-      ease: "easeInOut" as const,
-    },
-  };
-  return (
-    <div
-      style={{
-        borderRadius: "14px",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        minHeight: 0,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      <motion.div
-        {...shimmer}
-        style={{ flex: "0 0 52%", background: "rgba(255,255,255,0.06)" }}
-      />
-      <div
-        style={{
-          flex: 1,
-          padding: "10px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "6px",
-          justifyContent: "center",
-        }}
-      >
-        <motion.div
-          {...shimmer}
-          style={{
-            height: 7,
-            width: "55%",
-            borderRadius: 4,
-            background: "rgba(255,255,255,0.08)",
-          }}
-        />
-        <motion.div
-          {...shimmer}
-          style={{
-            height: 9,
-            width: "85%",
-            borderRadius: 4,
-            background: "rgba(255,255,255,0.10)",
-          }}
-        />
-        <motion.div
-          {...shimmer}
-          style={{
-            height: 7,
-            width: "40%",
-            borderRadius: 4,
-            background: "rgba(255,255,255,0.06)",
-          }}
-        />
-      </div>
-    </div>
-  );
+// Split an AI "reason" string into up to three concise bullet points.
+function reasonToBullets(reason: string): string[] {
+  return reason
+    .split(/[.,;]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 3);
 }
 
 const SEVERITY_OPACITY: Record<string, number> = {
@@ -326,35 +286,17 @@ const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
-const PAGE_SIZE = 3;
-
-function useSwipe(onLeft: () => void, onRight: () => void) {
-  const startX = useRef<number | null>(null);
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (startX.current === null) return;
-      const delta = e.changedTouches[0].clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseDown: (e: React.MouseEvent) => {
-      startX.current = e.clientX;
-    },
-    onMouseUp: (e: React.MouseEvent) => {
-      if (startX.current === null) return;
-      const delta = e.clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseLeave: () => {
-      startX.current = null;
-    },
-  };
+// Group products into ordered category sections for the right-hand panel.
+function groupByCategory(
+  products: Product[],
+): { category: string; items: Product[] }[] {
+  const map = new Map<string, Product[]>();
+  for (const p of products) {
+    const key = p.category || "Skincare";
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(p);
+  }
+  return Array.from(map, ([category, items]) => ({ category, items }));
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -369,8 +311,7 @@ export default function CosmeticRecommendationPage() {
     capturedImage: null,
     analysis: null,
   });
-  const { capturedImage, analysis } = session;
-  const [page, setPage] = useState(0);
+  const { analysis } = session;
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(new Set());
   // Product whose full detail/why-recommended sheet is open (null = closed).
   const [detail, setDetail] = useState<Product | null>(null);
@@ -386,6 +327,44 @@ export default function CosmeticRecommendationPage() {
   const [faceState, setFaceState] = useState<"checking" | "ok" | "none">(
     "checking",
   );
+  // Live clock for the top bar.
+  const [now, setNow] = useState<Date>(() => new Date());
+  // Detailed weather for the left info panel.
+  const [weather, setWeather] = useState<DetailedWeather | null>(null);
+  // Purely-visual "saved to favourites" toggle for the bottom nav heart.
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Fetch detailed weather (temp / humidity / feels-like) once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    const load = (lat?: number, lon?: number) => {
+      const qs =
+        lat != null && lon != null ? `?lat=${lat}&lon=${lon}` : "";
+      fetch(`/api/weather${qs}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!cancelled) setWeather(d as DetailedWeather);
+        })
+        .catch(() => {});
+    };
+    if (typeof navigator !== "undefined" && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => load(coords.latitude, coords.longitude),
+        () => load(),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 600000 },
+      );
+    } else {
+      load();
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Runs the whole pipeline that used to live on the (now-removed) result page:
   // upload the capture → analyze the skin → then fetch product recommendations.
@@ -533,7 +512,7 @@ export default function CosmeticRecommendationPage() {
     [analysis],
   );
 
-  // Compact skin summary shown above the product grid (replaces the result page).
+  // Compact skin summary shown in the left panel (replaces the result page).
   const skin = useMemo(
     () =>
       analysis
@@ -603,27 +582,13 @@ export default function CosmeticRecommendationPage() {
               hasProductImage(p) && !failedImageIds.has(p.id) && !isExample(p),
           );
 
-  const totalPages = Math.ceil(products.length / PAGE_SIZE);
-  const pagedProducts = products.slice(
-    page * PAGE_SIZE,
-    (page + 1) * PAGE_SIZE,
-  );
-
   // Still working (checking for a face, analyzing skin, or fetching recs) and
   // nothing to show yet.
   const busy =
     (faceState === "checking" || analyzing || cwLoading) &&
     products.length === 0;
-  const swipe = useSwipe(
-    () => setPage((p) => Math.min(p + 1, totalPages - 1)),
-    () => setPage((p) => Math.max(p - 1, 0)),
-  );
 
-  if (totalPages > 0 && page > totalPages - 1) {
-    setPage(totalPages - 1);
-  } else if (totalPages === 0 && page !== 0) {
-    setPage(0);
-  }
+  const grouped = groupByCategory(products);
 
   // ── No face detected — show a clear retake prompt instead of a fake result ──
   if (faceState === "none") {
@@ -783,503 +748,925 @@ export default function CosmeticRecommendationPage() {
     );
   }
 
+  // ── Warm smart-mirror layout ────────────────────────────────────────────────
+  const time = now.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const day = now.toLocaleDateString([], { weekday: "long" });
+  const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
+  const hour = now.getHours();
+  const partOfDay =
+    hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+
+  // Warm palette tokens.
+  const CREAM = "rgba(255,248,242,0.95)";
+  const DIM = "rgba(245,228,214,0.6)";
+  const FAINT = "rgba(245,228,214,0.4)";
+  const GOLD = "rgba(255,201,150,0.95)";
+  const panel: React.CSSProperties = {
+    background: "rgba(40,30,24,0.34)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
+    border: "1px solid rgba(255,214,176,0.16)",
+    borderRadius: "22px",
+    padding: "26px 28px",
+    flex: "1 1 0",
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  };
+  const labelStyle: React.CSSProperties = {
+    color: GOLD,
+    fontSize: "13px",
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.14em",
+  };
+
+  // Composed "AI answer" sentence from the skin reading + today's weather.
+  const aiAnswer = !skin
+    ? "Looking you over and pulling together a routine tailored to your skin today…"
+    : [
+        `Your skin is reading as ${skin.skinType.toLowerCase()} today — hydration ${skin.hydration}%, oiliness ${skin.oiliness}%.`,
+        weather?.humidity != null && weather.humidity >= 65
+          ? "Humidity is high, so I'm focusing on oil control and lightweight, breathable layers."
+          : weather?.temp != null && weather.temp <= 18
+            ? "It's cool out, so I'm leaning into richer hydration and barrier care."
+            : "I've balanced gentle hydration with daytime protection for you.",
+      ].join(" ");
+
+  // Skin tips derived from the reading + concerns.
+  const tips: string[] = (() => {
+    const t: string[] = [];
+    const type = skin?.skinType?.toLowerCase() ?? "";
+    if (type.includes("oily")) {
+      t.push("Use a lightweight, oil-free moisturizer");
+      t.push("Blot midday instead of re-applying heavy cream");
+    } else if (type.includes("dry")) {
+      t.push("Layer a hydrating serum under your moisturizer");
+      t.push("Avoid hot water when cleansing");
+    } else {
+      t.push("Keep a simple cleanse · hydrate · protect routine");
+    }
+    if (concerns.some((c) => /pore/i.test(c.label)))
+      t.push("Add a BHA exfoliant 2–3× a week");
+    if (concerns.some((c) => /redness|sensitiv/i.test(c.label)))
+      t.push("Choose fragrance-free, calming formulas");
+    if (concerns.some((c) => /acne/i.test(c.label)))
+      t.push("Spot-treat with salicylic acid, not all over");
+    t.push("Always finish daytime with SPF");
+    return t.slice(0, 4);
+  })();
+
+  const weatherNote =
+    weather?.humidity != null && weather.humidity >= 65
+      ? "High humidity may add shine — focus on oil control."
+      : weather?.temp != null && weather.temp <= 18
+        ? "Cooler air can dry skin — layer on hydration."
+        : "Mild conditions — keep your routine balanced.";
+
+  const personalizing = analyzing || cwLoading;
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
-      {/* Header */}
-      <MirrorHeader
-        onBack={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+    <div className="relative w-screen h-screen overflow-hidden bg-black">
+      {/* Warm ambient wash — kept to the edges so the center stays dark for the
+          physical mirror reflection. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(120% 80% at 50% 0%, rgba(255,196,140,0.10) 0%, transparent 46%), radial-gradient(120% 90% at 50% 100%, rgba(255,170,110,0.09) 0%, transparent 52%)",
+        }}
+      />
+      {/* Glowing LED mirror frame */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: "10px",
+          borderRadius: "34px",
+          border: "2px solid rgba(255,206,160,0.55)",
+          boxShadow:
+            "0 0 22px 4px rgba(255,180,120,0.45), 0 0 60px 10px rgba(255,150,90,0.22), inset 0 0 36px rgba(255,190,130,0.12)",
+          pointerEvents: "none",
+        }}
       />
 
-      {/* Body */}
-      <div className="flex flex-col flex-1" style={{ minHeight: 0 }}>
-        {/* Top row: face mesh (left) + verdict (right) */}
+      {/* Content sits inside the frame */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: "26px 34px 18px",
+        }}
+      >
+        {/* ── Top bar ── */}
         <div
-          className="flex shrink-0 px-4 pt-3"
-          style={{ gap: "16px", alignItems: "stretch" }}
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "12px",
+          }}
         >
-          {/* Face mesh (left) */}
-          <motion.div
-            className="shrink-0"
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div
-              style={{
-                position: "relative",
-                height: "32vh",
-                aspectRatio: "3 / 4",
-                borderRadius: "14px",
-                overflow: "hidden",
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.04)",
-              }}
-            >
-            {/* The captured selfie is used for analysis but never shown — we
-                display an abstract analyzed face-mesh graphic instead. */}
-            <FaceScanGraphic mode="analyzed" />
-
-            {/* AI concern chips overlaid at photo bottom */}
-            {concerns.length > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  padding: "20px 8px 8px",
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "4px",
-                }}
-              >
-                {concerns.map((c) => (
-                  <span
-                    key={c.label}
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: "9999px",
-                      background: "rgba(255,255,255,0.12)",
-                      border: "1px solid rgba(255,255,255,0.20)",
-                      color: `rgba(255,255,255,${SEVERITY_OPACITY[c.severity]})`,
-                      fontSize: "9px",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {c.label}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-          {/* Verdict (right) — skin type + hydration/oiliness */}
+          {/* left: back + weather */}
           <div
-            className="flex-1"
-            style={{ display: "flex", alignItems: "center", minWidth: 0 }}
+            style={{
+              flex: "1 1 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              minWidth: 0,
+            }}
           >
-            <div
+            <button
+              onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
+              aria-label="Back"
               style={{
-                width: "100%",
-                borderRadius: "12px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                padding: "14px 16px",
+                color: DIM,
                 display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
+                justifyContent: "center",
+                padding: "4px",
               }}
             >
-              {skin ? (
-                <>
-                  <span
-                    style={{
-                      color: "white",
-                      fontSize: "16px",
-                      fontWeight: 700,
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {skin.skinType}
-                  </span>
-                  <span
-                    style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px" }}
-                  >
-                    {skin.skinTone}
-                  </span>
-                </>
-              ) : (
-                <motion.div
-                  animate={{ opacity: [0.35, 0.7, 0.35] }}
-                  transition={{
-                    duration: 1.4,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  style={{
-                    height: 12,
-                    width: "40%",
-                    borderRadius: 4,
-                    background: "rgba(255,255,255,0.1)",
-                  }}
-                />
-              )}
-            </div>
-
-            {(
-              [
-                { label: "Hydration", value: skin?.hydration ?? 0 },
-                { label: "Oiliness", value: skin?.oiliness ?? 0 },
-              ] as const
-            ).map(({ label, value }) => (
-              <div
-                key={label}
-                style={{ display: "flex", alignItems: "center", gap: "10px" }}
-              >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "26px", lineHeight: 1 }}>
+                {weather ? weatherEmoji(weather.code) : "🌤️"}
+              </span>
+              <div style={{ display: "flex", flexDirection: "column" }}>
                 <span
-                  style={{
-                    color: "rgba(255,255,255,0.38)",
-                    fontSize: "10px",
-                    width: "56px",
-                    flexShrink: 0,
-                  }}
+                  style={{ color: CREAM, fontSize: "17px", fontWeight: 600 }}
                 >
-                  {label}
+                  {weather?.temp != null ? `${weather.temp}°C` : "--°C"}
                 </span>
-                <div
-                  style={{
-                    flex: 1,
-                    height: "3px",
-                    borderRadius: "9999px",
-                    background: "rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: skin ? `${value}%` : "0%" }}
-                    transition={{ duration: 0.7, ease: "easeOut" }}
-                    style={{
-                      height: "100%",
-                      borderRadius: "9999px",
-                      background: "rgba(255,255,255,0.75)",
-                    }}
-                  />
-                </div>
-                <span
-                  style={{
-                    color: "rgba(255,255,255,0.65)",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    width: "30px",
-                    textAlign: "right",
-                    flexShrink: 0,
-                  }}
-                >
-                  {skin ? `${value}%` : "—"}
+                <span style={{ color: FAINT, fontSize: "11px" }}>
+                  {weather?.city && weather.city !== "---"
+                    ? weather.city
+                    : ""}
                 </span>
               </div>
-            ))}
+            </div>
+          </div>
+
+          {/* center: time + date */}
+          <div style={{ flex: "0 0 auto", textAlign: "center" }}>
+            <div
+              style={{
+                color: CREAM,
+                fontSize: "30px",
+                fontWeight: 300,
+                letterSpacing: "0.02em",
+                lineHeight: 1.1,
+              }}
+            >
+              {time}
+            </div>
+            <div style={{ color: DIM, fontSize: "13px" }}>
+              {day}, {date}
+            </div>
+          </div>
+
+          {/* right: greeting */}
+          <div
+            style={{ flex: "1 1 0", textAlign: "right", minWidth: 0 }}
+          >
+            <div style={{ color: CREAM, fontSize: "20px", fontWeight: 400 }}>
+              Hello!
+            </div>
+            <div style={{ color: DIM, fontSize: "12px" }}>
+              Have a great {partOfDay}
             </div>
           </div>
         </div>
 
-        {/* ── Product grid ─────────────────────────────────────────────────── */}
+        {/* ── Body: left info · transparent reflection · products ── */}
         <div
-          className="flex-1 px-4 pb-3 pt-3"
           style={{
+            flex: 1,
             minHeight: 0,
             display: "flex",
-            flexDirection: "column",
-            gap: "8px",
+            gap: "24px",
+            paddingTop: "24px",
           }}
         >
-          {/* Title row */}
+          {/* Left column */}
           <div
             style={{
+              flex: "0 0 30%",
+              minHeight: 0,
               display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              flexShrink: 0,
+              flexDirection: "column",
+              gap: "20px",
             }}
           >
-            <span
-              style={{
-                color: "rgba(255,255,255,0.85)",
-                fontSize: "14px",
-                fontWeight: 600,
-              }}
+            {/* AI suggestion */}
+            <motion.div
+              style={panel}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45 }}
             >
-              {cwProducts?.length ? "AI Picks" : "Recommended Products"}
-            </span>
-            {(analyzing || cwLoading) && (
-              <motion.span
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.2, repeat: Infinity }}
-                style={{ color: "rgba(72,199,142,0.8)", fontSize: "10px" }}
-              >
-                {analyzing ? "✦ analyzing skin…" : "✦ personalizing…"}
-              </motion.span>
-            )}
-            <span
-              style={{
-                color: "rgba(255,255,255,0.3)",
-                fontSize: "12px",
-                padding: "1px 8px",
-                borderRadius: "9999px",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              {products.length}
-            </span>
-            {totalPages > 1 && (
-              <span
+              <div
                 style={{
-                  marginLeft: "auto",
-                  color: "rgba(255,255,255,0.25)",
-                  fontSize: "11px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "14px",
                 }}
               >
-                {page + 1} / {totalPages}
-              </span>
+                <Mic className="w-4 h-4" style={{ color: GOLD }} />
+                <span style={labelStyle}>AI Suggestion</span>
+                {personalizing && (
+                  <motion.span
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    style={{ color: GOLD, fontSize: "12px", marginLeft: "auto" }}
+                  >
+                    ✦
+                  </motion.span>
+                )}
+              </div>
+              <p
+                style={{
+                  color: CREAM,
+                  fontSize: "17px",
+                  lineHeight: 1.7,
+                  margin: 0,
+                }}
+              >
+                {aiAnswer}
+              </p>
+            </motion.div>
+
+            {/* Skin reading */}
+            <motion.div
+              style={panel}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.05 }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  marginBottom: "16px",
+                }}
+              >
+                <span style={labelStyle}>Skin Reading</span>
+                {skin && (
+                  <span style={{ color: FAINT, fontSize: "13px" }}>
+                    {skin.skinTone}
+                  </span>
+                )}
+              </div>
+              <div
+                style={{
+                  color: CREAM,
+                  fontSize: "36px",
+                  fontWeight: 700,
+                  marginBottom: "20px",
+                }}
+              >
+                {skin ? skin.skinType : "Analyzing…"}
+              </div>
+              {(
+                [
+                  { label: "Hydration", value: skin?.hydration ?? 0 },
+                  { label: "Oiliness", value: skin?.oiliness ?? 0 },
+                ] as const
+              ).map(({ label, value }) => (
+                <div
+                  key={label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: DIM,
+                      fontSize: "13px",
+                      width: "72px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {label}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "7px",
+                      borderRadius: "9999px",
+                      background: "rgba(255,255,255,0.12)",
+                    }}
+                  >
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: skin ? `${value}%` : "0%" }}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      style={{
+                        height: "100%",
+                        borderRadius: "9999px",
+                        background:
+                          "linear-gradient(90deg, rgba(255,210,160,0.95), rgba(255,170,110,0.9))",
+                      }}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      color: CREAM,
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      width: "40px",
+                      textAlign: "right",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {skin ? `${value}%` : "—"}
+                  </span>
+                </div>
+              ))}
+              {concerns.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "7px",
+                    marginTop: "16px",
+                  }}
+                >
+                  {concerns.map((c) => (
+                    <span
+                      key={c.label}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: "9999px",
+                        background: "rgba(255,210,170,0.10)",
+                        border: "1px solid rgba(255,210,170,0.22)",
+                        color: `rgba(255,236,220,${SEVERITY_OPACITY[c.severity]})`,
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* Today's weather */}
+            <motion.div
+              style={panel}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.1 }}
+            >
+              <div style={{ ...labelStyle, marginBottom: "16px" }}>
+                Today&apos;s Weather
+              </div>
+              {(
+                [
+                  {
+                    icon: weather ? weatherEmoji(weather.code) : "🌤️",
+                    label:
+                      weather?.temp != null ? `${weather.temp}°C` : "--°C",
+                  },
+                  {
+                    icon: "💧",
+                    label:
+                      weather?.humidity != null
+                        ? `Humidity ${weather.humidity}%`
+                        : "Humidity —",
+                  },
+                  {
+                    icon: "🌡️",
+                    label:
+                      weather?.feelsLike != null
+                        ? `Feels like ${weather.feelsLike}°C`
+                        : "Feels like —",
+                  },
+                ] as const
+              ).map((row) => (
+                <div
+                  key={row.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    marginBottom: "11px",
+                  }}
+                >
+                  <span style={{ fontSize: "20px", width: "26px" }}>
+                    {row.icon}
+                  </span>
+                  <span style={{ color: CREAM, fontSize: "16px" }}>
+                    {row.label}
+                  </span>
+                </div>
+              ))}
+              <p
+                style={{
+                  color: DIM,
+                  fontSize: "13px",
+                  lineHeight: 1.55,
+                  margin: "12px 0 0",
+                }}
+              >
+                {weatherNote}
+              </p>
+            </motion.div>
+
+            {/* Skin tips */}
+            <motion.div
+              style={panel}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.45, delay: 0.15 }}
+            >
+              <div style={{ ...labelStyle, marginBottom: "16px" }}>
+                Skin Tip
+              </div>
+              {tips.map((t) => (
+                <div
+                  key={t}
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <span style={{ color: GOLD, fontSize: "16px", lineHeight: 1.5 }}>
+                    ✓
+                  </span>
+                  <span
+                    style={{ color: CREAM, fontSize: "16px", lineHeight: 1.5 }}
+                  >
+                    {t}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Center — left transparent so the physical mirror reflection shows
+              through. Only a subtle status pill appears while we work. */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              paddingBottom: "16px",
+            }}
+          >
+            {personalizing && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "8px 16px",
+                  borderRadius: "9999px",
+                  background: "rgba(40,30,24,0.45)",
+                  backdropFilter: "blur(10px)",
+                  border: "1px solid rgba(255,214,176,0.2)",
+                }}
+              >
+                <motion.span
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                  style={{ color: GOLD, fontSize: "12px" }}
+                >
+                  ✦
+                </motion.span>
+                <span style={{ color: CREAM, fontSize: "12px" }}>
+                  {analyzing
+                    ? "Analyzing your skin…"
+                    : "Personalizing your picks…"}
+                </span>
+              </motion.div>
             )}
           </div>
 
-          {/* Grid */}
+          {/* Right column — recommended products grouped by category */}
           <div
-            {...swipe}
             style={{
-              flex: 1,
+              flex: "0 0 34%",
               minHeight: 0,
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gridTemplateRows: "repeat(1, 1fr)",
-              gap: "10px",
-              userSelect: "none",
-              cursor: "grab",
-              touchAction: "pan-y",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {busy
-              ? [0, 1, 2].map((i) => (
-                  <SkeletonCard key={`sk-${i}`} delay={i * 0.2} />
-                ))
-              : pagedProducts.map((product, i) => (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "18px",
+                flexShrink: 0,
+              }}
+            >
+              <span
+                style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}
+              >
+                Recommended Products
+              </span>
+              <span
+                style={{
+                  color: FAINT,
+                  fontSize: "14px",
+                  padding: "2px 11px",
+                  borderRadius: "9999px",
+                  border: "1px solid rgba(255,214,176,0.2)",
+                }}
+              >
+                {products.length}
+              </span>
+            </div>
+
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: "18px",
+                paddingRight: "4px",
+              }}
+            >
+              {busy ? (
+                [0, 1, 2, 3].map((i) => (
                   <motion.div
-                    key={product.id}
-                    onClick={() => setDetail(product)}
-                    style={{
-                      borderRadius: "14px",
-                      overflow: "hidden",
-                      display: "flex",
-                      flexDirection: "column",
-                      minHeight: 0,
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      cursor: "pointer",
+                    key={`sk-${i}`}
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{
+                      duration: 1.4,
+                      repeat: Infinity,
+                      delay: i * 0.15,
                     }}
-                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: i * 0.05 }}
-                    whileTap={{ scale: 0.97 }}
+                    style={{
+                      flex: "1 1 0",
+                      minHeight: 110,
+                      maxHeight: 230,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "16px",
+                      padding: "18px",
+                      borderRadius: "18px",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,214,176,0.1)",
+                    }}
                   >
-                    {/* Image area */}
                     <div
                       style={{
-                        flex: "0 0 52%",
-                        position: "relative",
-                        background: "rgba(255,255,255,0.03)",
+                        width: 100,
+                        height: 100,
+                        borderRadius: 14,
+                        background: "rgba(255,255,255,0.07)",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                        justifyContent: "center",
                       }}
                     >
-                      {product.imageUrl && !failedImageIds.has(product.id) ? (
-                        <Image
-                          fill
-                          unoptimized
-                          src={product.imageUrl}
-                          alt={product.name}
-                          draggable={false}
-                          onError={() =>
-                            setFailedImageIds((current) => {
-                              const next = new Set(current);
-                              next.add(product.id);
-                              return next;
-                            })
-                          }
-                          style={{ objectFit: "contain" }}
-                          className="pointer-events-none"
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "5px",
-                            background:
-                              "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)",
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: "rgba(255,255,255,0.12)",
-                              fontSize: "22px",
-                              lineHeight: 1,
-                            }}
-                          >
-                            ◯
-                          </span>
-                          <span
-                            style={{
-                              color: "rgba(255,255,255,0.18)",
-                              fontSize: "8px",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                            }}
-                          >
-                            {product.category}
-                          </span>
-                        </div>
-                      )}
-                      {/* Score */}
                       <div
                         style={{
-                          position: "absolute",
-                          top: "6px",
-                          right: "6px",
-                          padding: "2px 7px",
-                          borderRadius: "9999px",
-                          background: "rgba(0,0,0,0.55)",
-                          backdropFilter: "blur(4px)",
-                          border: "1px solid rgba(255,255,255,0.12)",
+                          height: 8,
+                          width: "70%",
+                          borderRadius: 4,
+                          background: "rgba(255,255,255,0.08)",
                         }}
-                      >
-                        <span
-                          style={{
-                            color: "rgba(255,255,255,0.9)",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                          }}
-                        >
-                          {product.score}%
-                        </span>
-                      </div>
+                      />
+                      <div
+                        style={{
+                          height: 7,
+                          width: "45%",
+                          borderRadius: 4,
+                          background: "rgba(255,255,255,0.06)",
+                        }}
+                      />
+                      <div
+                        style={{
+                          height: 7,
+                          width: "85%",
+                          borderRadius: 4,
+                          background: "rgba(255,255,255,0.05)",
+                        }}
+                      />
                     </div>
-
-                    {/* Text area */}
+                  </motion.div>
+                ))
+              ) : products.length === 0 ? (
+                <div
+                  style={{
+                    margin: "auto",
+                    textAlign: "center",
+                    color: FAINT,
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                    padding: "24px",
+                  }}
+                >
+                  No picks to show yet.
+                  <br />
+                  Try scanning again for fresh recommendations.
+                </div>
+              ) : (
+                grouped.map(({ category, items }) => (
+                  <div
+                    key={category}
+                    style={{
+                      flex: "1 1 0",
+                      minHeight: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...labelStyle,
+                        color: DIM,
+                        marginBottom: "14px",
+                      }}
+                    >
+                      {category}
+                    </div>
                     <div
                       style={{
                         flex: 1,
                         minHeight: 0,
-                        padding: "8px 10px",
                         display: "flex",
                         flexDirection: "column",
-                        gap: "3px",
-                        overflow: "hidden",
+                        gap: "16px",
                       }}
                     >
-                      <span
-                        style={{
-                          color: "rgba(255,255,255,0.3)",
-                          fontSize: "8px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.09em",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {product.category} · {product.use}
-                      </span>
-                      <span
-                        style={{
-                          color: "white",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          lineHeight: 1.3,
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                        }}
-                      >
-                        {product.name}
-                      </span>
-                      <span
-                        style={{
-                          color: "rgba(255,255,255,0.38)",
-                          fontSize: "10px",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {product.brand}
-                      </span>
-                      {product.reason && (
-                        <div style={{ marginTop: "2px" }}>
-                          <span
+                      {items.map((product, i) => {
+                        const bullets = reasonToBullets(product.reason);
+                        return (
+                          <motion.button
+                            key={product.id}
+                            onClick={() => setDetail(product)}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: i * 0.04 }}
+                            whileTap={{ scale: 0.98 }}
                             style={{
-                              color: "rgba(72,199,142,0.9)",
-                              fontSize: "8px",
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
+                              flex: "1 1 0",
+                              minHeight: 110,
+                              maxHeight: 230,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "16px",
+                              padding: "18px",
+                              borderRadius: "18px",
+                              textAlign: "left",
+                              background: "rgba(40,30,24,0.34)",
+                              backdropFilter: "blur(10px)",
+                              border: "1px solid rgba(255,214,176,0.14)",
+                              cursor: "pointer",
                             }}
                           >
-                            Why
-                          </span>
-                          <span
-                            style={{
-                              display: "-webkit-box",
-                              color: "rgba(255,255,255,0.72)",
-                              fontSize: "10px",
-                              lineHeight: 1.35,
-                              overflow: "hidden",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                            }}
-                          >
-                            {product.reason}
-                          </span>
-                        </div>
-                      )}
-                      <span
-                        style={{
-                          marginTop: "auto",
-                          color: "rgba(255,255,255,0.4)",
-                          fontSize: "9px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Tap for details ›
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-          </div>
+                            {/* thumb */}
+                            <div
+                              style={{
+                                flex: "0 0 100px",
+                                height: 100,
+                                borderRadius: 14,
+                                overflow: "hidden",
+                                position: "relative",
+                                background: "rgba(255,255,255,0.05)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {product.imageUrl &&
+                              !failedImageIds.has(product.id) ? (
+                                <Image
+                                  fill
+                                  unoptimized
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  draggable={false}
+                                  onError={() =>
+                                    setFailedImageIds((current) => {
+                                      const next = new Set(current);
+                                      next.add(product.id);
+                                      return next;
+                                    })
+                                  }
+                                  style={{ objectFit: "contain" }}
+                                  className="pointer-events-none"
+                                />
+                              ) : (
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.15)",
+                                    fontSize: 40,
+                                  }}
+                                >
+                                  ◯
+                                </span>
+                              )}
+                            </div>
 
-          {/* Pagination dots */}
-          {totalPages > 1 && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "6px",
-                flexShrink: 0,
-                paddingBottom: "2px",
-              }}
-            >
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <div
-                  key={i}
-                  onClick={() => setPage(i)}
-                  style={{
-                    width: i === page ? "16px" : "5px",
-                    height: "5px",
-                    borderRadius: "9999px",
-                    background:
-                      i === page
-                        ? "rgba(255,255,255,0.8)"
-                        : "rgba(255,255,255,0.2)",
-                    transition: "all 0.3s ease",
-                    cursor: "pointer",
-                  }}
-                />
-              ))}
+                            {/* text */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "baseline",
+                                  justifyContent: "space-between",
+                                  gap: "8px",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: CREAM,
+                                    fontSize: "17px",
+                                    fontWeight: 600,
+                                    lineHeight: 1.3,
+                                    overflow: "hidden",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                  }}
+                                >
+                                  {product.name}
+                                </span>
+                                <span
+                                  style={{
+                                    color: GOLD,
+                                    fontSize: "14px",
+                                    fontWeight: 700,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {product.score}%
+                                </span>
+                              </div>
+                              {product.brand && (
+                                <div
+                                  style={{
+                                    color: FAINT,
+                                    fontSize: "13px",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    marginTop: "3px",
+                                  }}
+                                >
+                                  {product.brand}
+                                </div>
+                              )}
+                              {bullets.length > 0 ? (
+                                <ul
+                                  style={{
+                                    margin: "10px 0 0",
+                                    padding: 0,
+                                    listStyle: "none",
+                                  }}
+                                >
+                                  {bullets.map((b) => (
+                                    <li
+                                      key={b}
+                                      style={{
+                                        display: "flex",
+                                        gap: "7px",
+                                        color: DIM,
+                                        fontSize: "13px",
+                                        lineHeight: 1.5,
+                                        marginBottom: "3px",
+                                      }}
+                                    >
+                                      <span style={{ color: GOLD }}>·</span>
+                                      <span
+                                        style={{
+                                          overflow: "hidden",
+                                          display: "-webkit-box",
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: "vertical",
+                                        }}
+                                      >
+                                        {b}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div
+                                  style={{
+                                    color: FAINT,
+                                    fontSize: "13px",
+                                    marginTop: "8px",
+                                  }}
+                                >
+                                  Tap for details ›
+                                </div>
+                              )}
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* ── Bottom bar: mic + nav ── */}
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "8px",
+            paddingTop: "8px",
+          }}
+        >
+          <button
+            onClick={() => router.push(ROUTES.AI_ASSISTANT)}
+            aria-label="Ask me anything"
+            style={{
+              width: 66,
+              height: 66,
+              borderRadius: "9999px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255,200,150,0.16)",
+              border: "1px solid rgba(255,206,160,0.5)",
+              boxShadow: "0 0 24px rgba(255,180,120,0.4)",
+              cursor: "pointer",
+            }}
+          >
+            <Mic className="w-7 h-7" style={{ color: GOLD }} />
+          </button>
+          <span style={{ color: DIM, fontSize: "13px" }}>Ask me anything</span>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "42px",
+              marginTop: "6px",
+            }}
+          >
+            <button
+              onClick={() => router.push(ROUTES.OVERVIEW)}
+              aria-label="Home"
+              style={{ color: DIM }}
+            >
+              <Home className="w-7 h-7" />
+            </button>
+            <button
+              onClick={() => setSaved((s) => !s)}
+              aria-label="Save to favourites"
+              style={{ color: saved ? "rgba(255,120,120,0.95)" : DIM }}
+            >
+              <Heart
+                className="w-7 h-7"
+                fill={saved ? "currentColor" : "none"}
+              />
+            </button>
+            <button
+              onClick={() => router.push(ROUTES.LOGGED_IN)}
+              aria-label="Profile"
+              style={{ color: DIM }}
+            >
+              <User className="w-7 h-7" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1313,10 +1700,10 @@ export default function CosmeticRecommendationPage() {
                 width: "100%",
                 maxHeight: "82%",
                 overflowY: "auto",
-                background: "#0d1013",
+                background: "#15100c",
                 borderTopLeftRadius: 22,
                 borderTopRightRadius: 22,
-                border: "1px solid rgba(255,255,255,0.10)",
+                border: "1px solid rgba(255,214,176,0.16)",
                 padding: "16px 18px 26px",
                 display: "flex",
                 flexDirection: "column",
@@ -1329,7 +1716,7 @@ export default function CosmeticRecommendationPage() {
                   width: 40,
                   height: 4,
                   borderRadius: 999,
-                  background: "rgba(255,255,255,0.2)",
+                  background: "rgba(255,214,176,0.3)",
                   margin: "0 auto 2px",
                 }}
               />
@@ -1358,14 +1745,18 @@ export default function CosmeticRecommendationPage() {
                       style={{ objectFit: "contain" }}
                     />
                   ) : (
-                    <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 26 }}>◯</span>
+                    <span
+                      style={{ color: "rgba(255,255,255,0.15)", fontSize: 26 }}
+                    >
+                      ◯
+                    </span>
                   )}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span
                     style={{
-                      color: "rgba(255,255,255,0.4)",
+                      color: FAINT,
                       fontSize: 10,
                       textTransform: "uppercase",
                       letterSpacing: "0.09em",
@@ -1384,7 +1775,7 @@ export default function CosmeticRecommendationPage() {
                   >
                     {detail.name}
                   </h3>
-                  <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13 }}>
+                  <span style={{ color: DIM, fontSize: 13 }}>
                     {detail.brand}
                   </span>
                   <div
@@ -1395,11 +1786,17 @@ export default function CosmeticRecommendationPage() {
                       gap: 6,
                       padding: "3px 10px",
                       borderRadius: 999,
-                      background: "rgba(72,199,142,0.14)",
-                      border: "1px solid rgba(72,199,142,0.4)",
+                      background: "rgba(255,200,150,0.14)",
+                      border: "1px solid rgba(255,206,160,0.4)",
                     }}
                   >
-                    <span style={{ color: "rgba(72,199,142,0.95)", fontSize: 12, fontWeight: 700 }}>
+                    <span
+                      style={{
+                        color: GOLD,
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
                       {detail.score}% match
                     </span>
                   </div>
@@ -1410,15 +1807,15 @@ export default function CosmeticRecommendationPage() {
               {detail.reason && (
                 <div
                   style={{
-                    background: "rgba(72,199,142,0.07)",
-                    border: "1px solid rgba(72,199,142,0.22)",
+                    background: "rgba(255,200,150,0.07)",
+                    border: "1px solid rgba(255,206,160,0.22)",
                     borderRadius: 14,
                     padding: "12px 14px",
                   }}
                 >
                   <div
                     style={{
-                      color: "rgba(72,199,142,0.95)",
+                      color: GOLD,
                       fontSize: 11,
                       fontWeight: 700,
                       textTransform: "uppercase",
@@ -1454,7 +1851,13 @@ export default function CosmeticRecommendationPage() {
                 >
                   When to use
                 </div>
-                <p style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 1.5 }}>
+                <p
+                  style={{
+                    color: "rgba(255,255,255,0.75)",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                  }}
+                >
                   Apply as your {detail.category.toLowerCase()} during your{" "}
                   {detail.use === "AM"
                     ? "morning"
@@ -1472,7 +1875,7 @@ export default function CosmeticRecommendationPage() {
                   padding: "12px",
                   borderRadius: 12,
                   background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.14)",
+                  border: "1px solid rgba(255,214,176,0.18)",
                   color: "rgba(255,255,255,0.9)",
                   fontSize: 14,
                   fontWeight: 600,
