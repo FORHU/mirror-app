@@ -18,7 +18,8 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, setMap, userLocation } = useMapStore();
+  const { homeLocation, setSelectedPOI, showTraffic, setMap, userLocation } =
+    useMapStore();
   const initialCenter = homeLocation ?? userLocation;
 
   useMapCamera(map);
@@ -37,7 +38,11 @@ const MapViewport = () => {
 
     mapInstance.on("style.load", () => {
       mapInstance.setConfigProperty("basemap", "showPointsOfInterest", false);
-      mapInstance.setConfigProperty("basemap", "showPointOfInterestLabels", false);
+      mapInstance.setConfigProperty(
+        "basemap",
+        "showPointOfInterestLabels",
+        false,
+      );
       mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
       mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });

@@ -9,7 +9,6 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 
-
 const WAKE_WINDOW_MS = 2800;
 const WAKE_INTERVAL_MS = 900;
 type HandsFreePhase = "starting" | "wake" | "command" | "processing" | "error";
@@ -83,9 +82,7 @@ function stripLeadingWakePhrases(text: string) {
     }
   }
 
-  return command
-    .replace(/^(on the wall|mirror on the wall)\b/, "")
-    .trim();
+  return command.replace(/^(on the wall|mirror on the wall)\b/, "").trim();
 }
 
 function isWakeOnly(text: string) {
@@ -178,16 +175,13 @@ export default function AIAssistantPage() {
           : handsFreePhase === "processing"
             ? "Thinking"
             : handsFreeReady || handsFreePhase === "wake"
-          ? "Say Hey Mirror"
-          : "Starting mic";
+              ? "Say Hey Mirror"
+              : "Starting mic";
 
   const latest = chatHistory[chatHistory.length - 1];
   const displayUser = transcript || latest?.user || "";
   const displayReply =
-    error ||
-    reply ||
-    latest?.assistant ||
-    "Hi! What can I do for you?";
+    error || reply || latest?.assistant || "Hi! What can I do for you?";
 
   const micIcon = isListening ? (
     <MicOff className="w-16 h-16 text-white" />
@@ -199,13 +193,13 @@ export default function AIAssistantPage() {
     <Mic className="w-16 h-16 text-white/75" />
   );
 
-
-
   const startWakeWord = useCallback(() => {
     if (wakeLoopRef.current) return;
     if (voiceStateRef.current !== "idle") return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setHandsFreePhase("error");
       setHandsFreeDebug("Speech recognition unsupported");
@@ -220,7 +214,7 @@ export default function AIAssistantPage() {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = "en-US";
 
     recognition.onresult = (event: any) => {
       if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
@@ -231,7 +225,7 @@ export default function AIAssistantPage() {
         if (event.results[i].isFinal) final += event.results[i][0].transcript;
         else interim += event.results[i][0].transcript;
       }
-      
+
       const currentText = (final + " " + interim).trim();
       if (!currentText) return;
 
@@ -258,7 +252,7 @@ export default function AIAssistantPage() {
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error === 'not-allowed') {
+      if (event.error === "not-allowed") {
         setHandsFreeReady(false);
         setHandsFreePhase("error");
         setHandsFreeDebug("Microphone blocked");
@@ -276,13 +270,19 @@ export default function AIAssistantPage() {
     try {
       recognition.start();
       // Store on ref to abort on unmount
-      (micRef as any).current = { stop: () => recognition.stop(), clear: () => {} };
+      (micRef as any).current = {
+        stop: () => recognition.stop(),
+        clear: () => {},
+      };
     } catch {
       setHandsFreeDebug("Voice unavailable");
     }
   }, [toggle]);
 
   useEffect(() => {
+    // startWakeWord subscribes to the SpeechRecognition external system on mount;
+    // its synchronous setState calls are initial UI state, not a render cascade.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     startWakeWord();
     return () => {
       wakeLoopRef.current = false;
@@ -298,6 +298,26 @@ export default function AIAssistantPage() {
       return () => window.clearTimeout(id);
     }
   }, [restartTick, startWakeWord, voiceState]);
+
+  // Manual mic tap: release the continuous wake-word recognizer first so the
+  // recording recognizer can take the mic (Chrome allows only one at a time).
+  // If we're already recording/speaking, toggle immediately. Otherwise stop the
+  // wake loop and defer the start until the engine frees. The idle effect above
+  // re-arms the wake loop when we return.
+  const handleMicTap = useCallback(() => {
+    if (voiceStateRef.current !== "idle") {
+      toggle();
+      return;
+    }
+    wakeLoopRef.current = false;
+    if ((micRef as any).current) (micRef as any).current.stop();
+    setHandsFreeReady(false);
+    setHandsFreePhase("starting");
+    setHandsFreeDebug("Starting mic");
+    // Give the wake recognizer a beat to fully release the speech engine before
+    // the recording recognizer starts (Chrome allows only one active at a time).
+    window.setTimeout(() => toggle(), 350);
+  }, [toggle]);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
@@ -363,7 +383,7 @@ export default function AIAssistantPage() {
 
           <motion.button
             type="button"
-            onClick={toggle}
+            onClick={handleMicTap}
             className="relative flex items-center justify-center rounded-full outline-none"
             style={{
               width: 172,

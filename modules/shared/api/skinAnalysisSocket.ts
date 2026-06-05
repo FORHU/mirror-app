@@ -75,7 +75,9 @@ function registerUserRoom(s: Socket, userId: string): Promise<void> {
     s.emit("register_user", { userId }, (response?: RegisterUserResponse) => {
       window.clearTimeout(timeout);
       if (response?.status === "error") {
-        reject(new Error(response.message ?? "Failed to join analysis result room."));
+        reject(
+          new Error(response.message ?? "Failed to join analysis result room."),
+        );
         return;
       }
       joinedUserId = userId;
@@ -132,9 +134,7 @@ export async function listenForSkinAnalysis({
   }
   const complete = (d: unknown) => onComplete(d);
   const fail = (d: unknown) =>
-    onError(
-      (d as { message?: string })?.message ?? "Skin analysis failed",
-    );
+    onError((d as { message?: string })?.message ?? "Skin analysis failed");
   s.on("skin_analysis_complete", complete);
   s.on("skin_analysis_error", fail);
   return () => {

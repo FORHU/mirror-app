@@ -43,7 +43,6 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 - `app/` - routes, layouts, and app-level metadata
 - `components/` - app-level components
-- `modules/landing/` - landing page-specific API and UI
 - `modules/shared/` - shared components, API, hooks, store, and utilities
 - `public/` - static assets
 

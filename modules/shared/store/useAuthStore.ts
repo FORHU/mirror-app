@@ -45,7 +45,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // include it — guards against a race where _init resolves after gender
         // selection and a stale cached /me response wipes the gender.
         const currentGender = get().user?.gender;
-        const mergedUser = { ...freshUser, gender: freshUser.gender ?? currentGender };
+        const mergedUser = {
+          ...freshUser,
+          gender: freshUser.gender ?? currentGender,
+        };
         await setStorageData(USER, mergedUser);
         set({ user: mergedUser, isAuthenticated: true });
       } catch (e) {

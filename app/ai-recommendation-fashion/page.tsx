@@ -99,7 +99,10 @@ type RecordStep =
   | "done"
   | "error";
 
-function VoiceTranscribeOverlay({ onAiComplete, onLoadingChange }: {
+function VoiceTranscribeOverlay({
+  onAiComplete,
+  onLoadingChange,
+}: {
   onAiComplete?: (response: ChatWonderMessageResponse) => void;
   onLoadingChange?: (loading: boolean) => void;
 }) {
@@ -464,15 +467,21 @@ export default function VirtualMirrorV2() {
   type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
   const [swapItemId, setSwapItemId] = useState<string | null>(null);
-  const [outfitOverrides, setOutfitOverrides] = useState<Record<string, RemoteGarment>>({});
+  const [outfitOverrides, setOutfitOverrides] = useState<
+    Record<string, RemoteGarment>
+  >({});
   const outfitModified = Object.keys(outfitOverrides).length > 0;
 
-  function resolveSwapSlot(garmentType: string[], fittingSlot: string[]): SwapSlot {
+  function resolveSwapSlot(
+    garmentType: string[],
+    fittingSlot: string[],
+  ): SwapSlot {
     if (garmentType.includes("Bag")) return "bags";
     if (fittingSlot.includes("LowerGarment")) return "bottoms";
     if (fittingSlot.includes("FootGarment")) return "shoes";
     const t = garmentType[0] ?? "";
-    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t)) return "outer";
+    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t))
+      return "outer";
     if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
     return "base";
   }
@@ -923,7 +932,14 @@ export default function VirtualMirrorV2() {
                   pagedBags.map((g) => (
                     <div
                       key={g.id}
-                      onClick={() => { if (swapSlot === "bags" && swapItemId) { applySwap(g); } else { setSelectedBag(g); setSelectedOutfitIdx(null); } }}
+                      onClick={() => {
+                        if (swapSlot === "bags" && swapItemId) {
+                          applySwap(g);
+                        } else {
+                          setSelectedBag(g);
+                          setSelectedOutfitIdx(null);
+                        }
+                      }}
                       className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
                         aspectRatio: "1/1",
@@ -1259,83 +1275,121 @@ export default function VirtualMirrorV2() {
                           );
                         })
                         .map((item) => {
-                          const effective = outfitOverrides[item.id] ?? item.garment;
+                          const effective =
+                            outfitOverrides[item.id] ?? item.garment;
                           const isSwapping = swapItemId === item.id;
                           const isOverridden = !!outfitOverrides[item.id];
                           return (
-                          <div
-                            key={item.id}
-                            className="flex"
-                            onClick={() => {
-                              const slot = resolveSwapSlot(item.garment.garmentType, item.garment.fittingSlot);
-                              if (isSwapping) { cancelSwap(); return; }
-                              setSwapSlot(slot);
-                              setSwapItemId(item.id);
-                            }}
-                            style={{
-                              flex: "1 1 0",
-                              minHeight: 0,
-                              width: "100%",
-                              alignItems: "stretch",
-                              overflow: "hidden",
-                              background: "transparent",
-                              cursor: "pointer",
-                              border: isSwapping
-                                ? "1.5px solid rgba(255,255,255,0.6)"
-                                : isOverridden
-                                ? "1.5px solid rgba(100,220,120,0.5)"
-                                : "1.5px solid transparent",
-                              borderRadius: "8px",
-                              transition: "border-color 0.15s",
-                            }}
-                          >
                             <div
+                              key={item.id}
+                              className="flex"
+                              onClick={() => {
+                                const slot = resolveSwapSlot(
+                                  item.garment.garmentType,
+                                  item.garment.fittingSlot,
+                                );
+                                if (isSwapping) {
+                                  cancelSwap();
+                                  return;
+                                }
+                                setSwapSlot(slot);
+                                setSwapItemId(item.id);
+                              }}
                               style={{
-                                flex: "0 0 38%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: "8px 0 0 8px",
+                                flex: "1 1 0",
+                                minHeight: 0,
+                                width: "100%",
+                                alignItems: "stretch",
                                 overflow: "hidden",
+                                background: "transparent",
+                                cursor: "pointer",
+                                border: isSwapping
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : isOverridden
+                                    ? "1.5px solid rgba(100,220,120,0.5)"
+                                    : "1.5px solid transparent",
+                                borderRadius: "8px",
+                                transition: "border-color 0.15s",
                               }}
                             >
-                              {effective.imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={effective.imageUrl}
-                                  alt={effective.name}
-                                  draggable={false}
-                                  className="w-full h-full object-contain pointer-events-none"
-                                />
-                              ) : (
-                                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>
-                                  No Image
+                              <div
+                                style={{
+                                  flex: "0 0 38%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "8px 0 0 8px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {effective.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={effective.imageUrl}
+                                    alt={effective.name}
+                                    draggable={false}
+                                    className="w-full h-full object-contain pointer-events-none"
+                                  />
+                                ) : (
+                                  <span
+                                    style={{
+                                      color: "rgba(255,255,255,0.25)",
+                                      fontSize: "10px",
+                                    }}
+                                  >
+                                    No Image
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  padding: "5px 8px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "center",
+                                  gap: "2px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.35)",
+                                    fontSize: "8px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    overflow: "hidden",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {isOverridden
+                                    ? "Changed"
+                                    : effective.garmentType?.[0]}
                                 </span>
-                              )}
+                                <span
+                                  style={{
+                                    color: "white",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    lineHeight: 1.3,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.name}
+                                </span>
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.45)",
+                                    fontSize: "9px",
+                                    lineHeight: 1.4,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.description}
+                                </span>
+                              </div>
                             </div>
-                            <div
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                padding: "5px 8px",
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "center",
-                                gap: "2px",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                {isOverridden ? "Changed" : effective.garmentType?.[0]}
-                              </span>
-                              <span style={{ color: "white", fontSize: "10px", fontWeight: 600, lineHeight: 1.3, overflow: "hidden" }}>
-                                {effective.name}
-                              </span>
-                              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "9px", lineHeight: 1.4, overflow: "hidden" }}>
-                                {effective.description}
-                              </span>
-                            </div>
-                          </div>
                           );
                         })}
                     </div>
@@ -1469,13 +1523,34 @@ export default function VirtualMirrorV2() {
         >
           {/* Cancel swap mode */}
           {swapSlot && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "2px" }}>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingBottom: "2px",
+              }}
+            >
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.5)",
+                  fontSize: "10px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
                 Select replacement
               </span>
               <button
                 onClick={cancelSwap}
-                style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+                style={{
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: "11px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 4px",
+                }}
               >
                 ✕
               </button>
@@ -1483,58 +1558,68 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Base layer */}
-          {(aiLoading || voiceLoading || topsBase.length > 0) && (!swapSlot || swapSlot === "base") && (
-            <div className="flex flex-col gap-1">
-              <SectionTitle label="Base" />
-              <div
-                {...topsBaseSwipe}
-                style={{
-                  touchAction: "pan-y",
-                  userSelect: "none",
-                  cursor: "grab",
-                }}
-              >
+          {(aiLoading || voiceLoading || topsBase.length > 0) &&
+            (!swapSlot || swapSlot === "base") && (
+              <div className="flex flex-col gap-1">
+                <SectionTitle label="Base" />
                 <div
+                  {...topsBaseSwipe}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: "4px",
+                    touchAction: "pan-y",
+                    userSelect: "none",
+                    cursor: "grab",
                   }}
                 >
-                  {aiLoading || voiceLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
-                        <SkeletonCell key={i} />
-                      ))
-                    : pagedTopsBase.map((g, i) => (
-                        <div
-                          key={g?.id ?? i}
-                          onClick={() => { if (!g) return; if (swapSlot === "base" && swapItemId) { applySwap(g); } else { setSelectedTopBase(g); setSelectedOutfitIdx(null); } }}
-                          className="rounded-md overflow-hidden flex items-center justify-center"
-                          style={{
-                            aspectRatio: "1/1",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            border:
-                              selectedTopBase?.id === g.id
-                                ? "1.5px solid rgba(255,255,255,0.6)"
-                                : "1.5px solid transparent",
-                          }}
-                        >
-                          {g?.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={g.imageUrl}
-                              alt={g.name}
-                              draggable={false}
-                              className="w-full h-full object-contain pointer-events-none"
-                            />
-                          )}
-                        </div>
-                      ))}
-                </div>
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsBasePages) }).map(
-                    (_, i) => (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "4px",
+                    }}
+                  >
+                    {aiLoading || voiceLoading
+                      ? Array.from({ length: topsLayerPageSize }).map(
+                          (_, i) => <SkeletonCell key={i} />,
+                        )
+                      : pagedTopsBase.map((g, i) => (
+                          <div
+                            key={g?.id ?? i}
+                            onClick={() => {
+                              if (!g) return;
+                              if (swapSlot === "base" && swapItemId) {
+                                applySwap(g);
+                              } else {
+                                setSelectedTopBase(g);
+                                setSelectedOutfitIdx(null);
+                              }
+                            }}
+                            className="rounded-md overflow-hidden flex items-center justify-center"
+                            style={{
+                              aspectRatio: "1/1",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              border:
+                                selectedTopBase?.id === g.id
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : "1.5px solid transparent",
+                            }}
+                          >
+                            {g?.imageUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={g.imageUrl}
+                                alt={g.name}
+                                draggable={false}
+                                className="w-full h-full object-contain pointer-events-none"
+                              />
+                            )}
+                          </div>
+                        ))}
+                  </div>
+                  <div className="flex justify-center gap-1.5 pt-2">
+                    {Array.from({
+                      length: Math.max(1, totalTopsBasePages),
+                    }).map((_, i) => (
                       <div
                         key={i}
                         className="rounded-full transition-all duration-300"
@@ -1547,138 +1632,156 @@ export default function VirtualMirrorV2() {
                               : "rgba(255,255,255,0.3)",
                         }}
                       />
-                    ),
-                  )}
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Tops — Mid layer */}
-          {(aiLoading || voiceLoading || topsMid.length > 0) && (!swapSlot || swapSlot === "mid") && (
-            <div className="flex flex-col gap-1">
-              <SectionTitle label="Mid" />
-              <div
-                {...topsMidSwipe}
-                style={{
-                  touchAction: "pan-y",
-                  userSelect: "none",
-                  cursor: "grab",
-                }}
-              >
+          {(aiLoading || voiceLoading || topsMid.length > 0) &&
+            (!swapSlot || swapSlot === "mid") && (
+              <div className="flex flex-col gap-1">
+                <SectionTitle label="Mid" />
                 <div
+                  {...topsMidSwipe}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: "4px",
+                    touchAction: "pan-y",
+                    userSelect: "none",
+                    cursor: "grab",
                   }}
                 >
-                  {aiLoading || voiceLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
-                        <SkeletonCell key={i} />
-                      ))
-                    : pagedTopsMid.map((g, i) => (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "4px",
+                    }}
+                  >
+                    {aiLoading || voiceLoading
+                      ? Array.from({ length: topsLayerPageSize }).map(
+                          (_, i) => <SkeletonCell key={i} />,
+                        )
+                      : pagedTopsMid.map((g, i) => (
+                          <div
+                            key={g?.id ?? i}
+                            onClick={() => {
+                              if (!g) return;
+                              if (swapSlot === "mid" && swapItemId) {
+                                applySwap(g);
+                              } else {
+                                setSelectedTopMid(g);
+                                setSelectedOutfitIdx(null);
+                              }
+                            }}
+                            className="rounded-md overflow-hidden flex items-center justify-center"
+                            style={{
+                              aspectRatio: "1/1",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              border:
+                                selectedTopMid?.id === g.id
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : "1.5px solid transparent",
+                            }}
+                          >
+                            {g?.imageUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={g.imageUrl}
+                                alt={g.name}
+                                draggable={false}
+                                className="w-full h-full object-contain pointer-events-none"
+                              />
+                            )}
+                          </div>
+                        ))}
+                  </div>
+                  <div className="flex justify-center gap-1.5 pt-2">
+                    {Array.from({ length: Math.max(1, totalTopsMidPages) }).map(
+                      (_, i) => (
                         <div
-                          key={g?.id ?? i}
-                          onClick={() => { if (!g) return; if (swapSlot === "mid" && swapItemId) { applySwap(g); } else { setSelectedTopMid(g); setSelectedOutfitIdx(null); } }}
-                          className="rounded-md overflow-hidden flex items-center justify-center"
+                          key={i}
+                          className="rounded-full transition-all duration-300"
                           style={{
-                            aspectRatio: "1/1",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            border:
-                              selectedTopMid?.id === g.id
-                                ? "1.5px solid rgba(255,255,255,0.6)"
-                                : "1.5px solid transparent",
+                            width: i === topsMidPage ? 12 : 4,
+                            height: 4,
+                            background:
+                              i === topsMidPage
+                                ? "white"
+                                : "rgba(255,255,255,0.3)",
                           }}
-                        >
-                          {g?.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={g.imageUrl}
-                              alt={g.name}
-                              draggable={false}
-                              className="w-full h-full object-contain pointer-events-none"
-                            />
-                          )}
-                        </div>
-                      ))}
-                </div>
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsMidPages) }).map(
-                    (_, i) => (
-                      <div
-                        key={i}
-                        className="rounded-full transition-all duration-300"
-                        style={{
-                          width: i === topsMidPage ? 12 : 4,
-                          height: 4,
-                          background:
-                            i === topsMidPage
-                              ? "white"
-                              : "rgba(255,255,255,0.3)",
-                        }}
-                      />
-                    ),
-                  )}
+                        />
+                      ),
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Tops — Outer layer */}
-          {(aiLoading || voiceLoading || topsOuter.length > 0) && (!swapSlot || swapSlot === "outer") && (
-            <div className="flex flex-col gap-1">
-              <SectionTitle label="Outer" />
-              <div
-                {...topsOuterSwipe}
-                style={{
-                  touchAction: "pan-y",
-                  userSelect: "none",
-                  cursor: "grab",
-                }}
-              >
+          {(aiLoading || voiceLoading || topsOuter.length > 0) &&
+            (!swapSlot || swapSlot === "outer") && (
+              <div className="flex flex-col gap-1">
+                <SectionTitle label="Outer" />
                 <div
+                  {...topsOuterSwipe}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: "4px",
+                    touchAction: "pan-y",
+                    userSelect: "none",
+                    cursor: "grab",
                   }}
                 >
-                  {aiLoading || voiceLoading
-                    ? Array.from({ length: topsLayerPageSize }).map((_, i) => (
-                        <SkeletonCell key={i} />
-                      ))
-                    : pagedTopsOuter.map((g, i) => (
-                        <div
-                          key={g?.id ?? i}
-                          onClick={() => { if (!g) return; if (swapSlot === "outer" && swapItemId) { applySwap(g); } else { setSelectedTopOuter(g); setSelectedOutfitIdx(null); } }}
-                          className="rounded-md overflow-hidden flex items-center justify-center"
-                          style={{
-                            aspectRatio: "1/1",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            border:
-                              selectedTopOuter?.id === g.id
-                                ? "1.5px solid rgba(255,255,255,0.6)"
-                                : "1.5px solid transparent",
-                          }}
-                        >
-                          {g?.imageUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={g.imageUrl}
-                              alt={g.name}
-                              draggable={false}
-                              className="w-full h-full object-contain pointer-events-none"
-                            />
-                          )}
-                        </div>
-                      ))}
-                </div>
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: Math.max(1, totalTopsOuterPages) }).map(
-                    (_, i) => (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "4px",
+                    }}
+                  >
+                    {aiLoading || voiceLoading
+                      ? Array.from({ length: topsLayerPageSize }).map(
+                          (_, i) => <SkeletonCell key={i} />,
+                        )
+                      : pagedTopsOuter.map((g, i) => (
+                          <div
+                            key={g?.id ?? i}
+                            onClick={() => {
+                              if (!g) return;
+                              if (swapSlot === "outer" && swapItemId) {
+                                applySwap(g);
+                              } else {
+                                setSelectedTopOuter(g);
+                                setSelectedOutfitIdx(null);
+                              }
+                            }}
+                            className="rounded-md overflow-hidden flex items-center justify-center"
+                            style={{
+                              aspectRatio: "1/1",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                              border:
+                                selectedTopOuter?.id === g.id
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : "1.5px solid transparent",
+                            }}
+                          >
+                            {g?.imageUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={g.imageUrl}
+                                alt={g.name}
+                                draggable={false}
+                                className="w-full h-full object-contain pointer-events-none"
+                              />
+                            )}
+                          </div>
+                        ))}
+                  </div>
+                  <div className="flex justify-center gap-1.5 pt-2">
+                    {Array.from({
+                      length: Math.max(1, totalTopsOuterPages),
+                    }).map((_, i) => (
                       <div
                         key={i}
                         className="rounded-full transition-all duration-300"
@@ -1691,6 +1794,101 @@ export default function VirtualMirrorV2() {
                               : "rgba(255,255,255,0.3)",
                         }}
                       />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {(!swapSlot || swapSlot === "bottoms") && (
+            <div className="flex flex-col gap-1">
+              <SectionTitle label="Bottoms" />
+              <div
+                {...bottomsSwipe}
+                style={{
+                  touchAction: "pan-y",
+                  userSelect: "none",
+                  cursor: "grab",
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "4px",
+                  }}
+                >
+                  {aiLoading || voiceLoading ? (
+                    Array.from({ length: pageSize }).map((_, i) => (
+                      <SkeletonCell key={i} />
+                    ))
+                  ) : bottoms.length === 0 ? (
+                    <div
+                      style={{
+                        gridColumn: "1 / -1",
+                        height: "120px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "rgba(255,255,255,0.3)",
+                        fontSize: "12px",
+                        border: "1px dashed rgba(255,255,255,0.1)",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      No recommended Bottoms
+                    </div>
+                  ) : (
+                    pagedBottoms.map((g) => (
+                      <div
+                        key={g.id}
+                        onClick={() => {
+                          if (swapSlot === "bottoms" && swapItemId) {
+                            applySwap(g);
+                          } else {
+                            setSelectedBottom(g);
+                            setSelectedOutfitIdx(null);
+                          }
+                        }}
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          border:
+                            selectedBottom?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex justify-center gap-1.5 pt-2">
+                  {Array.from({ length: Math.max(1, totalBottomsPages) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full transition-all duration-300"
+                        style={{
+                          width: i === bottomsPage ? 12 : 4,
+                          height: 4,
+                          background:
+                            i === bottomsPage
+                              ? "white"
+                              : "rgba(255,255,255,0.3)",
+                        }}
+                      />
                     ),
                   )}
                 </div>
@@ -1698,178 +1896,98 @@ export default function VirtualMirrorV2() {
             </div>
           )}
 
-          {(!swapSlot || swapSlot === "bottoms") && (
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Bottoms" />
-            <div
-              {...bottomsSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "4px",
-                }}
-              >
-                {aiLoading || voiceLoading ? (
-                  Array.from({ length: pageSize }).map((_, i) => (
-                    <SkeletonCell key={i} />
-                  ))
-                ) : bottoms.length === 0 ? (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      height: "120px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "12px",
-                      border: "1px dashed rgba(255,255,255,0.1)",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    No recommended Bottoms
-                  </div>
-                ) : (
-                  pagedBottoms.map((g) => (
-                    <div
-                      key={g.id}
-                      onClick={() => { if (swapSlot === "bottoms" && swapItemId) { applySwap(g); } else { setSelectedBottom(g); setSelectedOutfitIdx(null); } }}
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        border:
-                          selectedBottom?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalBottomsPages) }).map(
-                  (_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === bottomsPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === bottomsPage ? "white" : "rgba(255,255,255,0.3)",
-                      }}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-          )}
-
           {(!swapSlot || swapSlot === "shoes") && (
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Shoes" />
-            <div
-              {...shoesSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
+            <div className="flex flex-col gap-1">
+              <SectionTitle label="Shoes" />
               <div
+                {...shoesSwipe}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "4px",
+                  touchAction: "pan-y",
+                  userSelect: "none",
+                  cursor: "grab",
                 }}
               >
-                {aiLoading || voiceLoading ? (
-                  Array.from({ length: shoesPageSize }).map((_, i) => (
-                    <SkeletonCell key={i} />
-                  ))
-                ) : shoes.length === 0 ? (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      height: "90px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "12px",
-                      border: "1px dashed rgba(255,255,255,0.1)",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    No recommended Shoes
-                  </div>
-                ) : (
-                  pagedShoes.map((g) => (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "4px",
+                  }}
+                >
+                  {aiLoading || voiceLoading ? (
+                    Array.from({ length: shoesPageSize }).map((_, i) => (
+                      <SkeletonCell key={i} />
+                    ))
+                  ) : shoes.length === 0 ? (
                     <div
-                      key={g.id}
-                      onClick={() => { if (swapSlot === "shoes" && swapItemId) { applySwap(g); } else { setSelectedShoe(g); setSelectedOutfitIdx(null); } }}
-                      className="rounded-md overflow-hidden flex items-center justify-center"
                       style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: "pointer",
-                        border:
-                          selectedShoe?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
+                        gridColumn: "1 / -1",
+                        height: "90px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "rgba(255,255,255,0.3)",
+                        fontSize: "12px",
+                        border: "1px dashed rgba(255,255,255,0.1)",
+                        borderRadius: "6px",
                       }}
                     >
-                      {g.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
+                      No recommended Shoes
                     </div>
-                  ))
-                )}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalShoesPages) }).map(
-                  (_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === shoesPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === shoesPage ? "white" : "rgba(255,255,255,0.3)",
-                      }}
-                    />
-                  ),
-                )}
+                  ) : (
+                    pagedShoes.map((g) => (
+                      <div
+                        key={g.id}
+                        onClick={() => {
+                          if (swapSlot === "shoes" && swapItemId) {
+                            applySwap(g);
+                          } else {
+                            setSelectedShoe(g);
+                            setSelectedOutfitIdx(null);
+                          }
+                        }}
+                        className="rounded-md overflow-hidden flex items-center justify-center"
+                        style={{
+                          aspectRatio: "1/1",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          border:
+                            selectedShoe?.id === g.id
+                              ? "1.5px solid rgba(255,255,255,0.6)"
+                              : "1.5px solid transparent",
+                        }}
+                      >
+                        {g.imageUrl && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={g.imageUrl}
+                            alt={g.name}
+                            draggable={false}
+                            className="w-full h-full object-contain pointer-events-none"
+                          />
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex justify-center gap-1.5 pt-2">
+                  {Array.from({ length: Math.max(1, totalShoesPages) }).map(
+                    (_, i) => (
+                      <div
+                        key={i}
+                        className="rounded-full transition-all duration-300"
+                        style={{
+                          width: i === shoesPage ? 12 : 4,
+                          height: 4,
+                          background:
+                            i === shoesPage ? "white" : "rgba(255,255,255,0.3)",
+                        }}
+                      />
+                    ),
+                  )}
+                </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -1963,23 +2081,43 @@ export default function VirtualMirrorV2() {
                 // canvas garments from outfit items + overrides.
                 // Otherwise fall back to individual slot selections.
                 let cBase: RemoteGarment | null = selectedTopBase;
-                let cMid:  RemoteGarment | null = selectedTopMid;
+                let cMid: RemoteGarment | null = selectedTopMid;
                 let cOuter: RemoteGarment | null = selectedTopOuter;
                 let cBottom: RemoteGarment | null = selectedBottom;
-                let cShoe:   RemoteGarment | null = selectedShoe;
-                let cBag:    RemoteGarment | null = selectedBag;
+                let cShoe: RemoteGarment | null = selectedShoe;
+                let cBag: RemoteGarment | null = selectedBag;
 
-                const activeOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+                const activeOutfit =
+                  selectedOutfitIdx !== null
+                    ? (outfits[selectedOutfitIdx] ?? null)
+                    : null;
                 if (activeOutfit) {
-                  cBase = null; cMid = null; cOuter = null;
-                  cBottom = null; cShoe = null; cBag = null;
+                  cBase = null;
+                  cMid = null;
+                  cOuter = null;
+                  cBottom = null;
+                  cShoe = null;
+                  cBag = null;
                   for (const item of activeOutfit.items) {
-                    const eff = (outfitOverrides[item.id] ?? item.garment) as RemoteGarment;
-                    if (eff.garmentType?.includes("Bag")) { cBag = eff; continue; }
-                    if (item.slot === "LowerGarment") { cBottom = eff; continue; }
-                    if (item.slot === "FootGarment")  { cShoe   = eff; continue; }
+                    const eff = (outfitOverrides[item.id] ??
+                      item.garment) as RemoteGarment;
+                    if (eff.garmentType?.includes("Bag")) {
+                      cBag = eff;
+                      continue;
+                    }
+                    if (item.slot === "LowerGarment") {
+                      cBottom = eff;
+                      continue;
+                    }
+                    if (item.slot === "FootGarment") {
+                      cShoe = eff;
+                      continue;
+                    }
                     if (item.slot === "UpperGarment") {
-                      const layer = resolveSwapSlot(eff.garmentType ?? [], eff.fittingSlot ?? []);
+                      const layer = resolveSwapSlot(
+                        eff.garmentType ?? [],
+                        eff.fittingSlot ?? [],
+                      );
                       if (layer === "outer") cOuter = eff;
                       else if (layer === "mid") cMid = eff;
                       else cBase = eff;
@@ -2020,7 +2158,10 @@ export default function VirtualMirrorV2() {
         </div>
       )}
 
-      <VoiceTranscribeOverlay onAiComplete={(r) => handleAiComplete(r)} onLoadingChange={setVoiceLoading} />
+      <VoiceTranscribeOverlay
+        onAiComplete={(r) => handleAiComplete(r)}
+        onLoadingChange={setVoiceLoading}
+      />
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

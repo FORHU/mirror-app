@@ -13,8 +13,6 @@
  *     global voice mic routes it through ChatWonder, whose tools (garments,
  *     skin, location, weather) stream back and populate the remaining tiles.
  *  4. Until each tool's data arrives, its tile shows a skeleton.
- *
- * The previous "Jump to a feature" menu is preserved in ./LegacyOverviewMenu.tsx.
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -49,10 +47,10 @@ import {
   useOverviewStore,
   adaptGarmentData,
   adaptMapsData,
+  adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
-
-const GREETING = "Hi! What can I do for you?";
+import { outlineService } from "@/modules/shared/api/outline.service";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -74,29 +72,6 @@ type OverviewWeatherContext = {
   lon?: number;
   location?: string;
 };
-
-/** Best-effort TTS playback of the greeting (mirrors the chat-stream pattern). */
-async function speak(text: string) {
-  try {
-    const token =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("access_token") || ""
-        : "";
-    const res = await fetch("/api/mirror/voice/tts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ text }),
-    });
-    if (!res.ok) return;
-    const url = URL.createObjectURL(await res.blob());
-    void new Audio(url).play().catch(() => {});
-  } catch {
-    /* TTS is best-effort */
-  }
-}
 
 function weatherToChatContext(
   raw: Record<string, unknown>,
@@ -193,6 +168,31 @@ export default function OverviewPage() {
     return () => reset();
   }, [reset]);
 
+  // ── hybrid hydration: reflect the persisted Outline on arrival ──
+  // Overview is a downstream dashboard, so on mount we fill the tiles from the
+  // user's saved Outline. Live ChatWonder updates overwrite these afterward. The
+  // Map tile fills via the map-store effect once loadOutlineStops geocodes the
+  // events' destinations.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const outline = await outlineService.getActive();
+        if (cancelled || !outline) return;
+        const { garments, outfits, cosmetics } = adaptOutlineToTiles(outline);
+        if (garments.length) setGarments(garments);
+        if (outfits.length) setOutfits(outfits);
+        if (cosmetics) setCosmetics(cosmetics);
+        void useMapStore.getState().loadOutlineStops();
+      } catch {
+        /* hydration is best-effort; live updates still populate the tiles */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setGarments, setOutfits, setCosmetics]);
+
   // ── background skin analysis ──
   const runSkinAnalysis = useCallback(
     async (frameDataUrl: string) => {
@@ -227,14 +227,12 @@ export default function OverviewPage() {
   const onFaceDetected = useCallback(
     (frameDataUrl: string) => {
       setFaceDetected(true);
-      // Skip the greeting/TTS if the assistant already greeted before handoff.
-      if (!cameFromAssistantRef.current) {
-        setGreeting(GREETING);
-        void speak(GREETING);
-      }
+      // Overview is a downstream dashboard, not an entry screen — it does not
+      // greet. It only runs the passive skin analysis. (Greeting belongs to
+      // /ai-assistant.)
       void runSkinAnalysis(frameDataUrl);
     },
-    [setFaceDetected, setGreeting, runSkinAnalysis],
+    [setFaceDetected, runSkinAnalysis],
   );
 
   const { videoRef, status: trackerStatus } = useFaceTracker({
@@ -500,7 +498,7 @@ export default function OverviewPage() {
       {/* Footer */}
       <div className="flex justify-between items-center mt-4 shrink-0">
         <button
-          onClick={() => router.push(ROUTES.LOGGED_IN)}
+          onClick={() => router.back()}
           className="text-white/40 hover:text-white text-base transition-colors"
         >
           ← Back

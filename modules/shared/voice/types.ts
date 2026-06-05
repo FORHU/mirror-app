@@ -2,13 +2,10 @@ export type VoiceState = "idle" | "recording" | "processing" | "speaking";
 
 export type Route =
   | "/"
-  | "/select-gender"
-  | "/authentication"
   | "/ai-recommendation-fashion"
   | "/ai-recommendation-cosmetic"
   | "/map"
-  | "/overview"
-  | "/virtual-mirror";
+  | "/overview";
 
 export type PendingAction = {
   type: string;

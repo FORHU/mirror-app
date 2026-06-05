@@ -24,9 +24,5 @@ export function AuthInitializer({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) useOutlineStore.getState().reset();
   }, [isAuthenticated]);
 
-  // Auto-logout after 5 min of inactivity; releases the kiosk lock too.
-  // Self-disables when not authenticated.
-  // [Disabled] useIdleLogout();
-
   return <>{children}</>;
 }

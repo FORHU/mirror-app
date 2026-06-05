@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
-import { resolveNav } from "@/lib/navResolver";
+import { ROUTES, SITEMAP_CONTEXT, isKnownRoute } from "@/navigation";
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
   .replace(/\/api\/?$/, "")
@@ -56,20 +55,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Empty message" }, { status: 400 });
     }
 
-    // Navigation short-circuit: resolve "[nav]" / "go to X" requests against the
-    // app's real routes here, deterministically, instead of relying on the
-    // ChatWonder styling agent (which doesn't understand navigation). Returns the
-    // same { reply, route, routeLabel } shape the client already handles, so
-    // page.tsx will speak the reply then router.push(route).
-    const nav = resolveNav(message);
-    if (nav) {
-      return NextResponse.json({
-        reply: `Sure — opening ${nav.label}.`,
-        route: nav.target_url,
-        routeLabel: "Open page",
-      });
-    }
-
     // Situation/prep prompts belong on /overview, where the existing handoff
     // replays the original prompt through ChatWonder's streaming tool pipeline.
     const overview = resolveOverviewHandoff(message);
@@ -99,7 +84,9 @@ export async function POST(req: NextRequest) {
         method: "POST",
         headers,
         body: JSON.stringify({
-          input: message.trim(),
+          // Tag as [stylist] so the backend selects the Mirror Stylist persona,
+          // which emits the canonical [STYLIST]{target_url} navigation block.
+          input: `[stylist] ${message.trim()}`,
           sitemap_context: SITEMAP_CONTEXT,
         }),
       },
@@ -114,15 +101,38 @@ export async function POST(req: NextRequest) {
     }
 
     const data = json.data ?? {};
+    // Canonical nav block. `stylist_data` already prefers [STYLIST] and folds in
+    // the legacy [NAV_DATA] fallback server-side, so we read a single field.
+    const rawTarget =
+      typeof data.stylist_data?.target_url === "string"
+        ? data.stylist_data.target_url
+        : null;
+    // Special session gestures handled client-side (not pushable routes).
+    const command =
+      rawTarget === "restart" || rawTarget === "refresh" ? rawTarget : null;
+    // "back" is a client-only gesture (router.back); not a pushable route on the
+    // landing screen. Also ignore stale targets that aren't real app routes.
     const targetUrl =
-      typeof data.nav_data?.target_url === "string"
-        ? data.nav_data.target_url
+      rawTarget && !command && rawTarget !== "back" && isKnownRoute(rawTarget)
+        ? rawTarget
         : null;
 
+    // When the response carries a navigation gesture, speak its system_message
+    // ("Navigating to the fashion section.") rather than any raw reply text.
+    const systemMessage =
+      typeof data.stylist_data?.system_message === "string"
+        ? data.stylist_data.system_message
+        : null;
+    const reply =
+      (rawTarget && systemMessage) ||
+      data.message ||
+      "I'm not sure how to help with that.";
+
     return NextResponse.json({
-      reply: data.message ?? "I'm not sure how to help with that.",
+      reply,
       route: targetUrl,
       routeLabel: targetUrl ? "Open page" : null,
+      command,
     });
   } catch (err) {
     console.error("[ai-assistant]", err);

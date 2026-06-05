@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { ArrowLeft, ChevronLeft, Home, Heart, User, Mic } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Home, Heart, Mic } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import "../../../styles/glow.css";
@@ -343,8 +343,7 @@ export default function CosmeticRecommendationPage() {
   useEffect(() => {
     let cancelled = false;
     const load = (lat?: number, lon?: number) => {
-      const qs =
-        lat != null && lon != null ? `?lat=${lat}&lon=${lon}` : "";
+      const qs = lat != null && lon != null ? `?lat=${lat}&lon=${lon}` : "";
       fetch(`/api/weather${qs}`)
         .then((r) => r.json())
         .then((d) => {
@@ -756,8 +755,7 @@ export default function CosmeticRecommendationPage() {
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
   const hour = now.getHours();
-  const partOfDay =
-    hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const partOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
   // Warm palette tokens.
   const CREAM = "rgba(255,248,242,0.95)";
@@ -912,9 +910,7 @@ export default function CosmeticRecommendationPage() {
                   {weather?.temp != null ? `${weather.temp}°C` : "--°C"}
                 </span>
                 <span style={{ color: FAINT, fontSize: "11px" }}>
-                  {weather?.city && weather.city !== "---"
-                    ? weather.city
-                    : ""}
+                  {weather?.city && weather.city !== "---" ? weather.city : ""}
                 </span>
               </div>
             </div>
@@ -939,9 +935,7 @@ export default function CosmeticRecommendationPage() {
           </div>
 
           {/* right: greeting */}
-          <div
-            style={{ flex: "1 1 0", textAlign: "right", minWidth: 0 }}
-          >
+          <div style={{ flex: "1 1 0", textAlign: "right", minWidth: 0 }}>
             <div style={{ color: CREAM, fontSize: "20px", fontWeight: 400 }}>
               Hello!
             </div>
@@ -992,7 +986,11 @@ export default function CosmeticRecommendationPage() {
                   <motion.span
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1.2, repeat: Infinity }}
-                    style={{ color: GOLD, fontSize: "12px", marginLeft: "auto" }}
+                    style={{
+                      color: GOLD,
+                      fontSize: "12px",
+                      marginLeft: "auto",
+                    }}
                   >
                     ✦
                   </motion.span>
@@ -1145,8 +1143,7 @@ export default function CosmeticRecommendationPage() {
                 [
                   {
                     icon: weather ? weatherEmoji(weather.code) : "🌤️",
-                    label:
-                      weather?.temp != null ? `${weather.temp}°C` : "--°C",
+                    label: weather?.temp != null ? `${weather.temp}°C` : "--°C",
                   },
                   {
                     icon: "💧",
@@ -1212,7 +1209,9 @@ export default function CosmeticRecommendationPage() {
                     marginBottom: "12px",
                   }}
                 >
-                  <span style={{ color: GOLD, fontSize: "16px", lineHeight: 1.5 }}>
+                  <span
+                    style={{ color: GOLD, fontSize: "16px", lineHeight: 1.5 }}
+                  >
                     ✓
                   </span>
                   <span
@@ -1286,9 +1285,7 @@ export default function CosmeticRecommendationPage() {
                 flexShrink: 0,
               }}
             >
-              <span
-                style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}
-              >
+              <span style={{ color: CREAM, fontSize: "22px", fontWeight: 600 }}>
                 Recommended Products
               </span>
               <span
@@ -1658,13 +1655,6 @@ export default function CosmeticRecommendationPage() {
                 className="w-7 h-7"
                 fill={saved ? "currentColor" : "none"}
               />
-            </button>
-            <button
-              onClick={() => router.push(ROUTES.LOGGED_IN)}
-              aria-label="Profile"
-              style={{ color: DIM }}
-            >
-              <User className="w-7 h-7" />
             </button>
           </div>
         </div>

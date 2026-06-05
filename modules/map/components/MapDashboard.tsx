@@ -13,8 +13,15 @@ import WeatherWidget from "./WeatherWidget";
 import DevToolsOverlay from "./DevToolsOverlay";
 
 export default function MapDashboard() {
-  const { setUserLocation, saveHomeLocation, suggestedPOIs, suggestionLabel, setDestination, clearSuggestions, isPanning } =
-    useMapStore();
+  const {
+    setUserLocation,
+    saveHomeLocation,
+    suggestedPOIs,
+    suggestionLabel,
+    setDestination,
+    clearSuggestions,
+    isPanning,
+  } = useMapStore();
   const { transcriptOpen, transcript, reply, error } = useVoiceContext();
   const chatVisible = transcriptOpen && !!(transcript || reply || error);
 

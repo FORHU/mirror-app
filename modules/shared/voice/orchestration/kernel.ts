@@ -9,7 +9,7 @@ export async function runKernel(
   router: AppRouterInstance,
   onAction?: (action: ChatWonderAction) => void,
 ) {
-  const guard = guardAction(action, pathname);
+  const guard = guardAction(action);
 
   if (!guard.allowed) {
     return {

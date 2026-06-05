@@ -3,7 +3,16 @@
 import React, { useState } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
-import { Navigation, LocateFixed, X, Home, Check, MapPin, PersonStanding, Car } from "lucide-react";
+import {
+  Navigation,
+  LocateFixed,
+  X,
+  Home,
+  Check,
+  MapPin,
+  PersonStanding,
+  Car,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const PANEL = {

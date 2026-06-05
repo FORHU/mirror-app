@@ -52,8 +52,14 @@ export default function RoutePreviewCard() {
   } = useMapStore();
 
   const isItinerary = itineraryStops.length > 0;
-  const totalItineraryDistance = itineraryRoutes.reduce((s, r) => s + r.distance, 0);
-  const totalItineraryDuration = itineraryRoutes.reduce((s, r) => s + r.duration, 0);
+  const totalItineraryDistance = itineraryRoutes.reduce(
+    (s, r) => s + r.distance,
+    0,
+  );
+  const totalItineraryDuration = itineraryRoutes.reduce(
+    (s, r) => s + r.duration,
+    0,
+  );
   const visible = !!selectedDestination || isItinerary;
   const activeGroup = itineraryGroups[activeItineraryIndex];
 
@@ -76,8 +82,10 @@ export default function RoutePreviewCard() {
         >
           {/* Leg tabs — only shown when there are multiple itinerary groups */}
           {itineraryGroups.length > 1 && (
-            <div className="flex gap-2 px-5 pt-3 pb-1 overflow-x-auto"
-              style={{ scrollbarWidth: "none" }}>
+            <div
+              className="flex gap-2 px-5 pt-3 pb-1 overflow-x-auto"
+              style={{ scrollbarWidth: "none" }}
+            >
               {itineraryGroups.map((group, i) => (
                 <button
                   key={i}
@@ -85,8 +93,16 @@ export default function RoutePreviewCard() {
                   className="shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95"
                   style={
                     i === activeItineraryIndex
-                      ? { background: "#2144c0", color: "white", border: "1.5px solid rgba(255,255,255,0.3)" }
-                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.08)" }
+                      ? {
+                          background: "#2144c0",
+                          color: "white",
+                          border: "1.5px solid rgba(255,255,255,0.3)",
+                        }
+                      : {
+                          background: "rgba(255,255,255,0.06)",
+                          color: "rgba(255,255,255,0.45)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }
                   }
                 >
                   {group.label}
@@ -130,7 +146,9 @@ export default function RoutePreviewCard() {
                     Distance
                   </p>
                   <p className="text-xl font-light text-blue-400">
-                    {formatDistance(isItinerary ? totalItineraryDistance : routeDistance)}
+                    {formatDistance(
+                      isItinerary ? totalItineraryDistance : routeDistance,
+                    )}
                   </p>
                 </div>
                 <div className="w-px h-7 bg-white/10" />
@@ -139,7 +157,9 @@ export default function RoutePreviewCard() {
                     ETA
                   </p>
                   <p className="text-xl font-light text-white/80">
-                    {formatDuration(isItinerary ? totalItineraryDuration : routeDuration)}
+                    {formatDuration(
+                      isItinerary ? totalItineraryDuration : routeDuration,
+                    )}
                   </p>
                 </div>
               </div>
@@ -150,7 +170,9 @@ export default function RoutePreviewCard() {
               {TRANSPORT.map(({ profile, Icon }) => (
                 <button
                   key={profile}
-                  onClick={() => useMapStore.getState().setActiveProfile(profile)}
+                  onClick={() =>
+                    useMapStore.getState().setActiveProfile(profile)
+                  }
                   className="w-9 h-9 flex items-center justify-center rounded-xl
                              transition-all active:scale-95"
                   style={activeProfile === profile ? BTN_ACTIVE : BTN_DIM}

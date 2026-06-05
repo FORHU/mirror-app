@@ -5,7 +5,10 @@ import { useMapStore } from "../store/useMapStore";
 import { mapService } from "../services/map.service";
 import type { NearbyPOI } from "../services/map.service";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
-import { mapPlaceToNearbyPOI, buildMapInput } from "../utils/chatWonderMapUtils";
+import {
+  mapPlaceToNearbyPOI,
+  buildMapInput,
+} from "../utils/chatWonderMapUtils";
 
 const PANEL = {
   background: "rgba(0,0,0,0.85)",
@@ -87,7 +90,10 @@ export default function DevToolsOverlay() {
       {/* Set Destination */}
       <div style={PANEL}>
         <button
-          onClick={() => { setDestOpen((v) => !v); setDestError(""); }}
+          onClick={() => {
+            setDestOpen((v) => !v);
+            setDestError("");
+          }}
           className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/60 hover:text-white transition-colors"
         >
           <span>📍 Set Destination</span>
@@ -103,7 +109,9 @@ export default function DevToolsOverlay() {
               disabled={destLoading}
               className="w-full rounded-lg px-3 py-2 text-xs text-white bg-white/10 border border-white/15 outline-none placeholder:text-white/30 disabled:opacity-50"
             />
-            {destError && <p className="text-[10px] text-red-400">{destError}</p>}
+            {destError && (
+              <p className="text-[10px] text-red-400">{destError}</p>
+            )}
             <button
               onClick={handleSetDestination}
               disabled={destLoading || !destInput.trim()}
@@ -118,7 +126,11 @@ export default function DevToolsOverlay() {
       {/* Ask for Recommendations */}
       <div style={PANEL}>
         <button
-          onClick={() => { setRecOpen((v) => !v); setRecError(""); setRecReply(""); }}
+          onClick={() => {
+            setRecOpen((v) => !v);
+            setRecError("");
+            setRecReply("");
+          }}
           className="w-full flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/60 hover:text-white transition-colors"
         >
           <span>🔍 Recommendations</span>
@@ -136,7 +148,9 @@ export default function DevToolsOverlay() {
             />
             {recError && <p className="text-[10px] text-red-400">{recError}</p>}
             {recReply && (
-              <p className="text-[10px] text-white/60 leading-snug">{recReply}</p>
+              <p className="text-[10px] text-white/60 leading-snug">
+                {recReply}
+              </p>
             )}
             <button
               onClick={handleAskRecommendation}

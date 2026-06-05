@@ -51,7 +51,8 @@ export function useWeather() {
 
   useEffect(() => {
     function normalizeWeather(raw: unknown, fallbackCity = "---"): WeatherData {
-      const d = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const d =
+        raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
       const temp =
         typeof d.temp === "number"
           ? d.temp
