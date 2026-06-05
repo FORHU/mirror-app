@@ -643,8 +643,8 @@ export default function VirtualMirrorV2() {
     () => setOutfitPage((p) => Math.max(p - 1, 0)),
   );
 
-  const pageSize = 8;
-  const shoesPageSize = 6;
+  const pageSize = 6;
+  const shoesPageSize = 4;
   const accessoryPageSize = 6;
   const topsLayerPageSize = 2;
 
@@ -874,104 +874,6 @@ export default function VirtualMirrorV2() {
           className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
           style={{ flex: "0 0 25%", width: "25%" }}
         >
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Bags" />
-
-            {/* bag */}
-            <div
-              {...bagSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                marginBottom: "5px",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gridTemplateRows: "repeat(2, 1fr)",
-                  gap: "4px",
-                }}
-                className="glass-card"
-              >
-                {aiLoading || voiceLoading ? (
-                  Array.from({ length: accessoryPageSize }).map((_, i) => (
-                    <SkeletonCell
-                      key={i}
-                      style={{ marginTop: "5px", marginBottom: "5px" }}
-                    />
-                  ))
-                ) : bags.length === 0 ? (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      height: "60px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "12px",
-                      border: "1px dashed rgba(255,255,255,0.1)",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    No recommended Bags
-                  </div>
-                ) : (
-                  pagedBags.map((g) => (
-                    <div
-                      key={g.id}
-                      onClick={() => { if (swapSlot === "bags" && swapItemId) { applySwap(g); } else { setSelectedBag(g); setSelectedOutfitIdx(null); } }}
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        marginTop: "5px",
-                        marginBottom: "5px",
-                        cursor: "pointer",
-                        border:
-                          selectedBag?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: totalBagsPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setBagsPage(i)}
-                    aria-label={`Go to page ${i + 1}`}
-                    className="rounded-full transition-all duration-300"
-                    style={{
-                      width: i === bagsPage ? 12 : 4,
-                      height: 4,
-                      background:
-                        i === bagsPage ? "white" : "rgba(255,255,255,0.3)",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
           <div
             className="flex flex-col gap-1"
             style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
@@ -1867,6 +1769,104 @@ export default function VirtualMirrorV2() {
                     />
                   ),
                 )}
+              </div>
+            </div>
+          </div>
+          )}
+
+          {(!swapSlot || swapSlot === "bags") && (
+          <div className="flex flex-col gap-1">
+            <SectionTitle label="Bags" />
+            <div
+              {...bagSwipe}
+              style={{
+                touchAction: "pan-y",
+                userSelect: "none",
+                cursor: "grab",
+                marginBottom: "5px",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gridTemplateRows: "repeat(2, 1fr)",
+                  gap: "4px",
+                }}
+              >
+                {aiLoading || voiceLoading ? (
+                  Array.from({ length: accessoryPageSize }).map((_, i) => (
+                    <SkeletonCell
+                      key={i}
+                      style={{ marginTop: "5px", marginBottom: "5px" }}
+                    />
+                  ))
+                ) : bags.length === 0 ? (
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      height: "60px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "12px",
+                      border: "1px dashed rgba(255,255,255,0.1)",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    No recommended Bags
+                  </div>
+                ) : (
+                  pagedBags.map((g) => (
+                    <div
+                      key={g.id}
+                      onClick={() => { if (swapSlot === "bags" && swapItemId) { applySwap(g); } else { setSelectedBag(g); setSelectedOutfitIdx(null); } }}
+                      className="rounded-md overflow-hidden flex items-center justify-center"
+                      style={{
+                        aspectRatio: "1/1",
+                        borderRadius: "4px",
+                        marginTop: "5px",
+                        marginBottom: "5px",
+                        cursor: "pointer",
+                        border:
+                          selectedBag?.id === g.id
+                            ? "1.5px solid rgba(255,255,255,0.6)"
+                            : "1.5px solid transparent",
+                      }}
+                    >
+                      {g.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={g.imageUrl}
+                          alt={g.name}
+                          draggable={false}
+                          className="w-full h-full object-contain pointer-events-none"
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="flex justify-center gap-1.5 pt-2">
+                {Array.from({ length: totalBagsPages }).map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setBagsPage(i)}
+                    aria-label={`Go to page ${i + 1}`}
+                    className="rounded-full transition-all duration-300"
+                    style={{
+                      width: i === bagsPage ? 12 : 4,
+                      height: 4,
+                      background:
+                        i === bagsPage ? "white" : "rgba(255,255,255,0.3)",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </div>
