@@ -1,4 +1,5 @@
 import type {
+  CosmeticsTileData,
   GarmentTileItem,
   MapTileData,
   OutfitTileItem,
@@ -47,7 +48,8 @@ export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
     const set = asRecord(rawSet);
     if (!set) continue;
 
-    const outfitId = str(set.outfit_id) || str(set.set_number) || `set-${outfits.length}`;
+    const outfitId =
+      str(set.outfit_id) || str(set.set_number) || `set-${outfits.length}`;
     const outfitImage = str(set.outfit_imageUrl);
     if (outfitImage) {
       outfits.push({
@@ -109,4 +111,133 @@ export function adaptMapsData(raw: unknown): MapTileData | null {
     lng,
     stops: stops.length ? stops : undefined,
   };
+}
+
+export interface OutlineTiles {
+  garments: GarmentTileItem[];
+  outfits: OutfitTileItem[];
+  cosmetics: CosmeticsTileData | null;
+}
+
+function fileUrlOf(raw: unknown): string {
+  const file = asRecord(raw);
+  return file ? str(file.fileUrl) : "";
+}
+
+/**
+ * Persisted Outline (from `/outlines/active` → `findActiveWithOverview`) → tiles.
+ *
+ * Lets `/overview` reflect what the user already saved (hybrid hydration); live
+ * ChatWonder updates overwrite these afterward. The Outline is event-centric —
+ * each event carries its own `outfits[]` (→ `items[].garment`) and
+ * `cosmeticRecommendations[]` — so we flatten across events. The Map tile is
+ * intentionally not built here; it derives from `useMapStore` (which geocodes
+ * the events' `routeDestination` strings via `loadOutlineStops`).
+ */
+export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
+  const outline = asRecord(raw);
+  const garments: GarmentTileItem[] = [];
+  const outfits: OutfitTileItem[] = [];
+  const seenGarment = new Set<string>();
+  const seenOutfit = new Set<string>();
+
+  const events = outline && Array.isArray(outline.events) ? outline.events : [];
+
+  for (const rawEvent of events) {
+    const event = asRecord(rawEvent);
+    if (!event) continue;
+
+    const evOutfits = Array.isArray(event.outfits) ? event.outfits : [];
+    for (const rawOutfit of evOutfits) {
+      const outfit = asRecord(rawOutfit);
+      if (!outfit) continue;
+
+      const outfitId = str(outfit.id);
+      const outfitImage = fileUrlOf(outfit.file);
+      if (outfitId && outfitImage && !seenOutfit.has(outfitId)) {
+        seenOutfit.add(outfitId);
+        outfits.push({
+          id: outfitId,
+          name: str(outfit.name) || `Look ${outfits.length + 1}`,
+          imageUrl: outfitImage,
+          reason: str(outfit.description) || undefined,
+        });
+      }
+
+      const items = Array.isArray(outfit.items) ? outfit.items : [];
+      for (const rawItem of items) {
+        const item = asRecord(rawItem);
+        const garment = item && asRecord(item.garment);
+        if (!garment) continue;
+        const id = str(garment.id);
+        const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
+        if (!id || !imageUrl || seenGarment.has(id)) continue;
+        seenGarment.add(id);
+        const category = Array.isArray(garment.category)
+          ? str(garment.category[0])
+          : str(garment.category);
+        garments.push({
+          id,
+          name: str(garment.name) || "Garment",
+          imageUrl,
+          category: category || undefined,
+        });
+      }
+    }
+  }
+
+  // Cosmetics tile: skin-analysis metrics + product recs gathered from events.
+  const sa = outline && asRecord(outline.skinAnalysis);
+  let cosmetics: CosmeticsTileData | null = null;
+  if (sa) {
+    const recs: CosmeticsTileData["recommendations"] = [];
+    const seenRec = new Set<string>();
+    for (const rawEvent of events) {
+      const event = asRecord(rawEvent);
+      const evRecs =
+        event && Array.isArray(event.cosmeticRecommendations)
+          ? event.cosmeticRecommendations
+          : [];
+      for (const rawRec of evRecs) {
+        const rec = asRecord(rawRec);
+        const product = rec && asRecord(rec.cosmeticProduct);
+        if (!product) continue;
+        const pid = str(product.id);
+        if (!pid || seenRec.has(pid)) continue;
+        seenRec.add(pid);
+        const fileUrl = fileUrlOf(product.fileUrl);
+        recs.push({
+          id: str(rec!.id) || pid,
+          rank: num(rec!.rank) ?? 0,
+          score: num(rec!.score) ?? 0,
+          reason: str(rec!.reason),
+          cosmeticProduct: {
+            id: pid,
+            name: str(product.name) || "Product",
+            brand: str(product.brand) || null,
+            category: str(product.category) || null,
+            type: str(product.type) || null,
+            tags: Array.isArray(product.tags) ? product.tags.map(str) : [],
+            benefits: Array.isArray(product.benefits)
+              ? product.benefits.map(str)
+              : [],
+            fileUrl: fileUrl ? { fileUrl } : null,
+          },
+        });
+      }
+    }
+
+    cosmetics = {
+      id: str(sa.id),
+      skinType: str(sa.skinType),
+      skinTone: str(sa.skinTone) || null,
+      hydrationPct: num(sa.hydrationPct) ?? 0,
+      oilinessPct: num(sa.oilinessPct) ?? 0,
+      concerns: Array.isArray(sa.concerns) ? sa.concerns.map(str) : [],
+      routineTip: str(sa.routineTip),
+      recommendations: recs,
+    };
+  }
+
+  return { garments, outfits, cosmetics };
 }

@@ -62,7 +62,7 @@ function createPinEl(color: string): HTMLDivElement {
     flexDirection: "column",
     alignItems: "center",
     cursor: "pointer",
-    willChange: "transform",       // GPU compositor layer — Mapbox repositions on every frame
+    willChange: "transform", // GPU compositor layer — Mapbox repositions on every frame
     filter: `drop-shadow(0 2px 6px ${color}99)`,
     transition: "filter 0.2s ease, transform 0.15s ease",
   });
@@ -87,7 +87,7 @@ function createPinEl(color: string): HTMLDivElement {
     borderLeft: "5px solid transparent",
     borderRight: "5px solid transparent",
     borderTop: `8px solid ${color}`,
-    marginTop: "-1px",            // close the gap between head and tail
+    marginTop: "-1px", // close the gap between head and tail
     flexShrink: "0",
   });
 
@@ -445,7 +445,11 @@ export default function SuggestedPOIMarkers() {
         if (openRef.current) {
           openRef.current.popup.remove();
           openRef.current.root.unmount();
-          setPinSelected(openRef.current.markerEl, openRef.current.color, false);
+          setPinSelected(
+            openRef.current.markerEl,
+            openRef.current.color,
+            false,
+          );
           openRef.current = null;
         }
       };
@@ -498,7 +502,6 @@ export default function SuggestedPOIMarkers() {
       });
 
       markersRef.current.push({ marker, el });
-
     });
 
     return () => {

@@ -60,7 +60,10 @@ function TileShell({
         {status === "idle" || status === "loading" ? (
           <TileSkeleton />
         ) : status === "error" ? (
-          <TileMessage icon={AlertCircle} text={error ?? "Something went wrong"} />
+          <TileMessage
+            icon={AlertCircle}
+            text={error ?? "Something went wrong"}
+          />
         ) : status === "empty" ? (
           <TileMessage text={empty} />
         ) : (
@@ -130,7 +133,13 @@ function PendingStrip({
   );
 }
 
-function TileMessage({ icon: Icon, text }: { icon?: LucideIcon; text: string }) {
+function TileMessage({
+  icon: Icon,
+  text,
+}: {
+  icon?: LucideIcon;
+  text: string;
+}) {
   return (
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 text-center">
       {Icon && <Icon className="w-5 h-5 text-white/25" />}
@@ -373,7 +382,9 @@ export function OverviewGrid() {
       icon: Sparkles,
       state: cosmetics,
       empty: "No products matched your skin yet.",
-      content: cosmetics.data ? <CosmeticsContent data={cosmetics.data} /> : null,
+      content: cosmetics.data ? (
+        <CosmeticsContent data={cosmetics.data} />
+      ) : null,
     },
     {
       key: "garments",

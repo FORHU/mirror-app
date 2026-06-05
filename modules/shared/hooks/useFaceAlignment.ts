@@ -21,7 +21,9 @@ type FaceBox = { x: number; y: number; width: number; height: number };
 type FaceDetectorCtor = new (opts?: {
   fastMode?: boolean;
   maxDetectedFaces?: number;
-}) => { detect: (i: CanvasImageSource) => Promise<Array<{ boundingBox: FaceBox }>> };
+}) => {
+  detect: (i: CanvasImageSource) => Promise<Array<{ boundingBox: FaceBox }>>;
+};
 
 function getFaceDetector(): FaceDetectorCtor | null {
   if (typeof window === "undefined") return null;
@@ -172,7 +174,10 @@ export function useFaceAlignment({
         setState("too-close");
         return false;
       }
-      if (Math.abs(cx - 0.5) > centerTol || Math.abs(cy - targetY) > centerTol) {
+      if (
+        Math.abs(cx - 0.5) > centerTol ||
+        Math.abs(cy - targetY) > centerTol
+      ) {
         setState("off-center");
         return false;
       }
@@ -247,7 +252,16 @@ export function useFaceAlignment({
       streamRef.current = null;
       if (videoEl) videoEl.srcObject = null;
     };
-  }, [runId, holdMs, intervalMs, minSize, maxSize, centerTol, targetY, fallbackMs]);
+  }, [
+    runId,
+    holdMs,
+    intervalMs,
+    minSize,
+    maxSize,
+    centerTol,
+    targetY,
+    fallbackMs,
+  ]);
 
   return { videoRef, state, progress, retry };
 }

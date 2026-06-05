@@ -27,8 +27,8 @@ const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
   earrings: [80, 80, 180, 66],
   neck: [210, 150, 90, 69],
   torso: [100, 120, 306, 383],
-  base:  [-20, 30, 306, 383],
-  mid:   [100, 30, 306, 383],
+  base: [-20, 30, 306, 383],
+  mid: [100, 30, 306, 383],
   outer: [250, 30, 306, 383],
   leftHand: [50, 500, 72, 132],
   rightHand: [320, 500, 72, 132],
@@ -44,8 +44,8 @@ const GARMENT_SCALE: Record<string, number> = {
   earrings: 0.5,
   neck: 1.5,
   torso: 0.8,
-  base:  0.8,
-  mid:   0.8,
+  base: 0.8,
+  mid: 0.8,
   outer: 0.8,
   leftHand: 2,
   rightHand: 2,
@@ -104,7 +104,10 @@ function getVisibleBounds(img: HTMLImageElement) {
   ctx.drawImage(img, 0, 0);
   try {
     const { data, width, height } = ctx.getImageData(0, 0, c.width, c.height);
-    let minX = width, minY = height, maxX = 0, maxY = 0;
+    let minX = width,
+      minY = height,
+      maxX = 0,
+      maxY = 0;
     for (let y = 0; y < height; y++)
       for (let x = 0; x < width; x++)
         if (data[(y * width + x) * 4 + 3] > 8) {
@@ -114,7 +117,12 @@ function getVisibleBounds(img: HTMLImageElement) {
           maxY = Math.max(maxY, y);
         }
     if (minX <= maxX)
-      return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+      return {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1,
+      };
   } catch {
     /* tainted */
   }
@@ -124,21 +132,37 @@ function getVisibleBounds(img: HTMLImageElement) {
 function drawContained(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  tx: number, ty: number, tw: number, th: number,
+  tx: number,
+  ty: number,
+  tw: number,
+  th: number,
 ) {
   const b = getVisibleBounds(img);
   const scale = Math.min(tw / b.width, th / b.height);
-  const dw = b.width * scale, dh = b.height * scale;
+  const dw = b.width * scale,
+    dh = b.height * scale;
   ctx.drawImage(
-    img, b.x, b.y, b.width, b.height,
-    tx + (tw - dw) / 2, ty + (th - dh) / 2, dw, dh,
+    img,
+    b.x,
+    b.y,
+    b.width,
+    b.height,
+    tx + (tw - dw) / 2,
+    ty + (th - dh) / 2,
+    dw,
+    dh,
   );
 }
 
-async function loadLayer(g: RemoteGarment | null | undefined): Promise<HTMLImageElement | null> {
+async function loadLayer(
+  g: RemoteGarment | null | undefined,
+): Promise<HTMLImageElement | null> {
   if (!g?.imageUrl) return null;
-  try { return await loadGarmentImage(g.imageUrl); }
-  catch { return null; }
+  try {
+    return await loadGarmentImage(g.imageUrl);
+  } catch {
+    return null;
+  }
 }
 
 async function drawOutfit(
@@ -147,7 +171,8 @@ async function drawOutfit(
   topLayers: Array<HTMLImageElement | null>,
   dpr = 1,
 ) {
-  const W = 500, H = 780;
+  const W = 500,
+    H = 780;
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d")!;
@@ -165,7 +190,10 @@ async function drawOutfit(
       }
     }),
   );
-  const items = loaded.filter(Boolean) as { part: string; img: HTMLImageElement }[];
+  const items = loaded.filter(Boolean) as {
+    part: string;
+    img: HTMLImageElement;
+  }[];
 
   // Draw non-torso parts in standard order
   DRAW_ORDER.forEach((part) => {
@@ -175,7 +203,14 @@ async function drawOutfit(
     if (!pos) return;
     const [x, y, w, h] = pos;
     const s = GARMENT_SCALE[part] ?? 1;
-    drawContained(ctx, item.img, x - (w * s - w) / 2, y - (h * s - h) / 2, w * s, h * s);
+    drawContained(
+      ctx,
+      item.img,
+      x - (w * s - w) / 2,
+      y - (h * s - h) / 2,
+      w * s,
+      h * s,
+    );
   });
 
   // Draw top layers in order: BASE first, MID on top, OUTER on top
@@ -186,7 +221,14 @@ async function drawOutfit(
     const pos = BODY_POSITIONS[key];
     const s = GARMENT_SCALE[key] ?? 0.8;
     const [lx, ly, lw, lh] = pos;
-    drawContained(ctx, img, lx - (lw * s - lw) / 2, ly - (lh * s - lh) / 2, lw * s, lh * s);
+    drawContained(
+      ctx,
+      img,
+      lx - (lw * s - lw) / 2,
+      ly - (lh * s - lh) / 2,
+      lw * s,
+      lh * s,
+    );
   });
 }
 
@@ -206,9 +248,22 @@ interface Props {
   bag?: RemoteGarment | null;
 }
 
-function toSlotMap({ hat = null, bottom, shoe, bag }: Omit<Props, "topBase" | "topMid" | "topOuter">): SlotMap {
+function toSlotMap({
+  hat = null,
+  bottom,
+  shoe,
+  bag,
+}: Omit<Props, "topBase" | "topMid" | "topOuter">): SlotMap {
   const add = (slot: FittingSlot, g: RemoteGarment | null | undefined) =>
-    g ? { [slot]: { slot, label: slot, garment: { id: g.id, name: g.name, imageUrl: g.imageUrl, slot } } } : {};
+    g
+      ? {
+          [slot]: {
+            slot,
+            label: slot,
+            garment: { id: g.id, name: g.name, imageUrl: g.imageUrl, slot },
+          },
+        }
+      : {};
   return {
     ...add(FittingSlot.HeadGarment, hat),
     ...add(FittingSlot.LowerGarment, bottom),
@@ -235,7 +290,8 @@ const OutfitPreviewCanvas = forwardRef<OutfitPreviewCanvasHandle, Props>(
       const canvas = canvasRef.current;
       if (!canvas) return;
       const slotMap = toSlotMap(props);
-      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const dpr =
+        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
       Promise.all([
         loadLayer(props.topBase),

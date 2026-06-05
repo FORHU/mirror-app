@@ -52,7 +52,12 @@ async function consumePendingDirections() {
 
 export default function MapPage() {
   const router = useRouter();
-  const { homeLocation, homeLocationStatus, loadHomeLocation, loadOutlineStops } = useMapStore();
+  const {
+    homeLocation,
+    homeLocationStatus,
+    loadHomeLocation,
+    loadOutlineStops,
+  } = useMapStore();
   const onAction = useCallback(() => {}, []);
 
   useVoice(

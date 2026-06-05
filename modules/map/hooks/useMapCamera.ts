@@ -46,9 +46,12 @@ export function useMapCamera(map: mapboxgl.Map | null) {
 
     const allCoords: [number, number][] = [];
     for (const route of itineraryRoutes) {
-      const coords = (
-        route.geojson?.features?.[0]?.geometry as GeoJSON.LineString | undefined
-      )?.coordinates ?? [];
+      const coords =
+        (
+          route.geojson?.features?.[0]?.geometry as
+            | GeoJSON.LineString
+            | undefined
+        )?.coordinates ?? [];
       allCoords.push(...(coords as [number, number][]));
     }
     if (allCoords.length === 0) {

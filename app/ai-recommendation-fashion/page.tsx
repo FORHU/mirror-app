@@ -114,15 +114,21 @@ export default function VirtualMirrorV2() {
   type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
   const [swapItemId, setSwapItemId] = useState<string | null>(null);
-  const [outfitOverrides, setOutfitOverrides] = useState<Record<string, RemoteGarment>>({});
+  const [outfitOverrides, setOutfitOverrides] = useState<
+    Record<string, RemoteGarment>
+  >({});
   const outfitModified = Object.keys(outfitOverrides).length > 0;
 
-  function resolveSwapSlot(garmentType: string[], fittingSlot: string[]): SwapSlot {
+  function resolveSwapSlot(
+    garmentType: string[],
+    fittingSlot: string[],
+  ): SwapSlot {
     if (garmentType.includes("Bag")) return "bags";
     if (fittingSlot.includes("LowerGarment")) return "bottoms";
     if (fittingSlot.includes("FootGarment")) return "shoes";
     const t = garmentType[0] ?? "";
-    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t)) return "outer";
+    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t))
+      return "outer";
     if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
     return "base";
   }
@@ -786,83 +792,121 @@ export default function VirtualMirrorV2() {
                           );
                         })
                         .map((item) => {
-                          const effective = outfitOverrides[item.id] ?? item.garment;
+                          const effective =
+                            outfitOverrides[item.id] ?? item.garment;
                           const isSwapping = swapItemId === item.id;
                           const isOverridden = !!outfitOverrides[item.id];
                           return (
-                          <div
-                            key={item.id}
-                            className="flex"
-                            onClick={() => {
-                              const slot = resolveSwapSlot(item.garment.garmentType, item.garment.fittingSlot);
-                              if (isSwapping) { cancelSwap(); return; }
-                              setSwapSlot(slot);
-                              setSwapItemId(item.id);
-                            }}
-                            style={{
-                              flex: "1 1 0",
-                              minHeight: 0,
-                              width: "100%",
-                              alignItems: "stretch",
-                              overflow: "hidden",
-                              background: "transparent",
-                              cursor: "pointer",
-                              border: isSwapping
-                                ? "1.5px solid rgba(255,255,255,0.6)"
-                                : isOverridden
-                                ? "1.5px solid rgba(100,220,120,0.5)"
-                                : "1.5px solid transparent",
-                              borderRadius: "8px",
-                              transition: "border-color 0.15s",
-                            }}
-                          >
                             <div
+                              key={item.id}
+                              className="flex"
+                              onClick={() => {
+                                const slot = resolveSwapSlot(
+                                  item.garment.garmentType,
+                                  item.garment.fittingSlot,
+                                );
+                                if (isSwapping) {
+                                  cancelSwap();
+                                  return;
+                                }
+                                setSwapSlot(slot);
+                                setSwapItemId(item.id);
+                              }}
                               style={{
-                                flex: "0 0 38%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: "8px 0 0 8px",
+                                flex: "1 1 0",
+                                minHeight: 0,
+                                width: "100%",
+                                alignItems: "stretch",
                                 overflow: "hidden",
+                                background: "transparent",
+                                cursor: "pointer",
+                                border: isSwapping
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : isOverridden
+                                    ? "1.5px solid rgba(100,220,120,0.5)"
+                                    : "1.5px solid transparent",
+                                borderRadius: "8px",
+                                transition: "border-color 0.15s",
                               }}
                             >
-                              {effective.imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={effective.imageUrl}
-                                  alt={effective.name}
-                                  draggable={false}
-                                  className="w-full h-full object-contain pointer-events-none"
-                                />
-                              ) : (
-                                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "10px" }}>
-                                  No Image
+                              <div
+                                style={{
+                                  flex: "0 0 38%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "8px 0 0 8px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {effective.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={effective.imageUrl}
+                                    alt={effective.name}
+                                    draggable={false}
+                                    className="w-full h-full object-contain pointer-events-none"
+                                  />
+                                ) : (
+                                  <span
+                                    style={{
+                                      color: "rgba(255,255,255,0.25)",
+                                      fontSize: "10px",
+                                    }}
+                                  >
+                                    No Image
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  padding: "5px 8px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "center",
+                                  gap: "2px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.35)",
+                                    fontSize: "8px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    overflow: "hidden",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {isOverridden
+                                    ? "Changed"
+                                    : effective.garmentType?.[0]}
                                 </span>
-                              )}
+                                <span
+                                  style={{
+                                    color: "white",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    lineHeight: 1.3,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.name}
+                                </span>
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.45)",
+                                    fontSize: "9px",
+                                    lineHeight: 1.4,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.description}
+                                </span>
+                              </div>
                             </div>
-                            <div
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                padding: "5px 8px",
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "center",
-                                gap: "2px",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "8px", textTransform: "uppercase", letterSpacing: "0.08em", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                {isOverridden ? "Changed" : effective.garmentType?.[0]}
-                              </span>
-                              <span style={{ color: "white", fontSize: "10px", fontWeight: 600, lineHeight: 1.3, overflow: "hidden" }}>
-                                {effective.name}
-                              </span>
-                              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "9px", lineHeight: 1.4, overflow: "hidden" }}>
-                                {effective.description}
-                              </span>
-                            </div>
-                          </div>
                           );
                         })}
                     </div>
@@ -996,13 +1040,34 @@ export default function VirtualMirrorV2() {
         >
           {/* Cancel swap mode */}
           {swapSlot && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "2px" }}>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingBottom: "2px",
+              }}
+            >
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.5)",
+                  fontSize: "10px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
                 Select replacement
               </span>
               <button
                 onClick={cancelSwap}
-                style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px", background: "none", border: "none", cursor: "pointer", padding: "2px 4px" }}
+                style={{
+                  color: "rgba(255,255,255,0.4)",
+                  fontSize: "11px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 4px",
+                }}
               >
                 ✕
               </button>

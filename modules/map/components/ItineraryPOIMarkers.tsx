@@ -40,54 +40,129 @@ function POICard({
   onClose: () => void;
 }) {
   return (
-    <div style={{
-      width: 240,
-      background: "rgba(10,10,10,0.97)",
-      border: "1px solid rgba(255,255,255,0.13)",
-      borderRadius: 14,
-      overflow: "hidden",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-    }}>
+    <div
+      style={{
+        width: 240,
+        background: "rgba(10,10,10,0.97)",
+        border: "1px solid rgba(255,255,255,0.13)",
+        borderRadius: 14,
+        overflow: "hidden",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.7)",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+      }}
+    >
       {poi.photo && (
-        <div style={{ width: "100%", height: 110, overflow: "hidden", position: "relative" }}>
+        <div
+          style={{
+            width: "100%",
+            height: 110,
+            overflow: "hidden",
+            position: "relative",
+          }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poi.photo} alt={poi.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.6), transparent 60%)" }} />
+          <img
+            src={poi.photo}
+            alt={poi.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.6), transparent 60%)",
+            }}
+          />
         </div>
       )}
       <div style={{ padding: "10px 12px 12px" }}>
-        <button onClick={onClose} style={{
-          position: "absolute", top: 8, right: 8,
-          width: 22, height: 22, borderRadius: "50%",
-          background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.15)",
-          cursor: "pointer", color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: 700,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>✕</button>
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            background: "rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            cursor: "pointer",
+            color: "rgba(255,255,255,0.8)",
+            fontSize: 10,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ✕
+        </button>
 
-        <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, marginBottom: 4, paddingRight: 24 }}>
+        <div
+          style={{
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 700,
+            marginBottom: 4,
+            paddingRight: 24,
+          }}
+        >
           {poi.name}
         </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginBottom: 8 }}>
+        <div
+          style={{
+            fontSize: 10,
+            color: "rgba(255,255,255,0.45)",
+            marginBottom: 8,
+          }}
+        >
           {poi.category.replace(/_/g, " ")}
           {poi.rating != null && ` · ★ ${poi.rating.toFixed(1)}`}
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-            <span>🚶</span><span>{walkMin} min</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
+            <span>🚶</span>
+            <span>{walkMin} min</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-            <span>🚗</span><span>{carMins} min</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10,
+              color: "rgba(255,255,255,0.5)",
+            }}
+          >
+            <span>🚗</span>
+            <span>{carMins} min</span>
           </div>
         </div>
 
-        <button onClick={onNavigate} style={{
-          width: "100%", padding: "8px 0",
-          background: color, color: "#fff",
-          border: "none", borderRadius: 8,
-          fontSize: 12, fontWeight: 700, cursor: "pointer",
-        }}>
+        <button
+          onClick={onNavigate}
+          style={{
+            width: "100%",
+            padding: "8px 0",
+            background: color,
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
           Navigate here
         </button>
       </div>
@@ -95,7 +170,10 @@ function POICard({
   );
 }
 
-interface OpenPopup { popup: mapboxgl.Popup; root: Root }
+interface OpenPopup {
+  popup: mapboxgl.Popup;
+  root: Root;
+}
 
 const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
   const itineraryStopPOIs = useMapStore((s) => s.itineraryStopPOIs);
@@ -108,7 +186,9 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
     const style = document.createElement("style");
     style.textContent = POPUP_CSS;
     document.head.appendChild(style);
-    return () => { document.head.removeChild(style); };
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   useEffect(() => {
@@ -143,69 +223,80 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
         // (would cover the numbered pin)
         const tooCloseToStop = itineraryStops.some((s) => {
           const dLat = (poi.lat - s.lat) * 111000;
-          const dLng = (poi.lng - s.lng) * 111000 * Math.cos(poi.lat * Math.PI / 180);
+          const dLng =
+            (poi.lng - s.lng) * 111000 * Math.cos((poi.lat * Math.PI) / 180);
           return Math.sqrt(dLat * dLat + dLng * dLng) < 80;
         });
 
         if (!tooCloseToStop) {
-        // Auto-open popup above the dot
-        const container = document.createElement("div");
-        const root = createRoot(container);
+          // Auto-open popup above the dot
+          const container = document.createElement("div");
+          const root = createRoot(container);
 
-        const closeThisPopup = () => {
-          const idx = popupsRef.current.findIndex((p) => p.root === root);
-          if (idx !== -1) {
-            const { popup, root: r } = popupsRef.current[idx];
-            popup.remove();
-            popupsRef.current.splice(idx, 1);
-            setTimeout(() => r.unmount(), 0);
-          }
-        };
+          const closeThisPopup = () => {
+            const idx = popupsRef.current.findIndex((p) => p.root === root);
+            if (idx !== -1) {
+              const { popup, root: r } = popupsRef.current[idx];
+              popup.remove();
+              popupsRef.current.splice(idx, 1);
+              setTimeout(() => r.unmount(), 0);
+            }
+          };
 
-        root.render(
-          <POICard
-            poi={poi}
-            color={color}
-            walkMin={walkingMin(dist)}
-            carMins={carMin(dist)}
-            onClose={closeThisPopup}
-            onNavigate={() => {
-              // Insert the POI as a branch leg right after its parent stop so the
-              // route shows origin → stop → POI → (remaining stops). Once inserted,
-              // immediately clear the POI fetch results for the branch index so it
-              // does NOT spawn its own recommendation cards.
-              const current = useMapStore.getState().itineraryStops;
-              const branchIndex = stopIndex + 1;
-              const newStop = { name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, placeId: poi.placeId };
-              const updated = [
-                ...current.slice(0, branchIndex),
-                newStop,
-                ...current.slice(branchIndex),
-              ];
-              setItineraryStops(updated).then(() => {
-                const poiData = useMapStore.getState().itineraryStopPOIs;
-                useMapStore.getState().setItineraryStopPOIs(
-                  poiData.map((p) => p.stopIndex === branchIndex ? { ...p, pois: [] } : p),
-                );
-              });
-              closeThisPopup();
-            }}
-          />
-        );
+          root.render(
+            <POICard
+              poi={poi}
+              color={color}
+              walkMin={walkingMin(dist)}
+              carMins={carMin(dist)}
+              onClose={closeThisPopup}
+              onNavigate={() => {
+                // Insert the POI as a branch leg right after its parent stop so the
+                // route shows origin → stop → POI → (remaining stops). Once inserted,
+                // immediately clear the POI fetch results for the branch index so it
+                // does NOT spawn its own recommendation cards.
+                const current = useMapStore.getState().itineraryStops;
+                const branchIndex = stopIndex + 1;
+                const newStop = {
+                  name: poi.name,
+                  lat: poi.lat,
+                  lng: poi.lng,
+                  address: poi.address,
+                  placeId: poi.placeId,
+                };
+                const updated = [
+                  ...current.slice(0, branchIndex),
+                  newStop,
+                  ...current.slice(branchIndex),
+                ];
+                setItineraryStops(updated).then(() => {
+                  const poiData = useMapStore.getState().itineraryStopPOIs;
+                  useMapStore
+                    .getState()
+                    .setItineraryStopPOIs(
+                      poiData.map((p) =>
+                        p.stopIndex === branchIndex ? { ...p, pois: [] } : p,
+                      ),
+                    );
+                });
+                closeThisPopup();
+              }}
+            />,
+          );
 
-        const popup = new mapboxgl.Popup({
-          offset: [0, -18],
-          closeButton: false,
-          closeOnClick: false,
-          maxWidth: "none",
-          className: "ipm-popup",
-          anchor: "bottom",
-        })
-          .setLngLat([poi.lng, poi.lat])
-          .setDOMContent(container)
-          .addTo(map);
+          const popup = new mapboxgl.Popup({
+            offset: [0, -18],
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: "none",
+            className: "ipm-popup",
+            anchor: "bottom",
+          })
+            .setLngLat([poi.lng, poi.lat])
+            .setDOMContent(container)
+            .addTo(map);
 
-        popupsRef.current.push({ popup, root });
+          popupsRef.current.push({ popup, root });
         } // end if (!tooCloseToStop)
       });
     });

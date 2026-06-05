@@ -529,8 +529,7 @@ export default function CosmeticRecommendationPage() {
   useEffect(() => {
     let cancelled = false;
     const load = (lat?: number, lon?: number) => {
-      const qs =
-        lat != null && lon != null ? `?lat=${lat}&lon=${lon}` : "";
+      const qs = lat != null && lon != null ? `?lat=${lat}&lon=${lon}` : "";
       fetch(`/api/weather${qs}`)
         .then((r) => r.json())
         .then((d) => {
@@ -942,8 +941,7 @@ export default function CosmeticRecommendationPage() {
   const day = now.toLocaleDateString([], { weekday: "long" });
   const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
   const hour = now.getHours();
-  const partOfDay =
-    hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  const partOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
   // Neutral mirror palette tokens.
   const CREAM = "rgba(255,255,255,0.96)";
@@ -1086,9 +1084,7 @@ export default function CosmeticRecommendationPage() {
                   {weather?.temp != null ? `${weather.temp}°C` : "--°C"}
                 </span>
                 <span style={{ color: FAINT, fontSize: "11px" }}>
-                  {weather?.city && weather.city !== "---"
-                    ? weather.city
-                    : ""}
+                  {weather?.city && weather.city !== "---" ? weather.city : ""}
                 </span>
               </div>
             </div>
@@ -1113,9 +1109,7 @@ export default function CosmeticRecommendationPage() {
           </div>
 
           {/* right: greeting */}
-          <div
-            style={{ flex: "1 1 0", textAlign: "right", minWidth: 0 }}
-          >
+          <div style={{ flex: "1 1 0", textAlign: "right", minWidth: 0 }}>
             <div style={{ color: CREAM, fontSize: "20px", fontWeight: 400 }}>
               Hello!
             </div>
@@ -1323,8 +1317,7 @@ export default function CosmeticRecommendationPage() {
                 [
                   {
                     icon: weather ? weatherEmoji(weather.code) : "🌤️",
-                    label:
-                      weather?.temp != null ? `${weather.temp}°C` : "--°C",
+                    label: weather?.temp != null ? `${weather.temp}°C` : "--°C",
                   },
                   {
                     icon: "💧",

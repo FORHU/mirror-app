@@ -1,6 +1,14 @@
 "use client";
 
-import { Mic, MicOff, Loader2, Volume2, MessageSquare, Navigation, Sparkles } from "lucide-react";
+import {
+  Mic,
+  MicOff,
+  Loader2,
+  Volume2,
+  MessageSquare,
+  Navigation,
+  Sparkles,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMapStore } from "../store/useMapStore";
@@ -64,7 +72,9 @@ export default function MapMicPill() {
   const bottomOffset = isNavigating ? "bottom-28" : "bottom-8";
 
   return (
-    <div className={`fixed ${bottomOffset} left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-none transition-all duration-300`}>
+    <div
+      className={`fixed ${bottomOffset} left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pointer-events-none transition-all duration-300`}
+    >
       {/* Transcript bubble — wide, fixed height, shown only when toggled on */}
       <AnimatePresence>
         {showTranscript && hasContent && (
@@ -91,7 +101,9 @@ export default function MapMicPill() {
                     <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
                       You
                     </span>
-                    <p className="text-white/65 text-xs leading-relaxed line-clamp-1">{transcript}</p>
+                    <p className="text-white/65 text-xs leading-relaxed line-clamp-1">
+                      {transcript}
+                    </p>
                   </div>
                 )}
                 {reply && (
@@ -99,7 +111,9 @@ export default function MapMicPill() {
                     <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
                       AI
                     </span>
-                    <p className="text-white/90 text-xs leading-relaxed line-clamp-3">{reply}</p>
+                    <p className="text-white/90 text-xs leading-relaxed line-clamp-3">
+                      {reply}
+                    </p>
                   </div>
                 )}
               </div>
@@ -135,7 +149,9 @@ export default function MapMicPill() {
             )}
             <span
               className="text-[10px] font-semibold uppercase tracking-widest"
-              style={{ color: isNavigating ? "rgb(96,165,250)" : "rgb(167,139,250)" }}
+              style={{
+                color: isNavigating ? "rgb(96,165,250)" : "rgb(167,139,250)",
+              }}
             >
               {isNavigating ? "Navigating" : "Exploring"}
             </span>

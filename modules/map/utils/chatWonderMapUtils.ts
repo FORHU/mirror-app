@@ -37,11 +37,10 @@ export function mapPlaceToNearbyPOI(
   originLat: number,
   originLng: number,
 ): NearbyPOI {
-  const typeEntry =
-    place.types.map((t) => PLACE_TYPE_MAP[t]).find(Boolean) ?? {
-      category: place.types[0] ?? "place",
-      icon: "📍",
-    };
+  const typeEntry = place.types.map((t) => PLACE_TYPE_MAP[t]).find(Boolean) ?? {
+    category: place.types[0] ?? "place",
+    icon: "📍",
+  };
 
   return {
     placeId: place.place_id,
@@ -73,8 +72,7 @@ export function curatePOIs(pois: NearbyPOI[], max = 5): NearbyPOI[] {
     .map((p) => ({
       poi: p,
       score:
-        ((p.rating ?? 0) / 5) * 0.6 +
-        (1 - (p.distance ?? 0) / maxDist) * 0.4,
+        ((p.rating ?? 0) / 5) * 0.6 + (1 - (p.distance ?? 0) / maxDist) * 0.4,
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, max)
@@ -82,19 +80,39 @@ export function curatePOIs(pois: NearbyPOI[], max = 5): NearbyPOI[] {
 }
 
 export function buildPOITTS(pois: NearbyPOI[]): string {
-  if (pois.length === 1) return `${pois[0].name} looks like a great choice. Want to head there?`;
-  if (pois.length === 2) return `There's ${pois[0].name} or ${pois[1].name}. Which one?`;
+  if (pois.length === 1)
+    return `${pois[0].name} looks like a great choice. Want to head there?`;
+  if (pois.length === 2)
+    return `There's ${pois[0].name} or ${pois[1].name}. Which one?`;
   const last = pois[pois.length - 1].name;
-  const rest = pois.slice(0, -1).map((p) => p.name).join(", ");
+  const rest = pois
+    .slice(0, -1)
+    .map((p) => p.name)
+    .join(", ");
   return `How about ${rest}, or ${last}? Which one sounds good?`;
 }
 
 const ORDINALS: Record<string, number> = {
-  first: 0, one: 0, "number one": 0, "option one": 0,
-  second: 1, two: 1, "number two": 1, "option two": 1,
-  third: 2, three: 2, "number three": 2, "option three": 2,
-  fourth: 3, four: 3, "number four": 3, "option four": 3,
-  fifth: 4, five: 4, "number five": 4, "option five": 4,
+  first: 0,
+  one: 0,
+  "number one": 0,
+  "option one": 0,
+  second: 1,
+  two: 1,
+  "number two": 1,
+  "option two": 1,
+  third: 2,
+  three: 2,
+  "number three": 2,
+  "option three": 2,
+  fourth: 3,
+  four: 3,
+  "number four": 3,
+  "option four": 3,
+  fifth: 4,
+  five: 4,
+  "number five": 4,
+  "option five": 4,
 };
 
 export function matchPOIFromTranscript(
@@ -122,15 +140,21 @@ export function matchPOIFromTranscript(
 
   // Tier 3 — superlative
   if (/\b(closest|nearest)\b/.test(lower)) {
-    return [...pois].sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))[0] ?? null;
+    return (
+      [...pois].sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))[0] ?? null
+    );
   }
   if (/\b(highest.rated|best.rated|top.rated|best)\b/.test(lower)) {
-    return [...pois].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null;
+    return (
+      [...pois].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] ?? null
+    );
   }
   if (/\b(cheapest|least.expensive)\b/.test(lower)) {
-    return [...pois].sort(
-      (a, b) => (a.priceLevel ?? 999) - (b.priceLevel ?? 999),
-    )[0] ?? null;
+    return (
+      [...pois].sort(
+        (a, b) => (a.priceLevel ?? 999) - (b.priceLevel ?? 999),
+      )[0] ?? null
+    );
   }
 
   return null;
@@ -157,7 +181,9 @@ export function isFinishPhrase(transcript: string): boolean {
  * "lunch at Session Road" → "Session Road"
  * "going to SM City Baguio" → "SM City Baguio"
  */
-export function extractLocationFromTranscript(transcript: string): string | null {
+export function extractLocationFromTranscript(
+  transcript: string,
+): string | null {
   // "at [Location]" followed by time/punctuation/end
   const atMatch = transcript.match(
     /\bat\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:this\s+(?:morning|afternoon|evening|night|noon)|tonight|for\s+(?:lunch|dinner|breakfast)|in\s+the\s+(?:morning|afternoon|evening)|please|can you|that|,|\.)|$)/i,
@@ -172,7 +198,11 @@ export function extractLocationFromTranscript(transcript: string): string | null
   );
   if (toMatch) {
     const candidate = toMatch[1].trim();
-    if (!/^(go|back|drive|walk|navigate|head|get|route|take|return)\b/i.test(candidate)) {
+    if (
+      !/^(go|back|drive|walk|navigate|head|get|route|take|return)\b/i.test(
+        candidate,
+      )
+    ) {
       return candidate;
     }
   }
@@ -204,30 +234,44 @@ export function isItineraryPhrase(transcript: string): boolean {
  */
 export function isMultiEventUtterance(transcript: string): boolean {
   // Two or more distinct time markers → multiple events in one sentence
-  const timeHits = (transcript.match(
-    /\b(this morning|this afternoon|this evening|tonight|for lunch|for dinner|for breakfast|in the morning|in the afternoon|in the evening)\b/gi,
-  ) ?? []).length;
+  const timeHits = (
+    transcript.match(
+      /\b(this morning|this afternoon|this evening|tonight|for lunch|for dinner|for breakfast|in the morning|in the afternoon|in the evening)\b/gi,
+    ) ?? []
+  ).length;
   if (timeHits >= 2) return true;
 
   // Multiple "going to / heading to / driving to <place>" patterns
-  const goingToHits = (transcript.match(/\b(going to|heading to|driving to)\s+[A-Za-z]/gi) ?? []).length;
+  const goingToHits = (
+    transcript.match(/\b(going to|heading to|driving to)\s+[A-Za-z]/gi) ?? []
+  ).length;
   if (goingToHits >= 2) return true;
 
   // Sequential connectors implying a series of stops announced together
-  if (/\band\s+(finally|then|also|afterwards)\s+(going|heading|we'?ll\s+be)\b/i.test(transcript)) return true;
+  if (
+    /\band\s+(finally|then|also|afterwards)\s+(going|heading|we'?ll\s+be)\b/i.test(
+      transcript,
+    )
+  )
+    return true;
   if (/\bwe'?ll\s+(also\s+)?be\s+going\s+to\b/i.test(transcript)) return true;
 
   // Two or more location anchors: "in/at/to [place]" excluding determiners/digits/time words
   // Case-insensitive so lowercase speech-recognition output ("in sm baguio") is caught too
-  const locationAnchorHits = (transcript.match(
-    /\b(?:in|at|to)\s+(?!the\s|a\s|an\s|this\s|that\s|my\s|our\s|\d)[a-zA-Z]/gi,
-  ) ?? []).length;
+  const locationAnchorHits = (
+    transcript.match(
+      /\b(?:in|at|to)\s+(?!the\s|a\s|an\s|this\s|that\s|my\s|our\s|\d)[a-zA-Z]/gi,
+    ) ?? []
+  ).length;
   if (locationAnchorHits >= 2) return true;
 
   // Two or more distinct standalone event types (meeting + lunch ≠ "dinner date" which is one)
   const standaloneEventHits = new Set(
-    (transcript.match(/\b(meeting|lunch|dinner|breakfast|appointment|conference|session|gym|wedding|party)\b/gi) ?? [])
-      .map((w) => w.toLowerCase()),
+    (
+      transcript.match(
+        /\b(meeting|lunch|dinner|breakfast|appointment|conference|session|gym|wedding|party)\b/gi,
+      ) ?? []
+    ).map((w) => w.toLowerCase()),
   ).size;
   if (standaloneEventHits >= 2) return true;
 
@@ -246,7 +290,9 @@ export function isMultiEventUtterance(transcript: string): boolean {
  * "meeting in SM Baguio at 7am, lunch in La Union, going home to Tagudin"
  * → ["SM Baguio", "La Union", "Tagudin"]
  */
-export function extractAllLocationsFromTranscript(transcript: string): string[] {
+export function extractAllLocationsFromTranscript(
+  transcript: string,
+): string[] {
   // Split on "and" or "," to get one clause per potential stop
   const segments = transcript.split(/\band\b|,/i);
   const locations: string[] = [];
@@ -263,30 +309,53 @@ export function extractAllLocationsFromTranscript(transcript: string): string[] 
 
     // "in [place]" — max 3 words, stop at common words
     const inM = s.match(
-      new RegExp(`\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+      new RegExp(
+        `\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+){0,2})${STOP}`,
+        "i",
+      ),
     );
-    if (inM) { locations.push(inM[1].trim()); continue; }
+    if (inM) {
+      locations.push(inM[1].trim());
+      continue;
+    }
 
     // "at [place]" — exclude bare times like "at 7am", max 3 words
     const atM = s.match(
       new RegExp(`\\bat\\s+(?!\\d)(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
     );
-    if (atM) { locations.push(atM[1].trim()); continue; }
+    if (atM) {
+      locations.push(atM[1].trim());
+      continue;
+    }
 
     // "to [place]" — exclude "to the/a/home", max 2 words
     const toM = s.match(
-      new RegExp(`\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b)(\\w+(?:\\s+\\w+){0,1})${STOP}`, "i"),
+      new RegExp(
+        `\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b)(\\w+(?:\\s+\\w+){0,1})${STOP}`,
+        "i",
+      ),
     );
-    if (toM) { locations.push(toM[1].trim()); continue; }
+    if (toM) {
+      locations.push(toM[1].trim());
+      continue;
+    }
 
     // Bare location after connector — e.g. "and la union this afternoon"
     // Strip leading filler/event words then take up to 3 words
     const bareM = s.match(
-      new RegExp(`^(?:(?:a|an|my|the)\\s+)?(?:(?:lunch|dinner|breakfast|date|meeting|appointment)\\s+(?:date\\s+)?)?(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+      new RegExp(
+        `^(?:(?:a|an|my|the)\\s+)?(?:(?:lunch|dinner|breakfast|date|meeting|appointment)\\s+(?:date\\s+)?)?(\\w+(?:\\s+\\w+){0,2})${STOP}`,
+        "i",
+      ),
     );
     if (bareM) {
       const loc = bareM[1].trim();
-      if (loc.length > 2 && !/^(and|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(loc)) {
+      if (
+        loc.length > 2 &&
+        !/^(and|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(
+          loc,
+        )
+      ) {
         locations.push(loc);
       }
     }
@@ -347,19 +416,26 @@ export function buildPreciseETANarration(
 
   for (let i = 0; i < stops.length; i++) {
     const stop = stops[i];
-    const travelMins = i < routes.length ? Math.round(routes[i].duration / 60) : 0;
-    const scheduledMins = stop.timeBlock ? parseTimeBlock(stop.timeBlock) : null;
+    const travelMins =
+      i < routes.length ? Math.round(routes[i].duration / 60) : 0;
+    const scheduledMins = stop.timeBlock
+      ? parseTimeBlock(stop.timeBlock)
+      : null;
 
     if (scheduledMins !== null) {
       const arrivalStr = formatTime(scheduledMins);
       if (i === 0 && travelMins > 0) {
         const departStr = formatTime(scheduledMins - travelMins);
-        parts.push(`leave by ${departStr} to reach ${stop.name} at ${arrivalStr}`);
+        parts.push(
+          `leave by ${departStr} to reach ${stop.name} at ${arrivalStr}`,
+        );
       } else {
         parts.push(`${stop.name} at ${arrivalStr}`);
       }
     } else if (travelMins > 0) {
-      parts.push(`${stop.name} in about ${travelMins} min from the previous stop`);
+      parts.push(
+        `${stop.name} in about ${travelMins} min from the previous stop`,
+      );
     }
   }
 
@@ -377,7 +453,15 @@ export function buildPreciseETANarration(
 export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
   if (results.length < 2) return false;
   for (let i = 1; i < Math.min(results.length, 3); i++) {
-    if (haversineKm(results[0].lat, results[0].lng, results[i].lat, results[i].lng) > 50) return true;
+    if (
+      haversineKm(
+        results[0].lat,
+        results[0].lng,
+        results[i].lat,
+        results[i].lng,
+      ) > 50
+    )
+      return true;
   }
   return false;
 }
@@ -385,7 +469,10 @@ export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
 /**
  * Builds a natural-language disambiguation question listing the top candidates.
  */
-export function buildDisambiguationQuestion(locationName: string, candidates: GeocodeResult[]): string {
+export function buildDisambiguationQuestion(
+  locationName: string,
+  candidates: GeocodeResult[],
+): string {
   const top = candidates.slice(0, 3);
   if (top.length === 2) {
     return `I found two places called "${locationName}" — option 1: ${top[0].address}, or option 2: ${top[1].address}. Which one did you mean?`;
@@ -406,9 +493,21 @@ export function matchCandidateFromTranscript(
 
   // Ordinal / explicit option references
   const ORDINALS: Record<string, number> = {
-    "option 1": 0, "option one": 0, "number one": 0, first: 0, "1st": 0,
-    "option 2": 1, "option two": 1, "number two": 1, second: 1, "2nd": 1,
-    "option 3": 2, "option three": 2, "number three": 2, third: 2, "3rd": 2,
+    "option 1": 0,
+    "option one": 0,
+    "number one": 0,
+    first: 0,
+    "1st": 0,
+    "option 2": 1,
+    "option two": 1,
+    "number two": 1,
+    second: 1,
+    "2nd": 1,
+    "option 3": 2,
+    "option three": 2,
+    "number three": 2,
+    third: 2,
+    "3rd": 2,
   };
   for (const [phrase, idx] of Object.entries(ORDINALS)) {
     if (lower.includes(phrase) && candidates[idx]) return candidates[idx];
@@ -437,10 +536,13 @@ export function matchCandidateFromTranscript(
 export function buildMapInput(
   transcript: string,
   loc: { lat: number; lng: number } | null | undefined,
-  dest: { name?: string; address?: string; lat: number; lng: number } | null | undefined,
+  dest:
+    | { name?: string; address?: string; lat: number; lng: number }
+    | null
+    | undefined,
   routeActive: boolean,
   pendingEvents?: Array<{ eventName: string; timeLabel: string }>,
-  prefix: string = "[stylist]"
+  prefix: string = "[stylist]",
 ): string {
   const parts: string[] = [];
   if (loc) parts.push(`location: ${loc.lat},${loc.lng}`);

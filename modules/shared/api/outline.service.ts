@@ -41,13 +41,14 @@ export const outlineService = {
   },
 
   /**
-   * RESET — clears the user's itinerary (soft-deletes all active outlines) so a
-   * page refresh starts clean. Returns the number of outlines cleared.
+   * RESET — without a scope, soft-deletes all active outlines (full wipe, used by
+   * Restart). With a scope, clears only that feature's contribution to the active
+   * outline (the per-screen Reset). Returns the number of rows cleared.
    */
-  async reset(): Promise<number> {
+  async reset(scope?: "fashion" | "cosmetic" | "itinerary"): Promise<number> {
     const res = await api.post<{ data: { cleared: number } }>(
       "/api/mirror/outlines/reset",
-      {},
+      scope ? { scope } : {},
     );
     return res.data?.data?.cleared ?? 0;
   },
