@@ -7,131 +7,49 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
-
-const IDLE_TIMEOUT_MS = 480_000;
-type HandsFreePhase = "starting" | "wake" | "command" | "processing" | "error";
+import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
+import { useRouter } from "next/navigation";
 
 const TAGLINES = [
   "Ask me to navigate anywhere.",
-  'Say "Hey Mirror" to check the weather.',
+  "Step closer to check the weather.",
   "I can recommend outfits for your day.",
   "Your mirror. Always ready.",
   "Reflect. Navigate. Discover.",
 ];
 
-const WAKE_WORDS = [
-  "hey mirror",
-  "hey mere",
-  "a mirror",
-  "hey miror",
-  "hey mira",
-  "hey miro",
-  "hey nero",
-  "hay mirror",
-  "ok mirror",
-  "hi mirror",
-  "okay mirror",
-  "hello mirror",
-  "hello mere",
-  "hello miror",
-  "magic mirror",
-  "mirror mirror",
-];
+/*
+function generateGreetingPrompt() {
+  const now = new Date();
+  const hours = now.getHours();
+  let timeOfDay = "morning";
+  if (hours >= 12 && hours < 17) timeOfDay = "afternoon";
+  else if (hours >= 17) timeOfDay = "evening";
 
-const WAKE_START_WORDS = new Set([
-  "hey",
-  "hay",
-  "hi",
-  "ok",
-  "okay",
-  "a",
-  "hello",
-  "yo",
-  "magic",
-]);
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayOfWeek = days[now.getDay()];
 
-const MIRROR_WORDS = new Set([
-  "mirror",
-  "miror",
-  "mira",
-  "miro",
-  "mere",
-  "nero",
-  "mirra",
-  "meera",
-  "meer",
-  "mearer",
-  "mirah",
-  "murah",
-]);
+  const hints = [
+    "Ask if they want to pick out an outfit or check the map today.",
+    "Ask if they are getting ready for work, or just relaxing.",
+    "Ask what they are looking forward to exploring today.",
+    "Ask if they need help planning their itinerary."
+  ];
+  const randomHint = hints[Math.floor(Math.random() * hints.length)];
 
-function normalizeSpeech(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return `[SYSTEM] The user just walked up to the mirror. Greet them warmly. CRITICAL INSTRUCTION: DO NOT EMIT [STYLIST], [NAV_DATA], [GARMENT_DATA], OR [COSMETICS_DATA] BLOCKS. DO NOT NAVIGATE. DO NOT RECOMMEND OUTFITS OR COSMETICS YET. JUST SPEAK. It is currently ${dayOfWeek} ${timeOfDay}. ${randomHint} End by explicitly asking them the question so they can answer. Start listening after you speak.`;
 }
-
-function stripLeadingWakePhrases(text: string) {
-  let command = text.trim();
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-    for (const word of WAKE_WORDS) {
-      if (command === word) return "";
-      if (command.startsWith(`${word} `)) {
-        command = command.slice(word.length).trim();
-        changed = true;
-      }
-    }
-  }
-
-  return command.replace(/^(on the wall|mirror on the wall)\b/, "").trim();
-}
-
-function isWakeOnly(text: string) {
-  return stripLeadingWakePhrases(normalizeSpeech(text)) === "";
-}
-
-function getWakeCommand(text: string) {
-  const normalized = normalizeSpeech(text);
-  const wakeWord = WAKE_WORDS.find((word) => normalized.lastIndexOf(word) >= 0);
-  if (wakeWord) {
-    const idx = normalized.lastIndexOf(wakeWord);
-    const command = stripLeadingWakePhrases(
-      normalized.slice(idx + wakeWord.length),
-    );
-    return { command };
-  }
-
-  const words = normalized.split(" ").filter(Boolean);
-  for (let i = 0; i < words.length; i++) {
-    if (!MIRROR_WORDS.has(words[i])) continue;
-    const prev = words.slice(Math.max(0, i - 3), i);
-    if (prev.some((word) => WAKE_START_WORDS.has(word))) {
-      return { command: stripLeadingWakePhrases(words.slice(i + 1).join(" ")) };
-    }
-  }
-
-  return null;
-}
+*/
 
 export default function AIAssistantPage() {
+  const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
-  const micRef = useRef<{ stop: () => void; clear: () => void } | null>(null);
-  const wakeLoopRef = useRef(false);
-  const wakeHeardRef = useRef("");
   const voiceStateRef = useRef("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
-  const [handsFreeReady, setHandsFreeReady] = useState(false);
-  const [handsFreeDebug, setHandsFreeDebug] = useState("");
-  const [handsFreePhase, setHandsFreePhase] =
-    useState<HandsFreePhase>("starting");
+  
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
-  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasGreetedRef = useRef(false);
 
   const pageContext = useMemo(
     () => ({
@@ -156,6 +74,11 @@ export default function AIAssistantPage() {
     chatHistory,
     submitText,
   } = useVoiceContext();
+
+  const { isPresent, videoRef, status: sensorStatus } = useProximitySensor({
+    intervalMs: 1000,
+    missesUntilExit: 3,
+  });
 
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -190,25 +113,37 @@ export default function AIAssistantPage() {
     return () => clearInterval(id);
   }, [showIdle, taglines.length]);
 
-  // Exit idle when wake word fires
-  useEffect(() => {
-    if (handsFreePhase === "command" || handsFreePhase === "processing") {
-      queueMicrotask(() => setShowIdle(false));
+  const handleWake = useCallback(() => {
+    if (!showIdle) return;
+    setShowIdle(false);
+    
+    /*
+    if (!hasGreetedRef.current) {
+      hasGreetedRef.current = true;
+      const dynamicPrompt = generateGreetingPrompt();
+      submitTextRef.current(dynamicPrompt).catch(() => {});
     }
-  }, [handsFreePhase]);
+    */
+    hasGreetedRef.current = true;
+  }, [showIdle]);
 
-  // Inactivity timeout — return to idle after IDLE_TIMEOUT_MS
+  // Handle Proximity Changes
   useEffect(() => {
-    if (showIdle) return;
-    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    inactivityTimerRef.current = setTimeout(
-      () => setShowIdle(true),
-      IDLE_TIMEOUT_MS,
-    );
-    return () => {
-      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-    };
-  }, [showIdle, voiceState, chatHistory, handsFreePhase]);
+    if (isPresent && showIdle) {
+      // User arrived!
+      handleWake();
+    } else if (!isPresent && !showIdle && sensorStatus !== "unavailable") {
+      // User walked away! (Only if camera is actually available to tell us they left)
+      setShowIdle(true);
+      hasGreetedRef.current = false;
+      // Restart the session completely
+      import("@/modules/shared/api/chat-wonder.service").then((m) => {
+         m.chatWonderService.restart().finally(() => {
+           window.location.reload();
+         });
+      });
+    }
+  }, [isPresent, showIdle, handleWake, sensorStatus]);
 
   const status = isListening
     ? "Listening"
@@ -216,153 +151,15 @@ export default function AIAssistantPage() {
       ? "Thinking"
       : isSpeaking
         ? "Speaking"
-        : handsFreePhase === "command"
-          ? "Listening"
-          : handsFreePhase === "processing"
-            ? "Thinking"
-            : handsFreeReady || handsFreePhase === "wake"
-              ? "Say Hey Mirror"
-              : "Starting mic";
+        : "Idle";
 
   const latest = chatHistory[chatHistory.length - 1];
   const displayUser = transcript || latest?.user || "";
   const displayReply =
     error || reply || latest?.assistant || "Hi! What can I do for you?";
 
-  const startWakeWord = useCallback(() => {
-    if (wakeLoopRef.current) return;
-    if (voiceStateRef.current !== "idle") return;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = ((window as any).SpeechRecognition ??
-      (window as any).webkitSpeechRecognition) as
-      | (new () => {
-          continuous: boolean;
-          interimResults: boolean;
-          lang: string;
-          onresult:
-            | ((e: {
-                resultIndex: number;
-                results: { isFinal: boolean; 0: { transcript: string } }[];
-              }) => void)
-            | null;
-          onerror: ((e: { error: string }) => void) | null;
-          onend: (() => void) | null;
-          start: () => void;
-          stop: () => void;
-        })
-      | undefined;
-    if (!SR) {
-      setHandsFreePhase("error");
-      setHandsFreeDebug("Speech recognition unsupported");
-      return;
-    }
-
-    wakeLoopRef.current = true;
-    setHandsFreeReady(true);
-    setHandsFreePhase("wake");
-    setHandsFreeDebug("Listening for wake phrase");
-
-    const recognition = new SR();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onresult = (event) => {
-      if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
-
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) final += event.results[i][0].transcript;
-        else interim += event.results[i][0].transcript;
-      }
-
-      const currentText = (final + " " + interim).trim();
-      if (!currentText) return;
-
-      const heard = normalizeSpeech(currentText);
-      wakeHeardRef.current = heard;
-      setHandsFreeDebug(`Heard: "${currentText}"`);
-
-      const wake = getWakeCommand(heard);
-      if (wake) {
-        wakeLoopRef.current = false;
-        recognition.stop();
-        setHandsFreeReady(false);
-        setHandsFreePhase(wake.command ? "processing" : "command");
-        setShowIdle(false);
-        setHandsFreeDebug(wake.command ? "Processing" : "Listening");
-        wakeHeardRef.current = "";
-
-        if (wake.command && !isWakeOnly(wake.command)) {
-          submitTextRef.current(wake.command);
-        } else {
-          toggle();
-        }
-      }
-    };
-
-    recognition.onerror = (event) => {
-      if (event.error === "not-allowed") {
-        setHandsFreeReady(false);
-        setHandsFreePhase("error");
-        setHandsFreeDebug("Microphone blocked");
-        wakeLoopRef.current = false;
-      }
-    };
-
-    recognition.onend = () => {
-      if (wakeLoopRef.current && voiceStateRef.current === "idle") {
-        // Auto-restart continuous listening if it stops randomly
-        recognition.start();
-      }
-    };
-
-    try {
-      recognition.start();
-      micRef.current = { stop: () => recognition.stop(), clear: () => {} };
-    } catch {
-      setHandsFreeDebug("Voice unavailable");
-    }
-  }, [toggle]);
-
-  useEffect(() => {
-    if (showIdle) return;
-    const id = window.setTimeout(startWakeWord, 0);
-    return () => {
-      window.clearTimeout(id);
-      wakeLoopRef.current = false;
-      micRef.current?.stop();
-    };
-  }, [startWakeWord, showIdle]);
-
-  useEffect(() => {
-    if (showIdle) return;
-    if (voiceState === "idle" && !wakeLoopRef.current) {
-      const id = window.setTimeout(startWakeWord, 350);
-      return () => window.clearTimeout(id);
-    }
-  }, [startWakeWord, voiceState, showIdle]);
-
-  // Manual mic tap: release the continuous wake-word recognizer first so the
-  // recording recognizer can take the mic (Chrome allows only one at a time).
-  // If we're already recording/speaking, toggle immediately. Otherwise stop the
-  // wake loop and defer the start until the engine frees. The idle effect above
-  // re-arms the wake loop when we return.
   const handleMicTap = useCallback(() => {
-    if (voiceStateRef.current !== "idle") {
-      toggle();
-      return;
-    }
-    wakeLoopRef.current = false;
-    if ((micRef as any).current) (micRef as any).current.stop();
-    setHandsFreeReady(false);
-    setHandsFreePhase("starting");
-    setHandsFreeDebug("Starting mic");
-    // Give the wake recognizer a beat to fully release the speech engine before
-    // the recording recognizer starts (Chrome allows only one active at a time).
-    window.setTimeout(() => toggle(), 350);
+    toggle();
   }, [toggle]);
 
   return (
@@ -384,11 +181,25 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer"
-            onClick={() => setShowIdle(false)}
+            className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer relative"
+            onClick={handleWake}
           >
+            {/* 
+              Placeholder Abstract Video Loop 
+              Replace the src with "/background.mp4" when you have your own branded asset
+            */}
+            <video
+              src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover opacity-60 z-0 pointer-events-none"
+            />
+            <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
+
             <div
-              className="flex items-center justify-center"
+              className="flex items-center justify-center relative z-10"
               style={{ minHeight: "8rem" }}
             >
               <AnimatePresence mode="wait">
@@ -406,15 +217,15 @@ export default function AIAssistantPage() {
               </AnimatePresence>
             </div>
 
-            <div className="mt-8 flex flex-col items-center gap-4">
+            <div className="mt-8 flex flex-col items-center gap-4 relative z-10">
               <div className="h-px w-12 bg-white/15" />
-              <p className="text-[10px] uppercase tracking-[0.5em] text-white/30 font-light">
-                Say &ldquo;Hey Mirror&rdquo; to begin
+              <p className="text-[10px] uppercase tracking-[0.5em] text-white/30 font-light drop-shadow-md">
+                Step closer to begin
               </p>
             </div>
 
             <motion.div
-              className="mt-10 flex flex-col items-center gap-3"
+              className="mt-10 flex flex-col items-center gap-3 relative z-10"
               animate={{ opacity: [0.4, 0.9, 0.4] }}
               transition={{
                 duration: 2.5,
@@ -489,22 +300,22 @@ export default function AIAssistantPage() {
                   width: 56,
                   height: 56,
                   background:
-                    isListening || handsFreePhase === "command"
+                    isListening
                       ? "rgba(255,255,255,0.10)"
                       : isSpeaking
                         ? "rgba(255,255,255,0.07)"
                         : "rgba(255,255,255,0.04)",
                   border:
-                    isListening || handsFreePhase === "command"
+                    isListening
                       ? "1px solid rgba(255,255,255,0.40)"
                       : isSpeaking
                         ? "1px solid rgba(255,255,255,0.25)"
                         : "1px solid rgba(255,255,255,0.10)",
                 }}
                 animate={
-                  isListening || handsFreePhase === "command"
+                  isListening
                     ? { scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }
-                    : isProcessing || handsFreePhase === "processing"
+                    : isProcessing
                       ? { opacity: [0.4, 0.9, 0.4] }
                       : isSpeaking
                         ? { scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }
@@ -515,9 +326,9 @@ export default function AIAssistantPage() {
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>
-              {handsFreeDebug && (
+              {sensorStatus === "unavailable" && (
                 <p className="text-white/20 text-[9px] tracking-wide">
-                  {handsFreeDebug}
+                  Camera unavailable
                 </p>
               )}
             </div>
@@ -526,6 +337,31 @@ export default function AIAssistantPage() {
           </motion.main>
         )}
       </AnimatePresence>
+
+      {/* Debug Sleep button for testers without cameras */}
+      {sensorStatus === "unavailable" && !showIdle && (
+        <button
+          onClick={() => {
+            setShowIdle(true);
+            hasGreetedRef.current = false;
+            import("@/modules/shared/api/chat-wonder.service").then((m) => {
+              m.chatWonderService.restart().finally(() => {
+                window.location.reload();
+              });
+            });
+          }}
+          className="absolute bottom-4 right-4 z-50 text-white/30 text-[10px] px-3 py-1.5 border border-white/20 rounded hover:bg-white/10 uppercase tracking-widest cursor-pointer"
+        >
+          Tester: Sleep
+        </button>
+      )}
+
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-0"
+      />
     </div>
   );
 }
