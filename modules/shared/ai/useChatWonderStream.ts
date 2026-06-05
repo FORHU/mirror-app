@@ -272,16 +272,22 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                   }
                 }
 
-                // Handle AI-driven page navigation
+                // Handle AI-driven page navigation via [STYLIST] block
+                const stylistData = (parsed.stylist ?? parsed.stylist_data) as
+                  | { target_url?: string }
+                  | null
+                  | undefined;
+                // Also support legacy [nav] block for backward compat
                 const nav = completePayload.nav as
                   | { target_url?: string }
                   | null
                   | undefined;
-                if (nav?.target_url) {
-                  if (nav.target_url === "back") {
+                const navTarget = stylistData?.target_url ?? nav?.target_url;
+                if (navTarget) {
+                  if (navTarget === "back") {
                     router.back();
                   } else {
-                    router.push(nav.target_url);
+                    router.push(navTarget);
                   }
                 }
 

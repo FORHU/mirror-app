@@ -319,13 +319,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // AI Assistant page: use the shared recorder/transcriber/TTS plumbing, but
-      // keep the deterministic assistant route for [nav] and overview handoff.
-      if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
-        await handleAIAssistantText(t);
-        return;
-      }
-
       // Garment mode: bypass the orchestration pipeline, route to chatWonderService
       if (pageCtxRef.current?.mode === "garment") {
         let weather: Record<string, unknown> | undefined;
