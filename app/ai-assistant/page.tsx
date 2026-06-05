@@ -8,14 +8,7 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
-import {
-  PersistentMic,
-  captureCommand,
-  delay,
-  msOf,
-  MIN_TRANSCRIBE_MS,
-  WAKE_VAD_THRESHOLD,
-} from "./voiceCapture";
+
 
 const WAKE_WINDOW_MS = 2800;
 const WAKE_INTERVAL_MS = 900;
@@ -124,7 +117,7 @@ function getWakeCommand(text: string) {
 
 export default function AIAssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const micRef = useRef<PersistentMic | null>(null);
+  const micRef = useRef<any>(null);
   const wakeLoopRef = useRef(false);
   const wakeAbortRef = useRef<AbortController | null>(null);
   const commandAbortRef = useRef<AbortController | null>(null);
@@ -206,152 +199,101 @@ export default function AIAssistantPage() {
     <Mic className="w-16 h-16 text-white/75" />
   );
 
-  const ensureMic = useCallback(async () => {
-    if (!micRef.current) micRef.current = new PersistentMic();
-    await micRef.current.start();
-    return micRef.current;
-  }, []);
 
-  const startCommandListening = useCallback(async () => {
-    wakeLoopRef.current = false;
-    wakeAbortRef.current?.abort();
-    setHandsFreeReady(false);
-    setHandsFreePhase("command");
-    setHandsFreeDebug("Listening");
-
-    const controller = new AbortController();
-    commandAbortRef.current = controller;
-
-    try {
-      const mic = await ensureMic();
-      const audio = await captureCommand(mic, controller.signal);
-      if (msOf(audio) < MIN_TRANSCRIBE_MS) return;
-
-      setHandsFreePhase("processing");
-      setHandsFreeDebug("Processing");
-      const text = await mapService.transcribe(audio);
-      if (text.trim()) await submitTextRef.current(text);
-    } catch (err) {
-      const isAbort = err instanceof DOMException && err.name === "AbortError";
-      if (!isAbort) {
-        setHandsFreePhase("error");
-        setHandsFreeDebug("Voice unavailable");
-      }
-    } finally {
-      commandAbortRef.current = null;
-      micRef.current?.clear();
-      if (voiceStateRef.current === "idle") {
-        wakeLoopRef.current = false;
-        setHandsFreePhase("wake");
-        setRestartTick((tick) => tick + 1);
-      }
-    }
-  }, [ensureMic]);
 
   const startWakeWord = useCallback(() => {
     if (wakeLoopRef.current) return;
     if (voiceStateRef.current !== "idle") return;
 
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setHandsFreePhase("error");
+      setHandsFreeDebug("Speech recognition unsupported");
+      return;
+    }
+
     wakeLoopRef.current = true;
-    setHandsFreeReady(false);
-    setHandsFreePhase("starting");
-    setHandsFreeDebug("Starting mic");
-    wakeAbortRef.current?.abort();
+    setHandsFreeReady(true);
+    setHandsFreePhase("wake");
+    setHandsFreeDebug("Listening for wake phrase");
 
-    const scan = async () => {
-      if (!wakeLoopRef.current) return;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
 
-      if (voiceStateRef.current !== "idle") {
-        setHandsFreeReady(false);
-        setHandsFreePhase("wake");
-        setHandsFreeDebug("");
+    recognition.onresult = (event: any) => {
+      if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
+
+      let interim = "";
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) final += event.results[i][0].transcript;
+        else interim += event.results[i][0].transcript;
+      }
+      
+      const currentText = (final + " " + interim).trim();
+      if (!currentText) return;
+
+      const heard = normalizeSpeech(currentText);
+      wakeHeardRef.current = heard;
+      setHandsFreeDebug(`Heard: "${currentText}"`);
+
+      const wake = getWakeCommand(heard);
+      if (wake) {
         wakeLoopRef.current = false;
-        setRestartTick((tick) => tick + 1);
-        return;
-      }
+        recognition.stop();
+        setHandsFreeReady(false);
+        setHandsFreePhase(wake.command ? "processing" : "command");
+        setHandsFreeDebug(wake.command ? "Processing" : "Listening");
+        wakeHeardRef.current = "";
 
-      const controller = new AbortController();
-      wakeAbortRef.current = controller;
-
-      try {
-        const mic = await ensureMic();
-        setHandsFreeReady(true);
-        setHandsFreePhase("wake");
-        await delay(WAKE_INTERVAL_MS, controller.signal);
-        if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
-
-        if (mic.bufferedMs() < MIN_TRANSCRIBE_MS) {
-          setHandsFreeDebug("Warming up");
-        } else if (mic.peakLevel(WAKE_WINDOW_MS) < WAKE_VAD_THRESHOLD) {
-          setHandsFreeDebug("Listening for wake phrase");
+        if (wake.command && !isWakeOnly(wake.command)) {
+          submitTextRef.current(wake.command);
         } else {
-          const text = await mapService.transcribe(mic.tail(WAKE_WINDOW_MS));
-          if (!wakeLoopRef.current || voiceStateRef.current !== "idle") return;
-
-          const heard = normalizeSpeech(text);
-          if (heard) {
-            wakeHeardRef.current = `${wakeHeardRef.current} ${heard}`
-              .trim()
-              .split(" ")
-              .slice(-16)
-              .join(" ");
-            setHandsFreeDebug(`Heard: "${text.trim()}"`);
-          }
-
-          const wake = getWakeCommand(wakeHeardRef.current);
-          if (wake) {
-            wakeLoopRef.current = false;
-            setHandsFreeReady(false);
-            setHandsFreePhase(wake.command ? "processing" : "command");
-            setHandsFreeDebug(wake.command ? "Processing" : "Listening");
-            wakeHeardRef.current = "";
-            mic.clear();
-            if (wake.command && !isWakeOnly(wake.command)) {
-              await submitTextRef.current(wake.command);
-            } else {
-              await startCommandListening();
-            }
-            return;
-          }
+          // Trigger the standard VoiceProvider recording flow
+          toggle();
         }
-      } catch (err) {
-        const isAbort = err instanceof DOMException && err.name === "AbortError";
-        const isDenied =
-          err instanceof DOMException && err.name === "NotAllowedError";
-        if (isDenied) {
-          setHandsFreeReady(false);
-          setHandsFreePhase("error");
-          setHandsFreeDebug("Microphone blocked");
-          wakeLoopRef.current = false;
-          return;
-        }
-        if (!isAbort) setHandsFreeDebug("Voice unavailable");
-      } finally {
-        wakeAbortRef.current = null;
-      }
-
-      if (wakeLoopRef.current) {
-        window.setTimeout(scan, 0);
       }
     };
 
-    void scan();
-  }, [ensureMic, startCommandListening]);
+    recognition.onerror = (event: any) => {
+      if (event.error === 'not-allowed') {
+        setHandsFreeReady(false);
+        setHandsFreePhase("error");
+        setHandsFreeDebug("Microphone blocked");
+        wakeLoopRef.current = false;
+      }
+    };
+
+    recognition.onend = () => {
+      if (wakeLoopRef.current && voiceStateRef.current === "idle") {
+        // Auto-restart continuous listening if it stops randomly
+        recognition.start();
+      }
+    };
+
+    try {
+      recognition.start();
+      // Store on ref to abort on unmount
+      (micRef as any).current = { stop: () => recognition.stop(), clear: () => {} };
+    } catch {
+      setHandsFreeDebug("Voice unavailable");
+    }
+  }, [toggle]);
 
   useEffect(() => {
     startWakeWord();
     return () => {
       wakeLoopRef.current = false;
-      wakeAbortRef.current?.abort();
-      commandAbortRef.current?.abort();
-      micRef.current?.stop();
-      micRef.current = null;
+      if ((micRef as any).current) {
+        (micRef as any).current.stop();
+      }
     };
   }, [startWakeWord]);
 
   useEffect(() => {
     if (voiceState === "idle" && !wakeLoopRef.current) {
-      micRef.current?.clear();
       const id = window.setTimeout(startWakeWord, 350);
       return () => window.clearTimeout(id);
     }

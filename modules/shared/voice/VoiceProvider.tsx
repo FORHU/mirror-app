@@ -251,66 +251,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  const cleanupRecording = () => {
-    processorRef.current?.disconnect();
-    sourceRef.current?.disconnect();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    audioCtxRef.current?.close();
-    processorRef.current = null;
-    sourceRef.current = null;
-    streamRef.current = null;
-    audioCtxRef.current = null;
-  };
+  const recognitionRef = useRef<any>(null);
 
-  const startListening = useCallback(async () => {
-    if (voiceState !== "idle") return;
-    setError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      const ctx = new AudioContext({ sampleRate: SAMPLE_RATE });
-      const processor = ctx.createScriptProcessor(BUFFER_SIZE, 1, 1);
-      const source = ctx.createMediaStreamSource(stream);
-
-      chunksRef.current = [];
-      processor.onaudioprocess = (e) => {
-        chunksRef.current.push(float32ToInt16(e.inputBuffer.getChannelData(0)));
-      };
-
-      // Route through a silent gain node so onaudioprocess keeps firing
-      // without the mic audio leaking to the speakers.
-      const silencer = ctx.createGain();
-      silencer.gain.value = 0;
-      source.connect(processor);
-      processor.connect(silencer);
-      silencer.connect(ctx.destination);
-
-      audioCtxRef.current = ctx;
-      processorRef.current = processor;
-      sourceRef.current = source;
-      streamRef.current = stream;
-      setVoiceState("recording");
-    } catch {
-      setError("Microphone access denied.");
-    }
-  }, [voiceState]);
-
-  const stopListening = useCallback(async () => {
-    if (voiceState !== "recording") return;
-    setVoiceState("processing");
-
-    const chunks = chunksRef.current;
-    cleanupRecording();
-
-    const total = chunks.reduce((n, c) => n + c.length, 0);
-    const combined = new Int16Array(total);
-    let offset = 0;
-    for (const c of chunks) {
-      combined.set(c, offset);
-      offset += c.length;
-    }
+  const processTranscript = useCallback(async (t: string) => {
+    setTranscript(t);
 
     try {
       const map = useMapStore.getState();
@@ -358,9 +302,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           day: "numeric",
         }),
         schedules,
-        // Send the actual route (always current via usePathname) so the AI has
-        // an unambiguous, never-stale source of truth for where the user is.
-        // The friendly pageName is appended only as a hint.
         currentPage: pageCtxRef.current?.pageName
           ? `${pathname} (${pageCtxRef.current.pageName})`
           : pathname,
@@ -372,10 +313,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.getItem("mirror_gender") ||
           undefined,
       };
-
-      const language = useMirrorStore.getState().voiceLanguage;
-      const t = await mapService.transcribe(combined.buffer, language);
-      setTranscript(t);
 
       if (!t || t.trim() === "") {
         setVoiceState("idle");
@@ -977,6 +914,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             };
           }
         }
+        const language = useMirrorStore.getState().voiceLanguage;
         const res = await mapService.ask(t, ctx, language);
         r = res.reply;
         events = res.events ?? [];
@@ -1072,6 +1010,51 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setVoiceState("idle");
     }
   }, [voiceState, pathname, router, handleAIAssistantText, stopPlayback]);
+
+  const startListening = useCallback(async () => {
+    if (voiceState !== "idle") return;
+    setError(null);
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        setError("Speech recognition is not supported in this browser.");
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = useMirrorStore.getState().voiceLanguage || 'en-US';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => setVoiceState("recording");
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech') setError("Speech recognition error: " + event.error);
+        setVoiceState("idle");
+      };
+      recognition.onresult = async (event: any) => {
+        const text = event.results[0][0].transcript;
+        if (!text || text.trim() === "") {
+          setVoiceState("idle");
+          return;
+        }
+        setVoiceState("processing");
+        await processTranscript(text);
+      };
+      recognition.onend = () => {
+        setVoiceState((prev) => prev === "recording" ? "idle" : prev);
+      };
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch {
+      setError("Microphone access denied.");
+    }
+  }, [voiceState, processTranscript]);
+
+  const stopListening = useCallback(async () => {
+    if (voiceState !== "recording") return;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+  }, [voiceState]);
 
   const submitText = useCallback(
     async (text: string) => {
