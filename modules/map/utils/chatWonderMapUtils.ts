@@ -198,6 +198,7 @@ export function buildMapInput(
   dest: { name?: string; address?: string; lat: number; lng: number } | null | undefined,
   routeActive: boolean,
   pendingEvents?: Array<{ eventName: string; timeLabel: string }>,
+  prefix: string = "[stylist]"
 ): string {
   const parts: string[] = [];
   if (loc) parts.push(`location: ${loc.lat},${loc.lng}`);
@@ -215,5 +216,5 @@ export function buildMapInput(
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
 
-  return `[map]${ctx} ${transcript}`;
+  return `${prefix}${ctx} ${transcript}`;
 }

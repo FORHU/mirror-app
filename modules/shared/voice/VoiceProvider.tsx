@@ -364,11 +364,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           ...(weather ? { weather } : {}),
         });
 
-        if (garmentResponse.nav_data?.target_url) {
-          if (garmentResponse.nav_data.target_url === "back") {
+        if (garmentResponse.stylist_data?.target_url) {
+          if (garmentResponse.stylist_data.target_url === "back") {
             router.back();
           } else {
-            router.push(garmentResponse.nav_data.target_url);
+            router.push(garmentResponse.stylist_data.target_url);
           }
         }
 
@@ -615,12 +615,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           mapDest,
           !!mapState.activeRoute,
           pending.length > 0 ? pending : undefined,
+          pageCtxRef.current?.mode === "map" ? "[map]" : "[stylist]"
         );
 
         const res = await chatWonderService.message({
           input: enrichedInput,
           history,
         });
+
+        if (res.stylist_data?.target_url) {
+          if (res.stylist_data.target_url === "back") {
+            router.back();
+          } else {
+            router.push(res.stylist_data.target_url);
+          }
+        }
 
         const originLat = mapLoc?.lat ?? 0;
         const originLng = mapLoc?.lng ?? 0;

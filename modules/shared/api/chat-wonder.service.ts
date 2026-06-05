@@ -68,7 +68,7 @@ export interface ChatWonderMessageResponse {
   garment_data: ChatWonderGarmentData | null;
   cosmetics_data: unknown | null;
   maps_data: ChatWonderMapsData[] | null;
-  nav_data: ChatWonderNavData | null;
+  stylist_data: ChatWonderStylistData | null;
   events?: ChatWonderEvent[];
   sets?: unknown[];
   metadata: {
@@ -78,7 +78,7 @@ export interface ChatWonderMessageResponse {
   };
 }
 
-export interface ChatWonderNavData {
+export interface ChatWonderStylistData {
   /** Route to navigate to — one of the app's SITEMAP_CONTEXT entries. */
   target_url: string;
   confidence?: number;
