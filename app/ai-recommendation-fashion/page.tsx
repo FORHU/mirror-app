@@ -81,6 +81,15 @@ function SkeletonCell({
   );
 }
 
+const FASHION_QUOTES = [
+  { text: "Fashion is the armor to survive the reality of everyday life.", author: "Bill Cunningham" },
+  { text: "Style is a way to say who you are without having to speak.", author: "Rachel Zoe" },
+  { text: "Elegance is not about being noticed, it's about being remembered.", author: "Giorgio Armani" },
+  { text: "Fashion is what you buy. Style is what you do with it.", author: "Unknown" },
+  { text: "Dress shabbily and they remember the dress; dress impeccably and they remember the woman.", author: "Coco Chanel" },
+  { text: "The joy of dressing is an art.", author: "John Galliano" },
+];
+
 export default function VirtualMirrorV2() {
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [aiLoading, setAiLoading] = useState(true);
@@ -103,6 +112,8 @@ export default function VirtualMirrorV2() {
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [quoteIdx, setQuoteIdx] = useState(0);
+  const [quoteVisible, setQuoteVisible] = useState(true);
   const aiPopulatedRef = useRef({
     tops: false,
     bottoms: false,
@@ -424,6 +435,18 @@ export default function VirtualMirrorV2() {
       ctrl.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!aiLoading && !voiceLoading) return;
+    const interval = setInterval(() => {
+      setQuoteVisible(false);
+      setTimeout(() => {
+        setQuoteIdx((i) => (i + 1) % FASHION_QUOTES.length);
+        setQuoteVisible(true);
+      }, 600);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [aiLoading, voiceLoading]);
 
   useEffect(() => {
     // Garment grids resolve independently from the outfit grid
@@ -914,8 +937,59 @@ export default function VirtualMirrorV2() {
                 </div>
               )}
 
+              {/* Loading state — cycling fashion quotes */}
+              {(aiLoading || voiceLoading) && !selectedOutfit && (
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "24px 24px 88px",
+                    opacity: quoteVisible ? 1 : 0,
+                    transition: "opacity 0.6s ease",
+                  }}
+                >
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.2)",
+                      fontSize: "9px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.22em",
+                      margin: "0 0 20px 0",
+                    }}
+                  >
+                    Style tip
+                  </p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.85)",
+                      fontSize: "17px",
+                      fontWeight: 300,
+                      fontStyle: "italic",
+                      lineHeight: 1.65,
+                      textAlign: "center",
+                      margin: "0 0 16px 0",
+                    }}
+                  >
+                    &ldquo;{FASHION_QUOTES[quoteIdx].text}&rdquo;
+                  </p>
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: "11px",
+                      textAlign: "center",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    — {FASHION_QUOTES[quoteIdx].author}
+                  </p>
+                </div>
+              )}
+
               {/* Garment slot cards */}
-              {!selectedOutfit && (
+              {!selectedOutfit && !(aiLoading || voiceLoading) && (
                 <div
                   style={{
                     flex: 1,
