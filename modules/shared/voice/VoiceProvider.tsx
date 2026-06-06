@@ -322,7 +322,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const newHistory = [
         ...historyRef.current,
         { user: t, assistant: assistantReply },
-      ].slice(-4);
+      ];
       historyRef.current = newHistory;
       setChatHistory(newHistory);
 
@@ -481,7 +481,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const newHistory = [
             ...historyRef.current,
             { user: t, assistant: garmentResponse.message },
-          ].slice(-4);
+          ];
           historyRef.current = newHistory;
           setChatHistory(newHistory);
 
@@ -607,7 +607,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const confirmHistory = [
                 ...historyRef.current,
                 { user: t, assistant: confirmReply },
-              ].slice(-4);
+              ];
               historyRef.current = confirmHistory;
               setChatHistory(confirmHistory);
               setVoiceState("speaking");
@@ -652,7 +652,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const confirmHistory = [
                 ...historyRef.current,
                 { user: t, assistant: confirmReply },
-              ].slice(-4);
+              ];
               historyRef.current = confirmHistory;
               setChatHistory(confirmHistory);
               setVoiceState("speaking");
@@ -734,7 +734,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 historyRef.current = [
                   ...historyRef.current,
                   { user: t, assistant: nextClarify },
-                ].slice(-4);
+                ];
                 setChatHistory(historyRef.current);
                 setVoiceState("speaking");
                 if (nextAudio) {
@@ -797,7 +797,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               historyRef.current = [
                 ...historyRef.current,
                 { user: t, assistant: disambigReply },
-              ].slice(-4);
+              ];
               setChatHistory(historyRef.current);
               setVoiceState("speaking");
               if (disambigAudio) {
@@ -933,7 +933,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   historyRef.current = [
                     ...historyRef.current,
                     { user: t, assistant: clarifyReply },
-                  ].slice(-4);
+                  ];
                   setChatHistory(historyRef.current);
                   setVoiceState("speaking");
                   if (clarifyAudio) {
@@ -998,7 +998,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 historyRef.current = [
                   ...historyRef.current,
                   { user: t, assistant: multiReply },
-                ].slice(-4);
+                ];
                 setChatHistory(historyRef.current);
                 setVoiceState("speaking");
                 if (multiAudio) {
@@ -1045,7 +1045,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             historyRef.current = [
               ...historyRef.current,
               { user: t, assistant: clearReply },
-            ].slice(-4);
+            ];
             setChatHistory(historyRef.current);
             setVoiceState("speaking");
             if (clearAudio) {
@@ -1082,7 +1082,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const fh = [
               ...historyRef.current,
               { user: t, assistant: finishReply },
-            ].slice(-4);
+            ];
             historyRef.current = fh;
             setChatHistory(fh);
             setVoiceState("speaking");
@@ -1185,7 +1185,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   historyRef.current = [
                     ...historyRef.current,
                     { user: t, assistant: poiReply },
-                  ].slice(-4);
+                  ];
                   setChatHistory(historyRef.current);
                   setVoiceState("speaking");
                   if (poiAudio) {
@@ -1264,7 +1264,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   historyRef.current = [
                     ...historyRef.current,
                     { user: t, assistant: clarifyReply },
-                  ].slice(-4);
+                  ];
                   setChatHistory(historyRef.current);
                   setVoiceState("speaking");
                   if (clarifyAudio) {
@@ -1370,7 +1370,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   historyRef.current = [
                     ...historyRef.current,
                     { user: t, assistant: stopReply },
-                  ].slice(-4);
+                  ];
                   setChatHistory(historyRef.current);
                   setVoiceState("speaking");
                   if (stopAudio) {
@@ -1434,7 +1434,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 historyRef.current = [
                   ...historyRef.current,
                   { user: t, assistant: poiTTS },
-                ].slice(-4);
+                ];
                 setChatHistory(historyRef.current);
                 setVoiceState("speaking");
                 if (poiAudio) {
@@ -1740,7 +1740,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const mapHistory = [
             ...historyRef.current,
             { user: enrichedInput, assistant: mapReply },
-          ].slice(-4);
+          ];
           historyRef.current = mapHistory;
           setChatHistory(mapHistory);
           setVoiceState("speaking");
@@ -1912,7 +1912,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         const newHistory = [
           ...historyRef.current,
           { user: t, assistant: r },
-        ].slice(-4);
+        ];
         historyRef.current = newHistory;
         setChatHistory(newHistory);
         setVoiceState("speaking");
