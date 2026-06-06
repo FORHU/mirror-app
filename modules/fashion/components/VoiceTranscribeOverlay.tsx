@@ -12,14 +12,6 @@ const SILENCE_THRESHOLD = 0.015;
 const SILENCE_DURATION_MS = 2000;
 const WAKE_PHRASES = ["hey mirror", "hey, mirror", "hi mirror"];
 
-function pcmFloat32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
-}
 
 type RecordStep =
   | "listening"
@@ -42,11 +34,7 @@ export function VoiceTranscribeOverlay({
   const [aiReply, setAiReply] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
+  const recognitionRef = useRef<any>(null);
   const abortCtrlRef = useRef<AbortController | null>(null);
   const weatherRef = useRef<Record<string, unknown> | null>(null);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -184,6 +172,10 @@ export function VoiceTranscribeOverlay({
     audioCtxRef.current = null;
   }
 
+  useEffect(() => {
+    return () => cleanupMic();
+  }, []);
+
   async function startRecording() {
     setErrorMsg("");
     setTranscript("");
@@ -228,7 +220,7 @@ export function VoiceTranscribeOverlay({
         }
       }, 200);
     } catch {
-      setErrorMsg("Microphone access denied");
+      setErrorMsg("Microphone access denied or error starting recognition");
       setStep("error");
     }
   }
@@ -275,9 +267,11 @@ export function VoiceTranscribeOverlay({
       startWakeWordListening();
       return;
     }
+  }
 
-    setTranscript(rawText);
+  async function submitTranscript(rawText: string) {
     setStep("loading");
+    onLoadingChange?.(true);
 
     abortCtrlRef.current = new AbortController();
     try {
