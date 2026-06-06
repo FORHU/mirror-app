@@ -1,6 +1,51 @@
 import type { NearbyPOI, GeocodeResult } from "../services/map.service";
 import type { ChatWonderMapsPlace } from "@/modules/shared/api/chat-wonder.service";
 
+/**
+ * Returns true when the query likely refers to a specific named venue
+ * (school, church, mall, hospital, etc.) rather than a street or region.
+ * Matches full venue-type words in English, French, Spanish, German, and Italian,
+ * plus standalone ALL-CAPS tokens (2–6 chars) which are almost always institutional
+ * abbreviations (e.g. "SLU", "UPMC", "UB") regardless of country.
+ * We deliberately do NOT pre-expand abbreviations — Mapbox resolves them correctly
+ * when proximity coordinates are provided.
+ */
+const VENUE_ABBREV_RE = /\b[A-Z]{2,6}\b/;
+const VENUE_FULL_RE = new RegExp(
+  "\\b(" +
+  // English
+  "mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|" +
+  "school|university|college|academy|institute|hospital|clinic|hotel|resort|" +
+  "park|market|museum|library|gym|spa|station|terminal|grotto|convent|" +
+  "monastery|campus|complex|plaza|pharmacy|theatre|theater|cinema|gallery|" +
+  // French (accented + unaccented forms — Whisper preserves diacritics)
+  "musée|musee|" +          // musée
+  "école|ecole|" +          // école
+  "gare|" +
+  "hôpital|hopital|" +      // hôpital
+  "église|eglise|" +        // église
+  "cathédrale|cathedrale|" + // cathédrale
+  "université|universite|" + // université
+  "bibliothèque|bibliotheque|" + // bibliothèque
+  "théâtre|theatre|" + // théâtre (also in English above)
+  "cinéma|cinema|" +        // cinéma (also in English above)
+  "galerie|mairie|pharmacie|palais|stade|marché|marche|" +
+  "lycée|lycee|" +          // lycée (French high school)
+  "arrondissement|quartier|" +
+  // Spanish
+  "escuela|universidad|iglesia|mercado|parque|farmacia|" +
+  // German
+  "schule|kirche|krankenhaus|bahnhof|markt|" +
+  // Italian
+  "scuola|chiesa|ospedale|stazione|farmacia" +
+  ")\\b",
+  "i",
+);
+
+export function isVenueName(name: string): boolean {
+  return VENUE_FULL_RE.test(name) || VENUE_ABBREV_RE.test(name);
+}
+
 export function haversineKm(
   lat1: number,
   lng1: number,
@@ -218,8 +263,9 @@ export function extractLocationFromTranscript(
 
   // "to [Location]" — scan ALL occurrences so "want to go to La Union" skips "to go"
   // (movement verb) and correctly extracts "La Union".
+  // Stop at "here" so "to slu bonifacio here in baguio" → "slu bonifacio" (not the whole phrase).
   const toRe =
-    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|with\b|to\b|and\b)|$)/gi;
+    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|with\b|to\b|and\b|here\b)|$)/gi;
   let toMatch: RegExpExecArray | null;
   while ((toMatch = toRe.exec(transcript)) !== null) {
     const candidate = stripTrailingEventWords(
@@ -230,6 +276,13 @@ export function extractLocationFromTranscript(
         candidate,
       )
     ) {
+      // "slu bonifacio here in baguio" → append the city from "here in [city]"
+      // so the geocoder gets "slu bonifacio baguio" and prefers local results.
+      const hereCity = transcript.match(/\bhere\s+in\s+([A-Za-z][A-Za-z\s]{1,20}?)(?:\s*$|\s+\b(?:please|ok|now)\b)/i);
+      if (hereCity) {
+        const city = hereCity[1].trim().split(/\s+/).slice(0, 2).join(" ");
+        return `${candidate} ${city}`;
+      }
       return candidate;
     }
   }

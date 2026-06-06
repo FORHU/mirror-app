@@ -49,6 +49,7 @@ import {
   buildRouteSummary,
   extractNearbyPOIQuery,
   isClearRoutePhrase,
+  isVenueName,
 } from "@/modules/map/utils/chatWonderMapUtils";
 import type { NearbyPOI, GeocodeResult } from "@/modules/map/services/map.service";
 import {
@@ -943,8 +944,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 //   prefer a poi result (the specific place) over a bare address
                 // • Region/province query ("la union", "benguet") →
                 //   prefer a region/place result over a local street with the same name
-                const VENUE_WORD_RE = /\b(mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|school|university|college|academy|institute|hospital|clinic|hotel|resort|park|market|museum|library|gym|spa|station|terminal|grotto|convent|monastery|campus|complex|plaza)\b/i;
-                const isVenueQuery = VENUE_WORD_RE.test(locationName ?? "");
+                const isVenueQuery = isVenueName(locationName);
                 const top = results[0];
                 const preferred =
                   (top.placeType === "address" || top.placeType === "neighborhood")
