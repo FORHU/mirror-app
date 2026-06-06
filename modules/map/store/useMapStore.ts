@@ -164,6 +164,7 @@ interface MapStore {
   setPendingEvents: (events: PendingEvent[]) => void;
   clearPendingEvents: () => void;
   loadOutlineStops: () => Promise<void>;
+  clearItinerary: () => Promise<void>;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -336,6 +337,8 @@ export const useMapStore = create<MapStore>((set, get) => ({
       activeProfile,
     );
     set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+    // Persist stops to DB so loadOutlineStops can restore them on next page load
+    outlineService.saveMapStops(stops).catch(() => {});
   },
 
   addItineraryGroup: async (stops, label) => {
@@ -363,6 +366,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
       activeProfile,
     );
     set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+    outlineService.saveMapStops(stops).catch(() => {});
   },
 
   setActiveItineraryIndex: async (index) => {
@@ -597,5 +601,18 @@ export const useMapStore = create<MapStore>((set, get) => ({
     } catch (err) {
       console.error("[loadOutlineStops] unexpected error:", err);
     }
+  },
+
+  clearItinerary: async () => {
+    set({
+      itineraryStops: [],
+      itineraryGroups: [],
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      activeItineraryIndex: 0,
+      selectedDestination: null,
+      activeRoute: null,
+    });
+    outlineService.saveMapStops([]).catch(() => {});
   },
 }));

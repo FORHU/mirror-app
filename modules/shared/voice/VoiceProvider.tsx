@@ -47,6 +47,7 @@ import {
   buildDisambiguationQuestion,
   matchCandidateFromTranscript,
   buildPreciseETANarration,
+  isClearRoutePhrase,
 } from "@/modules/map/utils/chatWonderMapUtils";
 import type { NearbyPOI, GeocodeResult } from "@/modules/map/services/map.service";
 import {
@@ -691,10 +692,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const geocoded = await Promise.all(
               locationsWithMeta.map(async ({ location, eventType, timeBlock }) => {
                 try {
-                  // No proximity bias for itinerary destinations — the user is planning
-                  // to go somewhere that may be far from their current location, so
-                  // Mapbox should rank by name relevance, not proximity.
-                  const { results } = await mapService.geocode(location);
+                  // Pass user location as proximity so nearby candidates rank higher
+                  // (e.g. "san fernando" resolves to La Union, not Pampanga, when the
+                  // user is in the Ilocos region).
+                  const { results } = await mapService.geocode(location, loc ?? undefined);
                   if (!results.length) return null;
                   return { name: location, result: results[0], allResults: results, eventType, timeBlock };
                 } catch { return null; }
@@ -778,6 +779,31 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
 
         // ── Itinerary intercept — bypass ChatWonder entirely ──────────────────
+        // Clear route phrase → wipe the itinerary and start fresh
+        if (isClearRoutePhrase(t)) {
+          itineraryStopsRef.current = [];
+          isCollectingItineraryRef.current = false;
+          disambiguationCandidatesRef.current = [];
+          isAwaitingDisambiguationRef.current = false;
+          pendingMultiStopsRef.current = [];
+          pendingAmbiguousQueueRef.current = [];
+          await useMapStore.getState().clearItinerary();
+          const clearReply = "Route cleared. What's your first stop?";
+          const clearAudio = await mapService.tts(clearReply).catch(() => null);
+          setReply(clearReply);
+          historyRef.current = [...historyRef.current, { user: t, assistant: clearReply }].slice(-4);
+          setChatHistory(historyRef.current);
+          setVoiceState("speaking");
+          if (clearAudio) {
+            const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+            const decoded = await playCtx.decodeAudioData(clearAudio.slice(0));
+            const src = playCtx.createBufferSource(); src.buffer = decoded;
+            src.connect(playCtx.destination); playbackRef.current = src;
+            src.onended = () => { stopPlayback(); setVoiceState("idle"); }; src.start(0);
+          } else { setVoiceState("idle"); }
+          return;
+        }
+
         // Finish phrase → finalise the collected itinerary
         if (isCollectingItineraryRef.current && isFinishPhrase(t)) {
           isCollectingItineraryRef.current = false;
@@ -806,8 +832,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Itinerary or navigation phrase → geocode and add stop directly
-        // Skip if multi-event utterance — let ChatWonder handle all stops at once
-        if (!isMultiEventUtterance(t) && (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current)) {
+        // Note: if isMultiEventUtterance fired but extractLocationsWithMeta found < 2
+        // locations (e.g. "going to vigan city to avalanche" — activity verb after "to"
+        // falsely triggers the multi-event check), we still want to land here so the
+        // single-event path handles it. The multi-event path already returns early when
+        // it succeeds, so there is no double-processing risk.
+        if (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current) {
           const locationName = extractLocationFromTranscript(t)
             // Fallback: when collecting stops, strip filler words and treat the
             // remainder as the location query (handles bare replies like "san
@@ -1160,7 +1190,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
             // Re-check the guard on confirmation. Block rules still apply
             // (e.g. NEEDS_GENDER) even after the user said yes.
-            const guard = guardAction(actionToRun, pathname);
+            const guard = guardAction(actionToRun);
             if (guard.allowed && guard.action) {
               await executeAction(
                 guard.action,

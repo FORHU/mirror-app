@@ -10,7 +10,6 @@ import UserPuck from "./UserPuck";
 import DestinationPin from "./DestinationPin";
 import ItineraryRouteLayer from "./ItineraryRouteLayer";
 import ItineraryPins from "./ItineraryPins";
-import ItineraryPOIMarkers from "./ItineraryPOIMarkers";
 import { useMapCamera } from "../hooks/useMapCamera";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -147,7 +146,6 @@ const MapViewport = () => {
           <UserPuck map={map} />
           <DestinationPin map={map} />
           <ItineraryPins map={map} />
-          <ItineraryPOIMarkers map={map} />
         </>
       )}
     </div>

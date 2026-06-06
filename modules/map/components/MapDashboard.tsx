@@ -11,6 +11,7 @@ import POICurationStack from "./POICurationStack";
 import RoutePreviewCard from "./RoutePreviewCard";
 import WeatherWidget from "./WeatherWidget";
 import DevToolsOverlay from "./DevToolsOverlay";
+import ItineraryPOIPanel from "./ItineraryPOIPanel";
 
 export default function MapDashboard() {
   const {
@@ -84,6 +85,7 @@ export default function MapDashboard() {
           clearSuggestions();
         }}
       />
+      <ItineraryPOIPanel />
       <MapMicPill />
       <DevToolsOverlay />
     </div>

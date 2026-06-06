@@ -40,6 +40,12 @@ export const outlineService = {
     return outlineService.create();
   },
 
+  async saveMapStops(
+    stops: Array<{ name: string; lat: number; lng: number; address?: string; eventType?: string; timeBlock?: string }>,
+  ): Promise<void> {
+    await api.post("/api/mirror/outlines/map-stops", { stops });
+  },
+
   /**
    * RESET — without a scope, soft-deletes all active outlines (full wipe, used by
    * Restart). With a scope, clears only that feature's contribution to the active
