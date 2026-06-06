@@ -16,18 +16,7 @@ import { useEffect, useRef, useState } from "react";
  * passed to the caller, which owns whether/where it goes.
  */
 
-type FaceDetectorCtor = new (opts?: {
-  fastMode?: boolean;
-  maxDetectedFaces?: number;
-}) => { detect: (i: CanvasImageSource) => Promise<unknown[]> };
-
-function getFaceDetector(): FaceDetectorCtor | null {
-  if (typeof window === "undefined") return null;
-  return (
-    (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector ??
-    null
-  );
-}
+import { getUniversalFaceDetector } from "../../shared/utils/faceDetection";
 
 export type TrackerStatus =
   | "starting" // acquiring the camera
@@ -66,14 +55,8 @@ export function useFaceTracker(options: UseFaceTrackerOptions = {}) {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const canvas = document.createElement("canvas");
-    const detector = (() => {
-      const FD = getFaceDetector();
-      try {
-        return FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
-      } catch {
-        return null;
-      }
-    })();
+    let detector: any = null;
+    getUniversalFaceDetector().then(d => { detector = d; });
 
     let samples = 0;
 
