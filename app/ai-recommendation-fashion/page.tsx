@@ -10,10 +10,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { VoiceTranscribeOverlay } from "@/modules/fashion/components/VoiceTranscribeOverlay";
@@ -107,7 +104,7 @@ const FASHION_QUOTES = [
 
 export default function VirtualMirrorV2() {
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
-  const [aiLoading, setAiLoading] = useState(true);
+  const [aiLoading] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
@@ -425,71 +422,6 @@ export default function VirtualMirrorV2() {
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    const ctrl = new AbortController();
-
-    async function fetchAiRecommendations() {
-      let weather: Record<string, unknown> | undefined;
-      let location: { lat: number; lng: number } | undefined;
-      try {
-        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 5000,
-          }),
-        );
-        const { latitude: lat, longitude: lon } = pos.coords;
-        location = { lat, lng: lon };
-        const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
-        if (res.ok) {
-          const json = await res.json();
-          const d = json.data ?? json;
-          weather = {
-            date: new Date().toISOString().split("T")[0],
-            description: String(d.condition ?? "").toLowerCase(),
-            estimated: false,
-            is_cold: Number(d.temperature) < 20,
-            is_hot: Number(d.temperature) >= 30,
-            is_rainy:
-              Number(d.precipitationProb) >= 50 ||
-              String(d.condition ?? "")
-                .toLowerCase()
-                .includes("rain"),
-            temperature_c: Number(d.temperature),
-          };
-        }
-      } catch {
-        // weather is best-effort
-      }
-
-      if (cancelled) return;
-
-      try {
-        const response = await chatWonderService.message(
-          {
-            input: "[stylist] recommend outfits for today.",
-            ...(weather ? { weather } : {}),
-            ...(location ? { location } : {}),
-          },
-          ctrl.signal,
-        );
-        if (!cancelled) handleAiComplete(response);
-      } catch {
-        // silent fail
-      } finally {
-        if (!cancelled) setAiLoading(false);
-      }
-    }
-
-    fetchAiRecommendations();
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-    };
-  }, []);
 
   useEffect(() => {
     if (!aiLoading && !voiceLoading) return;
