@@ -9,6 +9,7 @@ export class AudioQueue {
 
   private initContext() {
     if (typeof window !== "undefined") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioContextClass && (!this.audioContext || this.audioContext.state === 'closed')) {
         this.audioContext = new AudioContextClass();
@@ -66,7 +67,7 @@ export class AudioQueue {
       try {
         source.stop();
         source.disconnect();
-      } catch (e) {
+      } catch {
         // Ignore errors if source already stopped
       }
     });

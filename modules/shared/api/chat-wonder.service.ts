@@ -263,7 +263,7 @@ export const chatWonderService = {
                 }
                 throw new Error(parsed.message || "Stream error");
               }
-            } catch (e) {
+            } catch {
               // ignore partial json
             }
           }

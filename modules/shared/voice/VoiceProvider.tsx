@@ -57,8 +57,6 @@ import {
   isExpired,
 } from "./orchestration/confirmationState";
 
-const SAMPLE_RATE = 16000;
-const BUFFER_SIZE = 4096;
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
@@ -80,15 +78,6 @@ function buildItineraryConfirmReply(name: string, hasPOIs: boolean): string {
   const closer = ITINERARY_MORE_STOPS_CLOSERS[Math.floor(Math.random() * ITINERARY_MORE_STOPS_CLOSERS.length)];
   const poiMention = hasPOIs ? " I also spotted some interesting places nearby you might enjoy!" : "";
   return `${opener}${poiMention} ${closer}`;
-}
-
-function float32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
 }
 
 export interface VoiceContextValue {
@@ -139,11 +128,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const confirmationRef = useRef<ConfirmationState>(createIdleConfirmation());
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
@@ -318,6 +302,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
   const processTranscript = useCallback(async (t: string) => {
@@ -1330,12 +1315,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       );
       setVoiceState("idle");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voiceState, pathname, router, handleAIAssistantText, stopPlayback]);
 
   const startListening = useCallback(async () => {
     if (voiceState !== "idle") return;
     setError(null);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setError("Speech recognition is not supported in this browser.");
@@ -1356,11 +1343,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       };
 
       recognition.onstart = () => setVoiceState("recording");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onerror = (event: any) => {
         clearSilenceTimer();
         if (event.error !== "no-speech") setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech") setVoiceState("idle");
       };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         // Reset silence timer on every new final segment — only stop + process
         // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend

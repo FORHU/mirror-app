@@ -53,7 +53,6 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const canvas = document.createElement("canvas");
     const detector = (() => {
       const FD = getFaceDetector();
       try {
@@ -62,8 +61,6 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
         return null;
       }
     })();
-
-    let samples = 0;
 
     async function sample() {
       if (cancelled) return;
