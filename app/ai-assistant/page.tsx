@@ -9,7 +9,11 @@ import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import { useRouter } from "next/navigation";
-import { useOverviewStore, adaptGarmentData, adaptMapsData } from "@/modules/overview";
+import {
+  useOverviewStore,
+  adaptGarmentData,
+  adaptMapsData,
+} from "@/modules/overview";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 
 type GarmentRecommendationAction = {
@@ -57,7 +61,9 @@ export default function AIAssistantPage() {
       if (action.type !== "GARMENT_RECOMMENDATION") return;
 
       const response = (action as GarmentRecommendationAction).response;
-      const { garments: g, outfits: o } = adaptGarmentData(response?.garment_data);
+      const { garments: g, outfits: o } = adaptGarmentData(
+        response?.garment_data,
+      );
       if (g.length) setGarments(g);
       if (o.length) setOutfits(o);
 

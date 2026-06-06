@@ -1,4 +1,3 @@
-
 /**
  * Lifecycle of a single grid tile:
  *  - idle    → nothing requested yet (renders the disclaimer-friendly skeleton)

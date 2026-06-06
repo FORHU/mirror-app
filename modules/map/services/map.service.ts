@@ -187,7 +187,11 @@ export const mapService = {
       events: unknown[];
       sessionId: string;
       audioBase64: string;
-      intent?: { primary: string; secondary: string | null; confidence: number };
+      intent?: {
+        primary: string;
+        secondary: string | null;
+        confidence: number;
+      };
       emotion?: string;
       requiresConfirmation?: boolean;
       followUpQuestion?: string | null;

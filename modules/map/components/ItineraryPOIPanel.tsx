@@ -132,7 +132,13 @@ const ItineraryPOIPanel: React.FC = () => {
               }}
             >
               {/* Full-width photo above text */}
-              <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  width: "100%",
+                }}
+              >
                 {poi.photo ? (
                   <img
                     src={poi.photo}
@@ -163,7 +169,14 @@ const ItineraryPOIPanel: React.FC = () => {
                 )}
 
                 {/* Name row below photo */}
-                <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 2px 2px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "6px 2px 2px",
+                  }}
+                >
                   {/* Ordinal badge */}
                   <span
                     style={{
@@ -196,7 +209,14 @@ const ItineraryPOIPanel: React.FC = () => {
                     {poi.name}
                   </span>
                   {poi.rating != null && (
-                    <span style={{ color: "#FBBF24", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                    <span
+                      style={{
+                        color: "#FBBF24",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
                       ★{poi.rating.toFixed(1)}
                     </span>
                   )}

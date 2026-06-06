@@ -91,7 +91,7 @@ const MapViewport = () => {
     return () => {
       mapInstance.remove();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setMap, setSelectedPOI]);
 
   useEffect(() => {
