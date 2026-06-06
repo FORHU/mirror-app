@@ -10,16 +10,16 @@ import VoiceWaveform from "@/components/VoiceWaveform";
 export default function GlobalVoiceOverlay() {
   const pathname = usePathname();
   const isCosmeticPage = pathname.startsWith("/ai-recommendation-cosmetic");
+  const isMapPage = pathname.startsWith("/map");
   if (
-    pathname.startsWith("/map") ||
     pathname === "/ai-recommendation-fashion" ||
     pathname.startsWith("/ai-assistant")
   )
     return null;
-  return <VoiceUI cosmeticMode={isCosmeticPage} />;
+  return <VoiceUI cosmeticMode={isCosmeticPage} mapMode={isMapPage} />;
 }
 
-function VoiceUI({ cosmeticMode = false }: { cosmeticMode?: boolean }) {
+function VoiceUI({ cosmeticMode = false, mapMode = false }: { cosmeticMode?: boolean; mapMode?: boolean }) {
   const { voiceState, transcript, reply, error, toggle, chatHistory } =
     useVoiceContext();
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -81,9 +81,9 @@ function VoiceUI({ cosmeticMode = false }: { cosmeticMode?: boolean }) {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className={`fixed bottom-[160px] z-9999 w-72 pointer-events-none ${
-              cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"
-            }`}
+            className={`fixed z-9999 w-72 pointer-events-none ${
+              mapMode ? "bottom-[320px]" : "bottom-[160px]"
+            } ${cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"}`}
           >
             <div
               className="rounded-2xl px-4 py-3 shadow-2xl"
@@ -145,9 +145,9 @@ function VoiceUI({ cosmeticMode = false }: { cosmeticMode?: boolean }) {
           to the AI, and is a round mic button when idle. */}
       <motion.button
         onClick={toggle}
-        className={`fixed bottom-6 z-9999 flex items-center justify-center shadow-2xl ${
-          cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"
-        }`}
+        className={`fixed z-9999 flex items-center justify-center shadow-2xl ${
+          mapMode ? "bottom-28" : "bottom-6"
+        } ${cosmeticMode ? "left-1/2 -translate-x-1/2" : "right-5"}`}
         style={{
           height: cosmeticMode ? 112 : 64,
           borderRadius: 9999,
