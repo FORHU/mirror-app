@@ -63,9 +63,6 @@ export default function AIAssistantPage() {
 
       const m = adaptMapsData(response?.maps_data?.[0]);
       if (m) setMap(m);
-
-      // We've caught the data! Now jump to the aftermath screen.
-      router.push(ROUTES.OVERVIEW);
     },
     [setGarments, setOutfits, setMap, router],
   );
