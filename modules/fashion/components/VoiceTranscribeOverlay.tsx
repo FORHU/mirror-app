@@ -121,7 +121,8 @@ export function VoiceTranscribeOverlay({
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onresult = (event: any) => {
       if (!wakeEnabledRef.current) return; // already triggered, ignore duplicate interim/final results
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const text = event.results[i][0].transcript.toLowerCase().trim();
@@ -144,7 +145,8 @@ export function VoiceTranscribeOverlay({
       }
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    recognition.onerror = (event: any) => {
       if (event.error === "not-allowed") {
         wakeEnabledRef.current = false;
         setStep("idle");
