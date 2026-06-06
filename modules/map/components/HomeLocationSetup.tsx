@@ -47,7 +47,7 @@ const HomeLocationSetup = () => {
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 3) {
-      setResults([]);
+      queueMicrotask(() => setResults([]));
       return;
     }
 
