@@ -1,7 +1,7 @@
 "use client";
 
 import { useMapStore } from "../store/useMapStore";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { Car, Footprints, Bike } from "lucide-react";
 
 const PANEL = {

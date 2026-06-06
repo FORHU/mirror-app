@@ -47,7 +47,6 @@ const HomeLocationSetup = () => {
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 3) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
       return;
     }

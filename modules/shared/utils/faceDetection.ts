@@ -46,7 +46,10 @@ export async function getUniversalFaceDetector(): Promise<UniversalFaceDetector 
     const fallbackDetector: UniversalFaceDetector = {
       detect: async (image: CanvasImageSource) => {
         // BlazeFace supports HTMLVideoElement, Canvas, etc.
-        const predictions = await model.estimateFaces(image, false);
+        const predictions = await model.estimateFaces(
+          image as HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
+          false,
+        );
 
         return predictions.map((pred) => {
           const tl = pred.topLeft as [number, number];

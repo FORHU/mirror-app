@@ -99,7 +99,7 @@ export interface VoiceContextValue {
   isProcessing: boolean;
   isSpeaking: boolean;
   toggle: () => void;
-  startListening: () => void;
+  startListening: () => Promise<void>;
   stopListening: () => void;
   submitText: (text: string) => Promise<void>;
   registerPage: (
