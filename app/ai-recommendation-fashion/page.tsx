@@ -11,6 +11,7 @@ import {
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { VoiceTranscribeOverlay } from "@/modules/fashion/components/VoiceTranscribeOverlay";
@@ -290,6 +291,17 @@ export default function VirtualMirrorV2() {
     setOutfits(newAiOutfits);
     setOutfitPage(0);
   }
+
+  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
+  // Runs before the garmentService fetch effect so aiPopulatedRef flags are
+  // set first, preventing fetched data from overwriting AI recommendations.
+  useEffect(() => {
+    const pending = useMirrorStore.getState().pendingGarmentData;
+    if (!pending) return;
+    useMirrorStore.getState().setPendingGarmentData(null);
+    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const clearSlots = () => {
     setSelectedBag(null);

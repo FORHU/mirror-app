@@ -1868,6 +1868,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           let chatAction: ChatWonderAction | null = null;
           if (res.stylist_data?.target_url) {
+            if (res.garment_data) {
+              useMirrorStore.getState().setPendingGarmentData(res.garment_data);
+            }
             router.push(res.stylist_data.target_url);
           } else if (res.garment_data || res.maps_data) {
             // Synthetic action that triggers handleVoiceAction catchers
