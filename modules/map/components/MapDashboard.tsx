@@ -5,7 +5,6 @@ import { useMapStore } from "../store/useMapStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ExploreHUD } from "./ExploreHUD";
 import MapViewport from "./MapViewport";
-import MapMicPill from "./MapMicPill";
 import SuggestedPOIMarkers from "./SuggestedPOIMarkers";
 import POICurationStack from "./POICurationStack";
 import RoutePreviewCard from "./RoutePreviewCard";
@@ -85,7 +84,6 @@ export default function MapDashboard() {
         }}
       />
       <ItineraryPOIPanel />
-      <MapMicPill />
     </div>
   );
 }
