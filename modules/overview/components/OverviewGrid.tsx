@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Sparkles,
   Shirt,
   WandSparkles,
   MapPin,
@@ -11,7 +10,6 @@ import {
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
-  CosmeticsTileData,
   GarmentTileItem,
   MapTileData,
   OutfitTileItem,
@@ -189,73 +187,6 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-// ── Cosmetics tile ───────────────────────────────────────────────────────────
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="px-2.5 py-1 rounded-full text-[11px] text-white/70 bg-white/5 border border-white/10">
-      {children}
-    </span>
-  );
-}
-
-function CosmeticsContent({ data }: { data: CosmeticsTileData }) {
-  const recs = (data.recommendations ?? []).slice(0, 4);
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {data.skinType && <Chip>{data.skinType} skin</Chip>}
-        {data.skinTone && <Chip>{data.skinTone} tone</Chip>}
-        {typeof data.hydrationPct === "number" && (
-          <Chip>{data.hydrationPct}% hydration</Chip>
-        )}
-        {typeof data.oilinessPct === "number" && (
-          <Chip>{data.oilinessPct}% oil</Chip>
-        )}
-        {(data.concerns ?? []).slice(0, 3).map((c) => (
-          <Chip key={c}>{c}</Chip>
-        ))}
-      </div>
-
-      {recs.length > 0 && (
-        <div className="grid grid-cols-2 gap-3">
-          {recs.map((r) => (
-            <div
-              key={r.id}
-              className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10"
-            >
-              <div className="aspect-square bg-white/[0.02]">
-                {r.cosmeticProduct?.fileUrl?.fileUrl && (
-                  <CardImage
-                    src={r.cosmeticProduct.fileUrl.fileUrl}
-                    alt={r.cosmeticProduct.name}
-                  />
-                )}
-              </div>
-              <div className="px-2.5 py-2">
-                <p className="text-white text-xs font-medium truncate">
-                  {r.cosmeticProduct?.name}
-                </p>
-                {r.cosmeticProduct?.brand && (
-                  <p className="text-white/40 text-[11px] truncate">
-                    {r.cosmeticProduct.brand}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {data.routineTip && (
-        <p className="text-white/50 text-xs leading-relaxed border-t border-white/5 pt-3">
-          {data.routineTip}
-        </p>
-      )}
-    </div>
-  );
-}
-
 // ── Garments tile ────────────────────────────────────────────────────────────
 
 function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
@@ -369,23 +300,11 @@ function MapContent({ data }: { data: MapTileData }) {
 // ── Grid ─────────────────────────────────────────────────────────────────────
 
 export function OverviewGrid() {
-  const cosmetics = useOverviewStore((s) => s.cosmetics);
   const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
   const map = useOverviewStore((s) => s.map);
 
   const tiles = [
-    {
-      key: "cosmetics",
-      title: "Cosmetics",
-      subtitle: "Skin analysis & product picks",
-      icon: Sparkles,
-      state: cosmetics,
-      empty: "No products matched your skin yet.",
-      content: cosmetics.data ? (
-        <CosmeticsContent data={cosmetics.data} />
-      ) : null,
-    },
     {
       key: "garments",
       title: "Garments",

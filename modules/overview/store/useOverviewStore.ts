@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import type {
-  CosmeticsTileData,
   GarmentTileItem,
   MapTileData,
   OutfitTileItem,
@@ -28,17 +27,12 @@ interface OverviewState {
   /** The AI's spoken/greeting line, shown over the grid. */
   greeting: string | null;
 
-  cosmetics: TileState<CosmeticsTileData>;
   garments: TileState<GarmentTileItem[]>;
   outfits: TileState<OutfitTileItem[]>;
   map: TileState<MapTileData>;
 
   setFaceDetected: (v: boolean) => void;
   setGreeting: (s: string | null) => void;
-
-  startCosmetics: () => void;
-  setCosmetics: (data: CosmeticsTileData) => void;
-  failCosmetics: (error: string) => void;
 
   startGarments: () => void;
   setGarments: (items: GarmentTileItem[]) => void;
@@ -57,7 +51,6 @@ interface OverviewState {
 const initial = {
   faceDetected: false,
   greeting: null as string | null,
-  cosmetics: idle<CosmeticsTileData>(),
   garments: idle<GarmentTileItem[]>(),
   outfits: idle<OutfitTileItem[]>(),
   map: idle<MapTileData>(),
@@ -68,13 +61,6 @@ export const useOverviewStore = create<OverviewState>((set) => ({
 
   setFaceDetected: (v) => set({ faceDetected: v }),
   setGreeting: (s) => set({ greeting: s }),
-
-  startCosmetics: () =>
-    set({ cosmetics: { status: "loading", data: null, error: null } }),
-  setCosmetics: (data) =>
-    set({ cosmetics: { status: "ready", data, error: null } }),
-  failCosmetics: (error) =>
-    set({ cosmetics: { status: "error", data: null, error } }),
 
   startGarments: () =>
     set({ garments: { status: "loading", data: null, error: null } }),

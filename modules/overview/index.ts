@@ -13,5 +13,4 @@ export type {
   GarmentTileItem,
   OutfitTileItem,
   MapTileData,
-  CosmeticsTileData,
 } from "./types";

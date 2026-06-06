@@ -57,19 +57,15 @@ export async function performRestart(router: AppRouterInstance) {
 
 /**
  * Per-screen Reset: clears only the current feature's contribution to the active
- * Outline (see ADR 0001). Scope is derived from the current path. Fashion/cosmetic
+ * Outline (see ADR 0001). Scope is derived from the current path. Fashion
  * on-screen state isn't cleared here (the persisted rows are); the map route is.
  */
 export async function performReset(pathname: string) {
-  const scope: "fashion" | "cosmetic" | "itinerary" | null = pathname.includes(
-    "fashion",
-  )
+  const scope: "fashion" | "itinerary" | null = pathname.includes("fashion")
     ? "fashion"
-    : pathname.includes("cosmetic")
-      ? "cosmetic"
-      : pathname.startsWith("/map")
-        ? "itinerary"
-        : null;
+    : pathname.startsWith("/map")
+      ? "itinerary"
+      : null;
   if (!scope) return;
   await outlineService.reset(scope);
   if (scope === "itinerary") useMapStore.getState().clearRoute();

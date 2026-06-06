@@ -198,7 +198,7 @@ export function VoiceTranscribeOverlay({
     try {
       const response = await chatWonderService.message(
         {
-          input: `[garment] ${rawText}`,
+          input: `[stylist] ${rawText}`,
           ...(weatherRef.current ? { weather: weatherRef.current } : {}),
           ...(locationRef.current ? { location: locationRef.current } : {}),
         },

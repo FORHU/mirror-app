@@ -1,5 +1,4 @@
 import type {
-  CosmeticsTileData,
   GarmentTileItem,
   MapTileData,
   OutfitTileItem,
@@ -116,7 +115,6 @@ export function adaptMapsData(raw: unknown): MapTileData | null {
 export interface OutlineTiles {
   garments: GarmentTileItem[];
   outfits: OutfitTileItem[];
-  cosmetics: CosmeticsTileData | null;
 }
 
 function fileUrlOf(raw: unknown): string {
@@ -186,58 +184,5 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
     }
   }
 
-  // Cosmetics tile: skin-analysis metrics + product recs gathered from events.
-  const sa = outline && asRecord(outline.skinAnalysis);
-  let cosmetics: CosmeticsTileData | null = null;
-  if (sa) {
-    const recs: CosmeticsTileData["recommendations"] = [];
-    const seenRec = new Set<string>();
-    for (const rawEvent of events) {
-      const event = asRecord(rawEvent);
-      const evRecs =
-        event && Array.isArray(event.cosmeticRecommendations)
-          ? event.cosmeticRecommendations
-          : [];
-      for (const rawRec of evRecs) {
-        const rec = asRecord(rawRec);
-        const product = rec && asRecord(rec.cosmeticProduct);
-        if (!product) continue;
-        const pid = str(product.id);
-        if (!pid || seenRec.has(pid)) continue;
-        seenRec.add(pid);
-        const fileUrl = fileUrlOf(product.fileUrl);
-        recs.push({
-          id: str(rec!.id) || pid,
-          rank: num(rec!.rank) ?? 0,
-          score: num(rec!.score) ?? 0,
-          reason: str(rec!.reason),
-          cosmeticProduct: {
-            id: pid,
-            name: str(product.name) || "Product",
-            brand: str(product.brand) || null,
-            category: str(product.category) || null,
-            type: str(product.type) || null,
-            tags: Array.isArray(product.tags) ? product.tags.map(str) : [],
-            benefits: Array.isArray(product.benefits)
-              ? product.benefits.map(str)
-              : [],
-            fileUrl: fileUrl ? { fileUrl } : null,
-          },
-        });
-      }
-    }
-
-    cosmetics = {
-      id: str(sa.id),
-      skinType: str(sa.skinType),
-      skinTone: str(sa.skinTone) || null,
-      hydrationPct: num(sa.hydrationPct) ?? 0,
-      oilinessPct: num(sa.oilinessPct) ?? 0,
-      concerns: Array.isArray(sa.concerns) ? sa.concerns.map(str) : [],
-      routineTip: str(sa.routineTip),
-      recommendations: recs,
-    };
-  }
-
-  return { garments, outfits, cosmetics };
+  return { garments, outfits };
 }

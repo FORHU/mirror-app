@@ -34,11 +34,6 @@ import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import { mapService } from "@/modules/map/services/map.service";
 import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
 import { useMapStore } from "@/modules/map/store/useMapStore";
-import {
-  cosmeticsService,
-  type SkinAnalysis,
-} from "@/modules/shared/api/cosmetics.service";
-import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 
 import {
   OverviewGrid,
@@ -142,9 +137,6 @@ export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const startCosmetics = useOverviewStore((s) => s.startCosmetics);
-  const setCosmetics = useOverviewStore((s) => s.setCosmetics);
-  const failCosmetics = useOverviewStore((s) => s.failCosmetics);
   const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
@@ -179,10 +171,9 @@ export default function OverviewPage() {
       try {
         const outline = await outlineService.getActive();
         if (cancelled || !outline) return;
-        const { garments, outfits, cosmetics } = adaptOutlineToTiles(outline);
+        const { garments, outfits } = adaptOutlineToTiles(outline);
         if (garments.length) setGarments(garments);
         if (outfits.length) setOutfits(outfits);
-        if (cosmetics) setCosmetics(cosmetics);
         void useMapStore.getState().loadOutlineStops();
       } catch {
         /* hydration is best-effort; live updates still populate the tiles */
@@ -191,51 +182,14 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [setGarments, setOutfits, setCosmetics]);
+  }, [setGarments, setOutfits]);
 
-  // ── background skin analysis ──
-  const runSkinAnalysis = useCallback(
-    async (frameDataUrl: string) => {
-      startCosmetics();
-      let unsubscribe = () => {};
-      try {
-        // Subscribe BEFORE POSTing so the pushed result can't race ahead of us.
-        unsubscribe = await listenForSkinAnalysis({
-          onComplete: (raw) => {
-            const r = raw as { data?: SkinAnalysis } & SkinAnalysis;
-            const analysis = (r?.skinType ? r : r?.data) as SkinAnalysis;
-            if (analysis) setCosmetics(analysis);
-            else failCosmetics("Analysis returned no data");
-            unsubscribe();
-          },
-          onError: (msg) => {
-            failCosmetics(msg);
-            unsubscribe();
-          },
-        });
-        const { id } = await cosmeticsService.uploadCapture(frameDataUrl);
-        // Persist the ID so /ai-recommendation-cosmetic/recommendation can resume it if the user navigates there
-        sessionStorage.setItem("skin_analysis_id", id);
-        sessionStorage.setItem("skin_capture", frameDataUrl);
-        await cosmeticsService.startSkinAnalysis(id);
-      } catch (e) {
-        failCosmetics((e as Error)?.message ?? "Skin analysis failed");
-        unsubscribe();
-      }
-    },
-    [startCosmetics, setCosmetics, failCosmetics],
-  );
-
-  // ── face detection → greet + analyze (fires once) ──
+  // ── face detection (fires once) ──
   const onFaceDetected = useCallback(
-    (frameDataUrl: string) => {
+    () => {
       setFaceDetected(true);
-      // Overview is a downstream dashboard, not an entry screen — it does not
-      // greet. It only runs the passive skin analysis. (Greeting belongs to
-      // /ai-assistant.)
-      void runSkinAnalysis(frameDataUrl);
     },
-    [setFaceDetected, runSkinAnalysis],
+    [setFaceDetected],
   );
 
   const {
@@ -254,7 +208,7 @@ export default function OverviewPage() {
       hasCapturedRef.current = true;
       const frame = captureFrame();
       if (frame) {
-        onFaceDetected(frame);
+        onFaceDetected();
       }
     }
   }, [isPresent, captureFrame, onFaceDetected]);
@@ -369,7 +323,7 @@ export default function OverviewPage() {
       try {
         const response = await requestGarmentsWithFreshSession(
           [
-            "[garment]",
+            "[stylist]",
             "Treat date as a romantic/social outing when relevant.",
             "Recommend outfits for this plan using the provided destination weather.",
             `Plan: ${prompt}`,

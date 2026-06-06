@@ -69,7 +69,7 @@ const ItineraryPOIPanel: React.FC = () => {
             border: `2px solid ${color}`,
             borderRadius: 14,
             overflow: "hidden",
-            width: 210,
+            width: 270,
             backdropFilter: "blur(14px)",
             boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 0 1px ${color}20`,
           }}
@@ -117,9 +117,9 @@ const ItineraryPOIPanel: React.FC = () => {
               onClick={() => handleNavigate(poi, stopIndex)}
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 10px",
+                alignItems: "flex-start",
+                gap: 0,
+                padding: "0 8px 8px",
                 width: "100%",
                 textAlign: "left",
                 background: "transparent",
@@ -131,53 +131,77 @@ const ItineraryPOIPanel: React.FC = () => {
                 cursor: "pointer",
               }}
             >
-              {/* Ordinal badge */}
-              <span
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  background: color,
-                  color: "#000",
-                  fontSize: 9,
-                  fontWeight: 800,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                {i + 1}
-              </span>
+              {/* Full-width photo above text */}
+              <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                {poi.photo ? (
+                  <img
+                    src={poi.photo}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: 90,
+                      objectFit: "cover",
+                      display: "block",
+                      borderRadius: "6px 6px 0 0",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 90,
+                      borderRadius: "6px 6px 0 0",
+                      background: `${color}18`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 28,
+                    }}
+                  >
+                    📍
+                  </div>
+                )}
 
-              {/* Name */}
-              <span
-                style={{
-                  color: "rgba(255,255,255,0.88)",
-                  fontSize: 11,
-                  flex: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  lineHeight: 1.3,
-                }}
-              >
-                {poi.name}
-              </span>
-
-              {/* Rating */}
-              {poi.rating != null && (
-                <span
-                  style={{
-                    color: "#FBBF24",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    flexShrink: 0,
-                  }}
-                >
-                  ★{poi.rating.toFixed(1)}
-                </span>
-              )}
+                {/* Name row below photo */}
+                <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 2px 2px" }}>
+                  {/* Ordinal badge */}
+                  <span
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: color,
+                      color: "#000",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <span
+                    style={{
+                      color: "rgba(255,255,255,0.9)",
+                      fontSize: 12,
+                      flex: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {poi.name}
+                  </span>
+                  {poi.rating != null && (
+                    <span style={{ color: "#FBBF24", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      ★{poi.rating.toFixed(1)}
+                    </span>
+                  )}
+                </div>
+              </div>
             </button>
           ))}
         </div>

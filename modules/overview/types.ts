@@ -1,4 +1,3 @@
-import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 
 /**
  * Lifecycle of a single grid tile:
@@ -40,5 +39,3 @@ export interface MapTileData {
   /** Multi-stop itinerary, when ChatWonder resolved several events. */
   stops?: { name: string; lat: number; lng: number }[];
 }
-
-export type CosmeticsTileData = SkinAnalysis;

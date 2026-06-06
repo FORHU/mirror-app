@@ -1,3 +1,4 @@
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { api } from "@/modules/shared/api/api-client";
 
 export interface NearbyPOI {
@@ -25,6 +26,7 @@ export interface GeocodeResult {
   lat: number;
   lng: number;
   placeId: string;
+  placeType: string;
 }
 
 export interface DirectionsFormatted {
@@ -158,5 +160,76 @@ export const mapService = {
       },
     );
     return res.data.transcript;
+  },
+
+  ask: async (
+    transcript: string,
+    ctx: Record<string, unknown>,
+    language: string = "en-US",
+  ): Promise<{
+    audio: ArrayBuffer;
+    reply: string;
+    action: ChatWonderAction | null;
+    events: unknown[];
+    sessionId: string;
+    intent?: { primary: string; secondary: string | null; confidence: number };
+    emotion?: string;
+    requiresConfirmation?: boolean;
+    followUpQuestion?: string | null;
+    suggestions?: string[];
+    uiHints?: { overlay: string | null; focus: string | null };
+    memoryUpdates?: Record<string, unknown>;
+  }> => {
+    const payload = { transcript, ctx };
+    const res = await api.axiosInstance.post<{
+      reply: string;
+      action: ChatWonderAction | null;
+      events: unknown[];
+      sessionId: string;
+      audioBase64: string;
+      intent?: { primary: string; secondary: string | null; confidence: number };
+      emotion?: string;
+      requiresConfirmation?: boolean;
+      followUpQuestion?: string | null;
+      suggestions?: string[];
+      uiHints?: { overlay: string | null; focus: string | null };
+      memoryUpdates?: Record<string, unknown>;
+    }>(`/api/mirror/voice/ask?lang=${language}`, payload);
+
+    const {
+      reply,
+      action,
+      events,
+      sessionId,
+      audioBase64,
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
+    } = res.data;
+
+    const binaryStr = atob(audioBase64 ?? "");
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++)
+      bytes[i] = binaryStr.charCodeAt(i);
+    const audio = bytes.buffer;
+
+    return {
+      audio,
+      reply,
+      action: action ?? null,
+      events: events ?? [],
+      sessionId: sessionId ?? "",
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
+    };
   },
 };

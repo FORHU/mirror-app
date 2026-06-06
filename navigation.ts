@@ -1,10 +1,6 @@
 export const ROUTES = {
   WELCOME: "/",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
-  AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
-  AI_RECOMMENDATION_COSMETIC_RESULT: "/ai-recommendation-cosmetic/result",
-  AI_RECOMMENDATION_COSMETIC_RECOMMENDATION:
-    "/ai-recommendation-cosmetic/recommendation",
   OVERVIEW: "/overview",
   MAP: "/map",
   AI_ASSISTANT: "/ai-assistant",
@@ -37,8 +33,5 @@ export const ROUTE_RULES = {
   protected: [
     ROUTES.OVERVIEW,
     ROUTES.AI_RECOMMENDATION_FASHION,
-    // TODO: re-add after frontend testing
-    // ROUTES.AI_RECOMMENDATION_COSMETIC,
-    // ROUTES.AI_RECOMMENDATION_COSMETIC_RESULT,
   ] as string[],
 } as const;

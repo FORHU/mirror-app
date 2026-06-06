@@ -1,6 +1,51 @@
 import type { NearbyPOI, GeocodeResult } from "../services/map.service";
 import type { ChatWonderMapsPlace } from "@/modules/shared/api/chat-wonder.service";
 
+/**
+ * Returns true when the query likely refers to a specific named venue
+ * (school, church, mall, hospital, etc.) rather than a street or region.
+ * Matches full venue-type words in English, French, Spanish, German, and Italian,
+ * plus standalone ALL-CAPS tokens (2–6 chars) which are almost always institutional
+ * abbreviations (e.g. "SLU", "UPMC", "UB") regardless of country.
+ * We deliberately do NOT pre-expand abbreviations — Mapbox resolves them correctly
+ * when proximity coordinates are provided.
+ */
+const VENUE_ABBREV_RE = /\b[A-Z]{2,6}\b/;
+const VENUE_FULL_RE = new RegExp(
+  "\\b(" +
+  // English
+  "mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|" +
+  "school|university|college|academy|institute|hospital|clinic|hotel|resort|" +
+  "park|market|museum|library|gym|spa|station|terminal|grotto|convent|" +
+  "monastery|campus|complex|plaza|pharmacy|theatre|theater|cinema|gallery|" +
+  // French (accented + unaccented forms — Whisper preserves diacritics)
+  "musée|musee|" +          // musée
+  "école|ecole|" +          // école
+  "gare|" +
+  "hôpital|hopital|" +      // hôpital
+  "église|eglise|" +        // église
+  "cathédrale|cathedrale|" + // cathédrale
+  "université|universite|" + // université
+  "bibliothèque|bibliotheque|" + // bibliothèque
+  "théâtre|theatre|" + // théâtre (also in English above)
+  "cinéma|cinema|" +        // cinéma (also in English above)
+  "galerie|mairie|pharmacie|palais|stade|marché|marche|" +
+  "lycée|lycee|" +          // lycée (French high school)
+  "arrondissement|quartier|" +
+  // Spanish
+  "escuela|universidad|iglesia|mercado|parque|farmacia|" +
+  // German
+  "schule|kirche|krankenhaus|bahnhof|markt|" +
+  // Italian
+  "scuola|chiesa|ospedale|stazione|farmacia" +
+  ")\\b",
+  "i",
+);
+
+export function isVenueName(name: string): boolean {
+  return VENUE_FULL_RE.test(name) || VENUE_ABBREV_RE.test(name);
+}
+
 export function haversineKm(
   lat1: number,
   lng1: number,
@@ -218,8 +263,9 @@ export function extractLocationFromTranscript(
 
   // "to [Location]" — scan ALL occurrences so "want to go to La Union" skips "to go"
   // (movement verb) and correctly extracts "La Union".
+  // Stop at "here" so "to slu bonifacio here in baguio" → "slu bonifacio" (not the whole phrase).
   const toRe =
-    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|with\b|to\b|and\b)|$)/gi;
+    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|with\b|to\b|and\b|here\b)|$)/gi;
   let toMatch: RegExpExecArray | null;
   while ((toMatch = toRe.exec(transcript)) !== null) {
     const candidate = stripTrailingEventWords(
@@ -230,6 +276,13 @@ export function extractLocationFromTranscript(
         candidate,
       )
     ) {
+      // "slu bonifacio here in baguio" → append the city from "here in [city]"
+      // so the geocoder gets "slu bonifacio baguio" and prefers local results.
+      const hereCity = transcript.match(/\bhere\s+in\s+([A-Za-z][A-Za-z\s]{1,20}?)(?:\s*$|\s+\b(?:please|ok|now)\b)/i);
+      if (hereCity) {
+        const city = hereCity[1].trim().split(/\s+/).slice(0, 2).join(" ");
+        return `${candidate} ${city}`;
+      }
       return candidate;
     }
   }
@@ -348,7 +401,11 @@ export function extractAllLocationsFromTranscript(
   const locations: string[] = [];
 
   for (const seg of segments) {
-    const s = seg.trim();
+    // Strip leading connector/ordinal words that appear when the user's
+    // sentence is split on commas: "then lastly saint louis university..."
+    // → "saint louis university...". Keep prepositions (to/at/in) intact
+    // since the patterns below rely on them.
+    const s = seg.trim().replace(/^(?:(?:then|lastly|firstly|finally|next|also|after\s+that)\s+)+/i, "").trim();
     if (!s) continue;
 
     // Stop pattern — capture ends before these common words or punctuation.
@@ -358,7 +415,20 @@ export function extractAllLocationsFromTranscript(
     //   "la union san fernando to…"      → expands until second "to" ✓
     const STOP = `(?=\\s+(?:this\\b|the\\b|at\\s+\\d|for\\s+\\w|and\\b|to\\b|so\\b|in\\b|have\\b|with\\b|going\\b|will\\b|be\\b|my\\b|it\\b|there\\b)|[,.]|\\s*$)`;
 
-    // "in [place]" — lazy, stop at common words
+    // Helper: strips filler words from the text before a preposition to extract a POI prefix.
+    // "going to zoo" → "zoo", "having a lunch" → "", "i'll be at" → ""
+    const extractPOIPrefix = (raw: string): string =>
+      raw
+        .replace(/\b(?:going|heading|having|eating|visiting|stopping|i(?:'ll)?|will|am|be|a|an|the|my|our|and|then|also|finally|after(?:\s+that)?|first|second|third|to|for|of)\b\s*/gi, "")
+        .replace(/\b(?:lunch|dinner|breakfast|brunch|meal|meeting|appointment|date|session|conference|event|party)\b\s*/gi, "")
+        .trim();
+
+    // Regex that matches a following "in [place]" immediately after the current match.
+    const followInRe = new RegExp(`^\\s+in\\s+(?!the\\b|a\\b|an\\b|this\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i");
+
+    // "in [place]" — lazy, stop at common words.
+    // Also captures any POI prefix before "in" (e.g. "zoo in ilocos sur" → "zoo ilocos sur")
+    // and any second "in [place]" after the match (e.g. "Greenwich in la union" → "Greenwich la union").
     const inM = s.match(
       new RegExp(
         `\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`,
@@ -366,20 +436,31 @@ export function extractAllLocationsFromTranscript(
       ),
     );
     if (inM) {
-      locations.push(inM[1].trim());
+      const loc = inM[1].trim();
+      const poi = extractPOIPrefix(s.slice(0, inM.index!));
+      const isVerb = /^(?:go|be|have|get|make|do|take|come|see|find|try|eat|drink|meet|buy|grab|pay|run|walk|drive|join|bring|pick)\b/i.test(poi);
+      const prefix = poi.length > 1 && !isVerb ? poi : "";
+      const followIn = s.slice(inM.index! + inM[0].length).match(followInRe);
+      const suffix = followIn ? followIn[1].trim() : "";
+      locations.push([prefix, loc, suffix].filter(Boolean).join(" "));
       continue;
     }
 
-    // "at [place]" — exclude bare times like "at 7am", lazy
+    // "at [place]" — exclude bare times like "at 7am".
+    // Also checks for a following "in [place]" (e.g. "lunch at Greenwich in la union").
     const atM = s.match(
       new RegExp(`\\bat\\s+(?!\\d)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i"),
     );
     if (atM) {
-      locations.push(atM[1].trim());
+      const dest = atM[1].trim();
+      const followIn = s.slice(atM.index! + atM[0].length).match(followInRe);
+      const query = followIn ? `${dest} ${followIn[1].trim()}` : dest;
+      locations.push(query);
       continue;
     }
 
-    // "to [place]" — exclude "to the/a/home/have/be/go", lazy
+    // "to [place]" — exclude "to the/a/home/have/be/go".
+    // Also checks for a following "in [place]" (e.g. "going to zoo in ilocos sur").
     const toM = s.match(
       new RegExp(
         `\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b|have\\b|be\\b|go\\b|get\\b|this\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`,
@@ -387,7 +468,10 @@ export function extractAllLocationsFromTranscript(
       ),
     );
     if (toM) {
-      locations.push(toM[1].trim());
+      const dest = toM[1].trim();
+      const followIn = s.slice(toM.index! + toM[0].length).match(followInRe);
+      const query = followIn ? `${dest} ${followIn[1].trim()}` : dest;
+      locations.push(query);
       continue;
     }
 
@@ -407,7 +491,7 @@ export function extractAllLocationsFromTranscript(
         const loc = bareM[1].trim();
         if (
           loc.length > 2 &&
-          !/^(and|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(
+          !/^(and|then|lastly|firstly|finally|next|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(
             loc,
           )
         ) {
@@ -580,9 +664,32 @@ export function buildPreciseETANarration(
 }
 
 /**
- * Returns true when any of the top 3 geocode results are > 50 km apart from
- * the first — catches cases where proximity-based ranking hides a distant
- * same-name location (e.g. "La Union Province" vs "La Union St, Olongapo").
+ * Formats total route distance and duration for TTS after a stop is confirmed.
+ * Single stop: "It's about 25 minutes away, 12 km."
+ * Multiple stops: "Total trip: 12.3 km, about 38 minutes."
+ */
+export function buildRouteSummary(
+  routes: Array<{ duration: number; distance: number }>,
+  stopCount: number,
+): string {
+  if (routes.length === 0) return "";
+  const totalSec = routes.reduce((s, r) => s + r.duration, 0);
+  const totalM = routes.reduce((s, r) => s + r.distance, 0);
+  if (totalSec <= 0) return "";
+  const minutes = Math.round(totalSec / 60);
+  const km = totalM / 1000;
+  const kmStr = km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
+  if (stopCount === 1) {
+    return ` It's about ${minutes} minute${minutes !== 1 ? "s" : ""} away, ${kmStr}.`;
+  }
+  return ` Total trip: ${kmStr}, about ${minutes} minute${minutes !== 1 ? "s" : ""}.`;
+}
+
+/**
+ * Returns true when any of the top 3 geocode results are within 20 km of the
+ * first — catches within-region ambiguity (e.g. "Vigan City" vs "Ilocos Sur
+ * province center" ~8 km apart) while ignoring same-name places in different
+ * regions (>20 km apart), where the top Mapbox result is clearly correct.
  */
 export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
   if (results.length < 2) return false;
@@ -593,7 +700,7 @@ export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
         results[0].lng,
         results[i].lat,
         results[i].lng,
-      ) < 50
+      ) < 20
     )
       return true;
   }
@@ -663,6 +770,37 @@ export function matchCandidateFromTranscript(
     }
   }
   if (bestScore > 0) return bestMatch;
+
+  return null;
+}
+
+/**
+ * Detects "nearest X", "closest X", "find me X near me", "X near my location"
+ * patterns and returns the POI search term (e.g. "starbucks", "gas station").
+ * Returns null when the phrase isn't a nearby-POI request.
+ */
+export function extractNearbyPOIQuery(transcript: string): string | null {
+  // "nearest X [near me]" / "closest X [near me]"
+  const nearestM = transcript.match(
+    /\b(?:nearest|closest)\s+(.+?)(?:\s+(?:near\s+(?:me|my\s+location)|nearby|around\s+(?:here|me))\s*$|\s*$)/i,
+  );
+  if (nearestM) return nearestM[1].trim() || null;
+
+  // "find/show/give me [a] X near me/my location/nearby"
+  const findM = transcript.match(
+    /\b(?:find|show|give)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me))\s*$/i,
+  );
+  if (findM) return findM[1].trim() || null;
+
+  // "X near me" / "X nearby" standalone
+  const nearMeM = transcript.match(
+    /^(?:can\s+you\s+)?(?:give\s+me\s+)?(?:the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby)\s*$/i,
+  );
+  if (nearMeM) {
+    const candidate = nearMeM[1].trim();
+    // Don't match generic filler phrases
+    if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate)) return candidate;
+  }
 
   return null;
 }

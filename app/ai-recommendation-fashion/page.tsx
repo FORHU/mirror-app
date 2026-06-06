@@ -469,7 +469,7 @@ export default function VirtualMirrorV2() {
       try {
         const response = await chatWonderService.message(
           {
-            input: "[garment] recommend outfits for today. I am Male.",
+            input: "[stylist] recommend outfits for today.",
             ...(weather ? { weather } : {}),
             ...(location ? { location } : {}),
           },
