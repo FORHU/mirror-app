@@ -111,7 +111,6 @@ export default function MapPage() {
     <main className="w-screen h-dvh bg-black relative overflow-hidden">
       {/* Header — weather left, time center, back right */}
       <MirrorHeader
-        onBack={() => router.back()}
         className="absolute top-0 inset-x-0 z-50"
       />
 

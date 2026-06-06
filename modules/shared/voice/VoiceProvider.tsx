@@ -46,7 +46,8 @@ import {
   isAmbiguousGeocode,
   buildDisambiguationQuestion,
   matchCandidateFromTranscript,
-  buildPreciseETANarration,
+  buildRouteSummary,
+  extractNearbyPOIQuery,
   isClearRoutePhrase,
 } from "@/modules/map/utils/chatWonderMapUtils";
 import type { NearbyPOI, GeocodeResult } from "@/modules/map/services/map.service";
@@ -75,11 +76,11 @@ const ITINERARY_MORE_STOPS_CLOSERS = [
   "Where else are you headed?",
   "Want to add another place?",
 ];
-function buildItineraryConfirmReply(name: string, hasPOIs: boolean): string {
+function buildItineraryConfirmReply(name: string, hasPOIs: boolean, routeSummary?: string): string {
   const opener = ITINERARY_CONFIRM_OPENERS[Math.floor(Math.random() * ITINERARY_CONFIRM_OPENERS.length)](name);
   const closer = ITINERARY_MORE_STOPS_CLOSERS[Math.floor(Math.random() * ITINERARY_MORE_STOPS_CLOSERS.length)];
   const poiMention = hasPOIs ? " I also spotted some interesting places nearby you might enjoy!" : "";
-  return `${opener}${poiMention} ${closer}`;
+  return `${opener}${routeSummary ?? ""}${poiMention} ${closer}`;
 }
 
 function float32ToInt16(f: Float32Array): Int16Array {
@@ -655,10 +656,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             isCollectingItineraryRef.current = true;
             await useMapStore.getState().setItineraryStops(merged);
 
+            const { itineraryRoutes: disambigRoutes, itineraryStops: disambigAllStops } = useMapStore.getState();
+            const disambigRouteSummary = buildRouteSummary(disambigRoutes, disambigAllStops.length);
             const hasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
             const disambigReply = pending.length > 0
-              ? `Got it! Added ${allNew.length} stops: ${allNew.map((s) => s.name).join(", ")}. Any more stops?`
-              : buildItineraryConfirmReply(dest.name, hasPOIs);
+              ? `Got it! Added ${allNew.length} stops: ${allNew.map((s) => s.name).join(", ")}.${disambigRouteSummary} Any more stops?`
+              : buildItineraryConfirmReply(dest.name, hasPOIs, disambigRouteSummary);
             const disambigAudio = await mapService.tts(disambigReply).catch(() => null);
             setReply(disambigReply); historyRef.current = [...historyRef.current, { user: t, assistant: disambigReply }].slice(-4); setChatHistory(historyRef.current);
             setVoiceState("speaking");
@@ -750,7 +753,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               itineraryStopsRef.current = merged;
               isCollectingItineraryRef.current = true;
               const routes = useMapStore.getState().itineraryRoutes;
-              const etaNarration = buildPreciseETANarration(merged, routes);
+              const etaNarration = buildRouteSummary(routes, merged.length);
               const stopPOIs = useMapStore.getState().itineraryStopPOIs;
               const poiMentions = merged.map((stop, i) => {
                 const entry = stopPOIs.find((s) => s.stopIndex === i);
@@ -838,6 +841,60 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         // single-event path handles it. The multi-event path already returns early when
         // it succeeds, so there is no double-processing risk.
         if (isItineraryPhrase(t) || isNavigationPhrase(t) || isCollectingItineraryRef.current) {
+          // ── Show-POIs intercept ─────────────────────────────────────────────
+          // "show me the recommended places from SM City Baguio" while collecting
+          // stops → read out the POIs for that stop, then re-ask for more stops.
+          // Must run BEFORE extractLocationFromTranscript so the phrase isn't
+          // mistakenly geocoded as a new destination.
+          if (isCollectingItineraryRef.current) {
+            const isShowPOIsRequest =
+              (/\brecommend(?:ed|ations?)?\b/i.test(t) && /\bplaces?\b/i.test(t)) ||
+              /\bshow\s+(?:me\s+)?(?:the\s+)?places?\s+(?:near|from|around|for)\b/i.test(t) ||
+              /\bwhat(?:'s|\s+are)\s+(?:the\s+)?(?:places?|spots?|recommendations?)\b/i.test(t);
+
+            if (isShowPOIsRequest) {
+              const { itineraryStops, itineraryStopPOIs } = useMapStore.getState();
+              const lower = t.toLowerCase();
+              const transcriptWords = lower.split(/\s+/).filter((w) => w.length > 3);
+
+              // Match stop by checking if any meaningful transcript word appears in the stop name
+              let matchedGroup = itineraryStopPOIs.find(({ stopIndex, pois }) => {
+                if (pois.length === 0) return false;
+                const stop = itineraryStops[stopIndex];
+                return stop != null && transcriptWords.some((w) => stop.name.toLowerCase().includes(w));
+              });
+              // Fallback: most recently added stop that has POIs
+              if (!matchedGroup) {
+                matchedGroup = [...itineraryStopPOIs].reverse().find(({ pois }) => pois.length > 0);
+              }
+
+              if (matchedGroup && matchedGroup.pois.length > 0) {
+                const stop = itineraryStops[matchedGroup.stopIndex];
+                const pois = matchedGroup.pois.slice(0, 3);
+                const poiLines = pois
+                  .map((p, i) => `${["First", "Second", "Third"][i]}, ${p.name}${p.rating != null ? ` rated ${p.rating.toFixed(1)}` : ""}`)
+                  .join("; ");
+                const closer = ITINERARY_MORE_STOPS_CLOSERS[Math.floor(Math.random() * ITINERARY_MORE_STOPS_CLOSERS.length)];
+                const poiReply = `Here are the recommended places near ${stop?.name ?? "that stop"}: ${poiLines}. ${closer}`;
+                const poiAudio = await mapService.tts(poiReply).catch(() => null);
+                setReply(poiReply);
+                historyRef.current = [...historyRef.current, { user: t, assistant: poiReply }].slice(-4);
+                setChatHistory(historyRef.current);
+                setVoiceState("speaking");
+                if (poiAudio) {
+                  const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+                  const decoded = await playCtx.decodeAudioData(poiAudio.slice(0));
+                  const src = playCtx.createBufferSource(); src.buffer = decoded;
+                  src.connect(playCtx.destination); playbackRef.current = src;
+                  src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+                  src.start(0);
+                } else { setVoiceState("idle"); }
+                return;
+              }
+            }
+          }
+          // ── End show-POIs intercept ─────────────────────────────────────────
+
           const locationName = extractLocationFromTranscript(t)
             // Fallback: when collecting stops, strip filler words and treat the
             // remainder as the location query (handles bare replies like "san
@@ -850,10 +907,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               : null);
           if (locationName) {
             try {
-              // No proximity bias — itinerary destinations are often far from the user's
-              // current location. Proximity would suppress correct province-level results
-              // (e.g. "La Union" → La Union Street Barretto instead of La Union Province).
-              const { results } = await mapService.geocode(locationName);
+              // Pass proximity so nearby POI/street queries (e.g. "session road jollibee"
+              // in Baguio) rank the local result first. Region/place results are
+              // protected by the placeType preference below — if proximity surfaces a
+              // nearby address but there's a region in the top 3, we prefer the region.
+              const itinUserLoc = useMapStore.getState().userLocation ?? useMapStore.getState().homeLocation;
+              const { results } = await mapService.geocode(locationName, itinUserLoc ?? undefined);
               if (results.length > 0 && isAmbiguousGeocode(results)) {
                 disambiguationCandidatesRef.current = results.slice(0, 3);
                 disambiguationContextRef.current = { eventType: extractEventTypeFromTranscript(t) ?? undefined, timeBlock: extractTimeBlockFromTranscript(t) ?? undefined };
@@ -878,7 +937,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 return;
               }
               if (results.length > 0) {
-                const dest = { name: results[0].name, lat: results[0].lat, lng: results[0].lng, address: results[0].address, placeId: results[0].placeId, eventType: extractEventTypeFromTranscript(t) ?? undefined, timeBlock: extractTimeBlockFromTranscript(t) ?? undefined };
+                // When proximity biases a nearby street/address to the top, pick
+                // the most semantically correct result from the top 3:
+                // • Venue-type query ("saint louis university", "good taste mall") →
+                //   prefer a poi result (the specific place) over a bare address
+                // • Region/province query ("la union", "benguet") →
+                //   prefer a region/place result over a local street with the same name
+                const VENUE_WORD_RE = /\b(mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|school|university|college|academy|institute|hospital|clinic|hotel|resort|park|market|museum|library|gym|spa|station|terminal|grotto|convent|monastery|campus|complex|plaza)\b/i;
+                const isVenueQuery = VENUE_WORD_RE.test(locationName ?? "");
+                const top = results[0];
+                const preferred =
+                  (top.placeType === "address" || top.placeType === "neighborhood")
+                    ? (isVenueQuery
+                        ? (results.slice(0, 3).find((r) => r.placeType === "poi") ?? results.slice(0, 3).find((r) => r.placeType === "region" || r.placeType === "place") ?? top)
+                        : (results.slice(0, 3).find((r) => r.placeType === "region" || r.placeType === "place") ?? top))
+                    : top;
+                const dest = { name: preferred.name, lat: preferred.lat, lng: preferred.lng, address: preferred.address, placeId: preferred.placeId, eventType: extractEventTypeFromTranscript(t) ?? undefined, timeBlock: extractTimeBlockFromTranscript(t) ?? undefined };
                 const startingNewLeg = !isCollectingItineraryRef.current && useMapStore.getState().itineraryGroups.length > 0;
                 if (startingNewLeg) {
                   itineraryStopsRef.current = [dest];
@@ -892,8 +966,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   if (!merged.some((s) => s.name === dest.name)) merged.push(dest);
                   await useMapStore.getState().setItineraryStops(merged);
                 }
+                const { itineraryRoutes: stopRoutes, itineraryStops: allStops } = useMapStore.getState();
+                const routeSummary = buildRouteSummary(stopRoutes, allStops.length);
                 const hasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
-                const stopReply = buildItineraryConfirmReply(dest.name, hasPOIs);
+                const stopReply = buildItineraryConfirmReply(dest.name, hasPOIs, routeSummary);
                 const stopAudio = await mapService.tts(stopReply).catch(() => null);
                 setReply(stopReply);
                 historyRef.current = [...historyRef.current, { user: t, assistant: stopReply }].slice(-4);
@@ -922,6 +998,37 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         const mapLoc = mapState.userLocation ?? mapState.homeLocation;
         const mapDest = mapState.selectedDestination;
         const pending = mapState.pendingEvents;
+
+        // ── Nearby POI intercept ──────────────────────────────────────────────
+        // "nearest starbucks", "find me X near me" — bypass ChatWonder (which
+        // can't use the location context) and call nearbyPOIs directly.
+        const nearbyQuery = extractNearbyPOIQuery(t);
+        if (nearbyQuery && mapLoc) {
+          try {
+            const { pois } = await mapService.nearbyPOIs(mapLoc.lat, mapLoc.lng, 1500, nearbyQuery);
+            if (pois.length > 0) {
+              const curated = curatePOIs(pois);
+              curatedPOIsRef.current = curated;
+              useMapStore.getState().setSuggestedPOIs(curated, nearbyQuery);
+              const poiTTS = buildPOITTS(curated);
+              const poiAudio = await mapService.tts(poiTTS).catch(() => null);
+              setReply(poiTTS);
+              historyRef.current = [...historyRef.current, { user: t, assistant: poiTTS }].slice(-4);
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (poiAudio) {
+                const playCtx = new AudioContext(); playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(poiAudio.slice(0));
+                const src = playCtx.createBufferSource(); src.buffer = decoded;
+                src.connect(playCtx.destination); playbackRef.current = src;
+                src.onended = () => { stopPlayback(); setVoiceState("idle"); };
+                src.start(0);
+              } else { setVoiceState("idle"); }
+              return;
+            }
+          } catch { /* fall through to ChatWonder */ }
+        }
+        // ── End nearby POI intercept ──────────────────────────────────────────
 
         const history = historyRef.current
           .flatMap((h) => [
@@ -987,11 +1094,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             if (!mergedForPlaces.some((s) => s.name === dest.name)) mergedForPlaces.push(dest);
             await useMapStore.getState().setItineraryStops(mergedForPlaces);
             isCollectingItineraryRef.current = true;
+            const { itineraryRoutes: placesRoutes, itineraryStops: placesAllStops } = useMapStore.getState();
+            const placesRouteSummary = buildRouteSummary(placesRoutes, placesAllStops.length);
             const placesHasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
-            const placesNearbyMention = placesHasPOIs
-              ? " I also found some nearby places around there you might want to visit!"
-              : "";
-            itineraryConfirmReply = `Got it, ${dest.name} added.${placesNearbyMention} Any more stops?`;
+            itineraryConfirmReply = buildItineraryConfirmReply(dest.name, placesHasPOIs, placesRouteSummary);
           } else {
             useMapStore.getState().setDestination({
               name: places[0].name,
@@ -1005,9 +1111,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const allPOIs: NearbyPOI[] = places.map((p) =>
             mapPlaceToNearbyPOI(p, originLat, originLng),
           );
-          const curated = curatePOIs(allPOIs);
-          curatedPOIsRef.current = curated;
           const label = res.maps_data![0].query ?? t;
+          // Only apply the 30 km proximity cap when we have a real user location.
+          // When mapLoc is null, originLat/originLng are 0,0 — every PH place is
+          // ~1 400 km away, so filtering would silently discard everything and fall
+          // back to the unfiltered list, defeating the purpose entirely.
+          const MAX_POI_KM = 30;
+          const hasRealLocation = mapLoc != null;
+          let poolToUse = allPOIs;
+          if (hasRealLocation) {
+            const nearbyPOIs = allPOIs.filter((p) => (p.distance ?? Infinity) <= MAX_POI_KM);
+            // If no results within 30 km (user asked about a far-away place), show all.
+            poolToUse = nearbyPOIs.length > 0 ? nearbyPOIs : allPOIs;
+          }
+          const curated = curatePOIs(poolToUse);
+          curatedPOIsRef.current = curated;
           useMapStore.getState().setSuggestedPOIs(curated, label);
         }
 
@@ -1076,12 +1194,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           await setItineraryStops(stops);
           isCollectingItineraryRef.current = true;
           if (stops.length === 1) {
+            const { itineraryRoutes: resolvedRoutes, itineraryStops: resolvedStops } = useMapStore.getState();
+            const resolvedRouteSummary = buildRouteSummary(resolvedRoutes, resolvedStops.length);
             const resolvedHasPOIs = useMapStore.getState().itineraryStopPOIs.some((s) => s.pois.length > 0);
-            itineraryConfirmReply = buildItineraryConfirmReply(stops[0].name, resolvedHasPOIs);
+            itineraryConfirmReply = buildItineraryConfirmReply(stops[0].name, resolvedHasPOIs, resolvedRouteSummary);
             // Timer starts after audio finishes (see mapAudio onended below)
           } else {
             const routes = useMapStore.getState().itineraryRoutes;
-            etaNarration = buildPreciseETANarration(stops, routes);
+            etaNarration = buildRouteSummary(routes, stops.length);
             const names = stops.map((s) => s.name).join(", ");
             const stopPOIs = useMapStore.getState().itineraryStopPOIs;
             const poiMentions = stops.map((stop, i) => {

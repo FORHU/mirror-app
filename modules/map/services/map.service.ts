@@ -26,6 +26,7 @@ export interface GeocodeResult {
   lat: number;
   lng: number;
   placeId: string;
+  placeType: string;
 }
 
 export interface DirectionsFormatted {
