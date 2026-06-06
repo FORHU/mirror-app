@@ -1,4 +1,3 @@
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { api } from "@/modules/shared/api/api-client";
 
 export interface NearbyPOI {

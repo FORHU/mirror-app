@@ -9,7 +9,7 @@ import {
   Navigation,
   Sparkles,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMapStore } from "../store/useMapStore";
 

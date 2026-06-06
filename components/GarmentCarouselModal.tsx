@@ -50,11 +50,13 @@ export default function GarmentCarouselModal({
     const sp = window.innerWidth * CARD_RATIO + CARD_GAP;
     slotPxRef.current = sp;
     dragPxRef.current = 0;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDragPx(0);
-    setSlotPx(sp);
     centerVIRef.current = 0;
-    setCenterVI(0);
+
+    queueMicrotask(() => {
+      setDragPx(0);
+      setSlotPx(sp);
+      setCenterVI(0);
+    });
   }, [activeSlot?.slot]);
 
   // Jump to the already-selected item once items finish loading
@@ -65,9 +67,11 @@ export default function GarmentCarouselModal({
     if (idx > 0) {
       centerVIRef.current = idx;
       dragPxRef.current = 0;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCenterVI(idx);
-      setDragPx(0);
+
+      queueMicrotask(() => {
+        setCenterVI(idx);
+        setDragPx(0);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);

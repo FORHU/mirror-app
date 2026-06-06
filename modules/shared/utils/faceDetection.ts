@@ -3,7 +3,9 @@
 export type FaceBox = { x: number; y: number; width: number; height: number };
 
 export interface UniversalFaceDetector {
-  detect: (image: CanvasImageSource) => Promise<Array<{ boundingBox: FaceBox }>>;
+  detect: (
+    image: CanvasImageSource,
+  ) => Promise<Array<{ boundingBox: FaceBox }>>;
 }
 
 let cachedDetector: UniversalFaceDetector | null | undefined = undefined;
@@ -13,14 +15,22 @@ export async function getUniversalFaceDetector(): Promise<UniversalFaceDetector 
   if (cachedDetector !== undefined) return cachedDetector;
 
   // 1. Try native FaceDetector API first
-  const FD = (window as any).FaceDetector;
+  type NativeFaceDetectorCtor = new (opts?: { fastMode?: boolean }) => {
+    detect: (
+      image: CanvasImageSource,
+    ) => Promise<Array<{ boundingBox: FaceBox }>>;
+  };
+  const FD = (window as Window & { FaceDetector?: NativeFaceDetectorCtor })
+    .FaceDetector;
   if (FD) {
     try {
       const nativeDetector = new FD({ fastMode: true });
       cachedDetector = nativeDetector;
       return nativeDetector;
     } catch {
-      console.warn("Native FaceDetector threw on instantiation. Falling back...");
+      console.warn(
+        "Native FaceDetector threw on instantiation. Falling back...",
+      );
     }
   }
 
@@ -36,9 +46,12 @@ export async function getUniversalFaceDetector(): Promise<UniversalFaceDetector 
     const fallbackDetector: UniversalFaceDetector = {
       detect: async (image: CanvasImageSource) => {
         // BlazeFace supports HTMLVideoElement, Canvas, etc.
-        const predictions = await model.estimateFaces(image as any, false);
-        
-        return predictions.map((pred: any) => {
+        const predictions = await model.estimateFaces(
+          image as HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
+          false,
+        );
+
+        return predictions.map((pred) => {
           const tl = pred.topLeft as [number, number];
           const br = pred.bottomRight as [number, number];
           return {

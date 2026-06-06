@@ -16,7 +16,10 @@ import { useEffect, useRef, useState } from "react";
  * passed to the caller, which owns whether/where it goes.
  */
 
-import { getUniversalFaceDetector } from "../../shared/utils/faceDetection";
+import {
+  getUniversalFaceDetector,
+  type UniversalFaceDetector,
+} from "../../shared/utils/faceDetection";
 
 export type TrackerStatus =
   | "starting" // acquiring the camera
@@ -55,8 +58,10 @@ export function useFaceTracker(options: UseFaceTrackerOptions = {}) {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const canvas = document.createElement("canvas");
-    let detector: any = null;
-    getUniversalFaceDetector().then(d => { detector = d; });
+    let detector: UniversalFaceDetector | null = null;
+    getUniversalFaceDetector().then((d) => {
+      detector = d;
+    });
 
     let samples = 0;
 

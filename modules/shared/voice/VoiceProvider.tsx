@@ -54,12 +54,11 @@ import type {
 import {
   ConfirmationState,
   createIdleConfirmation,
-  createPendingConfirmation,
   isExpired,
 } from "./orchestration/confirmationState";
+import { guardAction } from "./orchestration/actionGuard";
+import { executeAction } from "./orchestration/actionExecutor";
 
-const SAMPLE_RATE = 16000;
-const BUFFER_SIZE = 4096;
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
@@ -91,15 +90,6 @@ function buildItineraryConfirmReply(name: string, hasPOIs: boolean): string {
   return `${opener}${poiMention} ${closer}`;
 }
 
-function float32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
-}
-
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -109,7 +99,7 @@ export interface VoiceContextValue {
   isProcessing: boolean;
   isSpeaking: boolean;
   toggle: () => void;
-  startListening: () => void;
+  startListening: () => Promise<void>;
   stopListening: () => void;
   submitText: (text: string) => Promise<void>;
   registerPage: (
@@ -148,11 +138,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const confirmationRef = useRef<ConfirmationState>(createIdleConfirmation());
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
@@ -236,14 +221,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  const clearItineraryIdleTimer = () => {
+  const clearItineraryIdleTimer = useCallback(() => {
     if (itineraryIdleTimerRef.current) {
       clearTimeout(itineraryIdleTimerRef.current);
       itineraryIdleTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const startItineraryIdleTimer = () => {
+  const startItineraryIdleTimer = useCallback(() => {
     clearItineraryIdleTimer();
     itineraryIdleTimerRef.current = setTimeout(async () => {
       if (!isCollectingItineraryRef.current) return;
@@ -269,7 +254,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     }, 12000);
-  };
+  }, [clearItineraryIdleTimer]);
 
   // ----------------------
 
@@ -361,7 +346,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<{ stop: () => void } | null>(null);
 
   const processTranscript = useCallback(
     async (t: string) => {
@@ -1599,20 +1584,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // NEW CHATWONDER PIPELINE
           const language = useMirrorStore.getState().voiceLanguage;
 
-          // Pass the recent history array (user + assistant pairs)
-          const recentHistory = historyRef.current
-            .map((h) => ({
-              role: "user" as const,
-              content: h.user,
-            }))
-            .concat(
-              historyRef.current.map((h) => ({
-                role: "assistant" as const,
-                content: h.assistant,
-              })),
-            )
-            .slice(-4); // simplified for brevity
-
           const chatReq = {
             input: `[stylist] ${t}`,
             voice: true,
@@ -1707,21 +1678,47 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [voiceState, pathname, router, handleAIAssistantText, stopPlayback],
+    [
+      pathname,
+      router,
+      stopPlayback,
+      startItineraryIdleTimer,
+      clearItineraryIdleTimer,
+    ],
   );
 
   const startListening = useCallback(async () => {
     if (voiceState !== "idle") return;
     setError(null);
     try {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      type SpeechRecognitionCtor = new () => {
+        lang: string;
+        interimResults: boolean;
+        maxAlternatives: number;
+        continuous: boolean;
+        onstart: (() => void) | null;
+        onerror: ((event: { error: string }) => void) | null;
+        onresult:
+          | ((event: {
+              resultIndex: number;
+              results: SpeechRecognitionResultList;
+            }) => void)
+          | null;
+        onend: (() => void) | null;
+        start(): void;
+        stop(): void;
+      };
+      const win = window as unknown as {
+        SpeechRecognition?: SpeechRecognitionCtor;
+        webkitSpeechRecognition?: SpeechRecognitionCtor;
+      };
+      const SpeechRecognitionClass =
+        win.SpeechRecognition || win.webkitSpeechRecognition;
+      if (!SpeechRecognitionClass) {
         setError("Speech recognition is not supported in this browser.");
         return;
       }
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionClass();
       recognition.lang = useMirrorStore.getState().voiceLanguage || "en-US";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
@@ -1739,13 +1736,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       };
 
       recognition.onstart = () => setVoiceState("recording");
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: { error: string }) => {
         clearSilenceTimer();
         if (event.error !== "no-speech")
           setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech") setVoiceState("idle");
       };
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: {
+        resultIndex: number;
+        results: SpeechRecognitionResultList;
+      }) => {
         // Reset silence timer on every new final segment — only stop + process
         // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend
         // events mid-utterance don't cut the user off prematurely.

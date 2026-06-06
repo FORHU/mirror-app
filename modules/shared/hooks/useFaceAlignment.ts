@@ -16,7 +16,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * shows and a frame is captured after `fallbackMs` so the flow never stalls.
  */
 
-import { getUniversalFaceDetector, FaceBox } from "../utils/faceDetection";
+import {
+  getUniversalFaceDetector,
+  type UniversalFaceDetector,
+  type FaceBox,
+} from "../utils/faceDetection";
 
 export type AlignState =
   | "starting" // acquiring the camera
@@ -87,8 +91,10 @@ export function useFaceAlignment({
     const startedAt = Date.now();
 
     const canvas = document.createElement("canvas");
-    let detector: any = null;
-    getUniversalFaceDetector().then(d => { detector = d; });
+    let detector: UniversalFaceDetector | null = null;
+    getUniversalFaceDetector().then((d) => {
+      detector = d;
+    });
     let primaryBox: FaceBox | null = null;
 
     function grabFrame(): string | null {
@@ -136,21 +142,27 @@ export function useFaceAlignment({
         } else {
           if (!primaryBox) {
             // Pick largest initially
-            faces.sort((a: any, b: any) => (b.boundingBox.width * b.boundingBox.height) - (a.boundingBox.width * a.boundingBox.height));
+            faces.sort(
+              (a: { boundingBox: FaceBox }, b: { boundingBox: FaceBox }) =>
+                b.boundingBox.width * b.boundingBox.height -
+                a.boundingBox.width * a.boundingBox.height,
+            );
             primaryBox = faces[0].boundingBox;
           } else {
             // Find closest to current lock
             const px = primaryBox.x + primaryBox.width / 2;
             const py = primaryBox.y + primaryBox.height / 2;
-            faces.sort((a: any, b: any) => {
-              const cxA = a.boundingBox.x + a.boundingBox.width / 2;
-              const cyA = a.boundingBox.y + a.boundingBox.height / 2;
-              const distA = Math.hypot(cxA - px, cyA - py);
-              const cxB = b.boundingBox.x + b.boundingBox.width / 2;
-              const cyB = b.boundingBox.y + b.boundingBox.height / 2;
-              const distB = Math.hypot(cxB - px, cyB - py);
-              return distA - distB;
-            });
+            faces.sort(
+              (a: { boundingBox: FaceBox }, b: { boundingBox: FaceBox }) => {
+                const cxA = a.boundingBox.x + a.boundingBox.width / 2;
+                const cyA = a.boundingBox.y + a.boundingBox.height / 2;
+                const distA = Math.hypot(cxA - px, cyA - py);
+                const cxB = b.boundingBox.x + b.boundingBox.width / 2;
+                const cyB = b.boundingBox.y + b.boundingBox.height / 2;
+                const distB = Math.hypot(cxB - px, cyB - py);
+                return distA - distB;
+              },
+            );
             primaryBox = faces[0].boundingBox;
           }
           box = primaryBox;

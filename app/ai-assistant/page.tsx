@@ -8,7 +8,6 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
-import { useRouter } from "next/navigation";
 
 const TAGLINES = [
   "Ask me to navigate anywhere.",
@@ -125,7 +124,7 @@ export default function AIAssistantPage() {
 
     if (isPresent && showIdle) {
       // User arrived!
-      handleWake();
+      setTimeout(handleWake, 0);
     } else if (
       !isPresent &&
       !showIdle &&
