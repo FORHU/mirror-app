@@ -70,6 +70,7 @@ export interface ChatWonderMessageResponse {
   cosmetics_data: unknown | null;
   maps_data: ChatWonderMapsData[] | null;
   stylist_data: ChatWonderStylistData | null;
+  gender_update?: { gender: string } | null;
   events?: ChatWonderEvent[];
   sets?: unknown[];
   metadata: {

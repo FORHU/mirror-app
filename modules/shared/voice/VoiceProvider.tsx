@@ -1597,9 +1597,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .slice(-6),
           };
 
-          const res = await chatWonderService.message(chatReq);
+          let res;
+          try {
+            res = await chatWonderService.message(chatReq);
+          } catch (err: unknown) {
+            if (
+              err instanceof Error &&
+              err.message.includes("Session expired")
+            ) {
+              console.log(
+                "[VoiceProvider] Session expired detected. Retrying silently...",
+              );
+              // The backend has already cleared the stale cache and pre-warmed a new one.
+              // Just hit the endpoint again with the same request.
+              res = await chatWonderService.message(chatReq);
+            } else {
+              throw err;
+            }
+          }
           r = res.message;
           events = res.events ?? [];
+
+          // Handle silent gender updates gracefully on the frontend
+          if (res.gender_update?.gender) {
+            const newGender = res.gender_update.gender.toUpperCase();
+            sessionStorage.setItem("mirror_gender", newGender);
+            const user = useAuthStore.getState().user;
+            if (user) {
+              useAuthStore.setState({
+                user: { ...user, gender: newGender as any },
+              });
+            }
+          }
 
           if (res.audioBase64) {
             const binaryStr = atob(res.audioBase64);

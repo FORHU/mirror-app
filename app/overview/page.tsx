@@ -43,7 +43,6 @@ import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 import {
   OverviewGrid,
   CameraDisclaimer,
-  useFaceTracker,
   useOverviewStore,
   adaptGarmentData,
   adaptMapsData,
@@ -51,6 +50,7 @@ import {
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outlineService } from "@/modules/shared/api/outline.service";
+import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -214,6 +214,9 @@ export default function OverviewPage() {
           },
         });
         const { id } = await cosmeticsService.uploadCapture(frameDataUrl);
+        // Persist the ID so /ai-recommendation-cosmetic/recommendation can resume it if the user navigates there
+        sessionStorage.setItem("skin_analysis_id", id);
+        sessionStorage.setItem("skin_capture", frameDataUrl);
         await cosmeticsService.startSkinAnalysis(id);
       } catch (e) {
         failCosmetics((e as Error)?.message ?? "Skin analysis failed");
@@ -235,9 +238,26 @@ export default function OverviewPage() {
     [setFaceDetected, runSkinAnalysis],
   );
 
-  const { videoRef, status: trackerStatus } = useFaceTracker({
-    onDetect: onFaceDetected,
+  const {
+    videoRef,
+    status: trackerStatus,
+    isPresent,
+    captureFrame,
+  } = useProximitySensor({
+    intervalMs: 1000,
+    missesUntilExit: 5,
   });
+
+  const hasCapturedRef = useRef(false);
+  useEffect(() => {
+    if (isPresent && !hasCapturedRef.current) {
+      hasCapturedRef.current = true;
+      const frame = captureFrame();
+      if (frame) {
+        onFaceDetected(frame);
+      }
+    }
+  }, [isPresent, captureFrame, onFaceDetected]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
   const pageContext = useMemo(

@@ -116,5 +116,21 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
     };
   }, [intervalMs, missesUntilExit]);
 
-  return { videoRef, status, isPresent };
+  function captureFrame(): string | null {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    try {
+      return canvas.toDataURL("image/jpeg", 0.9);
+    } catch {
+      return null;
+    }
+  }
+
+  return { videoRef, status, isPresent, captureFrame };
 }

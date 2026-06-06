@@ -148,6 +148,26 @@ async function fetchCWRecs(
             event.type === "complete" &&
             event.sets?.[0]?.recommendations?.length
           ) {
+            // Option A: Speak the AI's introductory message out loud!
+            const msgToSpeak =
+              event.sets[0].message ||
+              `I've analyzed your skin. Here are my top recommendations.`;
+            fetch("/api/mirror/voice/tts", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: msgToSpeak, lang: "en-US" }),
+            })
+              .then((r) => r.json())
+              .then((data) => {
+                if (data?.data?.audioBase64) {
+                  const audio = new Audio(
+                    `data:audio/mp3;base64,${data.data.audioBase64}`,
+                  );
+                  audio.play().catch(() => {});
+                }
+              })
+              .catch(() => {});
+
             return event.sets[0].recommendations as CWProduct[];
           }
         } catch {

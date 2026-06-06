@@ -1,6 +1,5 @@
 export { OverviewGrid } from "./components/OverviewGrid";
 export { CameraDisclaimer } from "./components/CameraDisclaimer";
-export { useFaceTracker } from "./hooks/useFaceTracker";
 export { useOverviewStore } from "./store/useOverviewStore";
 export {
   adaptGarmentData,
