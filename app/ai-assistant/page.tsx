@@ -17,39 +17,11 @@ const TAGLINES = [
   "Reflect. Navigate. Discover.",
 ];
 
-function generateGreetingPrompt() {
-  const now = new Date();
-  const hours = now.getHours();
-  let timeOfDay = "morning";
-  if (hours >= 12 && hours < 17) timeOfDay = "afternoon";
-  else if (hours >= 17) timeOfDay = "evening";
-
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const dayOfWeek = days[now.getDay()];
-
-  const hints = [
-    "Ask if they want to pick out an outfit or check the map today.",
-    "Ask if they are getting ready for work, or just relaxing.",
-    "Ask what they are looking forward to exploring today.",
-    "Ask if they need help planning their itinerary.",
-  ];
-  const randomHint = hints[Math.floor(Math.random() * hints.length)];
-
-  return `[SYSTEM] The user just walked up to the mirror. Greet them warmly. CRITICAL INSTRUCTION: DO NOT EMIT [STYLIST], [NAV_DATA], [GARMENT_DATA], OR [COSMETICS_DATA] BLOCKS. DO NOT NAVIGATE. DO NOT RECOMMEND OUTFITS OR COSMETICS YET. JUST SPEAK. It is currently ${dayOfWeek} ${timeOfDay}. ${randomHint} End by explicitly asking them the question so they can answer. Start listening after you speak.`;
-}
-
 export default function AIAssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
-  const voiceStateRef = useRef("idle");
+  const voiceStateRef = useRef<string>("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => Promise<void>>(async () => {});
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -78,6 +50,7 @@ export default function AIAssistantPage() {
     isSpeaking,
     chatHistory,
     submitText,
+    startListening,
   } = useVoiceContext();
 
   const {
@@ -86,7 +59,7 @@ export default function AIAssistantPage() {
     status: sensorStatus,
   } = useProximitySensor({
     intervalMs: 1000,
-    missesUntilExit: 3,
+    missesUntilExit: 10,
   });
 
   useEffect(() => {
@@ -95,7 +68,8 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     submitTextRef.current = submitText;
-  }, [submitText]);
+    startListeningRef.current = startListening;
+  }, [submitText, startListening]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -110,6 +84,16 @@ export default function AIAssistantPage() {
           ? "Good evening. Ready when you are."
           : "Ready when you are.";
     return [...TAGLINES, timeTagline];
+  }, []);
+
+  // For development convenience: force a session restart on hard-refresh
+  // so F5 acts like a "walk away" event and resets the gender/session.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      import("@/modules/shared/api/chat-wonder.service").then((m) => {
+        m.chatWonderService.restart().catch(() => {});
+      });
+    }
   }, []);
 
   // Cycle taglines every 5s while idle screen is visible
@@ -128,8 +112,7 @@ export default function AIAssistantPage() {
 
     if (!hasGreetedRef.current) {
       hasGreetedRef.current = true;
-      const dynamicPrompt = generateGreetingPrompt();
-      submitTextRef.current(dynamicPrompt).catch(() => {});
+      startListeningRef.current().catch(() => {});
     }
   }, [showIdle]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getUniversalFaceDetector } from "../utils/faceDetection";
 
 /**
  * useProximitySensor — runs the camera in the background and continuously watches
@@ -12,19 +13,6 @@ import { useEffect, useRef, useState } from "react";
  *
  * Privacy: nothing is uploaded by this hook. Frames are analyzed locally.
  */
-
-type FaceDetectorCtor = new (opts?: {
-  fastMode?: boolean;
-  maxDetectedFaces?: number;
-}) => { detect: (i: CanvasImageSource) => Promise<unknown[]> };
-
-function getFaceDetector(): FaceDetectorCtor | null {
-  if (typeof window === "undefined") return null;
-  return (
-    (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector ??
-    null
-  );
-}
 
 export type TrackerStatus =
   | "starting" // acquiring the camera
