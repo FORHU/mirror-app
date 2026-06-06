@@ -17,13 +17,20 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, setMap, userLocation } =
-    useMapStore();
-  const initialCenter = homeLocation ?? userLocation;
+  // Do NOT subscribe to userLocation — GPS updates every 10-20 s would
+  // re-evaluate initialCenter and reinitialize the entire Mapbox instance.
+  const { setSelectedPOI, showTraffic, setMap } = useMapStore();
+
+  // Capture the initial center exactly once at mount. Reading from the Zustand
+  // snapshot (getState) avoids any reactive dependency on live location updates.
+  const initialCenterRef = useRef<{ lat: number; lng: number } | null>(
+    useMapStore.getState().homeLocation ?? useMapStore.getState().userLocation,
+  );
 
   useMapCamera(map);
 
   useEffect(() => {
+    const initialCenter = initialCenterRef.current;
     if (!mapContainerRef.current || !initialCenter) return;
 
     const mapInstance = new mapboxgl.Map({
@@ -84,7 +91,8 @@ const MapViewport = () => {
     return () => {
       mapInstance.remove();
     };
-  }, [initialCenter, setMap, setSelectedPOI]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setMap, setSelectedPOI]);
 
   useEffect(() => {
     if (!map) return;
