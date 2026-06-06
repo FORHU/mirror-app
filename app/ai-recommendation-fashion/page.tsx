@@ -1201,7 +1201,7 @@ export default function VirtualMirrorV2() {
                   if (swapSlot === "base" && swapItemId) {
                     applySwap(g);
                   } else {
-                    setSelectedTopBase(g);
+                    setSelectedTopBase((prev) => prev?.id === g.id ? null : g);
                     setSelectedOutfitIdx(null);
                   }
                 }}
@@ -1229,7 +1229,7 @@ export default function VirtualMirrorV2() {
                   if (swapSlot === "mid" && swapItemId) {
                     applySwap(g);
                   } else {
-                    setSelectedTopMid(g);
+                    setSelectedTopMid((prev) => prev?.id === g.id ? null : g);
                     setSelectedOutfitIdx(null);
                   }
                 }}
@@ -1259,7 +1259,7 @@ export default function VirtualMirrorV2() {
                   if (swapSlot === "outer" && swapItemId) {
                     applySwap(g);
                   } else {
-                    setSelectedTopOuter(g);
+                    setSelectedTopOuter((prev) => prev?.id === g.id ? null : g);
                     setSelectedOutfitIdx(null);
                   }
                 }}
@@ -1285,7 +1285,7 @@ export default function VirtualMirrorV2() {
                 if (swapSlot === "bottoms" && swapItemId) {
                   applySwap(g);
                 } else {
-                  setSelectedBottom(g);
+                  setSelectedBottom((prev) => prev?.id === g.id ? null : g);
                   setSelectedOutfitIdx(null);
                 }
               }}
@@ -1311,7 +1311,7 @@ export default function VirtualMirrorV2() {
                 if (swapSlot === "shoes" && swapItemId) {
                   applySwap(g);
                 } else {
-                  setSelectedShoe(g);
+                  setSelectedShoe((prev) => prev?.id === g.id ? null : g);
                   setSelectedOutfitIdx(null);
                 }
               }}
@@ -1338,7 +1338,7 @@ export default function VirtualMirrorV2() {
                 if (swapSlot === "bags" && swapItemId) {
                   applySwap(g);
                 } else {
-                  setSelectedBag(g);
+                  setSelectedBag((prev) => prev?.id === g.id ? null : g);
                   setSelectedOutfitIdx(null);
                 }
               }}
