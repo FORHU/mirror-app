@@ -563,7 +563,7 @@ export function isAmbiguousGeocode(results: GeocodeResult[]): boolean {
         results[0].lng,
         results[i].lat,
         results[i].lng,
-      ) > 50
+      ) < 50
     )
       return true;
   }
