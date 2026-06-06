@@ -1030,13 +1030,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
         // ── End nearby POI intercept ──────────────────────────────────────────
 
-        const history = historyRef.current
-          .flatMap((h) => [
-            { role: "user" as const, content: h.user },
-            { role: "assistant" as const, content: h.assistant },
-          ])
-          .slice(-10);
-
         const enrichedInput = buildMapInput(
           t,
           mapLoc,
@@ -1048,7 +1041,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         const res = await chatWonderService.message({
           input: enrichedInput,
-          history,
         });
 
         if (res.stylist_data?.target_url) {

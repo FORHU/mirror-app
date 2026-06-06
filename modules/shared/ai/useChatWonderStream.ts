@@ -145,13 +145,6 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
           finalInput = `[overview] [map] [garment] [cosmetics] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
         }
 
-        const history = messagesRef.current.slice(-10).map((m) => ({
-          role: (m.role === "USER" ? "user" : "assistant") as
-            | "user"
-            | "assistant",
-          content: m.content,
-        }));
-
         // Stop any currently playing audio before starting a new stream
         if (audioQueueRef.current) {
           audioQueueRef.current.stop();
@@ -170,7 +163,6 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
             weather: options?.weather ?? null,
             voice: true,
             kioskId,
-            history,
             sitemap_context: SITEMAP_CONTEXT,
           }),
           signal: abortControllerRef.current.signal,
