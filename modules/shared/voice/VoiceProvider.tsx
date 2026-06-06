@@ -688,11 +688,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         if (isMultiEventUtterance(t)) {
           const locationsWithMeta = extractLocationsWithMeta(t);
           if (locationsWithMeta.length >= 2) {
-            const multiUserLoc = useMapStore.getState().userLocation ?? useMapStore.getState().homeLocation ?? undefined;
             const geocoded = await Promise.all(
               locationsWithMeta.map(async ({ location, eventType, timeBlock }) => {
                 try {
-                  const { results } = await mapService.geocode(location, multiUserLoc);
+                  // No proximity bias for itinerary destinations — the user is planning
+                  // to go somewhere that may be far from their current location, so
+                  // Mapbox should rank by name relevance, not proximity.
+                  const { results } = await mapService.geocode(location);
                   if (!results.length) return null;
                   return { name: location, result: results[0], allResults: results, eventType, timeBlock };
                 } catch { return null; }
@@ -818,8 +820,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               : null);
           if (locationName) {
             try {
-              const singleUserLoc = useMapStore.getState().userLocation ?? useMapStore.getState().homeLocation ?? undefined;
-              const { results } = await mapService.geocode(locationName, singleUserLoc);
+              // No proximity bias — itinerary destinations are often far from the user's
+              // current location. Proximity would suppress correct province-level results
+              // (e.g. "La Union" → La Union Street Barretto instead of La Union Province).
+              const { results } = await mapService.geocode(locationName);
               if (results.length > 0 && isAmbiguousGeocode(results)) {
                 disambiguationCandidatesRef.current = results.slice(0, 3);
                 disambiguationContextRef.current = { eventType: extractEventTypeFromTranscript(t) ?? undefined, timeBlock: extractTimeBlockFromTranscript(t) ?? undefined };
