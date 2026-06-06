@@ -447,7 +447,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
           const garmentResponse = await chatWonderService.message({
-            input: `[garment] ${t}`,
+            input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             ...(weather ? { weather } : {}),
