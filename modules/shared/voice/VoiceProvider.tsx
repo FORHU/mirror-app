@@ -59,8 +59,6 @@ import {
   isExpired,
 } from "./orchestration/confirmationState";
 
-const SAMPLE_RATE = 16000;
-const BUFFER_SIZE = 4096;
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
@@ -141,11 +139,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const confirmationRef = useRef<ConfirmationState>(createIdleConfirmation());
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
@@ -1348,39 +1341,39 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
         const language = useMirrorStore.getState().voiceLanguage;
-        const res = await mapService.ask(t, ctx, language);
-        r = res.reply;
+        
+        let locCtx: { lat: number | string; lng: number | string } | undefined;
+        if (loc) {
+          locCtx = { lat: loc.lat, lng: loc.lng };
+        }
+
+        const res = await chatWonderService.message({
+          input: `[stylist] ${t}`,
+          lang: language,
+          voice: true,
+          location: locCtx,
+          sitemapContext: SITEMAP_CONTEXT
+        });
+
+        r = res.message;
         events = res.events ?? [];
-        audioBuffer = res.audio;
-        if (res.sessionId) {
-          sessionIdRef.current = res.sessionId;
-          sessionStorage.setItem(CHAT_SESSION_KEY, res.sessionId);
+        if (res.audioBase64) {
+          audioBuffer = Buffer.from(res.audioBase64, "base64");
         }
 
-        const cogAction = res.action as
-          | ({
-              type: string;
-              payload?: Record<string, unknown>;
-            } & Record<string, unknown>)
-          | null;
         let chatAction: ChatWonderAction | null = null;
-
-        if (cogAction) {
-          const { type, payload, ...rest } = cogAction;
+        if (res.garment_data || res.maps_data) {
+          // Synthetic action that triggers handleVoiceAction catchers
           chatAction = {
-            type,
-            ...(payload ?? {}),
-            ...rest,
-          } as ChatWonderAction;
+            type: "GARMENT_RECOMMENDATION" as any,
+            response: { garment_data: res.garment_data, maps_data: res.maps_data }
+          } as any;
+        } else if (res.stylist_data?.target_url) {
+          chatAction = { type: "navigate", route: res.stylist_data.target_url };
         }
 
-        // Server-driven confirmation takes precedence: if the cognitive
-        // service flagged this action as requiring confirmation, store it as
-        // pending and DO NOT execute. The TTS reply already asks the user.
-        if (chatAction && res.requiresConfirmation) {
-          confirmationRef.current = createPendingConfirmation(chatAction, r);
-        } else {
-          // 🧠 RUN UI KERNEL
+        // 🧠 RUN UI KERNEL
+        if (chatAction) {
           const result = await runKernel(
             chatAction,
             pathname,

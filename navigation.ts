@@ -1,8 +1,10 @@
 export const ROUTES = {
-  WELCOME: "/",
+    WELCOME: "/",
+    AI_ASSISTANT: "/ai-assistant",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
+  AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   MAP: "/map",
-  AI_ASSISTANT: "/ai-assistant",
+  OVERVIEW: "/overview",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

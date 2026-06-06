@@ -8,12 +8,8 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
-import {
-  OverviewGrid,
-  useOverviewStore,
-  adaptGarmentData,
-  adaptMapsData,
-} from "@/modules/overview";
+import { useRouter } from "next/navigation";
+import { useOverviewStore, adaptGarmentData, adaptMapsData } from "@/modules/overview";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 
 type GarmentRecommendationAction = {
@@ -31,10 +27,15 @@ const TAGLINES = [
 ];
 
 export default function AIAssistantPage() {
+  const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
   const startListeningRef = useRef<() => Promise<void>>(async () => {});
+
+  const setGarments = useOverviewStore((s) => s.setGarments);
+  const setOutfits = useOverviewStore((s) => s.setOutfits);
+  const setMap = useOverviewStore((s) => s.setMap);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -50,19 +51,6 @@ export default function AIAssistantPage() {
     [],
   );
 
-  const setGarments = useOverviewStore((s) => s.setGarments);
-  const setOutfits = useOverviewStore((s) => s.setOutfits);
-  const setMap = useOverviewStore((s) => s.setMap);
-
-  const garments = useOverviewStore((s) => s.garments);
-  const outfits = useOverviewStore((s) => s.outfits);
-  const map = useOverviewStore((s) => s.map);
-
-  const hasData =
-    garments.status !== "idle" ||
-    outfits.status !== "idle" ||
-    map.status !== "idle";
-
   const handleVoiceAction = useCallback(
     (raw: ChatWonderAction) => {
       const action = raw as OverviewVoiceAction;
@@ -75,8 +63,11 @@ export default function AIAssistantPage() {
 
       const m = adaptMapsData(response?.maps_data?.[0]);
       if (m) setMap(m);
+
+      // We've caught the data! Now jump to the aftermath screen.
+      router.push(ROUTES.OVERVIEW);
     },
-    [setGarments, setOutfits, setMap],
+    [setGarments, setOutfits, setMap, router],
   );
 
   useVoice(pageContext, handleVoiceAction);
@@ -290,14 +281,10 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={`flex-1 min-h-0 flex px-10 py-8 gap-8 ${
-              hasData ? "flex-row" : "flex-col"
-            }`}
+            className="flex-1 min-h-0 flex flex-col px-10 py-8"
           >
-            {/* left column (chat + orb) */}
-            <div className={`flex flex-col ${hasData ? "w-[400px] shrink-0" : "flex-1 max-w-2xl mx-auto w-full"}`}>
-              {/* conversation area */}
-              <div className="flex-1 min-h-0 flex flex-col justify-center">
+            {/* conversation — top half */}
+            <div className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl mx-auto w-full">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${displayUser}-${displayReply}-${voiceState}`}
@@ -369,22 +356,14 @@ export default function AIAssistantPage() {
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>
-                {sensorStatus === "unavailable" && (
-                  <p className="text-white/20 text-[9px] tracking-wide">
-                    Camera unavailable
-                  </p>
-                )}
-              </div>
-
-              <div ref={bottomRef} />
+              {sensorStatus === "unavailable" && (
+                <p className="text-white/20 text-[9px] tracking-wide">
+                  Camera unavailable
+                </p>
+              )}
             </div>
 
-            {/* Grid Area */}
-            {hasData && (
-              <div className="flex-1 min-h-0 flex flex-col pt-8">
-                <OverviewGrid />
-              </div>
-            )}
+            <div ref={bottomRef} />
           </motion.main>
         )}
       </AnimatePresence>
