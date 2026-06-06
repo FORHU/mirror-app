@@ -22,9 +22,7 @@ import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
 import { SYSTEM_RESPONSES } from "./responses";
-import { runKernel } from "./orchestration/kernel";
-import { executeAction } from "./orchestration/actionExecutor";
-import { guardAction } from "./orchestration/actionGuard";
+
 import {
   chatWonderService,
   resolveAccessToken,
@@ -1217,76 +1215,59 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!bypassMainExecution) {
-        // COGNITIVE AI PIPELINE
-        const persona = pageCtxRef.current?.persona;
-        if (persona) {
-          (ctx as Record<string, unknown>).persona = persona;
-          if (loc) {
-            (ctx as Record<string, unknown>).location = {
-              lat: String(loc.lat),
-              lng: String(loc.lng),
-            };
-          }
-          const dest = map.selectedDestination;
-          if (dest) {
-            (ctx as Record<string, unknown>).destinationLocation = {
-              lat: String(dest.lat),
-              lng: String(dest.lng),
-            };
-          }
-        }
+        // NEW CHATWONDER PIPELINE
         const language = useMirrorStore.getState().voiceLanguage;
-        const res = await mapService.ask(t, ctx, language);
-        r = res.reply;
+        
+        // Pass the recent history array (user + assistant pairs)
+        const recentHistory = historyRef.current.map((h) => ({
+          role: "user" as const,
+          content: h.user,
+        })).concat(historyRef.current.map((h) => ({
+          role: "assistant" as const,
+          content: h.assistant,
+        }))).slice(-4); // simplified for brevity
+
+        const chatReq = {
+          input: `[stylist] ${t}`,
+          voice: true,
+          lang: language,
+          history: historyRef.current.map(h => [
+            { role: "user" as const, content: h.user },
+            { role: "assistant" as const, content: h.assistant }
+          ]).flat().slice(-6)
+        };
+
+        const res = await chatWonderService.message(chatReq);
+        r = res.message;
         events = res.events ?? [];
-        audioBuffer = res.audio;
-        if (res.sessionId) {
-          sessionIdRef.current = res.sessionId;
-          sessionStorage.setItem(CHAT_SESSION_KEY, res.sessionId);
+
+        if (res.audioBase64) {
+          const binaryStr = atob(res.audioBase64);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) {
+            bytes[i] = binaryStr.charCodeAt(i);
+          }
+          audioBuffer = bytes.buffer;
         }
 
-        const cogAction = res.action as
-          | ({
-              type: string;
-              payload?: Record<string, unknown>;
-            } & Record<string, unknown>)
-          | null;
-        let chatAction: ChatWonderAction | null = null;
-
-        if (cogAction) {
-          const { type, payload, ...rest } = cogAction;
-          chatAction = {
-            type,
-            ...(payload ?? {}),
-            ...rest,
-          } as ChatWonderAction;
-        }
-
-        // Server-driven confirmation takes precedence: if the cognitive
-        // service flagged this action as requiring confirmation, store it as
-        // pending and DO NOT execute. The TTS reply already asks the user.
-        if (chatAction && res.requiresConfirmation) {
-          confirmationRef.current = createPendingConfirmation(chatAction, r);
-        } else {
-          // 🧠 RUN UI KERNEL
-          const result = await runKernel(
-            chatAction,
-            pathname,
-            router,
-            onActionRef.current ?? undefined,
-          );
-
-          if (result.requiresConfirmation && result.action) {
-            confirmationRef.current = createPendingConfirmation(
-              result.action,
-              result.reply || r,
-            );
-            r = result.reply || r;
-            audioBuffer = await mapService.tts(r);
-          } else if (result.reply) {
-            // If the kernel intercepted with a custom reply (e.g. Gender Guard)
-            r = result.reply;
-            audioBuffer = await mapService.tts(r);
+        // Navigate based on data blocks
+        if (res.stylist_data?.target_url) {
+          if (res.stylist_data.target_url === "back") {
+            router.back();
+          } else {
+            router.push(res.stylist_data.target_url);
+          }
+        } else if (res.maps_data && res.maps_data.length > 0) {
+          const place = res.maps_data[0];
+          await useMapStore.getState().setDestination({
+            name: place.location_label,
+            address: place.location_label,
+            lat: place.lat,
+            lng: place.lng,
+            placeId: place.places[0]?.place_id || "chatwonder",
+          });
+          if (!pathname.startsWith("/map")) {
+             router.push("/map");
           }
         }
       }
