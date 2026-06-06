@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getUniversalFaceDetector } from "../utils/faceDetection";
+import {
+  getUniversalFaceDetector,
+  type UniversalFaceDetector,
+} from "../utils/faceDetection";
 
 /**
  * useProximitySensor — runs the camera in the background and continuously watches
@@ -41,14 +44,10 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const detector = (() => {
-      const FD = getFaceDetector();
-      try {
-        return FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
-      } catch {
-        return null;
-      }
-    })();
+    let detector: UniversalFaceDetector | null = null;
+    getUniversalFaceDetector().then((d) => {
+      if (!cancelled) detector = d;
+    });
 
     async function sample() {
       if (cancelled) return;
