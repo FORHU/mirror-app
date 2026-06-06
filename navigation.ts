@@ -1,7 +1,6 @@
 export const ROUTES = {
   WELCOME: "/",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
-  OVERVIEW: "/overview",
   MAP: "/map",
   AI_ASSISTANT: "/ai-assistant",
 } as const;
@@ -30,8 +29,5 @@ export function isKnownRoute(
 }
 
 export const ROUTE_RULES = {
-  protected: [
-    ROUTES.OVERVIEW,
-    ROUTES.AI_RECOMMENDATION_FASHION,
-  ] as string[],
+  protected: [ROUTES.AI_RECOMMENDATION_FASHION] as string[],
 } as const;

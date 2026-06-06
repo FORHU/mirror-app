@@ -1036,7 +1036,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           mapDest,
           !!mapState.activeRoute,
           pending.length > 0 ? pending : undefined,
-          pageCtxRef.current?.mode === "map" ? "[maps]" : "[stylist]"
+          "[stylist]"
         );
 
         const res = await chatWonderService.message({
