@@ -11,11 +11,6 @@ const API_BASE_URL =
 
 // ─── Request ──────────────────────────────────────────────────────────────────
 
-export interface ChatWonderHistoryEntry {
-  role: "user" | "assistant";
-  content: string;
-}
-
 export interface ChatWonderMessageRequest {
   input: string;
   weather?: Record<string, unknown>;
@@ -29,7 +24,6 @@ export interface ChatWonderMessageRequest {
    * app's full SITEMAP_CONTEXT; pass an explicit list to override/narrow it.
    */
   sitemapContext?: string[];
-  history?: ChatWonderHistoryEntry[];
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -213,7 +207,6 @@ export const chatWonderService = {
     if (request.location) body.location = request.location;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
-    if (request.history?.length) body.history = request.history;
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
     let res: Response;
