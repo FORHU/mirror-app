@@ -6,16 +6,22 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 
-const VOICE_SAMPLE_RATE = 16000;
-const VOICE_BUFFER_SIZE = 4096;
-
-function pcmFloat32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onresult:
+    | ((event: {
+        resultIndex: number;
+        results: SpeechRecognitionResultList;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
 }
 
 type RecordStep =
@@ -38,11 +44,7 @@ export function VoiceTranscribeOverlay({
   const [aiReply, setAiReply] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Int16Array[]>([]);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const abortCtrlRef = useRef<AbortController | null>(null);
   const weatherRef = useRef<Record<string, unknown> | null>(null);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -83,86 +85,114 @@ export function VoiceTranscribeOverlay({
   }, []);
 
   function cleanupMic() {
-    processorRef.current?.disconnect();
-    sourceRef.current?.disconnect();
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    audioCtxRef.current?.close();
-    processorRef.current = null;
-    sourceRef.current = null;
-    streamRef.current = null;
-    audioCtxRef.current = null;
+    if (recognitionRef.current) {
+      recognitionRef.current.onstart = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onend = null;
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
   }
+
+  useEffect(() => {
+    return () => cleanupMic();
+  }, []);
 
   async function startRecording() {
     setErrorMsg("");
     setTranscript("");
     setAiReply("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      const ctx = new AudioContext({ sampleRate: VOICE_SAMPLE_RATE });
-      const processor = ctx.createScriptProcessor(VOICE_BUFFER_SIZE, 1, 1);
-      const source = ctx.createMediaStreamSource(stream);
-      chunksRef.current = [];
-      processor.onaudioprocess = (e) => {
-        chunksRef.current.push(
-          pcmFloat32ToInt16(e.inputBuffer.getChannelData(0)),
-        );
+      type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+      const win = window as unknown as {
+        SpeechRecognition?: SpeechRecognitionCtor;
+        webkitSpeechRecognition?: SpeechRecognitionCtor;
       };
-      source.connect(processor);
-      processor.connect(ctx.destination);
-      audioCtxRef.current = ctx;
-      processorRef.current = processor;
-      sourceRef.current = source;
-      streamRef.current = stream;
-      setStep("recording");
+      const SpeechRecognitionClass =
+        win.SpeechRecognition || win.webkitSpeechRecognition;
+      if (!SpeechRecognitionClass) {
+        setErrorMsg("Speech recognition is not supported in this browser.");
+        setStep("error");
+        return;
+      }
+      cleanupMic();
+      const recognition = new SpeechRecognitionClass();
+      recognitionRef.current = recognition;
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognition.continuous = true;
+
+      let accumulated = "";
+      let latestInterim = "";
+
+      recognition.onstart = () => setStep("recording");
+      recognition.onerror = (event: { error: string }) => {
+        if (event.error !== "no-speech") {
+          setErrorMsg("Speech recognition error: " + event.error);
+          setStep("error");
+        }
+      };
+
+      recognition.onresult = (event: {
+        resultIndex: number;
+        results: SpeechRecognitionResultList;
+      }) => {
+        let interimTranscript = "";
+        let finalTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          accumulated += (accumulated ? " " : "") + finalTranscript;
+        }
+        latestInterim = interimTranscript;
+
+        setTranscript(accumulated + (latestInterim ? " " + latestInterim : ""));
+      };
+
+      recognition.onend = () => {
+        const finalText = (
+          accumulated + (latestInterim ? " " + latestInterim : "")
+        ).trim();
+        if (finalText) {
+          submitTranscript(finalText);
+        } else {
+          // If we didn't capture any speech, reset state
+          setStep((prev) =>
+            prev === "recording" || prev === "transcribing" ? "idle" : prev,
+          );
+        }
+      };
+
+      recognition.start();
     } catch {
-      setErrorMsg("Microphone access denied");
+      setErrorMsg("Microphone access denied or error starting recognition");
       setStep("error");
     }
   }
 
   async function stopAndTranscribe() {
     setStep("transcribing");
-    onLoadingChange?.(true);
-    const chunks = chunksRef.current;
-    cleanupMic();
-
-    const total = chunks.reduce((n, c) => n + c.length, 0);
-    const combined = new Int16Array(total);
-    let offset = 0;
-    for (const c of chunks) {
-      combined.set(c, offset);
-      offset += c.length;
+    if (recognitionRef.current) {
+      recognitionRef.current.stop(); // This triggers onend which submits the transcript
+    } else {
+      setStep("idle");
     }
+  }
 
-    let rawText = "";
-    try {
-      const res = await fetch("/api/mirror/voice/transcribe?lang=en-US", {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" },
-        body: combined.buffer,
-      });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const body = await res.json().catch(() => null);
-      rawText = (body?.transcript ?? body?.text ?? "").trim();
-      if (!rawText) {
-        onLoadingChange?.(false);
-        setErrorMsg("No speech detected");
-        setStep("error");
-        return;
-      }
-    } catch (err: unknown) {
-      onLoadingChange?.(false);
-      setErrorMsg((err as Error).message ?? "Transcription failed");
-      setStep("error");
-      return;
-    }
-
-    setTranscript(rawText);
+  async function submitTranscript(rawText: string) {
     setStep("loading");
+    onLoadingChange?.(true);
 
     abortCtrlRef.current = new AbortController();
     try {
@@ -179,6 +209,7 @@ export function VoiceTranscribeOverlay({
       setStep("done");
       onAiComplete?.(response);
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       onLoadingChange?.(false);
       setErrorMsg((err as Error).message ?? "Request failed");
       setStep("error");

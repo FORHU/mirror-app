@@ -16,22 +16,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * shows and a frame is captured after `fallbackMs` so the flow never stalls.
  */
 
-type FaceBox = { x: number; y: number; width: number; height: number };
-
-type FaceDetectorCtor = new (opts?: {
-  fastMode?: boolean;
-  maxDetectedFaces?: number;
-}) => {
-  detect: (i: CanvasImageSource) => Promise<Array<{ boundingBox: FaceBox }>>;
-};
-
-function getFaceDetector(): FaceDetectorCtor | null {
-  if (typeof window === "undefined") return null;
-  return (
-    (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector ??
-    null
-  );
-}
+import {
+  getUniversalFaceDetector,
+  type UniversalFaceDetector,
+  type FaceBox,
+} from "../utils/faceDetection";
 
 export type AlignState =
   | "starting" // acquiring the camera
@@ -102,14 +91,11 @@ export function useFaceAlignment({
     const startedAt = Date.now();
 
     const canvas = document.createElement("canvas");
-    const detector = (() => {
-      const FD = getFaceDetector();
-      try {
-        return FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
-      } catch {
-        return null;
-      }
-    })();
+    let detector: UniversalFaceDetector | null = null;
+    getUniversalFaceDetector().then((d) => {
+      detector = d;
+    });
+    let primaryBox: FaceBox | null = null;
 
     function grabFrame(): string | null {
       const video = videoRef.current;
@@ -150,7 +136,37 @@ export function useFaceAlignment({
       let box: FaceBox | null = null;
       try {
         const faces = await detector.detect(video);
-        box = faces?.[0]?.boundingBox ?? null;
+        if (!faces || faces.length === 0) {
+          box = null;
+          primaryBox = null; // lost lock
+        } else {
+          if (!primaryBox) {
+            // Pick largest initially
+            faces.sort(
+              (a: { boundingBox: FaceBox }, b: { boundingBox: FaceBox }) =>
+                b.boundingBox.width * b.boundingBox.height -
+                a.boundingBox.width * a.boundingBox.height,
+            );
+            primaryBox = faces[0].boundingBox;
+          } else {
+            // Find closest to current lock
+            const px = primaryBox.x + primaryBox.width / 2;
+            const py = primaryBox.y + primaryBox.height / 2;
+            faces.sort(
+              (a: { boundingBox: FaceBox }, b: { boundingBox: FaceBox }) => {
+                const cxA = a.boundingBox.x + a.boundingBox.width / 2;
+                const cyA = a.boundingBox.y + a.boundingBox.height / 2;
+                const distA = Math.hypot(cxA - px, cyA - py);
+                const cxB = b.boundingBox.x + b.boundingBox.width / 2;
+                const cyB = b.boundingBox.y + b.boundingBox.height / 2;
+                const distB = Math.hypot(cxB - px, cyB - py);
+                return distA - distB;
+              },
+            );
+            primaryBox = faces[0].boundingBox;
+          }
+          box = primaryBox;
+        }
       } catch {
         box = null; // detector hiccup — treat as no face this tick
       }

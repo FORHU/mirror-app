@@ -81,7 +81,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   // Keep track of the AbortController so we can cancel streams if needed
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+
   const audioQueueRef = useRef<AudioQueue | null>(null);
 
   useEffect(() => {
@@ -222,7 +222,10 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                       msg.id === aiMsgId ? { ...msg, content: aiContent } : msg,
                     ),
                   );
-                } else if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+                } else if (
+                  parsed.type === "audio_chunk" &&
+                  parsed.audioBase64
+                ) {
                   // Enqueue the incoming chunked audio for gapless playback
                   if (audioQueueRef.current) {
                     audioQueueRef.current.enqueue(parsed.audioBase64);

@@ -259,11 +259,13 @@ export const chatWonderService = {
               } else if (parsed.type === "error") {
                 audioQueue.stop();
                 if (parsed.code === "session_expired") {
-                  throw new Error("Session expired. Please resend your message.");
+                  throw new Error(
+                    "Session expired. Please resend your message.",
+                  );
                 }
                 throw new Error(parsed.message || "Stream error");
               }
-            } catch (e) {
+            } catch {
               // ignore partial json
             }
           }

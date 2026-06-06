@@ -13,7 +13,7 @@ import {
   PersonStanding,
   Car,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 
 const PANEL = {
   background: "rgba(0,0,0,0.85)",

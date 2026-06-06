@@ -9,8 +9,14 @@ export class AudioQueue {
 
   private initContext() {
     if (typeof window !== "undefined") {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass && (!this.audioContext || this.audioContext.state === 'closed')) {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+      if (
+        AudioContextClass &&
+        (!this.audioContext || this.audioContext.state === "closed")
+      ) {
         this.audioContext = new AudioContextClass();
       }
     }
@@ -46,7 +52,7 @@ export class AudioQueue {
 
       source.start(this.nextStartTime);
       this.sources.push(source);
-      
+
       // Calculate the start time for the next chunk
       this.nextStartTime += audioBuffer.duration;
 
@@ -62,11 +68,11 @@ export class AudioQueue {
   }
 
   public stop() {
-    this.sources.forEach(source => {
+    this.sources.forEach((source) => {
       try {
         source.stop();
         source.disconnect();
-      } catch (e) {
+      } catch {
         // Ignore errors if source already stopped
       }
     });

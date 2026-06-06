@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  getUniversalFaceDetector,
+  type UniversalFaceDetector,
+} from "../utils/faceDetection";
 
 /**
  * useProximitySensor — runs the camera in the background and continuously watches
@@ -12,19 +16,6 @@ import { useEffect, useRef, useState } from "react";
  *
  * Privacy: nothing is uploaded by this hook. Frames are analyzed locally.
  */
-
-type FaceDetectorCtor = new (opts?: {
-  fastMode?: boolean;
-  maxDetectedFaces?: number;
-}) => { detect: (i: CanvasImageSource) => Promise<unknown[]> };
-
-function getFaceDetector(): FaceDetectorCtor | null {
-  if (typeof window === "undefined") return null;
-  return (
-    (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector ??
-    null
-  );
-}
 
 export type TrackerStatus =
   | "starting" // acquiring the camera
@@ -53,17 +44,10 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const canvas = document.createElement("canvas");
-    const detector = (() => {
-      const FD = getFaceDetector();
-      try {
-        return FD ? new FD({ fastMode: true, maxDetectedFaces: 1 }) : null;
-      } catch {
-        return null;
-      }
-    })();
-
-    let samples = 0;
+    let detector: UniversalFaceDetector | null = null;
+    getUniversalFaceDetector().then((d) => {
+      if (!cancelled) detector = d;
+    });
 
     async function sample() {
       if (cancelled) return;

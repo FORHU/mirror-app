@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, MapPin } from "lucide-react";
 import { useMapStore } from "../store/useMapStore";
 

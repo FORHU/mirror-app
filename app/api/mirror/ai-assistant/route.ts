@@ -100,13 +100,21 @@ export async function POST(req: NextRequest) {
     }
 
     if (!response.body) {
-      return NextResponse.json({ error: "Empty response body" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Empty response body" },
+        { status: 500 },
+      );
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let finalJson: any = null;
+    type StreamPayload = {
+      type?: string;
+      stylist_data?: { target_url?: string; system_message?: string };
+      message?: string;
+    };
+    let finalJson: StreamPayload | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -126,7 +134,7 @@ export async function POST(req: NextRequest) {
             } else if (parsed.type === "error") {
               throw new Error(parsed.message || "Stream error");
             }
-          } catch (e) {
+          } catch {
             // ignore partial or non-json
           }
         }
@@ -134,7 +142,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!finalJson) {
-      return NextResponse.json({ error: "Stream ended without complete payload" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Stream ended without complete payload" },
+        { status: 500 },
+      );
     }
 
     const data = finalJson ?? {};
