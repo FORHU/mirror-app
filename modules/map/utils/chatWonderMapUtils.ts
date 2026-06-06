@@ -169,7 +169,7 @@ export function isNavigationPhrase(transcript: string): boolean {
 }
 
 const FINISH_PHRASE_PATTERN =
-  /\b(that'?s all|done|no more|no more stops|let'?s go|start|start navigation|that'?s it|finished|ok go|okay go|set|we'?re good|that will do)\b|\bgo(?!\s+to\b)/i;
+  /\b(that'?s all|done|no more|no more stops|let'?s go|start|start navigation|that'?s it|finished|ok go|okay go|set|we'?re good|that will do)\b|\bgo\b(?!\s+to\b)/i;
 
 export function isFinishPhrase(transcript: string): boolean {
   return FINISH_PHRASE_PATTERN.test(transcript);
@@ -186,17 +186,15 @@ export function extractLocationFromTranscript(
 ): string | null {
   // "at [Location]" followed by time/punctuation/end
   const atMatch = transcript.match(
-    /\bat\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:this\s+(?:morning|afternoon|evening|night|noon)|tonight|for\s+(?:lunch|dinner|breakfast)|in\s+the\s+(?:morning|afternoon|evening)|please|can you|that|,|\.)|$)/i,
+    /\bat\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:this\b|tonight|for\s+(?:lunch|dinner|breakfast)|in\s+the\s+(?:morning|afternoon|evening)|please|can you|that|,|\.)|$)/i,
   );
   if (atMatch) return atMatch[1].trim();
 
-  // "to [Location]" navigation phrasing — but only when the extracted text is an
-  // actual place name, not a verb phrase like "go back to Baguio" where "to" was
-  // part of "want to go to …". Reject anything that starts with a movement verb.
-  const toMatch = transcript.match(
-    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:please|now|this|for|can|that|,|\.)|$)/i,
-  );
-  if (toMatch) {
+  // "to [Location]" navigation phrasing — scan ALL occurrences so "want to go to
+  // La Union" skips "to go" (movement verb) and correctly extracts "La Union".
+  const toRe = /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:please|now|this|for|can|that|with\b|to\b|,|\.)|$)/gi;
+  let toMatch: RegExpExecArray | null;
+  while ((toMatch = toRe.exec(transcript)) !== null) {
     const candidate = toMatch[1].trim();
     if (
       !/^(go|back|drive|walk|navigate|head|get|route|take|return)\b/i.test(
@@ -210,7 +208,7 @@ export function extractLocationFromTranscript(
   // "in [Location]" planning phrasing:
   // "I have a date in La Union" -> "La Union"
   const inMatch = transcript.match(
-    /\bin\s+(?!the\s)([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:today|tonight|tomorrow|this\s+(?:morning|afternoon|evening|weekend)|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|weekend)|at\s+\d|for\s+(?:lunch|dinner|breakfast)|please|can you|that|,|\.)|$)/i,
+    /\bin\s+(?!the\s)([A-Za-z0-9\s.,'"\-]+?)(?=\s+(?:this\b|today\b|tonight\b|tomorrow\b|next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|weekend)|at\s+\d|for\s+(?:lunch|dinner|breakfast)|please|can you|that|,|\.)|$)/i,
   );
   if (inMatch) return inMatch[1].trim();
 
@@ -226,6 +224,25 @@ const TIME_PATTERN =
 /** Returns true when the transcript looks like an itinerary stop, not a place search. */
 export function isItineraryPhrase(transcript: string): boolean {
   return ITINERARY_PATTERN.test(transcript) || TIME_PATTERN.test(transcript);
+}
+
+const EVENT_TYPE_PATTERNS: Array<{ pattern: RegExp; eventType: string }> = [
+  { pattern: /\b(breakfast)\b/i, eventType: "breakfast" },
+  { pattern: /\b(lunch)\b/i, eventType: "lunch" },
+  { pattern: /\b(dinner)\b/i, eventType: "dinner" },
+  { pattern: /\b(meeting|conference)\b/i, eventType: "meeting" },
+  { pattern: /\b(date)\b/i, eventType: "date" },
+  { pattern: /\b(gym|workout)\b/i, eventType: "gym" },
+  { pattern: /\b(party|wedding|celebration)\b/i, eventType: "event" },
+  { pattern: /\b(appointment)\b/i, eventType: "appointment" },
+];
+
+/** Extracts the event type from a transcript (e.g. "lunch" → "lunch", "meeting" → "meeting"). */
+export function extractEventTypeFromTranscript(transcript: string): string | null {
+  for (const { pattern, eventType } of EVENT_TYPE_PATTERNS) {
+    if (pattern.test(transcript)) return eventType;
+  }
+  return null;
 }
 
 /**
@@ -256,16 +273,15 @@ export function isMultiEventUtterance(transcript: string): boolean {
     return true;
   if (/\bwe'?ll\s+(also\s+)?be\s+going\s+to\b/i.test(transcript)) return true;
 
-  // Two or more location anchors: "in/at/to [place]" excluding determiners/digits/time words
-  // Case-insensitive so lowercase speech-recognition output ("in sm baguio") is caught too
-  const locationAnchorHits = (
-    transcript.match(
-      /\b(?:in|at|to)\s+(?!the\s|a\s|an\s|this\s|that\s|my\s|our\s|\d)[a-zA-Z]/gi,
-    ) ?? []
-  ).length;
+  // Two or more location anchors: "in/at/to [place]" excluding determiners, digits, and
+  // common verb infinitives so "to have lunch", "to meet my girlfriend", etc. don't count.
+  const locationAnchorHits = (transcript.match(
+    /\b(?:in|at|to)\s+(?!the\s|a\s|an\s|this\s|that\s|my\s|our\s|\d|have\b|go\b|get\b|be\b|make\b|do\b|take\b|give\b|come\b|see\b|know\b|want\b|find\b|try\b|leave\b|call\b|eat\b|drink\b|meet\b|visit\b|buy\b|grab\b|check\b|pay\b|stay\b|run\b|walk\b|drive\b|join\b|bring\b|pick\b|use\b|tell\b|ask\b|spend\b|enjoy\b|sleep\b|rest\b|work\b|study\b|live\b|wait\b|stop\b)[a-zA-Z]/gi,
+  ) ?? []).length;
   if (locationAnchorHits >= 2) return true;
 
-  // Two or more distinct standalone event types (meeting + lunch ≠ "dinner date" which is one)
+  // Two or more distinct standalone event types in one sentence
+  // e.g. "meeting at SM Baguio… lunch at La Union" (meeting + lunch = 2 types)
   const standaloneEventHits = new Set(
     (
       transcript.match(
@@ -274,10 +290,6 @@ export function isMultiEventUtterance(transcript: string): boolean {
     ).map((w) => w.toLowerCase()),
   ).size;
   if (standaloneEventHits >= 2) return true;
-
-  // One location anchor + a standalone event type anywhere in the sentence
-  // e.g. "date in SM Baguio and lunch in La Union" — catches mixed phrasing
-  if (locationAnchorHits >= 1 && standaloneEventHits >= 1) return true;
 
   return false;
 }
@@ -301,39 +313,33 @@ export function extractAllLocationsFromTranscript(
     const s = seg.trim();
     if (!s) continue;
 
-    // Stopword lookahead — stop capture before these common words or punctuation.
-    // Using greedy {0,2} + lookahead: engine backtracks if lookahead fails at max length,
-    // so "sm baguio this morning" → tries "sm baguio this", fails at "morning", backtracks
-    // to "sm baguio" → lookahead sees " this" → passes → captures "sm baguio" ✓
+    // Stop pattern — capture ends before these common words or punctuation.
+    // All patterns use LAZY matching so they expand word-by-word until a stop is hit:
+    //   "sm baguio this morning"    → expands "sm"→"sm baguio", stops at "this" ✓
+    //   "la union san fernando to…" → expands until second "to" ✓
     const STOP = `(?=\\s+(?:this\\b|the\\b|at\\s+\\d|for\\s+\\w|and\\b|to\\b|so\\b|have\\b|with\\b|going\\b|will\\b|be\\b|my\\b|it\\b|there\\b)|[,.]|\\s*$)`;
 
-    // "in [place]" — max 3 words, stop at common words
+    // "in [place]" — lazy, stop at common words
     const inM = s.match(
-      new RegExp(
-        `\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+){0,2})${STOP}`,
-        "i",
-      ),
+      new RegExp(`\\bin\\s+(?!the\\b|a\\b|an\\b|this\\b|that\\b|my\\b|our\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i"),
     );
     if (inM) {
       locations.push(inM[1].trim());
       continue;
     }
 
-    // "at [place]" — exclude bare times like "at 7am", max 3 words
+    // "at [place]" — exclude bare times like "at 7am", lazy
     const atM = s.match(
-      new RegExp(`\\bat\\s+(?!\\d)(\\w+(?:\\s+\\w+){0,2})${STOP}`, "i"),
+      new RegExp(`\\bat\\s+(?!\\d)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i"),
     );
     if (atM) {
       locations.push(atM[1].trim());
       continue;
     }
 
-    // "to [place]" — exclude "to the/a/home", max 2 words
+    // "to [place]" — exclude "to the/a/home/have/be/go", lazy
     const toM = s.match(
-      new RegExp(
-        `\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b)(\\w+(?:\\s+\\w+){0,1})${STOP}`,
-        "i",
-      ),
+      new RegExp(`\\bto\\s+(?!the\\b|a\\b|an\\b|home\\b|have\\b|be\\b|go\\b|get\\b|this\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i"),
     );
     if (toM) {
       locations.push(toM[1].trim());
@@ -341,12 +347,9 @@ export function extractAllLocationsFromTranscript(
     }
 
     // Bare location after connector — e.g. "and la union this afternoon"
-    // Strip leading filler/event words then take up to 3 words
+    // Strip leading filler/event words then expand lazily to stop
     const bareM = s.match(
-      new RegExp(
-        `^(?:(?:a|an|my|the)\\s+)?(?:(?:lunch|dinner|breakfast|date|meeting|appointment)\\s+(?:date\\s+)?)?(\\w+(?:\\s+\\w+){0,2})${STOP}`,
-        "i",
-      ),
+      new RegExp(`^(?:(?:a|an|my|the)\\s+)?(?:(?:lunch|dinner|breakfast|date|meeting|appointment)\\s+(?:date\\s+)?)?(\\w+(?:\\s+\\w+)*?)${STOP}`, "i"),
     );
     if (bareM) {
       const loc = bareM[1].trim();
@@ -362,6 +365,41 @@ export function extractAllLocationsFromTranscript(
   }
 
   return [...new Set(locations.filter((l) => l.length > 1))];
+}
+
+/**
+ * Like extractAllLocationsFromTranscript but also returns per-segment eventType
+ * and timeBlock, enabling context-aware POI queries for each stop.
+ * "meeting at SM Baguio at 7am, lunch at La Union at noon"
+ *   → [{ location: "SM Baguio", eventType: "meeting", timeBlock: "7am" },
+ *      { location: "La Union",  eventType: "lunch",   timeBlock: "noon" }]
+ */
+export function extractLocationsWithMeta(transcript: string): Array<{
+  location: string;
+  eventType: string | null;
+  timeBlock: string | null;
+}> {
+  const segments = transcript.split(/\band\b|,/i);
+  const results: Array<{ location: string; eventType: string | null; timeBlock: string | null }> = [];
+  const seen = new Set<string>();
+
+  for (const seg of segments) {
+    const s = seg.trim();
+    if (!s) continue;
+    const locations = extractAllLocationsFromTranscript(s);
+    for (const location of locations) {
+      if (!seen.has(location)) {
+        seen.add(location);
+        results.push({
+          location,
+          eventType: extractEventTypeFromTranscript(s),
+          timeBlock: extractTimeBlockFromTranscript(s),
+        });
+      }
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -387,6 +425,36 @@ export function parseTimeBlock(timeBlock: string): number | null {
   if (/\bafternoon\b/.test(lower)) return 13 * 60;
   if (/\bevening\b/.test(lower)) return 18 * 60;
   if (/\bnight\b/.test(lower)) return 20 * 60;
+
+  return null;
+}
+
+/**
+ * Extracts a time reference string from a transcript for use as a timeBlock.
+ * Returns the raw matched string that parseTimeBlock can then interpret.
+ * "meeting at SM Baguio at 7am" → "7am"
+ * "going to La Union for lunch" → "lunch"
+ * "heading to Burnham this morning" → "morning"
+ */
+export function extractTimeBlockFromTranscript(transcript: string): string | null {
+  // "at 7am", "at 7:30 pm" — requires explicit am/pm
+  const atClock = transcript.match(/\bat\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i);
+  if (atClock) return atClock[1].trim();
+
+  // Bare clock with explicit am/pm anywhere: "7am", "7:00pm"
+  const bareClock = transcript.match(/\b(\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/i);
+  if (bareClock) return bareClock[1].trim();
+
+  // Noon
+  if (/\bnoon\b/i.test(transcript)) return "noon";
+
+  // Meal anchors → fuzzy times parseTimeBlock already maps
+  const meal = transcript.match(/\b(breakfast|lunch|dinner)\b/i);
+  if (meal) return meal[1].toLowerCase();
+
+  // Time of day
+  const tod = transcript.match(/\b(morning|afternoon|evening|night)\b/i);
+  if (tod) return tod[1].toLowerCase();
 
   return null;
 }
@@ -426,9 +494,10 @@ export function buildPreciseETANarration(
       const arrivalStr = formatTime(scheduledMins);
       if (i === 0 && travelMins > 0) {
         const departStr = formatTime(scheduledMins - travelMins);
-        parts.push(
-          `leave by ${departStr} to reach ${stop.name} at ${arrivalStr}`,
-        );
+        parts.push(`leave by ${departStr} to reach ${stop.name} at ${arrivalStr}`);
+      } else if (i > 0 && travelMins > 0) {
+        const departStr = formatTime(scheduledMins - travelMins);
+        parts.push(`leave ${stops[i - 1].name} by ${departStr} to reach ${stop.name} at ${arrivalStr}`);
       } else {
         parts.push(`${stop.name} at ${arrivalStr}`);
       }
@@ -474,11 +543,12 @@ export function buildDisambiguationQuestion(
   candidates: GeocodeResult[],
 ): string {
   const top = candidates.slice(0, 3);
+  const hint = "You can say the option number or just name the region.";
   if (top.length === 2) {
-    return `I found two places called "${locationName}" — option 1: ${top[0].address}, or option 2: ${top[1].address}. Which one did you mean?`;
+    return `I found two places called "${locationName}" — option 1: ${top[0].address}, or option 2: ${top[1].address}. Which one did you mean? ${hint}`;
   }
   const list = top.map((r, i) => `option ${i + 1}: ${r.address}`).join("; ");
-  return `I found multiple places called "${locationName}" — ${list}. Which one did you mean?`;
+  return `I found multiple places called "${locationName}" — ${list}. Which one? ${hint}`;
 }
 
 /**

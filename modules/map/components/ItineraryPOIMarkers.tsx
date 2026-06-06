@@ -208,28 +208,20 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
       pois.forEach((poi: NearbyPOI) => {
         const dist = (poi.distance ?? 0) / 1000; // API returns metres; helpers expect km
 
-        // Dot marker
+        // Dot marker — tap/click opens this POI's card (one at a time, no auto-open)
         const el = document.createElement("div");
         el.innerHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.5);cursor:pointer;" title="${poi.name}"></div>`;
         el.style.willChange = "transform";
-        el.addEventListener("click", (e) => e.stopPropagation());
 
-        const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
-          .setLngLat([poi.lng, poi.lat])
-          .addTo(map);
-        markersRef.current.push(marker);
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          // Close all existing open popups before opening this one
+          popupsRef.current.forEach(({ popup, root: r }) => {
+            popup.remove();
+            setTimeout(() => r.unmount(), 0);
+          });
+          popupsRef.current = [];
 
-        // Skip auto-popup if this POI is within 150m of any destination stop
-        // (would cover the numbered pin)
-        const tooCloseToStop = itineraryStops.some((s) => {
-          const dLat = (poi.lat - s.lat) * 111000;
-          const dLng =
-            (poi.lng - s.lng) * 111000 * Math.cos((poi.lat * Math.PI) / 180);
-          return Math.sqrt(dLat * dLat + dLng * dLng) < 80;
-        });
-
-        if (!tooCloseToStop) {
-          // Auto-open popup above the dot
           const container = document.createElement("div");
           const root = createRoot(container);
 
@@ -251,19 +243,9 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
               carMins={carMin(dist)}
               onClose={closeThisPopup}
               onNavigate={() => {
-                // Insert the POI as a branch leg right after its parent stop so the
-                // route shows origin → stop → POI → (remaining stops). Once inserted,
-                // immediately clear the POI fetch results for the branch index so it
-                // does NOT spawn its own recommendation cards.
                 const current = useMapStore.getState().itineraryStops;
                 const branchIndex = stopIndex + 1;
-                const newStop = {
-                  name: poi.name,
-                  lat: poi.lat,
-                  lng: poi.lng,
-                  address: poi.address,
-                  placeId: poi.placeId,
-                };
+                const newStop = { name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, placeId: poi.placeId };
                 const updated = [
                   ...current.slice(0, branchIndex),
                   newStop,
@@ -271,17 +253,13 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
                 ];
                 setItineraryStops(updated).then(() => {
                   const poiData = useMapStore.getState().itineraryStopPOIs;
-                  useMapStore
-                    .getState()
-                    .setItineraryStopPOIs(
-                      poiData.map((p) =>
-                        p.stopIndex === branchIndex ? { ...p, pois: [] } : p,
-                      ),
-                    );
+                  useMapStore.getState().setItineraryStopPOIs(
+                    poiData.map((p) => p.stopIndex === branchIndex ? { ...p, pois: [] } : p),
+                  );
                 });
                 closeThisPopup();
               }}
-            />,
+            />
           );
 
           const popup = new mapboxgl.Popup({
@@ -297,7 +275,15 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
             .addTo(map);
 
           popupsRef.current.push({ popup, root });
-        } // end if (!tooCloseToStop)
+
+          // Pan map to this POI so the card is fully visible
+          map.easeTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 14), duration: 400 });
+        });
+
+        const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
+          .setLngLat([poi.lng, poi.lat])
+          .addTo(map);
+        markersRef.current.push(marker);
       });
     });
 
