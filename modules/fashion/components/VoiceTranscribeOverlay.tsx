@@ -6,8 +6,6 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 
-
-
 type RecordStep =
   | "idle"
   | "recording"
@@ -90,7 +88,9 @@ export function VoiceTranscribeOverlay({
     setTranscript("");
     setAiReply("");
     try {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const SpeechRecognition =
+        (window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setErrorMsg("Speech recognition is not supported in this browser.");
         setStep("error");
@@ -99,7 +99,7 @@ export function VoiceTranscribeOverlay({
       cleanupMic();
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
-      recognition.lang = 'en-US';
+      recognition.lang = "en-US";
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.continuous = true;
@@ -126,22 +126,26 @@ export function VoiceTranscribeOverlay({
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        
+
         if (finalTranscript) {
           accumulated += (accumulated ? " " : "") + finalTranscript;
         }
         latestInterim = interimTranscript;
-        
+
         setTranscript(accumulated + (latestInterim ? " " + latestInterim : ""));
       };
 
       recognition.onend = () => {
-        const finalText = (accumulated + (latestInterim ? " " + latestInterim : "")).trim();
+        const finalText = (
+          accumulated + (latestInterim ? " " + latestInterim : "")
+        ).trim();
         if (finalText) {
-           submitTranscript(finalText);
+          submitTranscript(finalText);
         } else {
-           // If we didn't capture any speech, reset state
-           setStep((prev) => prev === "recording" || prev === "transcribing" ? "idle" : prev);
+          // If we didn't capture any speech, reset state
+          setStep((prev) =>
+            prev === "recording" || prev === "transcribing" ? "idle" : prev,
+          );
         }
       };
 

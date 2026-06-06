@@ -12,7 +12,15 @@ import { outlineService } from "@/modules/shared/api/outline.service";
 
 export interface ItineraryGroup {
   label: string;
-  stops: { name: string; lat: number; lng: number; address?: string; placeId?: string; eventType?: string; timeBlock?: string }[];
+  stops: {
+    name: string;
+    lat: number;
+    lng: number;
+    address?: string;
+    placeId?: string;
+    eventType?: string;
+    timeBlock?: string;
+  }[];
 }
 
 const EVENT_TYPE_TO_POI_CATEGORY: Record<string, string> = {
@@ -28,7 +36,15 @@ const EVENT_TYPE_TO_POI_CATEGORY: Record<string, string> = {
 
 // Shared helper — fetches routes + POIs for a set of stops from a given origin
 async function fetchRoutesAndPOIs(
-  stops: { name: string; lat: number; lng: number; address?: string; placeId?: string; eventType?: string; timeBlock?: string }[],
+  stops: {
+    name: string;
+    lat: number;
+    lng: number;
+    address?: string;
+    placeId?: string;
+    eventType?: string;
+    timeBlock?: string;
+  }[],
   origin: { lat: number; lng: number },
   profile: "car" | "motorcycle" | "bicycle" | "walking",
 ): Promise<{
@@ -52,8 +68,15 @@ async function fetchRoutesAndPOIs(
   const pois = await Promise.all(
     stops.map(async (stop, i) => {
       try {
-        const category = stop.eventType ? EVENT_TYPE_TO_POI_CATEGORY[stop.eventType] : undefined;
-        const { pois } = await mapService.nearbyPOIs(stop.lat, stop.lng, 600, category);
+        const category = stop.eventType
+          ? EVENT_TYPE_TO_POI_CATEGORY[stop.eventType]
+          : undefined;
+        const { pois } = await mapService.nearbyPOIs(
+          stop.lat,
+          stop.lng,
+          600,
+          category,
+        );
         return { stopIndex: i, pois: pois.slice(0, 5) };
       } catch {
         return { stopIndex: i, pois: [] };

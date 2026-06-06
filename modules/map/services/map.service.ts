@@ -160,6 +160,4 @@ export const mapService = {
     );
     return res.data.transcript;
   },
-
-
 };

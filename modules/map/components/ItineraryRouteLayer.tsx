@@ -100,7 +100,8 @@ const ItineraryRouteLayer: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
     // Each leg's color matches its destination stop (index i → stop i)
     const features = itineraryRoutes
       .map((r, i) => {
-        const feature = (r.geojson as { features?: unknown[] })?.features?.[0] as GeoJSON.Feature | undefined;
+        const feature = (r.geojson as { features?: unknown[] })
+          ?.features?.[0] as GeoJSON.Feature | undefined;
         if (!feature) return null;
         return {
           ...feature,

@@ -100,7 +100,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!response.body) {
-      return NextResponse.json({ error: "Empty response body" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Empty response body" },
+        { status: 500 },
+      );
     }
 
     const reader = response.body.getReader();
@@ -134,7 +137,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!finalJson) {
-      return NextResponse.json({ error: "Stream ended without complete payload" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Stream ended without complete payload" },
+        { status: 500 },
+      );
     }
 
     const data = finalJson ?? {};

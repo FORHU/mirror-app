@@ -15,7 +15,7 @@ function useClock() {
     // Wrap the initial state update in a timeout to avoid the synchronous setState warning
     const timeoutId = setTimeout(() => setNow(new Date()), 0);
     const intervalId = setInterval(() => setNow(new Date()), 1000);
-    
+
     return () => {
       clearTimeout(timeoutId);
       clearInterval(intervalId);

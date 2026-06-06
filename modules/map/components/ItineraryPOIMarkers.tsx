@@ -245,7 +245,13 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
               onNavigate={() => {
                 const current = useMapStore.getState().itineraryStops;
                 const branchIndex = stopIndex + 1;
-                const newStop = { name: poi.name, lat: poi.lat, lng: poi.lng, address: poi.address, placeId: poi.placeId };
+                const newStop = {
+                  name: poi.name,
+                  lat: poi.lat,
+                  lng: poi.lng,
+                  address: poi.address,
+                  placeId: poi.placeId,
+                };
                 const updated = [
                   ...current.slice(0, branchIndex),
                   newStop,
@@ -253,13 +259,17 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
                 ];
                 setItineraryStops(updated).then(() => {
                   const poiData = useMapStore.getState().itineraryStopPOIs;
-                  useMapStore.getState().setItineraryStopPOIs(
-                    poiData.map((p) => p.stopIndex === branchIndex ? { ...p, pois: [] } : p),
-                  );
+                  useMapStore
+                    .getState()
+                    .setItineraryStopPOIs(
+                      poiData.map((p) =>
+                        p.stopIndex === branchIndex ? { ...p, pois: [] } : p,
+                      ),
+                    );
                 });
                 closeThisPopup();
               }}
-            />
+            />,
           );
 
           const popup = new mapboxgl.Popup({
@@ -277,7 +287,11 @@ const ItineraryPOIMarkers: React.FC<{ map: mapboxgl.Map }> = ({ map }) => {
           popupsRef.current.push({ popup, root });
 
           // Pan map to this POI so the card is fully visible
-          map.easeTo({ center: [poi.lng, poi.lat], zoom: Math.max(map.getZoom(), 14), duration: 400 });
+          map.easeTo({
+            center: [poi.lng, poi.lat],
+            zoom: Math.max(map.getZoom(), 14),
+            duration: 400,
+          });
         });
 
         const marker = new mapboxgl.Marker({ element: el, anchor: "center" })

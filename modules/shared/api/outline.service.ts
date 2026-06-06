@@ -41,7 +41,14 @@ export const outlineService = {
   },
 
   async saveMapStops(
-    stops: Array<{ name: string; lat: number; lng: number; address?: string; eventType?: string; timeBlock?: string }>,
+    stops: Array<{
+      name: string;
+      lat: number;
+      lng: number;
+      address?: string;
+      eventType?: string;
+      timeBlock?: string;
+    }>,
   ): Promise<void> {
     await api.post("/api/mirror/outlines/map-stops", { stops });
   },
