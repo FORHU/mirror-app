@@ -263,9 +263,9 @@ export function extractLocationFromTranscript(
 
   // "to [Location]" — scan ALL occurrences so "want to go to La Union" skips "to go"
   // (movement verb) and correctly extracts "La Union".
-  // Stop at "here" so "to slu bonifacio here in baguio" → "slu bonifacio" (not the whole phrase).
+  // Stop at "here"/"in" so "bgh hospital in baguio city" → "bgh hospital" (city appended below).
   const toRe =
-    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|after\b|then\b|with\b|to\b|and\b|here\b)|$)/gi;
+    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|after\b|then\b|in\b|with\b|to\b|and\b|here\b)|$)/gi;
   let toMatch: RegExpExecArray | null;
   while ((toMatch = toRe.exec(transcript)) !== null) {
     const candidate = stripTrailingEventWords(
@@ -276,13 +276,14 @@ export function extractLocationFromTranscript(
         candidate,
       )
     ) {
-      // "slu bonifacio here in baguio" → append the city from "here in [city]"
-      // so the geocoder gets "slu bonifacio baguio" and prefers local results.
-      const hereCity = transcript.match(
-        /\bhere\s+in\s+([A-Za-z][A-Za-z\s]{1,20}?)(?:\s*$|\s+\b(?:please|ok|now)\b)/i,
+      // "bgh hospital in baguio city" → append city so geocoder gets the full
+      // context ("bgh hospital baguio city") and surfaces the correct POI.
+      // Also handles "here in [city]" variant ("slu bonifacio here in baguio").
+      const inCity = transcript.match(
+        /\b(?:here\s+)?in\s+([A-Za-z][A-Za-z\s]{1,25}?)(?:\s*$|\s+\b(?:please|ok|now|after|then)\b)/i,
       );
-      if (hereCity) {
-        const city = hereCity[1].trim().split(/\s+/).slice(0, 2).join(" ");
+      if (inCity) {
+        const city = inCity[1].trim().split(/\s+/).slice(0, 3).join(" ");
         return `${candidate} ${city}`;
       }
       return candidate;
