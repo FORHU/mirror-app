@@ -1867,7 +1867,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           let chatAction: ChatWonderAction | null = null;
-          if (res.garment_data || res.maps_data) {
+          if (res.stylist_data?.target_url) {
+            router.push(res.stylist_data.target_url);
+          } else if (res.garment_data || res.maps_data) {
             // Synthetic action that triggers handleVoiceAction catchers
             chatAction = {
               type: "GARMENT_RECOMMENDATION" as any,
@@ -1876,11 +1878,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 maps_data: res.maps_data,
               },
             } as any;
-          } else if (res.stylist_data?.target_url) {
-            chatAction = {
-              type: "navigate",
-              route: res.stylist_data.target_url,
-            };
           }
 
           // 🧠 RUN UI KERNEL
