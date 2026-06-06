@@ -265,7 +265,7 @@ export function extractLocationFromTranscript(
   // (movement verb) and correctly extracts "La Union".
   // Stop at "here" so "to slu bonifacio here in baguio" → "slu bonifacio" (not the whole phrase).
   const toRe =
-    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|with\b|to\b|and\b|here\b)|$)/gi;
+    /\bto\s+([A-Za-z0-9\s.,'"\-]+?)(?=[,]|\s+(?:please|now|this|for|can|that|after\b|then\b|with\b|to\b|and\b|here\b)|$)/gi;
   let toMatch: RegExpExecArray | null;
   while ((toMatch = toRe.exec(transcript)) !== null) {
     const candidate = stripTrailingEventWords(
