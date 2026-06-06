@@ -1,8 +1,4 @@
-import type {
-  GarmentTileItem,
-  MapTileData,
-  OutfitTileItem,
-} from "./types";
+import type { GarmentTileItem, MapTileData, OutfitTileItem } from "./types";
 
 /**
  * Normalizers from ChatWonder's loosely-typed tool payloads into the tile

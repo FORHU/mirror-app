@@ -13,32 +13,32 @@ import type { ChatWonderMapsPlace } from "@/modules/shared/api/chat-wonder.servi
 const VENUE_ABBREV_RE = /\b[A-Z]{2,6}\b/;
 const VENUE_FULL_RE = new RegExp(
   "\\b(" +
-  // English
-  "mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|" +
-  "school|university|college|academy|institute|hospital|clinic|hotel|resort|" +
-  "park|market|museum|library|gym|spa|station|terminal|grotto|convent|" +
-  "monastery|campus|complex|plaza|pharmacy|theatre|theater|cinema|gallery|" +
-  // French (accented + unaccented forms — Whisper preserves diacritics)
-  "musée|musee|" +          // musée
-  "école|ecole|" +          // école
-  "gare|" +
-  "hôpital|hopital|" +      // hôpital
-  "église|eglise|" +        // église
-  "cathédrale|cathedrale|" + // cathédrale
-  "université|universite|" + // université
-  "bibliothèque|bibliotheque|" + // bibliothèque
-  "théâtre|theatre|" + // théâtre (also in English above)
-  "cinéma|cinema|" +        // cinéma (also in English above)
-  "galerie|mairie|pharmacie|palais|stade|marché|marche|" +
-  "lycée|lycee|" +          // lycée (French high school)
-  "arrondissement|quartier|" +
-  // Spanish
-  "escuela|universidad|iglesia|mercado|parque|farmacia|" +
-  // German
-  "schule|kirche|krankenhaus|bahnhof|markt|" +
-  // Italian
-  "scuola|chiesa|ospedale|stazione|farmacia" +
-  ")\\b",
+    // English
+    "mall|center|centre|restaurant|cafe|cafeteria|church|chapel|cathedral|shrine|" +
+    "school|university|college|academy|institute|hospital|clinic|hotel|resort|" +
+    "park|market|museum|library|gym|spa|station|terminal|grotto|convent|" +
+    "monastery|campus|complex|plaza|pharmacy|theatre|theater|cinema|gallery|" +
+    // French (accented + unaccented forms — Whisper preserves diacritics)
+    "musée|musee|" + // musée
+    "école|ecole|" + // école
+    "gare|" +
+    "hôpital|hopital|" + // hôpital
+    "église|eglise|" + // église
+    "cathédrale|cathedrale|" + // cathédrale
+    "université|universite|" + // université
+    "bibliothèque|bibliotheque|" + // bibliothèque
+    "théâtre|theatre|" + // théâtre (also in English above)
+    "cinéma|cinema|" + // cinéma (also in English above)
+    "galerie|mairie|pharmacie|palais|stade|marché|marche|" +
+    "lycée|lycee|" + // lycée (French high school)
+    "arrondissement|quartier|" +
+    // Spanish
+    "escuela|universidad|iglesia|mercado|parque|farmacia|" +
+    // German
+    "schule|kirche|krankenhaus|bahnhof|markt|" +
+    // Italian
+    "scuola|chiesa|ospedale|stazione|farmacia" +
+    ")\\b",
   "i",
 );
 
@@ -278,7 +278,9 @@ export function extractLocationFromTranscript(
     ) {
       // "slu bonifacio here in baguio" → append the city from "here in [city]"
       // so the geocoder gets "slu bonifacio baguio" and prefers local results.
-      const hereCity = transcript.match(/\bhere\s+in\s+([A-Za-z][A-Za-z\s]{1,20}?)(?:\s*$|\s+\b(?:please|ok|now)\b)/i);
+      const hereCity = transcript.match(
+        /\bhere\s+in\s+([A-Za-z][A-Za-z\s]{1,20}?)(?:\s*$|\s+\b(?:please|ok|now)\b)/i,
+      );
       if (hereCity) {
         const city = hereCity[1].trim().split(/\s+/).slice(0, 2).join(" ");
         return `${candidate} ${city}`;
@@ -405,7 +407,13 @@ export function extractAllLocationsFromTranscript(
     // sentence is split on commas: "then lastly saint louis university..."
     // → "saint louis university...". Keep prepositions (to/at/in) intact
     // since the patterns below rely on them.
-    const s = seg.trim().replace(/^(?:(?:then|lastly|firstly|finally|next|also|after\s+that)\s+)+/i, "").trim();
+    const s = seg
+      .trim()
+      .replace(
+        /^(?:(?:then|lastly|firstly|finally|next|also|after\s+that)\s+)+/i,
+        "",
+      )
+      .trim();
     if (!s) continue;
 
     // Stop pattern — capture ends before these common words or punctuation.
@@ -419,12 +427,21 @@ export function extractAllLocationsFromTranscript(
     // "going to zoo" → "zoo", "having a lunch" → "", "i'll be at" → ""
     const extractPOIPrefix = (raw: string): string =>
       raw
-        .replace(/\b(?:going|heading|having|eating|visiting|stopping|i(?:'ll)?|will|am|be|a|an|the|my|our|and|then|also|finally|after(?:\s+that)?|first|second|third|to|for|of)\b\s*/gi, "")
-        .replace(/\b(?:lunch|dinner|breakfast|brunch|meal|meeting|appointment|date|session|conference|event|party)\b\s*/gi, "")
+        .replace(
+          /\b(?:going|heading|having|eating|visiting|stopping|i(?:'ll)?|will|am|be|a|an|the|my|our|and|then|also|finally|after(?:\s+that)?|first|second|third|to|for|of)\b\s*/gi,
+          "",
+        )
+        .replace(
+          /\b(?:lunch|dinner|breakfast|brunch|meal|meeting|appointment|date|session|conference|event|party)\b\s*/gi,
+          "",
+        )
         .trim();
 
     // Regex that matches a following "in [place]" immediately after the current match.
-    const followInRe = new RegExp(`^\\s+in\\s+(?!the\\b|a\\b|an\\b|this\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`, "i");
+    const followInRe = new RegExp(
+      `^\\s+in\\s+(?!the\\b|a\\b|an\\b|this\\b)(\\w+(?:\\s+\\w+)*?)${STOP}`,
+      "i",
+    );
 
     // "in [place]" — lazy, stop at common words.
     // Also captures any POI prefix before "in" (e.g. "zoo in ilocos sur" → "zoo ilocos sur")
@@ -438,7 +455,10 @@ export function extractAllLocationsFromTranscript(
     if (inM) {
       const loc = inM[1].trim();
       const poi = extractPOIPrefix(s.slice(0, inM.index!));
-      const isVerb = /^(?:go|be|have|get|make|do|take|come|see|find|try|eat|drink|meet|buy|grab|pay|run|walk|drive|join|bring|pick)\b/i.test(poi);
+      const isVerb =
+        /^(?:go|be|have|get|make|do|take|come|see|find|try|eat|drink|meet|buy|grab|pay|run|walk|drive|join|bring|pick)\b/i.test(
+          poi,
+        );
       const prefix = poi.length > 1 && !isVerb ? poi : "";
       const followIn = s.slice(inM.index! + inM[0].length).match(followInRe);
       const suffix = followIn ? followIn[1].trim() : "";
@@ -799,7 +819,8 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   if (nearMeM) {
     const candidate = nearMeM[1].trim();
     // Don't match generic filler phrases
-    if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate)) return candidate;
+    if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate))
+      return candidate;
   }
 
   return null;
