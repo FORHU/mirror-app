@@ -10,7 +10,9 @@ export class AudioQueue {
   private initContext() {
     if (typeof window !== "undefined") {
       const AudioContextClass =
-        window.AudioContext || (window as any).webkitAudioContext;
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
       if (
         AudioContextClass &&
         (!this.audioContext || this.audioContext.state === "closed")
@@ -70,7 +72,7 @@ export class AudioQueue {
       try {
         source.stop();
         source.disconnect();
-      } catch (e) {
+      } catch {
         // Ignore errors if source already stopped
       }
     });

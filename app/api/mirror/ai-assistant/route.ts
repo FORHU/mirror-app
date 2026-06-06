@@ -109,7 +109,12 @@ export async function POST(req: NextRequest) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    let finalJson: any = null;
+    type StreamPayload = {
+      type?: string;
+      stylist_data?: { target_url?: string; system_message?: string };
+      message?: string;
+    };
+    let finalJson: StreamPayload | null = null;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -129,7 +134,7 @@ export async function POST(req: NextRequest) {
             } else if (parsed.type === "error") {
               throw new Error(parsed.message || "Stream error");
             }
-          } catch (e) {
+          } catch {
             // ignore partial or non-json
           }
         }

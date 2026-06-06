@@ -6,6 +6,24 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onresult:
+    | ((event: {
+        resultIndex: number;
+        results: SpeechRecognitionResultList;
+      }) => void)
+    | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+
 type RecordStep =
   | "idle"
   | "recording"
@@ -26,7 +44,7 @@ export function VoiceTranscribeOverlay({
   const [aiReply, setAiReply] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const abortCtrlRef = useRef<AbortController | null>(null);
   const weatherRef = useRef<Record<string, unknown> | null>(null);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -74,7 +92,7 @@ export function VoiceTranscribeOverlay({
       recognitionRef.current.onend = null;
       try {
         recognitionRef.current.stop();
-      } catch (e) {}
+      } catch {}
       recognitionRef.current = null;
     }
   }
@@ -88,16 +106,20 @@ export function VoiceTranscribeOverlay({
     setTranscript("");
     setAiReply("");
     try {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+      const win = window as unknown as {
+        SpeechRecognition?: SpeechRecognitionCtor;
+        webkitSpeechRecognition?: SpeechRecognitionCtor;
+      };
+      const SpeechRecognitionClass =
+        win.SpeechRecognition || win.webkitSpeechRecognition;
+      if (!SpeechRecognitionClass) {
         setErrorMsg("Speech recognition is not supported in this browser.");
         setStep("error");
         return;
       }
       cleanupMic();
-      const recognition = new SpeechRecognition();
+      const recognition = new SpeechRecognitionClass();
       recognitionRef.current = recognition;
       recognition.lang = "en-US";
       recognition.interimResults = true;
@@ -108,14 +130,17 @@ export function VoiceTranscribeOverlay({
       let latestInterim = "";
 
       recognition.onstart = () => setStep("recording");
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: { error: string }) => {
         if (event.error !== "no-speech") {
           setErrorMsg("Speech recognition error: " + event.error);
           setStep("error");
         }
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: {
+        resultIndex: number;
+        results: SpeechRecognitionResultList;
+      }) => {
         let interimTranscript = "";
         let finalTranscript = "";
 
@@ -184,7 +209,7 @@ export function VoiceTranscribeOverlay({
       setStep("done");
       onAiComplete?.(response);
     } catch (err: unknown) {
-      if ((err as any).name === "AbortError") return;
+      if (err instanceof DOMException && err.name === "AbortError") return;
       onLoadingChange?.(false);
       setErrorMsg((err as Error).message ?? "Request failed");
       setStep("error");
