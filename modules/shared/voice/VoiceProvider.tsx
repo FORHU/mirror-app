@@ -132,6 +132,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const isPresent = useMirrorStore((s) => s.isPresent);
+  const sensorStatus = useMirrorStore((s) => s.sensorStatus);
+
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [reply, setReply] = useState("");
@@ -192,7 +195,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
   const mapSessionInitRef = useRef(false);
-
   // Auto-clear voice error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -366,7 +368,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   }
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
-
   const processTranscript = useCallback(
     async (t: string) => {
       setTranscript(t);
@@ -429,6 +430,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             undefined,
         };
 
+
         if (!t || t.trim() === "") {
           setVoiceState("idle");
           return;
@@ -471,9 +473,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          const isCosmetics =
-            pageMode === "cosmetics" ||
-            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
@@ -2033,7 +2032,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       let accumulated = "";
       let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-      const SILENCE_MS = 1500;
+      const SILENCE_MS = 1000;
 
       const clearSilenceTimer = () => {
         if (silenceTimer) {
@@ -2091,6 +2090,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [voiceState]);
 
+  // Full-voice: keep the mic continuously armed on every page while someone is
+  // at the mirror. Whenever the pipeline returns to idle, re-arm after a short
+  // beat so the mirror is always listening hands-free — spoken commands route
+  // through processTranscript → [stylist]. Gated on camera presence so an empty
+  // room isn't transcribed; falls through when the sensor is "unavailable"
+  // (dev / no camera) so it stays testable. startListening() no-ops unless idle.
+  useEffect(() => {
+    if (voiceState !== "idle") return;
+    if (!isPresent && sensorStatus !== "unavailable") return;
+    const id = setTimeout(() => {
+      void startListening();
+    }, 500);
+    return () => clearTimeout(id);
+  }, [voiceState, startListening, isPresent, sensorStatus]);
+
   const submitText = useCallback(
     async (text: string) => {
       const t = text.trim();
@@ -2143,6 +2157,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     pageCtxRef.current = null;
     onActionRef.current = null;
   }, []);
+
+  // Continuous listening globally: after each turn returns to idle,
+  // re-arm the mic so the mirror keeps catching voice hands-free on all pages.
+  // Safe because the wake-word gate ignores anything that isn't a "Mirror ..."
+  // command. Waits for "idle" so it never captures its own TTS while speaking.
+  useEffect(() => {
+    if (!isPresent && sensorStatus !== "unavailable") return;
+    if (voiceState !== "idle") return;
+    
+    const id = setTimeout(() => startListening(), 600);
+    return () => clearTimeout(id);
+  }, [voiceState, isPresent, sensorStatus, startListening]);
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";

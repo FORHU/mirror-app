@@ -5,6 +5,7 @@ import {
   getUniversalFaceDetector,
   type UniversalFaceDetector,
 } from "../utils/faceDetection";
+import { useMirrorStore } from "../store/useMirrorStore";
 
 /**
  * useProximitySensor — runs the camera in the background and continuously watches
@@ -39,6 +40,13 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
   const [status, setStatus] = useState<TrackerStatus>("starting");
   const [isPresent, setIsPresent] = useState(false);
   const missesRef = useRef(0);
+
+  // Mirror presence into the global store so VoiceProvider (and any other global
+  // consumer) can read it without running a second camera stream.
+  const setPresence = useMirrorStore((s) => s.setPresence);
+  useEffect(() => {
+    setPresence(isPresent, status);
+  }, [isPresent, status, setPresence]);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,7 +94,10 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
             facingMode: "user",
             width: { ideal: 1280 },
             height: { ideal: 720 },
-          },
+            pan: false,
+            tilt: false,
+            zoom: false,
+          } as any, // Cast to any because standard TS DOM lib lacks PTZ types
           audio: false,
         });
         if (cancelled) {
