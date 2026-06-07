@@ -2105,7 +2105,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setVoiceState("processing");
 
       try {
-        if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
+        if (pathname.startsWith(ROUTES.WELCOME)) {
           await handleAIAssistantText(t);
           return;
         }

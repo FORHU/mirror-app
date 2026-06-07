@@ -57,6 +57,11 @@ export interface SendMessageOptions {
    * that don't pass this are unaffected.
    */
   onComplete?: (payload: ChatWonderCompletePayload) => void;
+  /**
+   * Optional: fires as soon as a `[NAV_DATA]` block is detected mid-stream,
+   * before the tool finishes. Used by ChatWonderProvider to navigate early.
+   */
+  onNavEarly?: (stylistData: { target_url?: string } | null) => void;
 }
 
 export interface UseChatWonderStreamResult {
@@ -322,6 +327,10 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                   if (navTarget) {
                     void handleStylistTarget(navTarget, router, pathname);
                   }
+                } else if (parsed.type === "nav_early") {
+                  options?.onNavEarly?.(
+                    (parsed.stylist_data as { target_url?: string } | null) ?? null,
+                  );
                 } else if (parsed.type === "error") {
                   if (parsed.code === "session_expired") {
                     console.warn("Session expired, retrying message...");

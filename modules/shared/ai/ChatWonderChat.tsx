@@ -4,9 +4,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Send, Bot, User, Loader2, X, MessageSquare } from "lucide-react";
 import {
-  useChatWonderStream,
   type ChatWonderCompletePayload,
 } from "./useChatWonderStream";
+import { useChatWonderContext } from "./ChatWonderProvider";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -30,7 +30,7 @@ export function ChatWonderChat({
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, isStreaming, error, sendMessage } = useChatWonderStream();
+  const { messages, isStreaming, error, sendMessage } = useChatWonderContext();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

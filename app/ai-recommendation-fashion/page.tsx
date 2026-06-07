@@ -103,6 +103,10 @@ const FASHION_QUOTES = [
 ];
 
 export default function VirtualMirrorV2() {
+  const chatNavPending = useMirrorStore((s) => s.chatNavPending);
+  const chatStreamingText = useMirrorStore((s) => s.chatStreamingText);
+  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [aiLoading] = useState(false);
   const [voiceLoading] = useState(false);
@@ -538,8 +542,27 @@ export default function VirtualMirrorV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
+  useEffect(() => {
+    if (!chatGarmentData) return;
+    useMirrorStore.getState().setChatGarmentData(null);
+    handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatGarmentData]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
+      {chatNavPending && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
+          {chatStreamingText && (
+            <p className="text-white/70 text-base font-light text-center max-w-sm leading-relaxed px-8">
+              {chatStreamingText}
+            </p>
+          )}
+        </div>
+      )}
+
       <MirrorHeader />
 
       {/* AI Suggestion Banner */}

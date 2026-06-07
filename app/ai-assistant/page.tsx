@@ -55,7 +55,7 @@ export default function AIAssistantPage() {
 
   const pageContext = useMemo(
     () => ({
-      route: ROUTES.AI_ASSISTANT,
+      route: ROUTES.WELCOME,
       pageName: "AI Assistant",
       activeStep: "conversation",
     }),

@@ -4,7 +4,7 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 
@@ -13,6 +13,9 @@ export default function CosmeticRecommendationPage() {
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
+  const chatNavPending = useMirrorStore((s) => s.chatNavPending);
+  const chatStreamingText = useMirrorStore((s) => s.chatStreamingText);
+  const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
 
   const pageContext = useMemo(
     () => ({
@@ -25,6 +28,13 @@ export default function CosmeticRecommendationPage() {
   );
 
   useVoice(pageContext);
+
+  // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
+  useEffect(() => {
+    if (!chatCosmeticsData) return;
+    useMirrorStore.getState().setChatCosmeticsData(null);
+    useMirrorStore.getState().setPendingCosmeticsData(chatCosmeticsData);
+  }, [chatCosmeticsData]);
 
   // Pagination state for recommendations
   const [recPage, setRecPage] = useState(0);
@@ -67,6 +77,17 @@ export default function CosmeticRecommendationPage() {
       className="w-full h-full relative overflow-hidden bg-black text-white flex"
       style={{ fontFamily: "sans-serif", touchAction: "none" }}
     >
+      {chatNavPending && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="w-8 h-8 rounded-full border-2 border-pink-500/20 border-t-pink-400/80 animate-spin mb-6" />
+          {chatStreamingText && (
+            <p className="text-white/70 text-base font-light text-center max-w-sm leading-relaxed px-8">
+              {chatStreamingText}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Left panel — 50% Transparent for Mirror Reflection */}
       <div
         className="h-full relative overflow-hidden"
