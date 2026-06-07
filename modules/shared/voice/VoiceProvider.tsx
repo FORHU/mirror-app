@@ -525,7 +525,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           onActionRef.current?.({
             type: "GARMENT_RECOMMENDATION",
-            response: garmentResponse,
+            response: aiResponse,
           });
           return;
         }
