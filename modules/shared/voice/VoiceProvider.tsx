@@ -204,25 +204,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [error]);
 
-  // Continuous listening globally: after each turn returns to idle,
-  // re-arm the mic so the mirror keeps catching voice hands-free on all pages.
-  // Safe because the wake-word gate ignores anything that isn't a "Mirror ..."
-  // command. Waits for "idle" so it never captures its own TTS while speaking.
-  useEffect(() => {
-    if (!isPresent && sensorStatus !== "unavailable") return;
-    if (voiceState !== "idle") return;
-
-    // Defer startListening slightly to ensure AudioContext drops correctly
-    const id = setTimeout(() => {
-      // The startListening function is closed over but we can just call it
-      // However, startListening is defined below! We must make sure it is
-      // available or we just use a ref or hoist it.
-      // Wait, startListening is defined below this effect. We can't call it here
-      // if it's not defined, but useEffect runs after render, so startListening
-      // is already captured by the closure.
-    }, 600);
-    return () => clearTimeout(id);
-  }, [voiceState, isPresent, sensorStatus]);
 
   // Hydrate the chat-wonder sessionId from sessionStorage so it survives page
   // reloads on non-Attract routes. Cleared only when arriving at /.
@@ -499,18 +480,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          const isCosmetics =
-            pageMode === "cosmetics" ||
-            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
-
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             ...(weather ? { weather } : {}),
-            ...(isCosmetics
-              ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult }
-              : {}),
+            skinAnalysis: useMirrorStore.getState().skinAnalysisResult,
           });
 
           if (aiResponse.stylist_data?.target_url) {

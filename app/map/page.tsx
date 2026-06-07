@@ -111,10 +111,7 @@ export default function MapPage() {
       <ChatNavLoader />
 
       {/* Header — weather left, time center, back right */}
-      <MirrorHeader
-        className="absolute top-0 inset-x-0 z-50"
-        isListening={isListening}
-      />
+      <MirrorHeader className="absolute top-0 inset-x-0 z-50" isListening={isListening} />
 
       <MapDashboard />
     </main>
