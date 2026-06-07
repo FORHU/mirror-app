@@ -6,7 +6,6 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
 import { Loader2 } from "lucide-react";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
-import { useRouter } from "next/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 
@@ -51,7 +50,6 @@ async function consumePendingDirections() {
 }
 
 export default function MapPage() {
-  const router = useRouter();
   const {
     homeLocation,
     homeLocationStatus,

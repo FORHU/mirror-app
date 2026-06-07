@@ -16,7 +16,6 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { ScanFace, Loader2, CameraOff } from "lucide-react";
 import "../../styles/glow.css";
@@ -34,11 +33,6 @@ import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import { mapService } from "@/modules/map/services/map.service";
 import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
 import { useMapStore } from "@/modules/map/store/useMapStore";
-import {
-  cosmeticsService,
-  type SkinAnalysis,
-} from "@/modules/shared/api/cosmetics.service";
-import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 
 import {
   OverviewGrid,
@@ -135,16 +129,13 @@ async function requestGarmentsWithFreshSession(
 }
 
 export default function OverviewPage() {
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { weather } = useWeather();
 
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const startCosmetics = useOverviewStore((s) => s.startCosmetics);
-  const setCosmetics = useOverviewStore((s) => s.setCosmetics);
-  const failCosmetics = useOverviewStore((s) => s.failCosmetics);
+  const emptyMap = useOverviewStore((s) => s.emptyMap);
   const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
@@ -174,10 +165,9 @@ export default function OverviewPage() {
       try {
         const outline = await outlineService.getActive();
         if (cancelled || !outline) return;
-        const { garments, outfits, cosmetics } = adaptOutlineToTiles(outline);
+        const { garments, outfits } = adaptOutlineToTiles(outline);
         if (garments.length) setGarments(garments);
         if (outfits.length) setOutfits(outfits);
-        if (cosmetics) setCosmetics(cosmetics);
         void useMapStore.getState().loadOutlineStops();
       } catch {
         /* hydration is best-effort; live updates still populate the tiles */
@@ -186,51 +176,16 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [setGarments, setOutfits, setCosmetics]);
+  }, [setGarments, setOutfits]);
 
-  // ── background skin analysis ──
-  const runSkinAnalysis = useCallback(
-    async (frameDataUrl: string) => {
-      startCosmetics();
-      let unsubscribe = () => {};
-      try {
-        // Subscribe BEFORE POSTing so the pushed result can't race ahead of us.
-        unsubscribe = await listenForSkinAnalysis({
-          onComplete: (raw) => {
-            const r = raw as { data?: SkinAnalysis } & SkinAnalysis;
-            const analysis = (r?.skinType ? r : r?.data) as SkinAnalysis;
-            if (analysis) setCosmetics(analysis);
-            else failCosmetics("Analysis returned no data");
-            unsubscribe();
-          },
-          onError: (msg) => {
-            failCosmetics(msg);
-            unsubscribe();
-          },
-        });
-        const { id } = await cosmeticsService.uploadCapture(frameDataUrl);
-        // Persist the ID so /ai-recommendation-cosmetic/recommendation can resume it if the user navigates there
-        sessionStorage.setItem("skin_analysis_id", id);
-        sessionStorage.setItem("skin_capture", frameDataUrl);
-        await cosmeticsService.startSkinAnalysis(id);
-      } catch (e) {
-        failCosmetics((e as Error)?.message ?? "Skin analysis failed");
-        unsubscribe();
-      }
-    },
-    [startCosmetics, setCosmetics, failCosmetics],
-  );
-
-  // ── face detection → greet + analyze (fires once) ──
+  // ── face detection → greet (fires once) ──
   const onFaceDetected = useCallback(
-    (frameDataUrl: string) => {
+    () => {
       setFaceDetected(true);
       // Overview is a downstream dashboard, not an entry screen — it does not
-      // greet. It only runs the passive skin analysis. (Greeting belongs to
-      // /ai-assistant.)
-      void runSkinAnalysis(frameDataUrl);
+      // greet. (Greeting belongs to /ai-assistant.)
     },
-    [setFaceDetected, runSkinAnalysis],
+    [setFaceDetected],
   );
 
   const {
@@ -249,7 +204,7 @@ export default function OverviewPage() {
       hasCapturedRef.current = true;
       const frame = captureFrame();
       if (frame) {
-        onFaceDetected(frame);
+        onFaceDetected();
       }
     }
   }, [isPresent, captureFrame, onFaceDetected]);
@@ -510,20 +465,9 @@ export default function OverviewPage() {
         <OverviewGrid />
       </div>
 
-      {/* Footer */}
+      {/* Footer (Manual buttons removed for full-voice experience) */}
       <div className="flex justify-between items-center mt-4 shrink-0">
-        <button
-          onClick={() => router.back()}
-          className="text-white/40 hover:text-white text-base transition-colors"
-        >
-          ← Back
-        </button>
-        <button
-          onClick={() => router.push(ROUTES.WELCOME)}
-          className="logout-btn px-6 py-2.5 text-white text-base font-medium"
-        >
-          Restart
-        </button>
+        {/* Buttons previously here were removed */}
       </div>
 
       {/* ChatWonder text window — voice is handled by the global mic overlay. */}

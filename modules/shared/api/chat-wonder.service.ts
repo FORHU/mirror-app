@@ -3,6 +3,7 @@ import { getStorageData } from "@/modules/shared/utils/storage";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { AudioQueue } from "@/modules/shared/voice/audioQueue";
+import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 
 const API_BASE_URL =
   typeof window !== "undefined"
@@ -24,6 +25,7 @@ export interface ChatWonderMessageRequest {
    * app's full SITEMAP_CONTEXT; pass an explicit list to override/narrow it.
    */
   sitemapContext?: string[];
+  skinAnalysis?: SkinAnalysis | null;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -207,6 +209,7 @@ export const chatWonderService = {
     if (request.location) body.location = request.location;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
+    if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
     let res: Response;

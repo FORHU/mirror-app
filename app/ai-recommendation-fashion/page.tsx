@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "../../styles/glow.css";
 import {
   garmentService,
@@ -14,7 +14,6 @@ import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
-import { VoiceTranscribeOverlay } from "@/modules/fashion/components/VoiceTranscribeOverlay";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 
@@ -106,7 +105,7 @@ const FASHION_QUOTES = [
 export default function VirtualMirrorV2() {
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [aiLoading] = useState(false);
-  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceLoading] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -169,139 +168,6 @@ export default function VirtualMirrorV2() {
     setSwapItemId(null);
   }
 
-  function handleAiComplete(response: ChatWonderMessageResponse) {
-    setSelectedBag(null);
-    setSelectedTopBase(null);
-    setSelectedTopMid(null);
-    setSelectedTopOuter(null);
-    setSelectedBottom(null);
-    setSelectedShoe(null);
-    setSelectedOutfitIdx(null);
-
-    type AiItem = {
-      id?: string;
-      name: string;
-      type?: string;
-      description?: string;
-      reason?: string;
-      imageUrl?: string;
-      category?: string | string[];
-      garmentType?: string[];
-      fittingSlot?: string[];
-      layerLevel?: string;
-    };
-
-    const newTopsBase: RemoteGarment[] = [];
-    const newTopsMid: RemoteGarment[] = [];
-    const newTopsOuter: RemoteGarment[] = [];
-    const newBottoms: RemoteGarment[] = [];
-    const newShoes: RemoteGarment[] = [];
-    const newBags: RemoteGarment[] = [];
-    const seen = new Set<string>();
-
-    const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
-      id: item.id ?? crypto.randomUUID(),
-      name: item.name,
-      description: item.reason ?? item.description ?? "",
-      imageUrl: item.imageUrl ?? "",
-      fittingSlot: [slot],
-      garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-      category: Array.isArray(item.category)
-        ? item.category
-        : item.category
-          ? [item.category]
-          : [],
-      tags: [],
-      gender: null,
-      silhouette: null,
-      layerLevel: item.layerLevel ?? null,
-      file: null,
-    });
-
-    function push(
-      item: AiItem | undefined,
-      bucket: RemoteGarment[],
-      slot: string,
-    ) {
-      if (!item?.id) return;
-      if (seen.has(item.id)) return;
-      seen.add(item.id);
-      bucket.push(toGarment(item, slot));
-    }
-
-    // ── /message format: response.garment_data.sets[].recommendations[] ────────
-    const sets = response.garment_data?.sets ?? [];
-    for (const s of sets) {
-      for (const r of (s.recommendations ?? []) as AiItem[]) {
-        if (r.fittingSlot?.includes("UpperGarment")) {
-          const layer = r.layerLevel ?? "BASE";
-          if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
-          else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
-          else push(r, newTopsBase, "UpperGarment");
-        }
-        if (r.fittingSlot?.includes("LowerGarment"))
-          push(r, newBottoms, "LowerGarment");
-        if (r.fittingSlot?.includes("FootGarment"))
-          push(r, newShoes, "FootGarment");
-        if (r.garmentType?.includes("Bag"))
-          push(r, newBags, "RightHandAccessory");
-      }
-    }
-
-    aiPopulatedRef.current.tops = true;
-    aiPopulatedRef.current.bottoms = true;
-    aiPopulatedRef.current.shoes = true;
-    aiPopulatedRef.current.bags = true;
-    aiPopulatedRef.current.outfits = true;
-
-    setTopsBase(newTopsBase);
-    setTopsBasePage(0);
-    setTopsMid(newTopsMid);
-    setTopsMidPage(0);
-    setTopsOuter(newTopsOuter);
-    setTopsOuterPage(0);
-    setBottoms(newBottoms);
-    setBottomsPage(0);
-    setShoes(newShoes);
-    setShoesPage(0);
-    setBags(newBags);
-    setBagsPage(0);
-
-    const newAiOutfits: RemoteOutfit[] = sets
-      .filter((s) => s.outfit_imageUrl)
-      .map((s) => ({
-        id: s.outfit_id,
-        name: s.outfit_name,
-        description: s.reason,
-        file: { fileUrl: s.outfit_imageUrl },
-        items: s.recommendations.map((r) => ({
-          id: r.id,
-          slot: r.fittingSlot[0] ?? "UpperGarment",
-          garment: {
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            imageUrl: r.imageUrl,
-            garmentType: r.garmentType,
-            fittingSlot: r.fittingSlot,
-          },
-        })),
-        metaData: null,
-      }));
-    setOutfits(newAiOutfits);
-    setOutfitPage(0);
-  }
-
-  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  // Runs before the garmentService fetch effect so aiPopulatedRef flags are
-  // set first, preventing fetched data from overwriting AI recommendations.
-  useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const clearSlots = () => {
     setSelectedBag(null);
@@ -512,6 +378,164 @@ export default function VirtualMirrorV2() {
         if (!aiPopulatedRef.current.outfits) setOutfits(data);
       })
       .catch((err) => console.error("[Outfits] fetch error:", err));
+  }, []);
+
+
+  const handleAiComplete = useCallback((response: ChatWonderMessageResponse) => {
+    setSelectedBag(null);
+    setSelectedTopBase(null);
+    setSelectedTopMid(null);
+    setSelectedTopOuter(null);
+    setSelectedBottom(null);
+    setSelectedShoe(null);
+    setSelectedOutfitIdx(null);
+
+    type AiItem = {
+      id?: string;
+      name: string;
+      type?: string;
+      description?: string;
+      reason?: string;
+      imageUrl?: string;
+      category?: string | string[];
+      garmentType?: string[];
+      fittingSlot?: string[];
+      layerLevel?: string;
+    };
+
+    const newTopsBase: RemoteGarment[] = [];
+    const newTopsMid: RemoteGarment[] = [];
+    const newTopsOuter: RemoteGarment[] = [];
+    const newBottoms: RemoteGarment[] = [];
+    const newShoes: RemoteGarment[] = [];
+    const newBags: RemoteGarment[] = [];
+    const seen = new Set<string>();
+
+    const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
+      id: item.id ?? crypto.randomUUID(),
+      name: item.name,
+      description: item.reason ?? item.description ?? "",
+      imageUrl: item.imageUrl ?? "",
+      fittingSlot: [slot],
+      garmentType: item.garmentType ?? (item.type ? [item.type] : []),
+      category: Array.isArray(item.category)
+        ? item.category
+        : item.category
+          ? [item.category]
+          : [],
+      tags: [],
+      gender: null,
+      silhouette: null,
+      layerLevel: item.layerLevel ?? null,
+      file: null,
+    });
+
+    function push(
+      item: AiItem | undefined,
+      bucket: RemoteGarment[],
+      slot: string,
+    ) {
+      if (!item?.id) return;
+      if (seen.has(item.id)) return;
+      seen.add(item.id);
+      bucket.push(toGarment(item, slot));
+    }
+
+    // ── /message format: response.garment_data.sets[].recommendations[] ────────
+    const sets = response.garment_data?.sets ?? [];
+    for (const s of sets) {
+      for (const r of (s.recommendations ?? []) as AiItem[]) {
+        if (r.fittingSlot?.includes("UpperGarment")) {
+          const layer = r.layerLevel ?? "BASE";
+          if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
+          else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
+          else push(r, newTopsBase, "UpperGarment");
+        }
+        if (r.fittingSlot?.includes("LowerGarment"))
+          push(r, newBottoms, "LowerGarment");
+        if (r.fittingSlot?.includes("FootGarment"))
+          push(r, newShoes, "FootGarment");
+        if (r.garmentType?.includes("Bag"))
+          push(r, newBags, "RightHandAccessory");
+      }
+    }
+
+    aiPopulatedRef.current.tops = true;
+    aiPopulatedRef.current.bottoms = true;
+    aiPopulatedRef.current.shoes = true;
+    aiPopulatedRef.current.bags = true;
+    aiPopulatedRef.current.outfits = true;
+
+    setTopsBase(newTopsBase);
+    setTopsBasePage(0);
+    setTopsMid(newTopsMid);
+    setTopsMidPage(0);
+    setTopsOuter(newTopsOuter);
+    setTopsOuterPage(0);
+    setBottoms(newBottoms);
+    setBottomsPage(0);
+    setShoes(newShoes);
+    setShoesPage(0);
+    setBags(newBags);
+    setBagsPage(0);
+
+    const newAiOutfits: RemoteOutfit[] = sets
+      .filter((s) => s.outfit_imageUrl)
+      .map((s) => ({
+        id: s.outfit_id,
+        name: s.outfit_name,
+        description: s.reason,
+        file: { fileUrl: s.outfit_imageUrl },
+        items: s.recommendations.map((r) => ({
+          id: r.id,
+          slot: r.fittingSlot[0] ?? "UpperGarment",
+          garment: {
+            id: r.id,
+            name: r.name,
+            description: r.description,
+            imageUrl: r.imageUrl,
+            garmentType: r.garmentType,
+            fittingSlot: r.fittingSlot,
+          },
+        })),
+        metaData: null,
+      }));
+    setOutfits(newAiOutfits);
+    setOutfitPage(0);
+  }, [
+    setTopsBase,
+    setTopsBasePage,
+    setTopsMid,
+    setTopsMidPage,
+    setTopsOuter,
+    setTopsOuterPage,
+    setBottoms,
+    setBottomsPage,
+    setShoes,
+    setShoesPage,
+    setBags,
+    setBagsPage,
+    setOutfits,
+    setOutfitPage,
+    setSelectedBag,
+    setSelectedTopBase,
+    setSelectedTopMid,
+    setSelectedTopOuter,
+    setSelectedBottom,
+    setSelectedShoe,
+    setSelectedOutfitIdx
+  ]);
+
+  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
+  // Runs before the garmentService fetch effect so aiPopulatedRef flags are
+  // set first, preventing fetched data from overwriting AI recommendations.
+  useEffect(() => {
+    const pending = useMirrorStore.getState().pendingGarmentData;
+    if (!pending) return;
+    useMirrorStore.getState().setPendingGarmentData(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -1390,11 +1414,6 @@ export default function VirtualMirrorV2() {
           onClose={() => setShowConfirm(false)}
         />
       )}
-
-      <VoiceTranscribeOverlay
-        onAiComplete={(r) => handleAiComplete(r)}
-        onLoadingChange={setVoiceLoading}
-      />
     </div>
   );
 }

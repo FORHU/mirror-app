@@ -8,12 +8,17 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
-import { useRouter } from "next/navigation";
 import {
   useOverviewStore,
   adaptGarmentData,
   adaptMapsData,
 } from "@/modules/overview";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import {
+  cosmeticsService,
+  type SkinAnalysis,
+} from "@/modules/shared/api/cosmetics.service";
+import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 
 type GarmentRecommendationAction = {
@@ -31,20 +36,22 @@ const TAGLINES = [
 ];
 
 export default function AIAssistantPage() {
-  const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
-  const startListeningRef = useRef<() => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => void>(() => {});
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
   const setMap = useOverviewStore((s) => s.setMap);
+  const setSkinAnalysisResult = useMirrorStore((s) => s.setSkinAnalysisResult);
+  const setSkinCaptureUrl = useMirrorStore((s) => s.setSkinCaptureUrl);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
   const hasGreetedRef = useRef(false);
   const hasBeenPresentRef = useRef(false);
+  const hasCapturedSkinRef = useRef(false);
 
   const pageContext = useMemo(
     () => ({
@@ -70,7 +77,7 @@ export default function AIAssistantPage() {
       const m = adaptMapsData(response?.maps_data?.[0]);
       if (m) setMap(m);
     },
-    [setGarments, setOutfits, setMap, router],
+    [setGarments, setOutfits, setMap],
   );
 
   useVoice(pageContext, handleVoiceAction);
@@ -93,10 +100,44 @@ export default function AIAssistantPage() {
     isPresent,
     videoRef,
     status: sensorStatus,
+    captureFrame,
   } = useProximitySensor({
     intervalMs: 1000,
     missesUntilExit: 10,
   });
+
+  // Background Skin Analysis
+  useEffect(() => {
+    if (isPresent && !hasCapturedSkinRef.current) {
+      hasCapturedSkinRef.current = true;
+      const frame = captureFrame();
+      if (frame) {
+        (async () => {
+          try {
+            const uploaded = await cosmeticsService.uploadCapture(frame);
+            setSkinCaptureUrl(uploaded.fileUrl);
+            await listenForSkinAnalysis({
+              onComplete: (data) => {
+                const analysis = data as SkinAnalysis;
+                setSkinAnalysisResult(analysis);
+              },
+              onError: (msg) =>
+                console.error("[skin-analysis] Background failed:", msg),
+            });
+            await cosmeticsService.startSkinAnalysis(uploaded.id);
+          } catch (e) {
+            console.error("[skin-analysis] Upload/start failed:", e);
+          }
+        })();
+      }
+    }
+  }, [
+    isPresent,
+    captureFrame,
+    setSkinAnalysisResult,
+    setSkinCaptureUrl,
+    submitText,
+  ]);
 
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -148,7 +189,7 @@ export default function AIAssistantPage() {
 
     if (!hasGreetedRef.current) {
       hasGreetedRef.current = true;
-      startListeningRef.current().catch(() => {});
+      startListeningRef.current();
     }
   }, [showIdle]);
 
@@ -174,6 +215,7 @@ export default function AIAssistantPage() {
       // Restart the session completely
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
         m.chatWonderService.restart().finally(() => {
+          sessionStorage.clear();
           window.location.reload();
         });
       });

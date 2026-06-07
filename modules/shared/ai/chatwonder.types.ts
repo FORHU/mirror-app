@@ -10,7 +10,7 @@ export interface PageContext {
   pageName: string;
   activeStep?: string;
   collectedData?: EventSetupData;
-  mode?: "garment" | "map";
+  mode?: "garment" | "map" | "cosmetics";
   persona?: string;
 }
 

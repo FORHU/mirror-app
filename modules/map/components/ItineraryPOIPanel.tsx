@@ -4,6 +4,7 @@ import React from "react";
 import { useMapStore } from "../store/useMapStore";
 import { stopColor } from "../constants/stopColors";
 import type { NearbyPOI } from "../services/map.service";
+import Image from "next/image";
 
 const ItineraryPOIPanel: React.FC = () => {
   const itineraryStopPOIs = useMapStore((s) => s.itineraryStopPOIs);
@@ -140,7 +141,7 @@ const ItineraryPOIPanel: React.FC = () => {
                 }}
               >
                 {poi.photo ? (
-                  <img
+                  <Image
                     src={poi.photo}
                     alt=""
                     style={{

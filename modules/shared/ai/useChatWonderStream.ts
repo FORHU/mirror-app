@@ -9,6 +9,7 @@ import {
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
 import { AudioQueue } from "@/modules/shared/voice/audioQueue";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 interface ItineraryMap {
   destination?: string;
@@ -164,6 +165,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
             voice: true,
             kioskId,
             sitemap_context: SITEMAP_CONTEXT,
+            skin_analysis: useMirrorStore.getState().skinAnalysisResult,
           }),
           signal: abortControllerRef.current.signal,
         });

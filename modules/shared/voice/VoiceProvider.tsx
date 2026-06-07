@@ -96,16 +96,6 @@ function buildItineraryConfirmReply(
     : "";
   return `${opener}${routeSummary ?? ""}${poiMention} ${closer}`;
 }
-
-function float32ToInt16(f: Float32Array): Int16Array {
-  const out = new Int16Array(f.length);
-  for (let n = 0; n < f.length; n++) {
-    const c = Math.max(-1, Math.min(1, f[n]));
-    out[n] = c < 0 ? c * 0x8000 : c * 0x7fff;
-  }
-  return out;
-}
-
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -237,14 +227,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
-  const clearItineraryIdleTimer = () => {
+  const clearItineraryIdleTimer = useCallback(() => {
     if (itineraryIdleTimerRef.current) {
       clearTimeout(itineraryIdleTimerRef.current);
       itineraryIdleTimerRef.current = null;
     }
-  };
+  }, []);
 
-  const startItineraryIdleTimer = () => {
+  const startItineraryIdleTimer = useCallback(() => {
     clearItineraryIdleTimer();
     itineraryIdleTimerRef.current = setTimeout(async () => {
       if (!isCollectingItineraryRef.current) return;
@@ -269,8 +259,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       } else {
         setVoiceState("idle");
       }
-    }, 12000);
-  };
+    }, 10000);
+  }, [clearItineraryIdleTimer]);
 
   // ----------------------
 
@@ -362,7 +352,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<unknown>(null);
 
   const processTranscript = useCallback(
     async (t: string) => {
@@ -431,8 +421,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Garment mode: bypass the orchestration pipeline, route to chatWonderService
-        if (pageCtxRef.current?.mode === "garment") {
+        // Garment and Cosmetics mode: bypass the orchestration pipeline, route to chatWonderService
+        const pageMode = pageCtxRef.current?.mode;
+        if (
+          pageMode === "garment" ||
+          pageMode === "cosmetics" ||
+          pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
+        ) {
           let weather: Record<string, unknown> | undefined;
           if (loc) {
             try {
@@ -462,35 +457,51 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               /* weather is best-effort */
             }
           }
-          const garmentResponse = await chatWonderService.message({
-            input: `[garment] ${t}`,
+
+          const isCosmetics =
+            pageMode === "cosmetics" ||
+            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+          const inputPrefix = isCosmetics ? "[cosmetics]" : "[garment]";
+
+          const aiResponse = await chatWonderService.message({
+            input: `${inputPrefix} ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             ...(weather ? { weather } : {}),
+            ...(isCosmetics
+              ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult }
+              : {}),
           });
 
-          if (garmentResponse.stylist_data?.target_url) {
-            if (garmentResponse.stylist_data.target_url === "back") {
+          if (aiResponse.stylist_data?.target_url) {
+            if (aiResponse.garment_data) {
+              useMirrorStore
+                .getState()
+                .setPendingGarmentData(aiResponse.garment_data);
+            }
+            if (aiResponse.cosmetics_data) {
+              useMirrorStore
+                .getState()
+                .setPendingCosmeticsData(aiResponse.cosmetics_data);
+            }
+            if (aiResponse.stylist_data.target_url === "back") {
               router.back();
             } else {
-              router.push(garmentResponse.stylist_data.target_url);
+              router.push(aiResponse.stylist_data.target_url);
             }
           }
 
-          setReply(garmentResponse.message);
+          setReply(aiResponse.message);
           const newHistory = [
             ...historyRef.current,
-            { user: t, assistant: garmentResponse.message },
+            { user: t, assistant: aiResponse.message },
           ];
           historyRef.current = newHistory;
           setChatHistory(newHistory);
 
-          if (garmentResponse.audioBase64) {
+          if (aiResponse.audioBase64) {
             setVoiceState("speaking");
-            const audioBuffer = Buffer.from(
-              garmentResponse.audioBase64,
-              "base64",
-            );
+            const audioBuffer = Buffer.from(aiResponse.audioBase64, "base64");
             const playCtx = new AudioContext();
             playbackCtxRef.current = playCtx;
             const decoded = await playCtx.decodeAudioData(
@@ -1848,8 +1859,36 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           let locCtx:
             | { lat: number | string; lng: number | string }
             | undefined;
+          let weatherCtx: Record<string, unknown> | undefined;
+
           if (loc) {
             locCtx = { lat: loc.lat, lng: loc.lng };
+            try {
+              const wRes = await fetch(
+                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
+              );
+              if (wRes.ok) {
+                const json = await wRes.json();
+                const d = json.data ?? json;
+                weatherCtx = {
+                  date: new Date().toISOString().split("T")[0],
+                  description: String(d.condition ?? "").toLowerCase(),
+                  estimated: false,
+                  is_cold: Number(d.temperature) < 20,
+                  is_hot: Number(d.temperature) >= 30,
+                  is_rainy:
+                    Number(d.precipitationProb) >= 50 ||
+                    String(d.condition ?? "")
+                      .toLowerCase()
+                      .includes("rain"),
+                  lat: loc.lat,
+                  lon: loc.lng,
+                  temperature_c: Number(d.temperature),
+                };
+              }
+            } catch {
+              /* best effort */
+            }
           }
 
           const res = await chatWonderService.message({
@@ -1858,12 +1897,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             voice: true,
             location: locCtx,
             sitemapContext: SITEMAP_CONTEXT,
+            ...(weatherCtx ? { weather: weatherCtx } : {}),
+            skinAnalysis: useMirrorStore.getState().skinAnalysisResult,
           });
 
           r = res.message;
           events = res.events ?? [];
           if (res.audioBase64) {
-            audioBuffer = Buffer.from(res.audioBase64, "base64");
+            const buf = Buffer.from(res.audioBase64, "base64");
+            audioBuffer = buf.buffer.slice(
+              buf.byteOffset,
+              buf.byteOffset + buf.byteLength,
+            ) as ArrayBuffer;
           }
 
           let chatAction: ChatWonderAction | null = null;
@@ -1871,16 +1916,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             if (res.garment_data) {
               useMirrorStore.getState().setPendingGarmentData(res.garment_data);
             }
+            if (res.cosmetics_data) {
+              useMirrorStore
+                .getState()
+                .setPendingCosmeticsData(res.cosmetics_data);
+            }
             router.push(res.stylist_data.target_url);
-          } else if (res.garment_data || res.maps_data) {
+          } else if (res.garment_data || res.maps_data || res.cosmetics_data) {
             // Synthetic action that triggers handleVoiceAction catchers
             chatAction = {
-              type: "GARMENT_RECOMMENDATION" as any,
+              type: "GARMENT_RECOMMENDATION" as unknown,
               response: {
                 garment_data: res.garment_data,
                 maps_data: res.maps_data,
               },
-            } as any;
+            } as unknown;
           }
 
           // 🧠 RUN UI KERNEL
@@ -1909,10 +1959,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         setReply(r);
         setAiEvents(events || []);
-        const newHistory = [
-          ...historyRef.current,
-          { user: t, assistant: r },
-        ];
+        const newHistory = [...historyRef.current, { user: t, assistant: r }];
         historyRef.current = newHistory;
         setChatHistory(newHistory);
         setVoiceState("speaking");
@@ -1953,7 +2000,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [voiceState, pathname, router, handleAIAssistantText, stopPlayback],
+    [pathname, router, stopPlayback, startItineraryIdleTimer, clearItineraryIdleTimer],
   );
 
   const startListening = useCallback(async () => {
@@ -1961,8 +2008,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+        (window as unknown as { SpeechRecognition: unknown }).SpeechRecognition ||
+        (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setError("Speech recognition is not supported in this browser.");
         return;
@@ -1985,13 +2032,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       };
 
       recognition.onstart = () => setVoiceState("recording");
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: { error: string }) => {
         clearSilenceTimer();
         if (event.error !== "no-speech")
           setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech") setVoiceState("idle");
       };
-      recognition.onresult = (event: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: { resultIndex: number; results: any }) => {
         // Reset silence timer on every new final segment — only stop + process
         // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend
         // events mid-utterance don't cut the user off prematurely.
