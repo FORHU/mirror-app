@@ -144,6 +144,9 @@ const ItineraryPOIPanel: React.FC = () => {
                   <Image
                     src={poi.photo}
                     alt=""
+                    width={300}
+                    height={90}
+                    unoptimized
                     style={{
                       width: "100%",
                       height: 90,
