@@ -2,7 +2,6 @@
 
 import {
   Mic,
-  MicOff,
   Loader2,
   Volume2,
   MessageSquare,
@@ -53,7 +52,7 @@ export default function MapMicPill() {
         : "Ask Mirror";
 
   const micIcon = isListening ? (
-    <MicOff className="w-5 h-5 text-red-400" />
+    <Mic className="w-5 h-5 text-emerald-400" />
   ) : isProcessing ? (
     <Loader2 className="w-5 h-5 text-white/60 animate-spin" />
   ) : isSpeaking ? (
@@ -63,7 +62,7 @@ export default function MapMicPill() {
   );
 
   const pillBorder = isListening
-    ? "1px solid rgba(239,68,68,0.6)"
+    ? "1px solid rgba(34,197,94,0.7)"
     : isSpeaking || isProcessing
       ? "1px solid rgba(255,255,255,0.3)"
       : "1px solid rgba(255,255,255,0.12)";
@@ -198,7 +197,12 @@ export default function MapMicPill() {
           style={{
             ...PANEL,
             border: pillBorder,
-            boxShadow: isActive ? "0 0 20px rgba(255,255,255,0.08)" : "none",
+            boxShadow: isListening
+              ? "0 0 24px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
+              : isActive
+                ? "0 0 20px rgba(255,255,255,0.08)"
+                : "none",
+            background: isListening ? "rgba(5,20,12,0.90)" : PANEL.background,
           }}
         >
           {micIcon}

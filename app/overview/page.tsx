@@ -49,7 +49,11 @@ import MirrorHeader from "@/components/MirrorHeader";
 // when a garment recommendation resolves; narrow against it safely.
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
-  response?: { garment_data?: unknown; maps_data?: unknown[]; cosmetics_data?: unknown };
+  response?: {
+    garment_data?: unknown;
+    maps_data?: unknown[];
+    cosmetics_data?: unknown;
+  };
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
@@ -159,13 +163,23 @@ export default function OverviewPage() {
   // and while any tile is actively resolving a live request.
   const [hydrating, setHydrating] = useState(true);
 
-  const garmentsLoading = useOverviewStore((s) => s.garments.status === "loading");
-  const outfitsLoading = useOverviewStore((s) => s.outfits.status === "loading");
-  const cosmeticsLoading = useOverviewStore((s) => s.cosmetics.status === "loading");
+  const garmentsLoading = useOverviewStore(
+    (s) => s.garments.status === "loading",
+  );
+  const outfitsLoading = useOverviewStore(
+    (s) => s.outfits.status === "loading",
+  );
+  const cosmeticsLoading = useOverviewStore(
+    (s) => s.cosmetics.status === "loading",
+  );
   const mapLoading = useOverviewStore((s) => s.map.status === "loading");
 
   const isLoading =
-    hydrating || garmentsLoading || outfitsLoading || cosmeticsLoading || mapLoading;
+    hydrating ||
+    garmentsLoading ||
+    outfitsLoading ||
+    cosmeticsLoading ||
+    mapLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
@@ -186,7 +200,8 @@ export default function OverviewPage() {
       try {
         const outline = await outlineService.getActive();
         if (cancelled || !outline) return;
-        const { garments, outfits, cosmetics, skinAnalysis } = adaptOutlineToTiles(outline);
+        const { garments, outfits, cosmetics, skinAnalysis } =
+          adaptOutlineToTiles(outline);
         setGarments(garments);
         setOutfits(outfits);
         setCosmetics(cosmetics);
@@ -204,14 +219,11 @@ export default function OverviewPage() {
   }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
 
   // ── face detection → greet (fires once) ──
-  const onFaceDetected = useCallback(
-    () => {
-      setFaceDetected(true);
-      // Overview is a downstream dashboard, not an entry screen — it does not
-      // greet. (Greeting belongs to /ai-assistant.)
-    },
-    [setFaceDetected],
-  );
+  const onFaceDetected = useCallback(() => {
+    setFaceDetected(true);
+    // Overview is a downstream dashboard, not an entry screen — it does not
+    // greet. (Greeting belongs to /ai-assistant.)
+  }, [setFaceDetected]);
 
   const {
     videoRef,
@@ -220,7 +232,7 @@ export default function OverviewPage() {
     captureFrame,
   } = useProximitySensor({
     intervalMs: 1000,
-    missesUntilExit: 5,
+    missesUntilExit: 3,
   });
 
   const hasCapturedRef = useRef(false);
@@ -415,7 +427,11 @@ export default function OverviewPage() {
 
       <MirrorHeader
         className="w-full"
-        style={{ background: "transparent", paddingLeft: "16px", paddingRight: "16px" }}
+        style={{
+          background: "transparent",
+          paddingLeft: "16px",
+          paddingRight: "16px",
+        }}
         isListening={isListening}
         right={
           <div
@@ -479,14 +495,16 @@ export default function OverviewPage() {
         {/* Buttons previously here were removed */}
       </div>
 
-
       {/* Full-screen video loader overlay when resolving data */}
       <AnimatePresence>
         {isLoading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.5, ease: "easeInOut" } }}
+            exit={{
+              opacity: 0,
+              transition: { duration: 0.5, ease: "easeInOut" },
+            }}
             className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
           >
             <video

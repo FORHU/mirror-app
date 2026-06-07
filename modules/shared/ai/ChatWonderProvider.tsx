@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   useChatWonderStream,
@@ -11,15 +17,23 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
 import type { ChatWonderGarmentData } from "@/modules/shared/api/chat-wonder.service";
 
-export const ChatWonderContext = createContext<UseChatWonderStreamResult | null>(null);
+export const ChatWonderContext =
+  createContext<UseChatWonderStreamResult | null>(null);
 
 export function useChatWonderContext(): UseChatWonderStreamResult {
   const ctx = useContext(ChatWonderContext);
-  if (!ctx) throw new Error("useChatWonderContext must be used inside ChatWonderProvider");
+  if (!ctx)
+    throw new Error(
+      "useChatWonderContext must be used inside ChatWonderProvider",
+    );
   return ctx;
 }
 
-export function ChatWonderProvider({ children }: { children: React.ReactNode }) {
+export function ChatWonderProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const stream = useChatWonderStream();
@@ -48,10 +62,14 @@ export function ChatWonderProvider({ children }: { children: React.ReactNode }) 
           if (payload.garment_data) {
             useMirrorStore
               .getState()
-              .setChatGarmentData(payload.garment_data as ChatWonderGarmentData);
+              .setChatGarmentData(
+                payload.garment_data as ChatWonderGarmentData,
+              );
           }
           if (payload.cosmetics_data) {
-            useMirrorStore.getState().setChatCosmeticsData(payload.cosmetics_data);
+            useMirrorStore
+              .getState()
+              .setChatCosmeticsData(payload.cosmetics_data);
           }
           useMirrorStore.getState().setChatNavPending(false);
           options?.onComplete?.(payload);

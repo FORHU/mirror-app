@@ -99,7 +99,13 @@ export default function MirrorHeader({
         </span>
       </div>
       <div
-        style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}
+        style={{
+          flex: "0 0 25%",
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: "12px",
+        }}
       >
         {rightContent}
         <div

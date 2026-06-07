@@ -233,7 +233,9 @@ function WardrobeContent({ outfits }: { outfits: OutfitTileItem[] }) {
               <CardImage src={o.imageUrl} alt={o.name} />
             </div>
             <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
-              <p className="text-white text-sm font-medium truncate">{o.name}</p>
+              <p className="text-white text-sm font-medium truncate">
+                {o.name}
+              </p>
               {o.vibe && (
                 <p className="text-white/45 text-xs truncate">{o.vibe}</p>
               )}
@@ -323,7 +325,11 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
       {item.imageUrl && (
         <div className="absolute -right-4 -bottom-4 w-32 h-32 rounded-full overflow-hidden opacity-20 blur-xl pointer-events-none">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={proxied(item.imageUrl)} className="w-full h-full object-cover" alt="Scan Profile" />
+          <img
+            src={proxied(item.imageUrl)}
+            className="w-full h-full object-cover"
+            alt="Scan Profile"
+          />
         </div>
       )}
 
@@ -332,15 +338,23 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
           <h4 className="text-white font-semibold text-sm tracking-wide">
             {item.skinType}
           </h4>
-          <p className="text-white/50 text-[10px] uppercase tracking-widest mt-0.5">Profile</p>
+          <p className="text-white/50 text-[10px] uppercase tracking-widest mt-0.5">
+            Profile
+          </p>
         </div>
         {item.skinTone && (
           <div className="flex items-center gap-2 bg-white/5 px-2.5 py-1.5 rounded-full border border-white/10">
-            <div 
+            <div
               className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
-              style={{ backgroundColor: item.skinTone.startsWith('#') ? item.skinTone : `#${item.skinTone}` }}
+              style={{
+                backgroundColor: item.skinTone.startsWith("#")
+                  ? item.skinTone
+                  : `#${item.skinTone}`,
+              }}
             />
-            <span className="text-white/80 text-xs font-mono uppercase tracking-widest">{item.skinTone}</span>
+            <span className="text-white/80 text-xs font-mono uppercase tracking-widest">
+              {item.skinTone}
+            </span>
           </div>
         )}
       </div>
@@ -349,10 +363,15 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
         <div>
           <div className="flex justify-between text-xs mb-1.5">
             <span className="text-white/70">Hydration</span>
-            <span className="text-white/90 font-mono">{item.hydrationPct}%</span>
+            <span className="text-white/90 font-mono">
+              {item.hydrationPct}%
+            </span>
           </div>
           <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-400/80 rounded-full" style={{ width: `${item.hydrationPct}%` }} />
+            <div
+              className="h-full bg-blue-400/80 rounded-full"
+              style={{ width: `${item.hydrationPct}%` }}
+            />
           </div>
         </div>
 
@@ -362,17 +381,25 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
             <span className="text-white/90 font-mono">{item.oilinessPct}%</span>
           </div>
           <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-amber-400/80 rounded-full" style={{ width: `${item.oilinessPct}%` }} />
+            <div
+              className="h-full bg-amber-400/80 rounded-full"
+              style={{ width: `${item.oilinessPct}%` }}
+            />
           </div>
         </div>
       </div>
 
       {item.concerns.length > 0 && (
         <div className="mt-auto z-10">
-          <h5 className="text-white/50 text-[10px] uppercase tracking-widest mb-2 font-semibold">Active Concerns</h5>
+          <h5 className="text-white/50 text-[10px] uppercase tracking-widest mb-2 font-semibold">
+            Active Concerns
+          </h5>
           <div className="flex flex-wrap gap-1.5">
-            {item.concerns.map(c => (
-              <span key={c} className="text-[10px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md">
+            {item.concerns.map((c) => (
+              <span
+                key={c}
+                className="text-[10px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md"
+              >
                 {c}
               </span>
             ))}
@@ -418,7 +445,9 @@ export function OverviewGrid() {
       icon: Sparkles,
       state: cosmetics,
       empty: "No cosmetics recommended.",
-      content: cosmetics.data ? <CosmeticsContent items={cosmetics.data} /> : null,
+      content: cosmetics.data ? (
+        <CosmeticsContent items={cosmetics.data} />
+      ) : null,
     },
     {
       key: "map",

@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { VoiceState } from "./types";
 import { SYSTEM_RESPONSES } from "./responses";
 import { runKernel } from "./orchestration/kernel";
+import { handleStylistTarget } from "./sessionCommands";
 import { executeAction } from "./orchestration/actionExecutor";
 import { guardAction } from "./orchestration/actionGuard";
 import {
@@ -210,14 +211,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isPresent && sensorStatus !== "unavailable") return;
     if (voiceState !== "idle") return;
-    
+
     // Defer startListening slightly to ensure AudioContext drops correctly
     const id = setTimeout(() => {
       // The startListening function is closed over but we can just call it
-      // However, startListening is defined below! We must make sure it is 
+      // However, startListening is defined below! We must make sure it is
       // available or we just use a ref or hoist it.
-      // Wait, startListening is defined below this effect. We can't call it here 
-      // if it's not defined, but useEffect runs after render, so startListening 
+      // Wait, startListening is defined below this effect. We can't call it here
+      // if it's not defined, but useEffect runs after render, so startListening
       // is already captured by the closure.
     }, 600);
     return () => clearTimeout(id);
@@ -382,7 +383,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     onstart: () => void;
     onend: () => void;
     onerror: (event: { error: string }) => void;
-    onresult: (event: { resultIndex: number; results: Array<{ isFinal: boolean; [index: number]: { transcript: string } }> }) => void;
+    onresult: (event: {
+      resultIndex: number;
+      results: Array<{
+        isFinal: boolean;
+        [index: number]: { transcript: string };
+      }>;
+    }) => void;
     stop: () => void;
     start: () => void;
   }
@@ -449,7 +456,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             sessionStorage.getItem("mirror_gender") ||
             undefined,
         };
-
 
         if (!t || t.trim() === "") {
           setVoiceState("idle");
@@ -1955,7 +1961,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 .getState()
                 .setPendingCosmeticsData(res.cosmetics_data);
             }
-            router.push(res.stylist_data.target_url);
+            void handleStylistTarget(
+              res.stylist_data.target_url,
+              router,
+              pathname,
+            );
           } else if (res.garment_data || res.maps_data || res.cosmetics_data) {
             // Synthetic action that triggers handleVoiceAction catchers
             chatAction = {
@@ -2035,7 +2045,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [pathname, router, stopPlayback, startItineraryIdleTimer, clearItineraryIdleTimer],
+    [
+      pathname,
+      router,
+      stopPlayback,
+      startItineraryIdleTimer,
+      clearItineraryIdleTimer,
+    ],
   );
 
   const startListening = useCallback(async () => {
@@ -2044,8 +2060,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     try {
       type SpeechRecognitionConstructor = new () => ISpeechRecognition;
       const SpeechRecognition =
-        (window as unknown as { SpeechRecognition: SpeechRecognitionConstructor }).SpeechRecognition ||
-        (window as unknown as { webkitSpeechRecognition: SpeechRecognitionConstructor }).webkitSpeechRecognition;
+        (
+          window as unknown as {
+            SpeechRecognition: SpeechRecognitionConstructor;
+          }
+        ).SpeechRecognition ||
+        (
+          window as unknown as {
+            webkitSpeechRecognition: SpeechRecognitionConstructor;
+          }
+        ).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setError("Speech recognition is not supported in this browser.");
         return;
@@ -2074,7 +2098,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech") setVoiceState("idle");
       };
-      recognition.onresult = (event: { resultIndex: number; results: Array<{ isFinal: boolean; [index: number]: { transcript: string } }> }) => {
+      recognition.onresult = (event: {
+        resultIndex: number;
+        results: Array<{
+          isFinal: boolean;
+          [index: number]: { transcript: string };
+        }>;
+      }) => {
         // Reset silence timer on every new final segment — only stop + process
         // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend
         // events mid-utterance don't cut the user off prematurely.
@@ -2191,7 +2221,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isPresent && sensorStatus !== "unavailable") return;
     if (voiceState !== "idle") return;
-    
+
     const id = setTimeout(() => startListening(), 600);
     return () => clearTimeout(id);
   }, [voiceState, isPresent, sensorStatus, startListening]);

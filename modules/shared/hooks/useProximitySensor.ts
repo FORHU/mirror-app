@@ -97,7 +97,7 @@ export function useProximitySensor(options: UseProximitySensorOptions = {}) {
             pan: false,
             tilt: false,
             zoom: false,
-          } as any, // Cast to any because standard TS DOM lib lacks PTZ types
+          } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
           audio: false,
         });
         if (cancelled) {

@@ -1,4 +1,10 @@
-import type { CosmeticTileItem, GarmentTileItem, MapTileData, OutfitTileItem, SkinAnalysisTileItem } from "./types";
+import type {
+  CosmeticTileItem,
+  GarmentTileItem,
+  MapTileData,
+  OutfitTileItem,
+  SkinAnalysisTileItem,
+} from "./types";
 
 /**
  * Normalizers from ChatWonder's loosely-typed tool payloads into the tile
@@ -204,7 +210,9 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
       skinTone: str(rawAnalysis.skinTone) || null,
       hydrationPct: num(rawAnalysis.hydrationPct) ?? 50,
       oilinessPct: num(rawAnalysis.oilinessPct) ?? 50,
-      concerns: Array.isArray(rawAnalysis.concerns) ? rawAnalysis.concerns.map(str) : [],
+      concerns: Array.isArray(rawAnalysis.concerns)
+        ? rawAnalysis.concerns.map(str)
+        : [],
       imageUrl: fileUrlOf(rawAnalysis.file) || null,
     };
 

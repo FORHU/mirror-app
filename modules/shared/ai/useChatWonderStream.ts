@@ -148,12 +148,51 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         } else if (options?.mode === "cosmetics") {
           finalInput = `[stylist] ${text}`;
         } else if (options?.mode === "overview") {
-          finalInput = `[stylist] ${text}`;
+          finalInput = `[stylist] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
         }
 
         // Stop any currently playing audio before starting a new stream
         if (audioQueueRef.current) {
           audioQueueRef.current.stop();
+        }
+
+        const payload: Record<string, unknown> = {
+          input: finalInput,
+          conversationId: options?.conversationId,
+          voice: true,
+          kioskId,
+          sitemap_context: SITEMAP_CONTEXT,
+        };
+
+        if (
+          options?.mode === "garments" ||
+          options?.mode === "cosmetics" ||
+          options?.mode === "overview" ||
+          options?.mode === "map"
+        ) {
+          payload.weather = options?.weather ?? null;
+          payload.location =
+            useMapStore.getState().userLocation ??
+            useMapStore.getState().homeLocation ??
+            null;
+        }
+
+        if (options?.mode === "cosmetics" || options?.mode === "overview") {
+          payload.skin_analysis = useMirrorStore.getState().skinAnalysisResult;
+        }
+
+        // For map mode, also send the current session state so the backend can
+        // answer route-aware queries ("how far?", "add a stop", "near me", etc.)
+        if (options?.mode === "map") {
+          const ms = useMapStore.getState();
+          payload.map_context = {
+            userLocation: ms.userLocation ?? ms.homeLocation ?? null,
+            selectedDestination: ms.selectedDestination ?? null,
+            itineraryStops: ms.itineraryStops ?? [],
+            isRouteActive: !!ms.activeRoute,
+            routeDistance: ms.activeRoute ? (ms.routeDistance ?? null) : null,
+            routeDuration: ms.activeRoute ? (ms.routeDuration ?? null) : null,
+          };
         }
 
         const response = await fetch("/api/mirror/chat-wonder/message", {
@@ -163,15 +202,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
             Accept: "text/event-stream",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({
-            input: finalInput,
-            conversationId: options?.conversationId,
-            weather: options?.weather ?? null,
-            voice: true,
-            kioskId,
-            sitemap_context: SITEMAP_CONTEXT,
-            skin_analysis: useMirrorStore.getState().skinAnalysisResult,
-          }),
+          body: JSON.stringify(payload),
           signal: abortControllerRef.current.signal,
         });
 
@@ -329,7 +360,8 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                   }
                 } else if (parsed.type === "nav_early") {
                   options?.onNavEarly?.(
-                    (parsed.stylist_data as { target_url?: string } | null) ?? null,
+                    (parsed.stylist_data as { target_url?: string } | null) ??
+                      null,
                   );
                 } else if (parsed.type === "error") {
                   if (parsed.code === "session_expired") {

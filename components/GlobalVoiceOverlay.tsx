@@ -1,11 +1,13 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
-import { Mic, MicOff, Loader2, Volume2, MessageSquare } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mic, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { usePathname } from "next/navigation";
 import VoiceWaveform from "@/components/VoiceWaveform";
+
+// (GlobalVoiceOverlay previously used ALWAYS_ON_PATHS here, but the mic is now always-on everywhere except /ai-assistant)
 
 export default function GlobalVoiceOverlay() {
   const pathname = usePathname();
@@ -14,9 +16,23 @@ export default function GlobalVoiceOverlay() {
 }
 
 function VoiceUI() {
-  const { voiceState, transcript, reply, error, toggle, chatHistory } =
+  const { voiceState, transcript, reply, error, toggle, chatHistory, startListening } =
     useVoiceContext();
+  const pathname = usePathname();
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+
+  // Always-on: arm the mic on mount and re-arm after every completed turn.
+  // Applied to ALL pages rendered by GlobalVoiceOverlay (i.e., every page except
+  // /ai-assistant which handles its own mic). This ensures the mic stays hot
+  // across page transitions — navigating Fashion → Overview → Map never closes it.
+  useEffect(() => {
+    if (voiceState !== "idle") return;
+    const id = setTimeout(() => {
+      void startListening();
+    }, 400);
+    return () => clearTimeout(id);
+  }, [voiceState, startListening, pathname]);
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -24,7 +40,7 @@ function VoiceUI() {
   const isActive = isListening || isProcessing || isSpeaking;
 
   const micIcon = isListening ? (
-    <MicOff className="w-7 h-7 text-red-400" />
+    <Mic className="w-7 h-7 text-emerald-400" />
   ) : isProcessing ? (
     <Loader2 className="w-7 h-7 text-[#4fc3f7] animate-spin" />
   ) : isSpeaking ? (
@@ -141,14 +157,22 @@ function VoiceUI() {
         style={{
           height: 64,
           borderRadius: 9999,
-          background: isActive ? "rgba(8,8,14,0.9)" : "rgba(20,20,30,0.85)",
-          border: isActive
-            ? "2px solid rgba(120,180,255,0.45)"
-            : "2px solid rgba(255,255,255,0.15)",
+          background: isListening
+            ? "rgba(5,20,12,0.92)"
+            : isActive
+              ? "rgba(8,8,14,0.9)"
+              : "rgba(20,20,30,0.85)",
+          border: isListening
+            ? "2px solid rgba(34,197,94,0.7)"
+            : isActive
+              ? "2px solid rgba(120,180,255,0.45)"
+              : "2px solid rgba(255,255,255,0.15)",
           backdropFilter: "blur(12px)",
-          boxShadow: isActive
-            ? "0 0 30px rgba(90,150,255,0.4)"
-            : "0 4px 24px rgba(0,0,0,0.5)",
+          boxShadow: isListening
+            ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
+            : isActive
+              ? "0 0 30px rgba(90,150,255,0.4)"
+              : "0 4px 24px rgba(0,0,0,0.5)",
           overflow: "hidden",
           padding: 0,
         }}

@@ -8,13 +8,12 @@ import { useEffect, useMemo, useState } from "react";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import MirrorHeader from "@/components/MirrorHeader";
+import { ChatNavLoader } from "@/components/ChatNavLoader";
 
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
-  const chatNavPending = useMirrorStore((s) => s.chatNavPending);
-  const chatStreamingText = useMirrorStore((s) => s.chatStreamingText);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
 
   const pageContext = useMemo(
@@ -60,16 +59,7 @@ export default function CosmeticRecommendationPage() {
       className="w-full h-full relative overflow-hidden bg-black text-white flex flex-col"
       style={{ fontFamily: "sans-serif", touchAction: "none" }}
     >
-      {chatNavPending && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
-          <div className="w-8 h-8 rounded-full border-2 border-pink-500/20 border-t-pink-400/80 animate-spin mb-6" />
-          {chatStreamingText && (
-            <p className="text-white/70 text-base font-light text-center max-w-sm leading-relaxed px-8">
-              {chatStreamingText}
-            </p>
-          )}
-        </div>
-      )}
+      <ChatNavLoader spinnerColor="pink" />
 
       <MirrorHeader
         className="w-full relative z-10"
@@ -80,7 +70,6 @@ export default function CosmeticRecommendationPage() {
 
       {/* Main 3 Column Layout */}
       <div className="flex-1 flex w-full h-full p-4 gap-6 pt-2">
-
         {/* Left Column - Recommendations 1-5 */}
         <div className="flex flex-col w-[28%] h-full overflow-hidden">
           <CosmeticGrid

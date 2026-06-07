@@ -62,7 +62,8 @@ export const useMirrorStore = create<MirrorState>()(
       setSkinCaptureUrl: (url) => set({ skinCaptureUrl: url }),
       isPresent: false,
       sensorStatus: "starting",
-      setPresence: (isPresent, sensorStatus) => set({ isPresent, sensorStatus }),
+      setPresence: (isPresent, sensorStatus) =>
+        set({ isPresent, sensorStatus }),
       chatNavPending: false,
       setChatNavPending: (pending) => set({ chatNavPending: pending }),
       chatStreamingText: "",
@@ -71,7 +72,13 @@ export const useMirrorStore = create<MirrorState>()(
       setChatGarmentData: (data) => set({ chatGarmentData: data }),
       chatCosmeticsData: null,
       setChatCosmeticsData: (data) => set({ chatCosmeticsData: data }),
-      clearChatNav: () => set({ chatNavPending: false, chatStreamingText: "", chatGarmentData: null, chatCosmeticsData: null }),
+      clearChatNav: () =>
+        set({
+          chatNavPending: false,
+          chatStreamingText: "",
+          chatGarmentData: null,
+          chatCosmeticsData: null,
+        }),
     }),
     {
       name: "mirror-storage",

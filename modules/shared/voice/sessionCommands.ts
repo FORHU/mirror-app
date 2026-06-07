@@ -5,6 +5,7 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMapStore } from "@/modules/map/store/useMapStore";
+import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { ROUTES, isKnownRoute } from "@/navigation";
 
 /**
@@ -51,6 +52,7 @@ export async function performRestart(router: AppRouterInstance) {
   useOutlineStore.getState().reset();
   useMapStore.getState().clearRoute();
   useMirrorStore.getState().clearAiSuggestion();
+  useCalendarStore.getState().clearEvents();
 
   router.push(ROUTES.WELCOME);
 }
