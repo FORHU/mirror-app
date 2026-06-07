@@ -12,6 +12,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
+  const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatNavPending = useMirrorStore((s) => s.chatNavPending);
   const chatStreamingText = useMirrorStore((s) => s.chatStreamingText);
@@ -39,8 +40,18 @@ export default function CosmeticRecommendationPage() {
   // Extract recommendations purely from the initial Skin Analysis
   // (Ignoring pending LLM response since it lacks DB associations)
   const allRecs = useMemo(() => {
+    if (pendingCosmeticsData) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = pendingCosmeticsData as any;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.recommendations)) return data.recommendations;
+      if (Array.isArray(data.sets))
+        return data.sets.flatMap(
+          (s: { recommendations?: SkinRecommendation[] }) => s.recommendations || [],
+        );
+    }
     return skinAnalysisResult?.recommendations || [];
-  }, [skinAnalysisResult]);
+  }, [pendingCosmeticsData, skinAnalysisResult]);
 
   // Sort recommendations by rank
   const sortedRecs = useMemo(() => {
@@ -86,7 +97,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
-            loading={!skinAnalysisResult}
+            loading={!pendingCosmeticsData && !skinAnalysisResult}
             pageSize={5}
             currentPage={0}
             totalPages={1}
@@ -248,7 +259,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}
-            loading={!skinAnalysisResult}
+            loading={!pendingCosmeticsData && !skinAnalysisResult}
             pageSize={5}
             currentPage={0}
             totalPages={1}
