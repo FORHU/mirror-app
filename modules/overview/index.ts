@@ -3,6 +3,7 @@ export { CameraDisclaimer } from "./components/CameraDisclaimer";
 export { useOverviewStore } from "./store/useOverviewStore";
 export {
   adaptGarmentData,
+  adaptCosmeticsData,
   adaptMapsData,
   adaptOutlineToTiles,
 } from "./adapters";
@@ -12,5 +13,6 @@ export type {
   TileState,
   GarmentTileItem,
   OutfitTileItem,
+  CosmeticTileItem,
   MapTileData,
 } from "./types";

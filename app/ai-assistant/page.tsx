@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Sparkles } from "lucide-react";
 import MirrorHeader from "@/components/MirrorHeader";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -193,6 +192,27 @@ export default function AIAssistantPage() {
     }
   }, [showIdle]);
 
+  // Camera-gated wake on the real mirror. But when the proximity sensor is
+  // unavailable (dev machine / no camera), fall back to arming the mic on load
+  // so the mirror is still usable hands-free instead of sitting deaf.
+  const hasAutoWokeRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoWokeRef.current || sensorStatus !== "unavailable") return;
+    hasAutoWokeRef.current = true;
+    const id = setTimeout(() => handleWake(), 400);
+    return () => clearTimeout(id);
+  }, [sensorStatus, handleWake]);
+
+  // Continuous listening: after each turn returns to idle (and the session is
+  // active), re-arm the mic so the mirror keeps catching voice hands-free.
+  // Safe because the wake-word gate ignores anything that isn't a "Mirror …"
+  // command. Waits for "idle" so it never captures its own TTS while speaking.
+  useEffect(() => {
+    if (showIdle || voiceState !== "idle") return;
+    const id = setTimeout(() => startListeningRef.current(), 600);
+    return () => clearTimeout(id);
+  }, [voiceState, showIdle]);
+
   // Handle Proximity Changes
   useEffect(() => {
     if (isPresent) {
@@ -242,12 +262,7 @@ export default function AIAssistantPage() {
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
       <MirrorHeader
-        right={
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03]">
-            <Sparkles className="w-4 h-4 text-white/60" />
-            <span className="text-white/65 text-xs">{status}</span>
-          </div>
-        }
+        isListening={isListening}
       />
 
       <AnimatePresence mode="wait">

@@ -15,18 +15,15 @@
  *  4. Until each tool's data arrives, its tile shows a skeleton.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ScanFace, Loader2, CameraOff } from "lucide-react";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
-import WeatherWidget from "@/components/WeatherWidget";
-import { LanguageSelector } from "@/components/LanguageSelector";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
-import { ChatWonderChat } from "@/modules/shared/ai/ChatWonderChat";
-import type { ChatWonderCompletePayload } from "@/modules/shared/ai/useChatWonderStream";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
@@ -39,18 +36,20 @@ import {
   CameraDisclaimer,
   useOverviewStore,
   adaptGarmentData,
+  adaptCosmeticsData,
   adaptMapsData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
+import MirrorHeader from "@/components/MirrorHeader";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
-  response?: { garment_data?: unknown; maps_data?: unknown[] };
+  response?: { garment_data?: unknown; maps_data?: unknown[]; cosmetics_data?: unknown };
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
@@ -111,10 +110,15 @@ async function requestGarmentsWithFreshSession(
   input: string,
   weather?: OverviewWeatherContext | null,
 ) {
+  // Overview produces a cosmetics tile, which ChatWonder can only fill when it
+  // receives the skin analysis (ADR 0002). Pass it on both the initial call and
+  // the post-409 retry.
+  const skinAnalysis = useMirrorStore.getState().skinAnalysisResult;
   try {
     return await chatWonderService.message({
       input,
       ...(weather ? { weather } : {}),
+      ...(skinAnalysis ? { skinAnalysis } : {}),
     });
   } catch (err) {
     if (err instanceof Error && err.message.includes("HTTP 409")) {
@@ -122,6 +126,7 @@ async function requestGarmentsWithFreshSession(
       return chatWonderService.message({
         input,
         ...(weather ? { weather } : {}),
+        ...(skinAnalysis ? { skinAnalysis } : {}),
       });
     }
     throw err;
@@ -140,11 +145,27 @@ export default function OverviewPage() {
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
+  const startCosmetics = useOverviewStore((s) => s.startCosmetics);
+  const setCosmetics = useOverviewStore((s) => s.setCosmetics);
+  const setSkinAnalysis = useOverviewStore((s) => s.setSkinAnalysis);
   const startMap = useOverviewStore((s) => s.startMap);
   const setMap = useOverviewStore((s) => s.setMap);
   const failMap = useOverviewStore((s) => s.failMap);
 
   const greeting = useOverviewStore((s) => s.greeting);
+
+  // Explicit gate for the full-screen loader: true while the initial Outline
+  // hydration is in flight (so we don't flash empty tiles before data arrives),
+  // and while any tile is actively resolving a live request.
+  const [hydrating, setHydrating] = useState(true);
+
+  const garmentsLoading = useOverviewStore((s) => s.garments.status === "loading");
+  const outfitsLoading = useOverviewStore((s) => s.outfits.status === "loading");
+  const cosmeticsLoading = useOverviewStore((s) => s.cosmetics.status === "loading");
+  const mapLoading = useOverviewStore((s) => s.map.status === "loading");
+
+  const isLoading =
+    hydrating || garmentsLoading || outfitsLoading || cosmeticsLoading || mapLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
@@ -165,18 +186,22 @@ export default function OverviewPage() {
       try {
         const outline = await outlineService.getActive();
         if (cancelled || !outline) return;
-        const { garments, outfits } = adaptOutlineToTiles(outline);
-        if (garments.length) setGarments(garments);
-        if (outfits.length) setOutfits(outfits);
+        const { garments, outfits, cosmetics, skinAnalysis } = adaptOutlineToTiles(outline);
+        setGarments(garments);
+        setOutfits(outfits);
+        setCosmetics(cosmetics);
+        setSkinAnalysis(skinAnalysis);
         void useMapStore.getState().loadOutlineStops();
       } catch {
         /* hydration is best-effort; live updates still populate the tiles */
+      } finally {
+        if (!cancelled) setHydrating(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [setGarments, setOutfits]);
+  }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
 
   // ── face detection → greet (fires once) ──
   const onFaceDetected = useCallback(
@@ -221,33 +246,22 @@ export default function OverviewPage() {
       if (action.type !== "GARMENT_RECOMMENDATION") return;
 
       const response = (action as GarmentRecommendationAction).response;
+      // Preserve semantics: a turn that doesn't mention a section leaves that
+      // tile as-is (don't stomp hydrated/earlier data with an empty result).
       const { garments, outfits } = adaptGarmentData(response?.garment_data);
       if (garments.length) setGarments(garments);
       if (outfits.length) setOutfits(outfits);
 
+      const cosmetics = adaptCosmeticsData(response?.cosmetics_data);
+      if (cosmetics.length) setCosmetics(cosmetics);
+
       const m = adaptMapsData(response?.maps_data?.[0]);
       if (m) setMap(m);
     },
-    [setGarments, setOutfits, setMap],
+    [setGarments, setOutfits, setCosmetics, setMap],
   );
 
-  useVoice(pageContext, handleVoiceAction);
-
-  // ── text-stream tool results (typed ChatWonder window) ──
-  const handleChatComplete = useCallback(
-    (payload: ChatWonderCompletePayload) => {
-      if (payload.garment) {
-        const { garments, outfits } = adaptGarmentData(payload.garment);
-        if (garments.length) setGarments(garments);
-        if (outfits.length) setOutfits(outfits);
-      }
-      if (payload.maps) {
-        const m = adaptMapsData(payload.maps);
-        if (m) setMap(m);
-      }
-    },
-    [setGarments, setOutfits, setMap],
-  );
+  const { isListening } = useVoice(pageContext, handleVoiceAction);
 
   // ── map store → Map tile (the cognitive pipeline sets destinations here) ──
   const selectedDestination = useMapStore((s) => s.selectedDestination);
@@ -334,6 +348,9 @@ export default function OverviewPage() {
         setGarments(garments);
         setOutfits(outfits);
 
+        const cosmetics = adaptCosmeticsData(response.cosmetics_data);
+        setCosmetics(cosmetics);
+
         const mapPayload = Array.isArray(response.maps_data)
           ? response.maps_data[0]
           : response.maps_data;
@@ -342,9 +359,10 @@ export default function OverviewPage() {
       } catch {
         setGarments([]);
         setOutfits([]);
+        setCosmetics([]);
       }
     },
-    [emptyMap, failMap, setGarments, setMap, setOutfits, weather],
+    [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics, weather],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
@@ -367,6 +385,7 @@ export default function OverviewPage() {
     setGreeting("Pulling that together for you…");
     startGarments();
     startOutfits();
+    startCosmetics();
     startMap();
 
     void runOverviewPlan(prompt);
@@ -384,8 +403,7 @@ export default function OverviewPage() {
           : "Camera unavailable";
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden px-8 py-8">
-      {/* Off-screen camera — sampled by the face tracker, never shown. */}
+    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
       <video
         ref={videoRef}
         autoPlay
@@ -395,20 +413,11 @@ export default function OverviewPage() {
         className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
       />
 
-      {/* Header */}
-      <div className="flex items-center shrink-0 px-2 mb-4">
-        <div className="flex-1 flex items-center">
-          <WeatherWidget iconSize={32} />
-        </div>
-        <div className="flex-1 flex justify-center">
-          <div className="flex items-center">
-            <span className="text-white font-semibold text-2xl tracking-wide select-none">
-              StyleOS
-            </span>
-            <LanguageSelector />
-          </div>
-        </div>
-        <div className="flex-1 flex justify-end">
+      <MirrorHeader
+        className="w-full"
+        style={{ background: "transparent", paddingLeft: "16px", paddingRight: "16px" }}
+        isListening={isListening}
+        right={
           <div
             className="flex items-center gap-2 px-3 py-1.5 rounded-full"
             style={{
@@ -425,8 +434,8 @@ export default function OverviewPage() {
             )}
             <span className="text-white/55 text-xs">{trackerLabel}</span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Greeting + identity */}
       <div className="text-center mb-4 shrink-0 min-h-[64px] flex flex-col justify-center">
@@ -470,12 +479,37 @@ export default function OverviewPage() {
         {/* Buttons previously here were removed */}
       </div>
 
-      {/* ChatWonder text window — voice is handled by the global mic overlay. */}
-      <ChatWonderChat
-        mode="overview"
-        weather={weather}
-        onComplete={handleChatComplete}
-      />
+
+      {/* Full-screen video loader overlay when resolving data */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.5, ease: "easeInOut" } }}
+            className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
+          >
+            <video
+              src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
+              autoPlay
+              muted
+              loop
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
+            />
+            {greeting && (
+              <motion.h1
+                key="greeting"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="relative z-10 text-white font-bold text-4xl tracking-tight drop-shadow-2xl px-8 text-center leading-snug"
+              >
+                {greeting}
+              </motion.h1>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,18 +1,19 @@
 "use client";
 
 import {
-  Shirt,
   WandSparkles,
   MapPin,
   AlertCircle,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
-  GarmentTileItem,
   MapTileData,
   OutfitTileItem,
+  CosmeticTileItem,
+  SkinAnalysisTileItem,
   TileState,
 } from "../types";
 
@@ -187,24 +188,24 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-// ── Garments tile ────────────────────────────────────────────────────────────
+// ── Cosmetics tile ──────────────────────────────────────────────────────────────────────────────────
 
-function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
+function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      {items.slice(0, 6).map((g) => (
+      {items.slice(0, 6).map((c) => (
         <div
-          key={g.id}
+          key={c.id}
           className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10"
         >
-          <div style={{ aspectRatio: "3 / 4" }} className="bg-white/[0.02]">
-            <CardImage src={g.imageUrl} alt={g.name} />
+          <div style={{ aspectRatio: "1" }} className="bg-white/[0.02]">
+            <CardImage src={c.imageUrl} alt={c.name} />
           </div>
           <div className="px-2.5 py-2">
-            <p className="text-white text-xs font-medium truncate">{g.name}</p>
-            {g.category && (
+            <p className="text-white text-xs font-medium truncate">{c.name}</p>
+            {c.brand && (
               <p className="text-white/40 text-[11px] truncate capitalize">
-                {g.category}
+                {c.brand}
               </p>
             )}
           </div>
@@ -214,33 +215,50 @@ function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
   );
 }
 
-// ── Outfits tile ─────────────────────────────────────────────────────────────
+// ── Wardrobe tile (outfit-first: each look shows its own pieces) ───────────────
 
-function OutfitsContent({ items }: { items: OutfitTileItem[] }) {
+function WardrobeContent({ outfits }: { outfits: OutfitTileItem[] }) {
   return (
     <div className="space-y-3">
-      {items.slice(0, 4).map((o) => (
+      {outfits.slice(0, 4).map((o) => (
         <div
           key={o.id}
-          className="flex gap-3 rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10"
+          className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10"
         >
-          <div
-            className="shrink-0 bg-white/[0.02]"
-            style={{ width: 84, aspectRatio: "3 / 4" }}
-          >
-            <CardImage src={o.imageUrl} alt={o.name} />
+          <div className="flex gap-3">
+            <div
+              className="shrink-0 bg-white/[0.02]"
+              style={{ width: 84, aspectRatio: "3 / 4" }}
+            >
+              <CardImage src={o.imageUrl} alt={o.name} />
+            </div>
+            <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
+              <p className="text-white text-sm font-medium truncate">{o.name}</p>
+              {o.vibe && (
+                <p className="text-white/45 text-xs truncate">{o.vibe}</p>
+              )}
+              {o.reason && (
+                <p className="text-white/35 text-[11px] line-clamp-2 mt-0.5">
+                  {o.reason}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
-            <p className="text-white text-sm font-medium truncate">{o.name}</p>
-            {o.vibe && (
-              <p className="text-white/45 text-xs truncate">{o.vibe}</p>
-            )}
-            {o.reason && (
-              <p className="text-white/35 text-[11px] line-clamp-2 mt-0.5">
-                {o.reason}
-              </p>
-            )}
-          </div>
+
+          {o.garments.length > 0 && (
+            <div className="flex gap-2 px-3 pb-3 pt-1 overflow-x-auto">
+              {o.garments.slice(0, 6).map((g) => (
+                <div
+                  key={g.id}
+                  className="shrink-0 rounded-lg overflow-hidden bg-white/[0.02] border border-white/10"
+                  style={{ width: 48, aspectRatio: "3 / 4" }}
+                  title={g.name}
+                >
+                  <CardImage src={g.imageUrl} alt={g.name} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -297,31 +315,110 @@ function MapContent({ data }: { data: MapTileData }) {
   );
 }
 
+// ── Skin Analysis ─────────────────────────────────────────────────────────────
+
+function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
+  return (
+    <div className="flex flex-col h-full gap-4 relative">
+      {item.imageUrl && (
+        <div className="absolute -right-4 -bottom-4 w-32 h-32 rounded-full overflow-hidden opacity-20 blur-xl pointer-events-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={proxied(item.imageUrl)} className="w-full h-full object-cover" alt="Scan Profile" />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-2 z-10">
+        <div>
+          <h4 className="text-white font-semibold text-sm tracking-wide">
+            {item.skinType}
+          </h4>
+          <p className="text-white/50 text-[10px] uppercase tracking-widest mt-0.5">Profile</p>
+        </div>
+        {item.skinTone && (
+          <div className="flex items-center gap-2 bg-white/5 px-2.5 py-1.5 rounded-full border border-white/10">
+            <div 
+              className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
+              style={{ backgroundColor: item.skinTone.startsWith('#') ? item.skinTone : `#${item.skinTone}` }}
+            />
+            <span className="text-white/80 text-xs font-mono uppercase tracking-widest">{item.skinTone}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 z-10 flex-1">
+        <div>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-white/70">Hydration</span>
+            <span className="text-white/90 font-mono">{item.hydrationPct}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-400/80 rounded-full" style={{ width: `${item.hydrationPct}%` }} />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-white/70">Sebum (Oil) Level</span>
+            <span className="text-white/90 font-mono">{item.oilinessPct}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-amber-400/80 rounded-full" style={{ width: `${item.oilinessPct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      {item.concerns.length > 0 && (
+        <div className="mt-auto z-10">
+          <h5 className="text-white/50 text-[10px] uppercase tracking-widest mb-2 font-semibold">Active Concerns</h5>
+          <div className="flex flex-wrap gap-1.5">
+            {item.concerns.map(c => (
+              <span key={c} className="text-[10px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md">
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Grid ─────────────────────────────────────────────────────────────────────
 
 export function OverviewGrid() {
-  const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
+  const cosmetics = useOverviewStore((s) => s.cosmetics);
+  const skinAnalysis = useOverviewStore((s) => s.skinAnalysis);
   const map = useOverviewStore((s) => s.map);
+
+  // Wardrobe is now outfit-driven; each outfit carries its own garments, so the
+  // tile's state is simply the outfits slice.
+  const wardrobeState = {
+    status: outfits.status,
+    data: outfits.data?.length ? true : null,
+    error: outfits.error,
+  };
 
   const tiles = [
     {
-      key: "garments",
-      title: "Garments",
-      subtitle: "Pieces picked for your plan",
-      icon: Shirt,
-      state: garments,
-      empty: "No garments recommended yet.",
-      content: garments.data ? <GarmentsContent items={garments.data} /> : null,
+      key: "wardrobe",
+      title: "Wardrobe",
+      subtitle: "Styled looks and their pieces",
+      icon: WandSparkles,
+      state: wardrobeState,
+      empty: "No wardrobe recommendations yet.",
+      content: wardrobeState.data ? (
+        <WardrobeContent outfits={outfits.data || []} />
+      ) : null,
     },
     {
-      key: "outfits",
-      title: "Outfits",
-      subtitle: "Full looks, styled for the occasion",
-      icon: WandSparkles,
-      state: outfits,
-      empty: "No complete looks yet.",
-      content: outfits.data ? <OutfitsContent items={outfits.data} /> : null,
+      key: "cosmetics",
+      title: "Cosmetics",
+      subtitle: "Makeup matching your vibe",
+      icon: Sparkles,
+      state: cosmetics,
+      empty: "No cosmetics recommended.",
+      content: cosmetics.data ? <CosmeticsContent items={cosmetics.data} /> : null,
     },
     {
       key: "map",
@@ -331,6 +428,17 @@ export function OverviewGrid() {
       state: map,
       empty: "No destination set yet.",
       content: map.data ? <MapContent data={map.data} /> : null,
+    },
+    {
+      key: "skinAnalysis",
+      title: "Skin Profile",
+      subtitle: "Biometric Scan",
+      icon: Sparkles,
+      state: skinAnalysis,
+      empty: "Scan not available",
+      content: skinAnalysis.data ? (
+        <SkinAnalysisContent item={skinAnalysis.data} />
+      ) : null,
     },
   ];
 

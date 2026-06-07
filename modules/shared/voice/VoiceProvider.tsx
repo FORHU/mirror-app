@@ -1942,6 +1942,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               response: {
                 garment_data: res.garment_data,
                 maps_data: res.maps_data,
+                cosmetics_data: res.cosmetics_data,
               },
             };
           }

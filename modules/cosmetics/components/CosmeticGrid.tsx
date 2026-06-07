@@ -151,11 +151,11 @@ export function CosmeticGrid({
                 </div>
 
                 {/* Since we might not have reliable product images yet, we render a nice fallback box */}
-                {r.cosmeticProduct.fileUrl?.fileUrl ? (
+                {r.cosmeticProduct?.fileUrl?.fileUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={r.cosmeticProduct.fileUrl.fileUrl}
-                    alt={r.cosmeticProduct.name}
+                    alt={r.cosmeticProduct?.name || "Product"}
                     draggable={false}
                     className="w-full h-full object-contain pointer-events-none mb-1"
                   />
@@ -169,10 +169,10 @@ export function CosmeticGrid({
 
                 <div className="w-full text-center mt-1">
                   <div className="text-[9px] text-white/50 uppercase truncate">
-                    {r.cosmeticProduct.brand || "Brand"}
+                    {r.cosmeticProduct?.brand || "Brand"}
                   </div>
                   <div className="text-[10px] text-white/90 font-medium leading-tight truncate">
-                    {r.cosmeticProduct.name}
+                    {r.cosmeticProduct?.name || "Unknown Product"}
                   </div>
                 </div>
               </div>
@@ -180,26 +180,28 @@ export function CosmeticGrid({
           )}
         </div>
 
-        <div className="flex justify-center gap-1.5 pt-2">
-          {Array.from({ length: Math.max(1, totalPages) }).map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onPageChange(i)}
-              aria-label={`Go to page ${i + 1}`}
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: i === currentPage ? 12 : 4,
-                height: 4,
-                background:
-                  i === currentPage ? "white" : "rgba(255,255,255,0.3)",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            />
-          ))}
-        </div>
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-1.5 pt-2">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onPageChange(i)}
+                aria-label={`Go to page ${i + 1}`}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === currentPage ? 12 : 4,
+                  height: 4,
+                  background:
+                    i === currentPage ? "white" : "rgba(255,255,255,0.3)",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

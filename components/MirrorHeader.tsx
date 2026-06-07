@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import WeatherWidget from "@/components/WeatherWidget";
 
 // Single source of truth for the standard kiosk top bar:
@@ -35,6 +35,9 @@ export interface MirrorHeaderProps {
   className?: string;
   /** Inline style overrides for the <header> (e.g. a different background). */
   style?: React.CSSProperties;
+  /** When true, show the pulsing "Listening" indicator. Pages source this from
+   *  their own `useVoice()` so the header stays free of voice-context coupling. */
+  isListening?: boolean;
 }
 
 export default function MirrorHeader({
@@ -43,6 +46,7 @@ export default function MirrorHeader({
   iconSize = 32,
   className = "",
   style,
+  isListening = false,
 }: MirrorHeaderProps) {
   const now = useClock();
   const time = now
@@ -95,9 +99,21 @@ export default function MirrorHeader({
         </span>
       </div>
       <div
-        style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end" }}
+        style={{ flex: "0 0 25%", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}
       >
         {rightContent}
+        <div
+          className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all duration-500 ${
+            isListening
+              ? "bg-[#1A1A1A] border-blue-500/30 text-blue-400"
+              : "bg-transparent border-transparent text-transparent"
+          }`}
+        >
+          <Sparkles size={16} className={isListening ? "animate-pulse" : ""} />
+          <span className="text-[13px] font-medium tracking-wider">
+            Listening
+          </span>
+        </div>
       </div>
     </header>
   );

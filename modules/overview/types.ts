@@ -27,6 +27,16 @@ export interface OutfitTileItem {
   imageUrl: string;
   vibe?: string;
   reason?: string;
+  /** The garments that make up this look. Mirrors the persisted shape
+   *  (outfit.items[].garment) and the live shape (set.recommendations[]). */
+  garments: GarmentTileItem[];
+}
+
+export interface CosmeticTileItem {
+  id: string;
+  name: string;
+  imageUrl: string;
+  brand?: string;
 }
 
 export interface MapTileData {
@@ -37,4 +47,13 @@ export interface MapTileData {
   lng: number;
   /** Multi-stop itinerary, when ChatWonder resolved several events. */
   stops?: { name: string; lat: number; lng: number }[];
+}
+
+export interface SkinAnalysisTileItem {
+  skinType: string;
+  skinTone: string | null;
+  hydrationPct: number;
+  oilinessPct: number;
+  concerns: string[];
+  imageUrl: string | null;
 }
