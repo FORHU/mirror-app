@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { ChatWonderGarmentData } from "@/modules/shared/api/chat-wonder.service";
 import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
+import type { TrackerStatus } from "@/modules/shared/hooks/useProximitySensor";
 
 interface MirrorState {
   /** AI-generated recommendation text to display in Fashion/Cosmetics screens */
@@ -22,6 +23,12 @@ interface MirrorState {
   /** Image URL of the captured face used for skin analysis */
   skinCaptureUrl: string | null;
   setSkinCaptureUrl: (url: string | null) => void;
+  /** Camera presence, mirrored from useProximitySensor so global consumers
+   *  (VoiceProvider) can gate on it without running their own camera. Ephemeral
+   *  — excluded from persistence so it never survives a reload. */
+  isPresent: boolean;
+  sensorStatus: TrackerStatus;
+  setPresence: (isPresent: boolean, sensorStatus: TrackerStatus) => void;
 }
 
 export const useMirrorStore = create<MirrorState>()(
@@ -40,10 +47,23 @@ export const useMirrorStore = create<MirrorState>()(
       setSkinAnalysisResult: (result) => set({ skinAnalysisResult: result }),
       skinCaptureUrl: null,
       setSkinCaptureUrl: (url) => set({ skinCaptureUrl: url }),
+      isPresent: false,
+      sensorStatus: "starting",
+      setPresence: (isPresent, sensorStatus) => set({ isPresent, sensorStatus }),
     }),
     {
       name: "mirror-storage",
       storage: createJSONStorage(() => sessionStorage),
+      // Persist only durable fields — presence is live camera state and must
+      // never be restored from a previous session.
+      partialize: (state) => ({
+        aiSuggestion: state.aiSuggestion,
+        voiceLanguage: state.voiceLanguage,
+        pendingGarmentData: state.pendingGarmentData,
+        pendingCosmeticsData: state.pendingCosmeticsData,
+        skinAnalysisResult: state.skinAnalysisResult,
+        skinCaptureUrl: state.skinCaptureUrl,
+      }),
     },
   ),
 );

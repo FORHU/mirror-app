@@ -203,16 +203,6 @@ export default function AIAssistantPage() {
     return () => clearTimeout(id);
   }, [sensorStatus, handleWake]);
 
-  // Continuous listening: after each turn returns to idle (and the session is
-  // active), re-arm the mic so the mirror keeps catching voice hands-free.
-  // Safe because the wake-word gate ignores anything that isn't a "Mirror …"
-  // command. Waits for "idle" so it never captures its own TTS while speaking.
-  useEffect(() => {
-    if (showIdle || voiceState !== "idle") return;
-    const id = setTimeout(() => startListeningRef.current(), 600);
-    return () => clearTimeout(id);
-  }, [voiceState, showIdle]);
-
   // Handle Proximity Changes
   useEffect(() => {
     if (isPresent) {
@@ -446,12 +436,27 @@ export default function AIAssistantPage() {
         </button>
       )}
 
-      <video
-        ref={videoRef}
-        playsInline
-        muted
-        className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-0"
-      />
+      {/* Camera Debug Overlay */}
+      <div className="fixed top-4 right-4 z-[999] flex flex-col items-end gap-2 pointer-events-none">
+        <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
+          <span className="text-white/60 text-[10px] uppercase tracking-wider font-medium">Camera Debug</span>
+          <div className={`w-2 h-2 rounded-full ${isPresent ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]" : "bg-red-500/50 animate-pulse"}`} />
+        </div>
+        <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black shadow-2xl w-48 aspect-video">
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            className="absolute inset-0 w-full h-full object-contain transform -scale-x-100"
+          />
+          {/* Simulated bounding box when face is detected */}
+          {isPresent && (
+            <div className="absolute inset-0 border-2 border-green-500/50 m-4 rounded shadow-[inset_0_0_10px_rgba(34,197,94,0.2)] flex items-center justify-center">
+               <div className="w-1/2 h-1/2 border border-green-400/30 rounded-full" />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
