@@ -196,6 +196,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         let buffer = "";
 
         let aiContent = "";
+        let navEarlyFired = false;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -324,10 +325,11 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                     | null
                     | undefined;
                   const navTarget = stylistData?.target_url ?? nav?.target_url;
-                  if (navTarget) {
+                  if (navTarget && !navEarlyFired) {
                     void handleStylistTarget(navTarget, router, pathname);
                   }
                 } else if (parsed.type === "nav_early") {
+                  navEarlyFired = true;
                   options?.onNavEarly?.(
                     (parsed.stylist_data as { target_url?: string } | null) ?? null,
                   );

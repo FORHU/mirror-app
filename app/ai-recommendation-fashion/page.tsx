@@ -546,6 +546,7 @@ export default function VirtualMirrorV2() {
   useEffect(() => {
     if (!chatGarmentData) return;
     useMirrorStore.getState().setChatGarmentData(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatGarmentData]);
