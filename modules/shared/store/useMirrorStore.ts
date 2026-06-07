@@ -29,6 +29,19 @@ interface MirrorState {
   isPresent: boolean;
   sensorStatus: TrackerStatus;
   setPresence: (isPresent: boolean, sensorStatus: TrackerStatus) => void;
+  /** Chat-path early navigation state (set on nav_early, cleared on complete) */
+  chatNavPending: boolean;
+  setChatNavPending: (pending: boolean) => void;
+  /** Miraj's live streaming text — shown as loading state on destination screen */
+  chatStreamingText: string;
+  setChatStreamingText: (text: string) => void;
+  /** Garment data from chat path (nav_early flow). Consumed once by fashion page. */
+  chatGarmentData: ChatWonderGarmentData | null;
+  setChatGarmentData: (data: ChatWonderGarmentData | null) => void;
+  /** Cosmetics data from chat path (nav_early flow). Consumed once by cosmetics page. */
+  chatCosmeticsData: unknown | null;
+  setChatCosmeticsData: (data: unknown | null) => void;
+  clearChatNav: () => void;
 }
 
 export const useMirrorStore = create<MirrorState>()(
@@ -50,6 +63,15 @@ export const useMirrorStore = create<MirrorState>()(
       isPresent: false,
       sensorStatus: "starting",
       setPresence: (isPresent, sensorStatus) => set({ isPresent, sensorStatus }),
+      chatNavPending: false,
+      setChatNavPending: (pending) => set({ chatNavPending: pending }),
+      chatStreamingText: "",
+      setChatStreamingText: (text) => set({ chatStreamingText: text }),
+      chatGarmentData: null,
+      setChatGarmentData: (data) => set({ chatGarmentData: data }),
+      chatCosmeticsData: null,
+      setChatCosmeticsData: (data) => set({ chatCosmeticsData: data }),
+      clearChatNav: () => set({ chatNavPending: false, chatStreamingText: "", chatGarmentData: null, chatCosmeticsData: null }),
     }),
     {
       name: "mirror-storage",

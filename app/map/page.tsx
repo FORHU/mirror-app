@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 async function consumePendingLocation() {
   try {
@@ -50,6 +51,9 @@ async function consumePendingDirections() {
 }
 
 export default function MapPage() {
+  const chatNavPending = useMirrorStore((s) => s.chatNavPending);
+  const chatStreamingText = useMirrorStore((s) => s.chatStreamingText);
+
   const {
     homeLocation,
     homeLocationStatus,
@@ -107,6 +111,17 @@ export default function MapPage() {
 
   return (
     <main className="w-screen h-dvh bg-black relative overflow-hidden">
+      {chatNavPending && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
+          {chatStreamingText && (
+            <p className="text-white/70 text-base font-light text-center max-w-sm leading-relaxed px-8">
+              {chatStreamingText}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Header — weather left, time center, back right */}
       <MirrorHeader className="absolute top-0 inset-x-0 z-50" isListening={isListening} />
 
