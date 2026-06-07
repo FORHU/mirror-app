@@ -352,7 +352,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  const recognitionRef = useRef<unknown>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   const processTranscript = useCallback(
     async (t: string) => {
@@ -1925,12 +1926,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           } else if (res.garment_data || res.maps_data || res.cosmetics_data) {
             // Synthetic action that triggers handleVoiceAction catchers
             chatAction = {
-              type: "GARMENT_RECOMMENDATION" as unknown,
+              type: "GARMENT_RECOMMENDATION",
               response: {
                 garment_data: res.garment_data,
                 maps_data: res.maps_data,
               },
-            } as unknown;
+            };
           }
 
           // 🧠 RUN UI KERNEL
@@ -2007,9 +2008,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState !== "idle") return;
     setError(null);
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const SpeechRecognition =
-        (window as unknown as { SpeechRecognition: unknown }).SpeechRecognition ||
-        (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition;
+        (window as any).SpeechRecognition ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setError("Speech recognition is not supported in this browser.");
         return;
