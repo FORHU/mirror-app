@@ -352,8 +352,20 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
+  interface ISpeechRecognition {
+    lang: string;
+    interimResults: boolean;
+    maxAlternatives: number;
+    continuous: boolean;
+    onstart: () => void;
+    onend: () => void;
+    onerror: (event: { error: string }) => void;
+    onresult: (event: { resultIndex: number; results: Array<{ isFinal: boolean; [index: number]: { transcript: string } }> }) => void;
+    stop: () => void;
+    start: () => void;
+  }
+
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
   const processTranscript = useCallback(
     async (t: string) => {
@@ -2008,11 +2020,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState !== "idle") return;
     setError(null);
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type SpeechRecognitionConstructor = new () => ISpeechRecognition;
       const SpeechRecognition =
-        (window as any).SpeechRecognition ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (window as any).webkitSpeechRecognition;
+        (window as unknown as { SpeechRecognition: SpeechRecognitionConstructor }).SpeechRecognition ||
+        (window as unknown as { webkitSpeechRecognition: SpeechRecognitionConstructor }).webkitSpeechRecognition;
       if (!SpeechRecognition) {
         setError("Speech recognition is not supported in this browser.");
         return;
@@ -2041,8 +2052,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech") setVoiceState("idle");
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onresult = (event: { resultIndex: number; results: any }) => {
+      recognition.onresult = (event: { resultIndex: number; results: Array<{ isFinal: boolean; [index: number]: { transcript: string } }> }) => {
         // Reset silence timer on every new final segment — only stop + process
         // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend
         // events mid-utterance don't cut the user off prematurely.
