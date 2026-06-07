@@ -62,7 +62,7 @@ export default function MapPage() {
   } = useMapStore();
   const onAction = useCallback(() => {}, []);
 
-  useVoice(
+  const { isListening } = useVoice(
     {
       route: "/map",
       pageName: "Map",
@@ -123,7 +123,7 @@ export default function MapPage() {
       )}
 
       {/* Header — weather left, time center, back right */}
-      <MirrorHeader className="absolute top-0 inset-x-0 z-50" />
+      <MirrorHeader className="absolute top-0 inset-x-0 z-50" isListening={isListening} />
 
       <MapDashboard />
     </main>

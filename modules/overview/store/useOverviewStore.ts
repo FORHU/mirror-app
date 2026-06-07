@@ -5,6 +5,8 @@ import type {
   GarmentTileItem,
   MapTileData,
   OutfitTileItem,
+  CosmeticTileItem,
+  SkinAnalysisTileItem,
   TileState,
 } from "../types";
 
@@ -30,6 +32,8 @@ interface OverviewState {
   garments: TileState<GarmentTileItem[]>;
   outfits: TileState<OutfitTileItem[]>;
   map: TileState<MapTileData>;
+  cosmetics: TileState<CosmeticTileItem[]>;
+  skinAnalysis: TileState<SkinAnalysisTileItem>;
 
   setFaceDetected: (v: boolean) => void;
   setGreeting: (s: string | null) => void;
@@ -39,6 +43,11 @@ interface OverviewState {
 
   startOutfits: () => void;
   setOutfits: (items: OutfitTileItem[]) => void;
+
+  startCosmetics: () => void;
+  setCosmetics: (items: CosmeticTileItem[]) => void;
+
+  setSkinAnalysis: (item: SkinAnalysisTileItem | null) => void;
 
   startMap: () => void;
   setMap: (data: MapTileData) => void;
@@ -54,6 +63,8 @@ const initial = {
   garments: idle<GarmentTileItem[]>(),
   outfits: idle<OutfitTileItem[]>(),
   map: idle<MapTileData>(),
+  cosmetics: idle<CosmeticTileItem[]>(),
+  skinAnalysis: idle<SkinAnalysisTileItem>(),
 };
 
 export const useOverviewStore = create<OverviewState>((set) => ({
@@ -80,6 +91,26 @@ export const useOverviewStore = create<OverviewState>((set) => ({
       outfits: {
         status: items.length ? "ready" : "empty",
         data: items,
+        error: null,
+      },
+    }),
+
+  startCosmetics: () =>
+    set({ cosmetics: { status: "loading", data: null, error: null } }),
+  setCosmetics: (items) =>
+    set({
+      cosmetics: {
+        status: items.length ? "ready" : "empty",
+        data: items,
+        error: null,
+      },
+    }),
+
+  setSkinAnalysis: (item) =>
+    set({
+      skinAnalysis: {
+        status: item ? "ready" : "empty",
+        data: item,
         error: null,
       },
     }),
