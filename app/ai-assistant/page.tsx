@@ -59,6 +59,7 @@ export default function AIAssistantPage() {
     () => ({
       route: ROUTES.WELCOME,
       pageName: "AI Assistant",
+      mode: "overview" as const,
       activeStep: "conversation",
     }),
     [],
