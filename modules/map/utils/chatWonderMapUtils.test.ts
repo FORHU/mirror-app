@@ -171,7 +171,7 @@ describe("mapPlaceToNearbyPOI", () => {
   });
 
   it("handles missing rating gracefully", () => {
-    const { rating: _r, ...withoutRating } = BASE_PLACE;
+    const { rating: _, ...withoutRating } = BASE_PLACE;
     const poi = mapPlaceToNearbyPOI(
       withoutRating as typeof BASE_PLACE,
       16.41,

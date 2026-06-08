@@ -2,19 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import "../../styles/glow.css";
-import {
-  garmentService,
-  type RemoteGarment,
-} from "@/modules/shared/api/garment.service";
-import {
-  outfitService,
-  type RemoteOutfit,
-} from "@/modules/shared/api/outfit.service";
+import type { RemoteGarment } from "@/modules/shared/api/garment.service";
+import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
@@ -106,7 +99,7 @@ const FASHION_QUOTES = [
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const { isProcessing } = useVoiceContext();
+  const { isProcessing, registerPage, unregisterPage } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -129,13 +122,6 @@ export default function VirtualMirrorV2() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [quoteVisible, setQuoteVisible] = useState(true);
-  const aiPopulatedRef = useRef({
-    tops: false,
-    bottoms: false,
-    shoes: false,
-    bags: false,
-    outfits: false,
-  });
 
   type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
@@ -284,12 +270,6 @@ export default function VirtualMirrorV2() {
     (bottomsPage + 1) * bottomsPageSize,
   );
 
-  const [, setGlasses] = useState<RemoteGarment[]>([]);
-  const [, setEarrings] = useState<RemoteGarment[]>([]);
-  const [, setNeckAccessories] = useState<RemoteGarment[]>([]);
-  const [, setWaistAccessories] = useState<RemoteGarment[]>([]);
-  const [, setBracelets] = useState<RemoteGarment[]>([]);
-  const [, setWatches] = useState<RemoteGarment[]>([]);
   const [bags, setBags] = useState<RemoteGarment[]>([]);
 
   const [bagsPage, setBagsPage] = useState(0);
@@ -314,73 +294,6 @@ export default function VirtualMirrorV2() {
     }, 4000);
     return () => clearInterval(interval);
   }, [isProcessing]);
-
-  useEffect(() => {
-    // Garment grids resolve independently from the outfit grid
-    Promise.allSettled([
-      garmentService
-        .getBySlot(FittingSlot.UpperGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.tops) {
-            setTopsBase(
-              data.filter((g) => (g.layerLevel ?? "BASE") === "BASE"),
-            );
-            setTopsMid(data.filter((g) => g.layerLevel === "MID"));
-            setTopsOuter(data.filter((g) => g.layerLevel === "OUTER"));
-          }
-        })
-        .catch((err) => console.error("[Tops] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.LowerGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.bottoms) setBottoms(data);
-        })
-        .catch((err) => console.error("[Bottoms] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.FootGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.shoes) setShoes(data);
-        })
-        .catch((err) => console.error("[Shoes] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Glasses)
-        .then(setGlasses)
-        .catch((err) => console.error("[Glasses] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Earrings)
-        .then(setEarrings)
-        .catch((err) => console.error("[Earrings] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.NeckAccessory)
-        .then(setNeckAccessories)
-        .catch((err) => console.error("[NeckAccessory] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.WaistAccessory)
-        .then(setWaistAccessories)
-        .catch((err) => console.error("[WaistAccessory] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bracelet")
-        .then(setBracelets)
-        .catch((err) => console.error("[Bracelet] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Watch")
-        .then(setWatches)
-        .catch((err) => console.error("[Watch] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag")
-        .then((data) => {
-          if (!aiPopulatedRef.current.bags) setBags(data);
-        })
-        .catch((err) => console.error("[Bag] fetch error:", err)),
-    ]);
-
-    outfitService
-      .getAll()
-      .then((data) => {
-        if (!aiPopulatedRef.current.outfits) setOutfits(data);
-      })
-      .catch((err) => console.error("[Outfits] fetch error:", err));
-  }, []);
 
   const handleAiComplete = useCallback(
     (response: ChatWonderMessageResponse) => {
@@ -462,12 +375,6 @@ export default function VirtualMirrorV2() {
         }
       }
 
-      aiPopulatedRef.current.tops = true;
-      aiPopulatedRef.current.bottoms = true;
-      aiPopulatedRef.current.shoes = true;
-      aiPopulatedRef.current.bags = true;
-      aiPopulatedRef.current.outfits = true;
-
       setTopsBase(newTopsBase);
       setTopsBasePage(0);
       setTopsMid(newTopsMid);
@@ -530,9 +437,15 @@ export default function VirtualMirrorV2() {
     ],
   );
 
+  useEffect(() => {
+    registerPage(
+      { route: "/ai-recommendation-fashion", pageName: "Fashion Recommendations", mode: "garment" },
+      () => {},
+    );
+    return () => unregisterPage();
+  }, [registerPage, unregisterPage]);
+
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  // Runs before the garmentService fetch effect so aiPopulatedRef flags are
-  // set first, preventing fetched data from overwriting AI recommendations.
   useEffect(() => {
     const pending = useMirrorStore.getState().pendingGarmentData;
     if (!pending) return;
