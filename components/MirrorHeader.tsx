@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import WeatherWidget from "@/components/WeatherWidget";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 // Single source of truth for the standard kiosk top bar:
 //   [ weather ]      [ time / day, date ]      [ optional back / custom ]
@@ -108,6 +109,7 @@ export default function MirrorHeader({
         }}
       >
         {rightContent}
+        <LanguageSelector />
         <div
           className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all duration-500 ${
             isListening

@@ -18,7 +18,7 @@ export function LanguageSelector() {
     LANGUAGES.find((l) => l.code === voiceLanguage) || LANGUAGES[0];
 
   return (
-    <div className="relative inline-block ml-4 z-50">
+    <div className="relative inline-block z-50">
       <button
         onClick={(e) => {
           e.stopPropagation();
