@@ -2028,6 +2028,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
+          const _isCosmetics =
+            pageCtxRef.current?.mode === "cosmetics" ||
+            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
@@ -2035,7 +2038,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             location: locCtx,
             sitemapContext: SITEMAP_CONTEXT,
             ...(weatherCtx ? { weather: weatherCtx } : {}),
-            skinAnalysis: useMirrorStore.getState().skinAnalysisResult,
+            ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
           r = res.message;
