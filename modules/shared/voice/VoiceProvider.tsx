@@ -707,9 +707,55 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               }
               return;
             }
-            // No match — abandon the POI selection, fall through to server
-            curatedPOIsRef.current = [];
-            useMapStore.getState().clearSuggestions();
+            // No match — re-ask with a narrowed list instead of silently dropping state.
+            // Filter candidates by word overlap with what the user said, then cap at 3
+            // so the re-ask doesn't repeat all 5 names again.
+            const tLower = t.toLowerCase();
+            const tWords = tLower.split(/\s+/).filter((w) => w.length > 2);
+            const scored = curatedPOIsRef.current.map((p) => {
+              const pName = p.name.toLowerCase();
+              const overlap = tWords.filter(
+                (w) => pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
+              ).length;
+              return { p, overlap };
+            });
+            const reAskPOIs = (
+              scored.some((s) => s.overlap > 0)
+                ? scored.sort((a, b) => b.overlap - a.overlap)
+                : scored
+            )
+              .slice(0, 3)
+              .map((s) => s.p);
+            const names = reAskPOIs.map((p) => p.name);
+            const reAskReply =
+              names.length === 1
+                ? `Did you mean ${names[0]}?`
+                : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
+            const reAskAudio = await mapService.tts(reAskReply).catch(() => null);
+            setReply(reAskReply);
+            historyRef.current = [
+              ...historyRef.current,
+              { user: t, assistant: reAskReply },
+            ];
+            setChatHistory(historyRef.current);
+            setVoiceState("speaking");
+            if (reAskAudio) {
+              const playCtx = new AudioContext();
+              playbackCtxRef.current = playCtx;
+              const decoded = await playCtx.decodeAudioData(reAskAudio.slice(0));
+              const src = playCtx.createBufferSource();
+              src.buffer = decoded;
+              src.connect(playCtx.destination);
+              playbackRef.current = src;
+              src.onended = () => {
+                stopPlayback();
+                setVoiceState("idle");
+              };
+              src.start(0);
+            } else {
+              setVoiceState("idle");
+            }
+            return;
           }
 
           // ── Disambiguation resolution ─────────────────────────────────────────

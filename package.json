@@ -25,6 +25,7 @@
     "@turf/nearest-point-on-line": "^7.3.5",
     "apisauce": "^3.2.2",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.40.0",
     "liquid-glass-react": "^1.1.1",
     "lucide-react": "^0.542.0",
     "mapbox-gl": "^3.24.0",
