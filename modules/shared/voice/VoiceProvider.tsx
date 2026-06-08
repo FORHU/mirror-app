@@ -569,36 +569,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          let weather: Record<string, unknown> | undefined;
-          if (loc) {
-            try {
-              const res = await fetch(
-                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
-              );
-              if (res.ok) {
-                const json = await res.json();
-                const d = json.data ?? json;
-                weather = {
-                  date: new Date().toISOString().split("T")[0],
-                  description: String(d.condition ?? "").toLowerCase(),
-                  estimated: false,
-                  is_cold: Number(d.temperature) < 20,
-                  is_hot: Number(d.temperature) >= 30,
-                  is_rainy:
-                    Number(d.precipitationProb) >= 50 ||
-                    String(d.condition ?? "")
-                      .toLowerCase()
-                      .includes("rain"),
-                  lat: loc.lat,
-                  lon: loc.lng,
-                  temperature_c: Number(d.temperature),
-                };
-              }
-            } catch {
-              /* weather is best-effort */
-            }
-          }
-
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
 
           const aiResponse = await chatWonderService.message({
@@ -2225,7 +2195,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           let locCtx:
             | { lat: number | string; lng: number | string }
             | undefined;
-          let weatherCtx: Record<string, unknown> | undefined;
 
           // Fallback to homeLocation explicitly when map store has no location
           // (e.g. on the AI assistant page where the map module never initialises).
