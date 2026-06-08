@@ -70,6 +70,11 @@ export type ChatWonderAction =
     }
   | { type: "cosmetic_select_recommendation"; rank: number }
   | { type: "fashion_select_outfit"; index: number }
+  | {
+      type: "fashion_select_garment";
+      slot: "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
+      index: number;
+    }
   | { type: "GARMENT_RECOMMENDATION"; response: unknown };
 
 export interface ChatWonderResponse {

@@ -437,13 +437,47 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      if (action.type !== "fashion_select_outfit") return;
-      const idx = action.index;
-      if (idx < 0 || idx >= outfits.length) return;
-      setOutfitPage(Math.floor(idx / outfitPageSize));
-      selectOutfit(idx);
+      if (action.type === "fashion_select_outfit") {
+        const idx = action.index;
+        if (idx < 0 || idx >= outfits.length) return;
+        setOutfitPage(Math.floor(idx / outfitPageSize));
+        selectOutfit(idx);
+        return;
+      }
+      if (action.type === "fashion_select_garment") {
+        const { slot, index } = action;
+        type SlotEntry = { arr: RemoteGarment[]; set: (g: RemoteGarment) => void };
+        const slotMap: Record<typeof slot, SlotEntry> = {
+          base:    { arr: pagedTopsBase,  set: setSelectedTopBase },
+          mid:     { arr: pagedTopsMid,   set: setSelectedTopMid },
+          outer:   { arr: pagedTopsOuter, set: setSelectedTopOuter },
+          bottoms: { arr: pagedBottoms,   set: setSelectedBottom },
+          shoes:   { arr: pagedShoes,     set: setSelectedShoe },
+          bags:    { arr: pagedBags,      set: setSelectedBag },
+        };
+        const target = slotMap[slot];
+        const garment = target.arr[index];
+        if (!garment) return;
+        if (swapSlot === slot && swapItemId) {
+          const id = swapItemId;
+          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
+          setSwapSlot(null);
+          setSwapItemId(null);
+        } else {
+          target.set(garment);
+          setSelectedOutfitIdx(null);
+        }
+      }
     },
-    [outfits, outfitPageSize, selectOutfit],
+    [
+      outfits, outfitPageSize, selectOutfit,
+      pagedTopsBase, pagedTopsMid, pagedTopsOuter,
+      pagedBottoms, pagedShoes, pagedBags,
+      swapSlot, swapItemId,
+      setSelectedTopBase, setSelectedTopMid, setSelectedTopOuter,
+      setSelectedBottom, setSelectedShoe, setSelectedBag,
+      setSelectedOutfitIdx, setOutfitOverrides, setSwapSlot, setSwapItemId,
+    ],
   );
 
   useVoice(fashionPageContext, handleVoiceAction);
