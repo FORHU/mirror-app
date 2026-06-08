@@ -148,7 +148,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         } else if (options?.mode === "cosmetics") {
           finalInput = `[stylist] ${text}`;
         } else if (options?.mode === "overview") {
-          finalInput = `[stylist] Use the destination from the user's plan for map and weather. Recommend garments and outfits for the event type, destination weather, and date/time. ${text}`;
+          finalInput = `[stylist] ${text}`;
         }
 
         // Stop any currently playing audio before starting a new stream

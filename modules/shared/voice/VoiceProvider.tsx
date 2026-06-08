@@ -2048,7 +2048,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             mapDest,
             !!mapState.activeRoute,
             pending.length > 0 ? pending : undefined,
-            "[maps]",
+            "[stylist]",
             voiceLang,
           );
 
@@ -2474,7 +2474,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 | null);
           const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
-            input: _isCosmetics ? `[cosmetics] ${langDir}${t}` : `${langDir}${t}`,
+            input: `[stylist]{t}`,
             lang: language,
             voice: true,
             ...(locCtx &&

@@ -279,8 +279,6 @@ export default function OverviewPage() {
         const response = await requestGarmentsWithFreshSession(
           [
             "[stylist]",
-            "Treat date as a romantic/social outing when relevant.",
-            "Recommend outfits for this plan using the provided destination weather.",
             `Plan: ${prompt}`,
             destination ? `Destination: ${destination}.` : "",
           ]
