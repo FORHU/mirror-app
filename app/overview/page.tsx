@@ -85,7 +85,6 @@ async function requestGarmentsWithFreshSession(
 
 export default function OverviewPage() {
   const user = useAuthStore((s) => s.user);
-  const { weather } = useWeather();
 
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
