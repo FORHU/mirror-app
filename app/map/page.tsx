@@ -4,7 +4,6 @@ import React, { useEffect, useCallback } from "react";
 import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
-import { Loader2 } from "lucide-react";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -82,8 +81,11 @@ export default function MapPage() {
 
   if (homeLocationStatus === "idle" || homeLocationStatus === "loading") {
     return (
-      <div className="fixed inset-0 bg-[#000000] flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-white opacity-50 animate-spin" />
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
+        <p className="text-white/50 text-sm font-light tracking-wide">
+          Setting up your map…
+        </p>
       </div>
     );
   }
