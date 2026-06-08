@@ -55,7 +55,7 @@ export function CosmeticGrid({
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gap: "4px",
+          gap: "8px",
         }}
       >
         {loading ? (
@@ -83,9 +83,9 @@ export function CosmeticGrid({
             <div
               key={r.id}
               onClick={() => onSelect(r)}
-              className="rounded-md overflow-hidden flex flex-col items-center justify-center p-2 bg-white/5 hover:bg-white/10 transition-colors"
+              className="rounded-md overflow-hidden flex flex-col items-center p-2 bg-white/5 hover:bg-white/10 transition-colors"
               style={{
-                aspectRatio: "1/1",
+                minHeight: columns === 1 ? "292px" : "168px",
                 borderRadius: "4px",
                 cursor: "pointer",
                 border:
@@ -103,25 +103,34 @@ export function CosmeticGrid({
               {/* Since we might not have reliable product images yet, we render a nice fallback box */}
               {r.cosmeticProduct?.fileUrl?.fileUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={r.cosmeticProduct.fileUrl.fileUrl}
-                  alt={r.cosmeticProduct?.name || "Product"}
-                  draggable={false}
-                  className="w-full h-full object-contain pointer-events-none mb-1"
-                />
+                <div className="w-full flex-1 min-h-0 flex items-center justify-center pb-2">
+                  <img
+                    src={r.cosmeticProduct.fileUrl.fileUrl}
+                    alt={r.cosmeticProduct?.name || "Product"}
+                    draggable={false}
+                    className="max-w-full max-h-full object-contain pointer-events-none"
+                  />
+                </div>
               ) : (
-                <div className="flex-1 w-full bg-white/5 rounded flex items-center justify-center mb-1">
+                <div className="flex-1 min-h-0 w-full bg-white/5 rounded flex items-center justify-center mb-2">
                   <span className="text-white/20 text-[10px] uppercase">
                     Product
                   </span>
                 </div>
               )}
 
-              <div className="w-full text-center mt-1">
-                <div className="text-[9px] text-white/50 uppercase truncate">
+              <div className="w-full shrink-0 text-center min-h-[42px]">
+                <div className="text-[9px] text-white/50 uppercase truncate px-1">
                   {r.cosmeticProduct?.brand || "Brand"}
                 </div>
-                <div className="text-[10px] text-white/90 font-medium leading-tight truncate">
+                <div
+                  className="text-[10px] text-white/90 font-medium leading-tight px-1 overflow-hidden"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
                   {r.cosmeticProduct?.name || "Unknown Product"}
                 </div>
               </div>

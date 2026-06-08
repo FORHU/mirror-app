@@ -12,6 +12,7 @@ import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service"
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
+import { QuoteCarousel } from "@/components/QuoteCarousel";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -132,8 +133,6 @@ export default function CosmeticRecommendationPage() {
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
       : false,
   );
-  const [quoteIdx, setQuoteIdx] = useState(0);
-  const [quoteVisible, setQuoteVisible] = useState(true);
 
   const pageContext = useMemo(
     () => ({
@@ -236,19 +235,6 @@ export default function CosmeticRecommendationPage() {
   // Show the cycling quotes whenever the AI is talking (overrides the product /
   // skin-profile view) or while nothing has loaded yet.
   const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
-
-  // Cycle skincare quotes while the quote view is on screen.
-  useEffect(() => {
-    if (!showQuotes) return;
-    const interval = setInterval(() => {
-      setQuoteVisible(false);
-      setTimeout(() => {
-        setQuoteIdx((i) => (i + 1) % COSMETIC_QUOTES.length);
-        setQuoteVisible(true);
-      }, 600);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [showQuotes]);
 
   return (
     <div
@@ -403,23 +389,12 @@ export default function CosmeticRecommendationPage() {
                   </div>
                 </div>
               ) : (
-                <div
+                <QuoteCarousel
+                  quotes={COSMETIC_QUOTES}
+                  label="Skin Tip"
+                  labelClassName="text-pink-300/40"
                   className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
-                  style={{
-                    opacity: quoteVisible ? 1 : 0,
-                    transition: "opacity 0.6s ease",
-                  }}
-                >
-                  <p className="text-pink-300/40 text-[9px] uppercase tracking-[0.22em] mb-5">
-                    Skin Tip
-                  </p>
-                  <p className="text-[17px] font-light italic leading-relaxed text-white/85 mb-4">
-                    &ldquo;{COSMETIC_QUOTES[quoteIdx].text}&rdquo;
-                  </p>
-                  <p className="text-[11px] text-white/30 tracking-wide">
-                    — {COSMETIC_QUOTES[quoteIdx].author}
-                  </p>
-                </div>
+                />
               )}
             </div>
 

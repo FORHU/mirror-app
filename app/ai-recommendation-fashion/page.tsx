@@ -8,6 +8,7 @@ import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
+import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
@@ -120,8 +121,6 @@ export default function VirtualMirrorV2() {
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const [quoteIdx, setQuoteIdx] = useState(0);
-  const [quoteVisible, setQuoteVisible] = useState(true);
 
   type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
@@ -282,18 +281,6 @@ export default function VirtualMirrorV2() {
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
-
-  useEffect(() => {
-    if (!isProcessing) return;
-    const interval = setInterval(() => {
-      setQuoteVisible(false);
-      setTimeout(() => {
-        setQuoteIdx((i) => (i + 1) % FASHION_QUOTES.length);
-        setQuoteVisible(true);
-      }, 600);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [isProcessing]);
 
   const handleAiComplete = useCallback(
     (response: ChatWonderMessageResponse) => {
@@ -882,54 +869,12 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Loading state — cycling fashion quotes */}
-              {(isProcessing) && (
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "24px 24px 88px",
-                    opacity: quoteVisible ? 1 : 0,
-                    transition: "opacity 0.6s ease",
-                  }}
-                >
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.2)",
-                      fontSize: "9px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.22em",
-                      margin: "0 0 20px 0",
-                    }}
-                  >
-                    Style tip
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.85)",
-                      fontSize: "17px",
-                      fontWeight: 300,
-                      fontStyle: "italic",
-                      lineHeight: 1.65,
-                      textAlign: "center",
-                      margin: "0 0 16px 0",
-                    }}
-                  >
-                    &ldquo;{FASHION_QUOTES[quoteIdx].text}&rdquo;
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "11px",
-                      textAlign: "center",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    — {FASHION_QUOTES[quoteIdx].author}
-                  </p>
-                </div>
+              {isProcessing && (
+                <QuoteCarousel
+                  quotes={FASHION_QUOTES}
+                  label="Style tip"
+                  className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
+                />
               )}
 
               {/* Garment slot cards */}
