@@ -509,6 +509,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             } else {
               router.push(aiResponse.stylist_data.target_url);
             }
+          } else {
+            // No navigation — already on the target page. Push data reactively so
+            // the fashion/cosmetics page's chatGarmentData effect can consume it.
+            if (aiResponse.garment_data) {
+              useMirrorStore
+                .getState()
+                .setChatGarmentData(aiResponse.garment_data);
+            }
+            if (aiResponse.cosmetics_data) {
+              useMirrorStore
+                .getState()
+                .setChatCosmeticsData(aiResponse.cosmetics_data);
+            }
           }
 
           setReply(aiResponse.message);
@@ -1927,11 +1940,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             | undefined;
           let weatherCtx: Record<string, unknown> | undefined;
 
-          if (loc) {
-            locCtx = { lat: loc.lat, lng: loc.lng };
+          // Fallback to browser geolocation when map store has no location
+          // (e.g. on the AI assistant page where the map module never initialises).
+          let resolvedLoc = loc;
+          if (!resolvedLoc && typeof window !== "undefined" && navigator.geolocation) {
+            resolvedLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) =>
+                    resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 60_000 },
+                );
+              },
+            );
+          }
+
+          if (resolvedLoc) {
+            locCtx = { lat: resolvedLoc.lat, lng: resolvedLoc.lng };
             try {
               const wRes = await fetch(
-                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
+                `/api/mirror/weather?lat=${resolvedLoc.lat}&lng=${resolvedLoc.lng}`,
               );
               if (wRes.ok) {
                 const json = await wRes.json();
@@ -1947,8 +1976,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     String(d.condition ?? "")
                       .toLowerCase()
                       .includes("rain"),
-                  lat: loc.lat,
-                  lon: loc.lng,
+                  lat: resolvedLoc.lat,
+                  lon: resolvedLoc.lng,
                   temperature_c: Number(d.temperature),
                 };
               }
