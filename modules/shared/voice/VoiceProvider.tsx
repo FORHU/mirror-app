@@ -67,6 +67,7 @@ import {
   createPendingConfirmation,
   isExpired,
 } from "./orchestration/confirmationState";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
@@ -264,6 +265,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
   const mapSessionInitRef = useRef(false);
+
+  const { weather } = useWeather();
+  const weatherRef = useRef(weather);
+  useEffect(() => { weatherRef.current = weather; }, [weather]);
   // Auto-clear voice error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -571,12 +576,46 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
 
+          let resolvedGarmentLoc = loc;
+          if (!resolvedGarmentLoc && typeof window !== "undefined" && navigator.geolocation) {
+            resolvedGarmentLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 60_000 },
+                );
+              },
+            );
+          }
+
+          // Use pre-loaded weather when available; fetch inline on first call if not yet ready
+          let weatherPayload: Record<string, unknown> | null =
+            weatherRef.current as unknown as Record<string, unknown> | null;
+          if (!weatherPayload && resolvedGarmentLoc) {
+            try {
+              const r = await fetch(
+                `/api/mirror/weather?lat=${resolvedGarmentLoc.lat}&lng=${resolvedGarmentLoc.lng}`,
+              );
+              if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+            } catch {}
+            if (!weatherPayload) {
+              try {
+                const r = await fetch(
+                  `/api/weather?lat=${resolvedGarmentLoc.lat}&lon=${resolvedGarmentLoc.lng}`,
+                );
+                if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+              } catch {}
+            }
+          }
+
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             pageMode: effectiveMode,
-            ...(loc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
+            ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
+            ...(weatherPayload ? { weather: weatherPayload } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
@@ -586,20 +625,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          if (aiResponse.stylist_data?.target_url) {
+          const stylistTarget = aiResponse.stylist_data?.target_url;
+          const needsNavigation = stylistTarget && stylistTarget !== pathname;
+
+          if (needsNavigation) {
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
             }
-            if (aiResponse.stylist_data.target_url === "back") {
+            if (stylistTarget === "back") {
               router.back();
             } else {
-              router.push(aiResponse.stylist_data.target_url);
+              router.push(stylistTarget);
             }
           } else {
-            // No navigation — already on the target page. Push data reactively so
-            // the fashion/cosmetics page's chatGarmentData effect can consume it.
+            // No navigation needed (no target, or already on target page).
+            // Push data reactively so the page's chatGarmentData effect consumes it.
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
