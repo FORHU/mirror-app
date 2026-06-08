@@ -202,6 +202,29 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
 
   const events = outline && Array.isArray(outline.events) ? outline.events : [];
 
+  // Primary cosmetics source: the outline's own master list, refreshed on every
+  // ChatWonder turn (persistOutlineCosmetics). Each recommendation nests its
+  // product under `cosmeticProduct`, with the image at `cosmeticProduct.fileUrl.fileUrl`.
+  const outlineRecs =
+    outline && Array.isArray(outline.cosmeticRecommendations)
+      ? outline.cosmeticRecommendations
+      : [];
+  for (const rawRec of outlineRecs) {
+    const rec = asRecord(rawRec);
+    if (!rec) continue;
+    const product = asRecord(rec.cosmeticProduct);
+    const id = str(rec.id);
+    const imageUrl = product ? fileUrlOf(product.fileUrl) : "";
+    if (!id || !imageUrl || seenCosmetic.has(id)) continue;
+    seenCosmetic.add(id);
+    cosmetics.push({
+      id,
+      name: (product && str(product.name)) || "Cosmetic Product",
+      imageUrl,
+      brand: (product && str(product.brand)) || undefined,
+    });
+  }
+
   let skinAnalysis: SkinAnalysisTileItem | null = null;
   const rawAnalysis = asRecord(outline?.skinAnalysis);
   if (rawAnalysis) {
