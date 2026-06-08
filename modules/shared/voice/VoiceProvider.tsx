@@ -394,7 +394,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isCosmeticHandoffPrompt(t)) {
+      if (isCosmeticHandoffPrompt(t) && !isNavigationPhrase(t)) {
         const assistantReply =
           "Opening cosmetic recommendations while I find products for you.";
         setReply(assistantReply);
@@ -582,12 +582,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         // Garment and Cosmetics mode: bypass the orchestration pipeline, route to chatWonderService
         const pageMode = pageCtxRef.current?.mode;
+        const wantsDirectNavigation = isNavigationPhrase(t);
+
         if (
-          pageMode === "garment" ||
-          pageMode === "cosmetics" ||
-          pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
+          !wantsDirectNavigation &&
+          (pageMode === "garment" ||
+            pageMode === "cosmetics" ||
+            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic"))
         ) {
-          const isCosmeticsRequest = isCosmeticHandoffPrompt(t);
+          const isCosmeticsRequest =
+            isCosmeticHandoffPrompt(t) && !wantsDirectNavigation;
           const isCosmetics =
             isCosmeticsRequest ||
             pageMode === "cosmetics" ||
@@ -2339,13 +2343,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             locCtx = { lat: resolvedLoc.lat, lng: resolvedLoc.lng };
             // Removed weather fetching — backend will handle it
           }
+          const directNavigationRequest = isNavigationPhrase(t);
           const _isCosmetics =
-            isCosmeticHandoffPrompt(t) ||
-            pageCtxRef.current?.mode === "cosmetics" ||
-            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+            !directNavigationRequest &&
+            (isCosmeticHandoffPrompt(t) ||
+              pageCtxRef.current?.mode === "cosmetics" ||
+              pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic"));
           const effectivePageMode = _isCosmetics
             ? "cosmetics"
-            : (pageCtxRef.current?.mode as
+            : directNavigationRequest
+              ? "map"
+              : (pageCtxRef.current?.mode as
                 | "garment"
                 | "cosmetics"
                 | "map"
@@ -2355,7 +2363,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             input: _isCosmetics ? `[cosmetics] ${t}` : t,
             lang: language,
             voice: true,
-            ...(locCtx && (pageCtxRef.current?.mode === "garment" || pageCtxRef.current?.mode === "overview" || pageCtxRef.current?.mode === "map") ? { location: locCtx } : {}),
+            ...(locCtx &&
+            (directNavigationRequest ||
+              pageCtxRef.current?.mode === "garment" ||
+              pageCtxRef.current?.mode === "overview" ||
+              pageCtxRef.current?.mode === "map")
+              ? { location: locCtx }
+              : {}),
             pageMode: effectivePageMode,
             sitemapContext: SITEMAP_CONTEXT,
             ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
