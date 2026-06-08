@@ -14,7 +14,6 @@ const API_BASE_URL =
 
 export interface ChatWonderMessageRequest {
   input: string;
-  weather?: Record<string, unknown>;
   location?: { lat: number | string; lng: number | string };
   /** Opt-in: ask the backend to synthesize TTS audio for the reply. */
   voice?: boolean;

@@ -450,35 +450,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           pageMode === "cosmetics" ||
           pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
         ) {
-          let weather: Record<string, unknown> | undefined;
-          if (loc) {
-            try {
-              const res = await fetch(
-                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
-              );
-              if (res.ok) {
-                const json = await res.json();
-                const d = json.data ?? json;
-                weather = {
-                  date: new Date().toISOString().split("T")[0],
-                  description: String(d.condition ?? "").toLowerCase(),
-                  estimated: false,
-                  is_cold: Number(d.temperature) < 20,
-                  is_hot: Number(d.temperature) >= 30,
-                  is_rainy:
-                    Number(d.precipitationProb) >= 50 ||
-                    String(d.condition ?? "")
-                      .toLowerCase()
-                      .includes("rain"),
-                  lat: loc.lat,
-                  lon: loc.lng,
-                  temperature_c: Number(d.temperature),
-                };
-              }
-            } catch {
-              /* weather is best-effort */
-            }
-          }
+          // Removed weather fetching — backend will handle it
 
           const isCosmetics =
             pageMode === "cosmetics" ||
@@ -487,12 +459,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
 
           const aiResponse = await chatWonderService.message({
-            input: `[stylist] ${t}`,
+            input: t,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             pageMode: effectiveMode,
-            ...(weather ? { weather } : {}),
-            ...(loc ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
+            ...(loc && (effectiveMode === "garment" || effectiveMode === "overview" || effectiveMode === "map") ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
@@ -2038,45 +2009,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           if (resolvedLoc) {
             locCtx = { lat: resolvedLoc.lat, lng: resolvedLoc.lng };
-            try {
-              const wRes = await fetch(
-                `/api/mirror/weather?lat=${resolvedLoc.lat}&lng=${resolvedLoc.lng}`,
-              );
-              if (wRes.ok) {
-                const json = await wRes.json();
-                const d = json.data ?? json;
-                weatherCtx = {
-                  date: new Date().toISOString().split("T")[0],
-                  description: String(d.condition ?? "").toLowerCase(),
-                  estimated: false,
-                  is_cold: Number(d.temperature) < 20,
-                  is_hot: Number(d.temperature) >= 30,
-                  is_rainy:
-                    Number(d.precipitationProb) >= 50 ||
-                    String(d.condition ?? "")
-                      .toLowerCase()
-                      .includes("rain"),
-                  lat: resolvedLoc.lat,
-                  lon: resolvedLoc.lng,
-                  temperature_c: Number(d.temperature),
-                };
-              }
-            } catch {
-              /* best effort */
-            }
+            // Removed weather fetching — backend will handle it
           }
-
           const _isCosmetics =
             pageCtxRef.current?.mode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
           const res = await chatWonderService.message({
-            input: `[stylist] ${t}`,
+            input: t,
             lang: language,
             voice: true,
-            location: locCtx,
+            ...(locCtx && (pageCtxRef.current?.mode === "garment" || pageCtxRef.current?.mode === "overview" || pageCtxRef.current?.mode === "map") ? { location: locCtx } : {}),
             pageMode: pageCtxRef.current?.mode as "garment" | "cosmetics" | "map" | "overview" | null,
             sitemapContext: SITEMAP_CONTEXT,
-            ...(weatherCtx ? { weather: weatherCtx } : {}),
             ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
