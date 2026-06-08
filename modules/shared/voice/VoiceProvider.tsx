@@ -484,10 +484,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
 
+          const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "stylist";
+
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
+            pageMode: effectiveMode,
             ...(weather ? { weather } : {}),
             ...(loc ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
