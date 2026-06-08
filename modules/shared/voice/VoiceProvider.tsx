@@ -153,6 +153,24 @@ function extractCosmeticSelectionRank(text: string): number | null {
   return COSMETIC_SELECTION_WORDS[looseWord[1]] ?? null;
 }
 
+// Spoken number forms + ASR homophones — used in context-bound patterns only to avoid false positives
+const SPOKEN_IDX: Record<string, number> = {
+  one: 0, won: 0,
+  two: 1, to: 1, too: 1,
+  three: 2,
+  four: 3, for: 3,
+  five: 4,
+  six: 5,
+};
+const SPOKEN_IDX_PAT = Object.keys(SPOKEN_IDX).join("|");
+
+function parseSpokenIdx(raw: string): number | null {
+  if (raw in SPOKEN_IDX) return SPOKEN_IDX[raw];
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= 10 ? n - 1 : null;
+}
+
+// Ordinal/cardinal words for the loose match — no homophones to prevent false positives
 const FASHION_OUTFIT_SELECTION_WORDS: Record<string, number> = {
   first: 0, one: 0,
   second: 1, two: 1,
@@ -166,10 +184,13 @@ function extractFashionOutfitSelection(text: string): number | null {
     /\b(select|choose|pick|show|view|see|open|switch)\b/.test(lower);
   if (!wantsSelection) return null;
 
-  const numericOutfit = lower.match(/\boutfit\s*(?:number|#)?\s*(\d{1,2})\b/);
+  // "outfit [number/#]? [digit|spoken|homophone]" — slot context makes homophones safe
+  const numericOutfit = lower.match(
+    new RegExp(`\\boutfit\\s*(?:number|#)?\\s*(\\d{1,2}|${SPOKEN_IDX_PAT})\\b`),
+  );
   if (numericOutfit) {
-    const idx = Number(numericOutfit[1]) - 1;
-    return idx >= 0 && idx <= 9 ? idx : null;
+    const idx = parseSpokenIdx(numericOutfit[1]);
+    return idx !== null && idx <= 9 ? idx : null;
   }
 
   const numericPlain = lower.match(
@@ -188,6 +209,43 @@ function extractFashionOutfitSelection(text: string): number | null {
   }
 
   return null;
+}
+
+type GarmentSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
+
+const GARMENT_SLOT_WORDS: Record<string, GarmentSlot> = {
+  base: "base",
+  mid: "mid",
+  middle: "mid",
+  outer: "outer",
+  bottom: "bottoms",
+  bottoms: "bottoms",
+  lower: "bottoms",
+  shoe: "shoes",
+  shoes: "shoes",
+  bag: "bags",
+  bags: "bags",
+};
+
+function extractFashionGarmentSelection(
+  text: string,
+): { slot: GarmentSlot; index: number } | null {
+  const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
+  const wantsSelection =
+    /\b(select|choose|pick|show|view|see|open|switch)\b/.test(lower);
+  if (!wantsSelection) return null;
+
+  const slotPat = Object.keys(GARMENT_SLOT_WORDS).join("|");
+  // "slot [number/#]? [digit|spoken|homophone]" — slot keyword bounds the number so homophones are safe
+  const match = lower.match(
+    new RegExp(`\\b(${slotPat})\\s+(?:number|#)?\\s*(\\d{1,2}|${SPOKEN_IDX_PAT})\\b`),
+  );
+  if (!match) return null;
+
+  const slot = GARMENT_SLOT_WORDS[match[1]];
+  const idx = parseSpokenIdx(match[2]);
+  if (!slot || idx === null || idx > 9) return null;
+  return { slot, index: idx };
 }
 
 function isCosmeticHandoffPrompt(text: string): boolean {
@@ -627,6 +685,34 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               index: outfitIdx,
             });
             const localReply = `Showing outfit number ${outfitIdx + 1}.`;
+            setReply(localReply);
+            const newHistory = [
+              ...historyRef.current,
+              { user: t, assistant: localReply },
+            ];
+            historyRef.current = newHistory;
+            setChatHistory(newHistory);
+            setVoiceState("idle");
+            return;
+          }
+
+          const garmentSel =
+            !isCosmetics && pageMode === "garment"
+              ? extractFashionGarmentSelection(t)
+              : null;
+          if (garmentSel !== null) {
+            onActionRef.current?.({
+              type: "fashion_select_garment",
+              slot: garmentSel.slot,
+              index: garmentSel.index,
+            });
+            const slotLabel =
+              garmentSel.slot === "bottoms"
+                ? "bottom"
+                : garmentSel.slot === "bags"
+                  ? "bag"
+                  : garmentSel.slot;
+            const localReply = `Selecting ${slotLabel} number ${garmentSel.index + 1}.`;
             setReply(localReply);
             const newHistory = [
               ...historyRef.current,
