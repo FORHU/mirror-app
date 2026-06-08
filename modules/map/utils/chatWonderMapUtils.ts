@@ -172,6 +172,7 @@ export function matchPOIFromTranscript(
   }
 
   // Tier 2 — name fragment (longest match wins)
+  // First pass: full name substring match (highest confidence)
   let bestMatch: NearbyPOI | null = null;
   let bestLen = 0;
   for (const poi of pois) {
@@ -179,6 +180,24 @@ export function matchPOIFromTranscript(
     if (lower.includes(name) && name.length > bestLen) {
       bestMatch = poi;
       bestLen = name.length;
+    }
+  }
+  if (bestMatch) return bestMatch;
+
+  // Second pass: segment match — handles names like "Foam Coffee - Baguio"
+  // where the user says "foam coffee" without the location qualifier.
+  // Score = sum of matched segment lengths so "foam coffee baguio" beats "foam coffee" alone.
+  for (const poi of pois) {
+    const segments = poi.name
+      .toLowerCase()
+      .split(/\s*[-+|,()\/]\s*/)
+      .filter((s) => s.length > 2);
+    const score = segments
+      .filter((seg) => lower.includes(seg))
+      .reduce((sum, seg) => sum + seg.length, 0);
+    if (score > bestLen) {
+      bestMatch = poi;
+      bestLen = score;
     }
   }
   if (bestMatch) return bestMatch;
@@ -847,7 +866,14 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   );
   if (nearMeM) {
     const candidate = nearMeM[1].trim();
-    if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate))
+    // Exclude question words, subject pronouns, and command verbs — these indicate
+    // the pattern captured a full sentence rather than a bare POI category.
+    if (
+      candidate &&
+      !/^(what|where|how|who|when|i|i'm|i'd|i'll|we|they|suggest|recommend|looking|searching|find|show|give|get)\b/i.test(
+        candidate,
+      )
+    )
       return candidate;
   }
 
@@ -864,7 +890,12 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   );
   if (whereCanFoodM) {
     const food = whereCanFoodM[2].trim();
-    return food || ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
+    // Reject bare location words captured as the food noun ("where can I eat here"
+    // → food="here").  Fall back to the activity → category map instead.
+    const isLocationWord = /^(?:here|nearby|near\s+me|around\s+here|around\s+me)\s*$/i.test(food);
+    return !isLocationWord && food
+      ? food
+      : ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
   }
 
   // "where can I eat / drink / shop / park" — activity only, no food noun
@@ -909,11 +940,12 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   if (aroundHereM) {
     const candidate = aroundHereM[1]
       .trim()
+      .replace(/^(?:find|show|give|get|bring|take)\s+(?:me\s+)?/i, "")
       .replace(/^(?:any|some|the|a|an|are\s+there|is\s+there)\s+/i, "");
     if (
       candidate &&
       candidate.split(/\s+/).length <= 4 &&
-      !/^(what|where|how|who|when|i|we|they)\b/i.test(candidate)
+      !/^(what|where|how|who|when|i|we|they|find|show|give|get|bring|take)\b/i.test(candidate)
     )
       return candidate;
   }
@@ -927,7 +959,7 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
 
   // ── Group 9: "suggest / recommend X" ────────────────────────────────────
   const suggestM = transcript.match(
-    /\b(?:suggest|recommend)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
+    /\b(?:suggest|recommend)\s+(?:me\s+)?(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
   );
   if (suggestM) {
     const candidate = suggestM[1].trim();

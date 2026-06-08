@@ -484,10 +484,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
 
+          const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
+
           const aiResponse = await chatWonderService.message({
             input: isCosmetics ? `[cosmetics] ${t}` : `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
+            pageMode: effectiveMode,
             ...(weather ? { weather } : {}),
             ...(loc ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
@@ -509,6 +512,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               router.back();
             } else {
               router.push(aiResponse.stylist_data.target_url);
+            }
+          } else {
+            // No navigation — already on the target page. Push data reactively so
+            // the fashion/cosmetics page's chatGarmentData effect can consume it.
+            if (aiResponse.garment_data) {
+              useMirrorStore
+                .getState()
+                .setChatGarmentData(aiResponse.garment_data);
+            }
+            if (aiResponse.cosmetics_data) {
+              useMirrorStore
+                .getState()
+                .setChatCosmeticsData(aiResponse.cosmetics_data);
             }
           }
 
@@ -667,6 +683,55 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           // Client-side voice matcher — intercept if curated POIs are pending
           if (curatedPOIsRef.current.length > 0) {
+            // ── Address query: reply with address instead of navigating ───────
+            // Must be checked before the name match so "what's the address of
+            // Foam Coffee" doesn't accidentally trigger navigation.
+            if (
+              /\bwhat(?:'s|\s+is)\s+(?:the\s+)?address\b|\baddress\s+of\b/i.test(
+                t,
+              )
+            ) {
+              const addrPOI =
+                matchPOIFromTranscript(t, curatedPOIsRef.current) ??
+                curatedPOIsRef.current[0];
+              const addrReply = addrPOI.address
+                ? `The address of ${addrPOI.name} is ${addrPOI.address}.`
+                : `I don't have a specific address for ${addrPOI.name}.`;
+              const addrAudio = await mapService
+                .tts(addrReply)
+                .catch(() => null);
+              setReply(addrReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: addrReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (addrAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  addrAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
+            }
+
+            // ── Try to match a POI by name (works even inside navigation phrases) ─
+            // "take me to Foam Coffee" → matches "Foam Coffee" from the list.
+            // If the matched name is in the list, prefer the Google Places location
+            // over a fresh Mapbox geocode.
             const matched = matchPOIFromTranscript(t, curatedPOIsRef.current);
             if (matched) {
               curatedPOIsRef.current = [];
@@ -708,9 +773,75 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               }
               return;
             }
-            // No match — abandon the POI selection, fall through to server
-            curatedPOIsRef.current = [];
-            useMapStore.getState().clearSuggestions();
+
+            // ── No name match — check if user moved on to a new intent ────────
+            // "I also want to go to la trinidad" / "take me somewhere else" →
+            // clear the curated list and fall through so the itinerary / nav
+            // handlers below can process it.  Only escape on a clear intent
+            // signal so ambiguous fragments still trigger the re-ask below.
+            if (
+              isItineraryPhrase(t) ||
+              isNavigationPhrase(t) ||
+              isClearRoutePhrase(t) ||
+              isMultiEventUtterance(t)
+            ) {
+              curatedPOIsRef.current = [];
+              useMapStore.getState().clearSuggestions();
+              // fall through — do NOT return
+            } else {
+              // ── Re-ask with a narrowed list (max 3, by word overlap) ─────────
+              const tLower = t.toLowerCase();
+              const tWords = tLower.split(/\s+/).filter((w) => w.length > 2);
+              const scored = curatedPOIsRef.current.map((p) => {
+                const pName = p.name.toLowerCase();
+                const overlap = tWords.filter(
+                  (w) =>
+                    pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
+                ).length;
+                return { p, overlap };
+              });
+              const reAskPOIs = (
+                scored.some((s) => s.overlap > 0)
+                  ? scored.sort((a, b) => b.overlap - a.overlap)
+                  : scored
+              )
+                .slice(0, 3)
+                .map((s) => s.p);
+              const names = reAskPOIs.map((p) => p.name);
+              const reAskReply =
+                names.length === 1
+                  ? `Did you mean ${names[0]}?`
+                  : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
+              const reAskAudio = await mapService
+                .tts(reAskReply)
+                .catch(() => null);
+              setReply(reAskReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: reAskReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (reAskAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  reAskAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
+            }
           }
 
           // ── Disambiguation resolution ─────────────────────────────────────────
@@ -1434,19 +1565,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
           // ── End itinerary intercept ────────────────────────────────────────────
 
-          if (!mapSessionInitRef.current) {
-            await chatWonderService.getSessionId();
-            mapSessionInitRef.current = true;
-          }
-
           const mapState = useMapStore.getState();
           const mapLoc = mapState.userLocation ?? mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
           // ── Nearby POI intercept ──────────────────────────────────────────────
-          // "nearest starbucks", "find me X near me" — bypass ChatWonder (which
-          // can't use the location context) and call nearbyPOIs directly.
+          // Checked BEFORE session init — most voice queries ("recommend me a cafe")
+          // are handled locally and never need ChatWonder.
           const nearbyQuery = extractNearbyPOIQuery(t);
           if (nearbyQuery && mapLoc) {
             try {
@@ -1494,6 +1620,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
           // ── End nearby POI intercept ──────────────────────────────────────────
+
+          // Session init deferred — only pays the round-trip cost for queries
+          // that actually reach ChatWonder (not local POI or itinerary intercepts).
+          if (!mapSessionInitRef.current) {
+            await chatWonderService.getSessionId();
+            mapSessionInitRef.current = true;
+          }
 
           const enrichedInput = buildMapInput(
             t,
@@ -1882,11 +2015,33 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             | undefined;
           let weatherCtx: Record<string, unknown> | undefined;
 
-          if (loc) {
-            locCtx = { lat: loc.lat, lng: loc.lng };
+          // Fallback to homeLocation explicitly when map store has no location
+          // (e.g. on the AI assistant page where the map module never initialises).
+          let resolvedLoc = loc;
+          if (!resolvedLoc && useMapStore.getState().homeLocationStatus === "idle") {
+            await useMapStore.getState().loadHomeLocation();
+            const freshMap = useMapStore.getState();
+            resolvedLoc = freshMap.userLocation ?? freshMap.homeLocation;
+          }
+
+          if (!resolvedLoc && typeof window !== "undefined" && navigator.geolocation) {
+            resolvedLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) =>
+                    resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 60_000 },
+                );
+              },
+            );
+          }
+
+          if (resolvedLoc) {
+            locCtx = { lat: resolvedLoc.lat, lng: resolvedLoc.lng };
             try {
               const wRes = await fetch(
-                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
+                `/api/mirror/weather?lat=${resolvedLoc.lat}&lng=${resolvedLoc.lng}`,
               );
               if (wRes.ok) {
                 const json = await wRes.json();
@@ -1902,8 +2057,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     String(d.condition ?? "")
                       .toLowerCase()
                       .includes("rain"),
-                  lat: loc.lat,
-                  lon: loc.lng,
+                  lat: resolvedLoc.lat,
+                  lon: resolvedLoc.lng,
                   temperature_c: Number(d.temperature),
                 };
               }
@@ -1912,14 +2067,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
+          const _isCosmetics =
+            pageCtxRef.current?.mode === "cosmetics" ||
+            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
             voice: true,
             location: locCtx,
+            pageMode: pageCtxRef.current?.mode as "garment" | "cosmetics" | "map" | "overview" | null,
             sitemapContext: SITEMAP_CONTEXT,
             ...(weatherCtx ? { weather: weatherCtx } : {}),
-            skinAnalysis: useMirrorStore.getState().skinAnalysisResult,
+            ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
           r = res.message;

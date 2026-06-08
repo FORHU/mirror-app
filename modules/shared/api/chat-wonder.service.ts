@@ -26,6 +26,8 @@ export interface ChatWonderMessageRequest {
    */
   sitemapContext?: string[];
   skinAnalysis?: SkinAnalysis | null;
+  /** Current page mode — tells the backend which parameters to forward and which intent tag to use. */
+  pageMode?: "garment" | "cosmetics" | "map" | "overview" | null;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -210,6 +212,7 @@ export const chatWonderService = {
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
     if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
+    if (request.pageMode) body.page_mode = request.pageMode;
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
     let res: Response;
