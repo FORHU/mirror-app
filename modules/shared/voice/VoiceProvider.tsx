@@ -228,6 +228,23 @@ const GARMENT_SLOT_WORDS: Record<string, GarmentSlot> = {
   bags: "bags",
 };
 
+// Strips the backend delimiter ":\n\n." and everything after it.
+// The backend appends this to separate human-readable text from structured data.
+function cleanMessage(text: string): string {
+  const cut = text.indexOf(":\n\n.");
+  return (cut !== -1 ? text.slice(0, cut) : text).trim();
+}
+
+function firstNSentences(text: string, n: number): string {
+  const re = /[^.!?]*[.!?]+/g;
+  const sentences: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null && sentences.length < n) {
+    sentences.push(m[0]);
+  }
+  return sentences.length > 0 ? sentences.join("").trim() : text.trim();
+}
+
 function extractFashionGarmentSelection(
   text: string,
 ): { slot: GarmentSlot; index: number } | null {
@@ -767,23 +784,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           try {
             aiResponse = await chatWonderService.message({
               input: `[stylist] ${t}`,
-              voice: true,
               sitemapContext: [...SITEMAP_CONTEXT, "back"],
               pageMode: effectiveMode,
               ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
               ...(weatherPayload ? { weather: weatherPayload } : {}),
               ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
-            }, {
-              onChunk: (text) => {
-                try {
-                  setReply((p) => p + text);
-                } catch {}
-              },
-              onAudioChunk: () => {
-                try {
-                  setVoiceState("speaking");
-                } catch {}
-              },
             });
           } catch (err: unknown) {
             const message =
@@ -846,25 +851,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          setReply(aiResponse.message);
+          const displayMessage = cleanMessage(aiResponse.message);
+          setReply(displayMessage);
           const newHistory = [
             ...historyRef.current,
-            { user: t, assistant: aiResponse.message },
+            { user: t, assistant: displayMessage },
           ];
           historyRef.current = newHistory;
           setChatHistory(newHistory);
 
-          if (aiResponse.audioBase64) {
+          const snippet = firstNSentences(displayMessage, 3);
+          const ttsAudio = await mapService.tts(snippet).catch(() => null);
+          if (ttsAudio) {
             setVoiceState("speaking");
-            const audioBuffer = Buffer.from(aiResponse.audioBase64, "base64");
             const playCtx = new AudioContext();
             playbackCtxRef.current = playCtx;
-            const decoded = await playCtx.decodeAudioData(
-              audioBuffer.buffer.slice(
-                audioBuffer.byteOffset,
-                audioBuffer.byteOffset + audioBuffer.byteLength,
-              ),
-            );
+            const decoded = await playCtx.decodeAudioData(ttsAudio.slice(0));
             const src = playCtx.createBufferSource();
             src.buffer = decoded;
             src.connect(playCtx.destination);
