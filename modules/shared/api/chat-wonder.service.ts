@@ -195,7 +195,11 @@ export const chatWonderService = {
    */
   async message(
     request: ChatWonderMessageRequest,
-    signal?: AbortSignal,
+    options?: {
+      onChunk?: (text: string) => void;
+      onAudioChunk?: () => void;
+      signal?: AbortSignal;
+    },
   ): Promise<ChatWonderMessageResponse> {
     const token = await resolveAccessToken();
 
@@ -214,6 +218,7 @@ export const chatWonderService = {
     if (request.pageMode) body.page_mode = request.pageMode;
     body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
+    const signal = options?.signal;
     let res: Response;
     try {
       res = await fetch(`${API_BASE_URL}/api/mirror/chat-wonder/message`, {
@@ -235,6 +240,7 @@ export const chatWonderService = {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let audioNotified = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -252,7 +258,22 @@ export const chatWonderService = {
             try {
               const parsed = JSON.parse(dataStr);
               if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+                if (!audioNotified) {
+                  audioNotified = true;
+                  try {
+                    options?.onAudioChunk?.();
+                  } catch {}
+                }
                 audioQueue.enqueue(parsed.audioBase64);
+              } else if (parsed.type === "chunk") {
+                // Stream textual chunks to the caller if provided
+                try {
+                  options?.onChunk?.(parsed.content ?? "");
+                } catch {}
+              } else if (parsed.type === "raw_chunk") {
+                try {
+                  options?.onChunk?.(parsed.content ?? "");
+                } catch {}
               } else if (parsed.type === "complete") {
                 finalData = parsed as ChatWonderMessageResponse;
               } else if (parsed.type === "error") {
