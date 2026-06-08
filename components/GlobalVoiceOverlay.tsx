@@ -107,14 +107,14 @@ function VoiceUI() {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className={`fixed z-9999 pointer-events-none right-5 ${
+            className={`fixed z-9999 right-5 ${
               isCosmeticsPage
                 ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
                 : "bottom-[160px] w-72"
             }`}
           >
             <div
-              className={`rounded-2xl shadow-2xl overflow-y-auto ${
+              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${
                 isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
               }`}
               style={{

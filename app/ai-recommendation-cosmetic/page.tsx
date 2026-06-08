@@ -272,16 +272,10 @@ export default function CosmeticRecommendationPage() {
             <div className="flex-1 flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
                 <div className="p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 transition-all duration-300 shadow-2xl">
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-start mb-6">
                     <span className="text-pink-300 text-[11px] font-bold uppercase tracking-widest px-3 py-1 bg-pink-500/10 rounded-full border border-pink-500/20">
                       #{selectedRec.rank} Recommended
                     </span>
-                    <button
-                      onClick={() => setSelectedId(null)}
-                      className="text-white/40 hover:text-white/80 text-xs tracking-wider uppercase"
-                    >
-                      Clear
-                    </button>
                   </div>
 
                   {/* Product Image Box */}

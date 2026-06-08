@@ -587,7 +587,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           pageMode === "cosmetics" ||
           pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
         ) {
+          const isCosmeticsRequest = isCosmeticHandoffPrompt(t);
           const isCosmetics =
+            isCosmeticsRequest ||
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
 
@@ -683,7 +685,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          const stylistTarget = aiResponse.stylist_data?.target_url;
+          const stylistTarget =
+            isCosmetics ||
+            Boolean(aiResponse.cosmetics_data) ||
+            isCosmeticHandoffPrompt(aiResponse.message)
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : aiResponse.stylist_data?.target_url;
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -691,6 +698,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
+            }
+            if (
+              stylistTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&
+              !aiResponse.cosmetics_data
+            ) {
+              try {
+                sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+              } catch {
+                /* prompt handoff is best-effort */
+              }
             }
             if (stylistTarget === "back") {
               router.back();
@@ -2323,14 +2340,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             // Removed weather fetching — backend will handle it
           }
           const _isCosmetics =
+            isCosmeticHandoffPrompt(t) ||
             pageCtxRef.current?.mode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+          const effectivePageMode = _isCosmetics
+            ? "cosmetics"
+            : (pageCtxRef.current?.mode as
+                | "garment"
+                | "cosmetics"
+                | "map"
+                | "overview"
+                | null);
           const res = await chatWonderService.message({
-            input: t,
+            input: _isCosmetics ? `[cosmetics] ${t}` : t,
             lang: language,
             voice: true,
             ...(locCtx && (pageCtxRef.current?.mode === "garment" || pageCtxRef.current?.mode === "overview" || pageCtxRef.current?.mode === "map") ? { location: locCtx } : {}),
-            pageMode: pageCtxRef.current?.mode as "garment" | "cosmetics" | "map" | "overview" | null,
+            pageMode: effectivePageMode,
             sitemapContext: SITEMAP_CONTEXT,
             ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
@@ -2346,7 +2372,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           let chatAction: ChatWonderAction | null = null;
-          if (res.stylist_data?.target_url) {
+          const resolvedTarget =
+            _isCosmetics ||
+            Boolean(res.cosmetics_data) ||
+            isCosmeticHandoffPrompt(res.message)
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : res.stylist_data?.target_url;
+
+          if (resolvedTarget) {
             if (res.garment_data) {
               useMirrorStore.getState().setPendingGarmentData(res.garment_data);
             }
@@ -2355,8 +2388,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 .getState()
                 .setPendingCosmeticsData(res.cosmetics_data);
             }
+            if (
+              resolvedTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&
+              !res.cosmetics_data
+            ) {
+              try {
+                sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+              } catch {
+                /* prompt handoff is best-effort */
+              }
+            }
             void handleStylistTarget(
-              res.stylist_data.target_url,
+              resolvedTarget,
               router,
               pathname,
             );
