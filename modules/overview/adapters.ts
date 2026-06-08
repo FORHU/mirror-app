@@ -203,7 +203,7 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
   const events = outline && Array.isArray(outline.events) ? outline.events : [];
 
   // Primary cosmetics source: the outline's own master list, refreshed on every
-  // ChatWonder turn (persistOutlineCosmetics). Each recommendation nests its
+  // cosmetics turn (resolveAndPersistOutlineCosmetics). Each recommendation nests its
   // product under `cosmeticProduct`, with the image at `cosmeticProduct.fileUrl.fileUrl`.
   const outlineRecs =
     outline && Array.isArray(outline.cosmeticRecommendations)
