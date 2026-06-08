@@ -23,7 +23,6 @@ import "../../styles/glow.css";
 import { ROUTES } from "@/navigation";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
@@ -57,81 +56,28 @@ type GarmentRecommendationAction = {
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
-type OverviewWeatherContext = {
-  date: string;
-  description: string;
-  estimated: boolean;
-  is_cold: boolean;
-  is_hot: boolean;
-  is_rainy: boolean;
-  temperature_c: number;
-  lat?: number;
-  lon?: number;
-  location?: string;
-};
-
-function weatherToChatContext(
-  raw: Record<string, unknown>,
-  fallback: { lat?: number; lon?: number; location?: string } = {},
-): OverviewWeatherContext | null {
-  const tempRaw = raw.temperature ?? raw.temp;
-  const temperature =
-    typeof tempRaw === "number"
-      ? tempRaw
-      : typeof tempRaw === "string" && Number.isFinite(Number(tempRaw))
-        ? Number(tempRaw)
-        : null;
-  if (temperature === null) return null;
-
-  const condition = String(raw.condition ?? "").toLowerCase();
-  const precipitation = Number(raw.precipitationProb ?? raw.precipitation ?? 0);
-
-  return {
-    date: new Date().toISOString().split("T")[0],
-    description: condition,
-    estimated: false,
-    is_cold: temperature < 20,
-    is_hot: temperature >= 30,
-    is_rainy: precipitation >= 50 || condition.includes("rain"),
-    temperature_c: temperature,
-    ...fallback,
-  };
-}
-
-async function fetchDestinationWeather(
-  lat: number,
-  lng: number,
-  location: string,
-): Promise<OverviewWeatherContext | null> {
-  const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lng}`);
-  if (!res.ok) return null;
-  const json = await res.json();
-  const data = (json.data ?? json) as Record<string, unknown>;
-  return weatherToChatContext(data, { lat, lon: lng, location });
-}
+type OverviewLocationContext = { lat: number; lng: number };
 
 async function requestGarmentsWithFreshSession(
   input: string,
-  weather?: OverviewWeatherContext | null,
+  location?: OverviewLocationContext | null,
 ) {
   // Overview produces a cosmetics tile, which ChatWonder can only fill when it
   // receives the skin analysis (ADR 0002). Pass it on both the initial call and
-  // the post-409 retry.
+  // the post-409 retry. Weather is resolved server-side from the location.
   const skinAnalysis = useMirrorStore.getState().skinAnalysisResult;
+  const payload = {
+    input,
+    pageMode: "overview" as const,
+    ...(location ? { location: { lat: location.lat.toString(), lng: location.lng.toString() } } : {}),
+    ...(skinAnalysis ? { skinAnalysis } : {}),
+  };
   try {
-    return await chatWonderService.message({
-      input,
-      ...(weather ? { weather } : {}),
-      ...(skinAnalysis ? { skinAnalysis } : {}),
-    });
+    return await chatWonderService.message(payload);
   } catch (err) {
     if (err instanceof Error && err.message.includes("HTTP 409")) {
       await chatWonderService.restart();
-      return chatWonderService.message({
-        input,
-        ...(weather ? { weather } : {}),
-        ...(skinAnalysis ? { skinAnalysis } : {}),
-      });
+      return chatWonderService.message(payload);
     }
     throw err;
   }
@@ -306,16 +252,9 @@ export default function OverviewPage() {
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
       const destination = extractLocationFromTranscript(prompt);
-      let weatherContext =
-        weather?.temp !== null && weather?.temp !== undefined
-          ? weatherToChatContext(
-              {
-                temp: weather.temp,
-                condition: weather.condition ?? "",
-              },
-              { location: weather.city },
-            )
-          : null;
+      // Location for weather: prefer the geocoded destination, fall back to the
+      // user's current GPS position. The backend resolves weather from location.
+      let locationCtx: OverviewLocationContext | null = null;
 
       if (destination) {
         try {
@@ -328,12 +267,7 @@ export default function OverviewPage() {
               lat: place.lat,
               lng: place.lng,
             });
-            const destinationWeather = await fetchDestinationWeather(
-              place.lat,
-              place.lng,
-              place.name || destination,
-            );
-            if (destinationWeather) weatherContext = destinationWeather;
+            locationCtx = { lat: place.lat, lng: place.lng };
           } else {
             emptyMap();
           }
@@ -353,7 +287,7 @@ export default function OverviewPage() {
           ]
             .filter(Boolean)
             .join(" "),
-          weatherContext,
+          locationCtx,
         );
 
         const { garments, outfits } = adaptGarmentData(response.garment_data);
@@ -374,7 +308,7 @@ export default function OverviewPage() {
         setCosmetics([]);
       }
     },
-    [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics, weather],
+    [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
