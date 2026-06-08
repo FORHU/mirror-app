@@ -485,7 +485,7 @@ export default function VirtualMirrorV2() {
             className="flex flex-col gap-1"
             style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
           >
-            <SectionTitle label="Outfit" />
+            {!isProcessing && <SectionTitle label="Outfit" />}
             <div
               {...outfitSwipe}
               style={{
@@ -510,18 +510,7 @@ export default function VirtualMirrorV2() {
                   overflow: "hidden",
                 }}
               >
-                {isProcessing ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <SkeletonCell
-                      key={i}
-                      style={{
-                        borderRadius: "10px",
-                        aspectRatio: "unset",
-                        height: "100%",
-                      }}
-                    />
-                  ))
-                ) : outfits.length === 0 ? (
+                {isProcessing ? null : outfits.length === 0 ? (
                   <div
                     style={{
                       gridColumn: "1 / -1",
@@ -590,26 +579,28 @@ export default function VirtualMirrorV2() {
                   })
                 )}
               </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: totalOutfitPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setOutfitPage(i)}
-                    style={{
-                      width: i === outfitPage ? 12 : 4,
-                      height: 4,
-                      borderRadius: "9999px",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      background:
-                        i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
-                      transition: "all 0.3s",
-                    }}
-                  />
-                ))}
-              </div>
+              {!isProcessing && (
+                <div className="flex justify-center gap-1.5 pt-2">
+                  {Array.from({ length: totalOutfitPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setOutfitPage(i)}
+                      style={{
+                        width: i === outfitPage ? 12 : 4,
+                        height: 4,
+                        borderRadius: "9999px",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        background:
+                          i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
+                        transition: "all 0.3s",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1102,12 +1093,12 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Base layer */}
-          {(isProcessing || topsBase.length > 0) &&
+          {!isProcessing && topsBase.length > 0 &&
             (!swapSlot || swapSlot === "base") && (
               <GarmentGrid
                 label="Base"
                 pagedItems={pagedTopsBase}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsBasePage}
                 totalPages={totalTopsBasePages}
@@ -1132,12 +1123,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Mid layer */}
-          {(isProcessing || topsMid.length > 0) &&
+          {!isProcessing && topsMid.length > 0 &&
             (!swapSlot || swapSlot === "mid") && (
               <GarmentGrid
                 label="Mid"
                 pagedItems={pagedTopsMid}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsMidPage}
                 totalPages={totalTopsMidPages}
@@ -1160,12 +1151,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Outer layer */}
-          {(isProcessing || topsOuter.length > 0) &&
+          {!isProcessing && topsOuter.length > 0 &&
             (!swapSlot || swapSlot === "outer") && (
               <GarmentGrid
                 label="Outer"
                 pagedItems={pagedTopsOuter}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsOuterPage}
                 totalPages={totalTopsOuterPages}
@@ -1189,11 +1180,11 @@ export default function VirtualMirrorV2() {
               />
             )}
 
-          {(!swapSlot || swapSlot === "bottoms") && (
+          {!isProcessing && bottoms.length > 0 && (!swapSlot || swapSlot === "bottoms") && (
             <GarmentGrid
               label="Bottoms"
               pagedItems={pagedBottoms}
-              loading={isProcessing}
+              loading={false}
               pageSize={bottomsPageSize}
               currentPage={bottomsPage}
               totalPages={totalBottomsPages}
@@ -1215,11 +1206,11 @@ export default function VirtualMirrorV2() {
             />
           )}
 
-          {(!swapSlot || swapSlot === "shoes") && (
+          {!isProcessing && shoes.length > 0 && (!swapSlot || swapSlot === "shoes") && (
             <GarmentGrid
               label="Shoes"
               pagedItems={pagedShoes}
-              loading={isProcessing}
+              loading={false}
               pageSize={shoesPageSize}
               currentPage={shoesPage}
               totalPages={totalShoesPages}
@@ -1241,11 +1232,11 @@ export default function VirtualMirrorV2() {
             />
           )}
 
-          {(!swapSlot || swapSlot === "bags") && (
+          {!isProcessing && bags.length > 0 && (!swapSlot || swapSlot === "bags") && (
             <GarmentGrid
               label="Bags"
               pagedItems={pagedBags}
-              loading={isProcessing}
+              loading={false}
               pageSize={accessoryPageSize}
               currentPage={bagsPage}
               totalPages={totalBagsPages}
