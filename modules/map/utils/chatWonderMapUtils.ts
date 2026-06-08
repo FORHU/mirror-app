@@ -447,6 +447,21 @@ export function isMultiEventUtterance(transcript: string): boolean {
   ).size;
   if (standaloneEventHits >= 2) return true;
 
+  // Navigation phrase + comma or "and" separated bare locations.
+  // e.g. "i want to go to SM baguio, san fernando, tagudin ilocos sur"
+  //      "i want to go to la union and vigan ilocos sur"
+  // Voice STT never inserts commas, so we must also check for spoken "and".
+  // The location-anchor check above only counts preposition-prefixed locations, so a
+  // single "to [first stop]" followed by bare comma/and segments scores only 1. Detect
+  // these by confirming the navigation intent and letting extractAllLocationsFromTranscript
+  // confirm there are genuinely ≥ 2 distinct place segments.
+  if (
+    NAVIGATION_PATTERN.test(transcript) &&
+    (transcript.includes(",") || /\b(?:and|then|also|plus)\b/i.test(transcript))
+  ) {
+    if (extractAllLocationsFromTranscript(transcript).length >= 2) return true;
+  }
+
   return false;
 }
 
@@ -462,7 +477,7 @@ export function extractAllLocationsFromTranscript(
   transcript: string,
 ): string[] {
   // Split on "and" or "," to get one clause per potential stop
-  const segments = transcript.split(/\band\b|,/i);
+  const segments = transcript.split(/\b(?:and|then|also|plus)\b|,/i);
   const locations: string[] = [];
 
   for (const seg of segments) {
@@ -574,7 +589,7 @@ export function extractAllLocationsFromTranscript(
         const loc = bareM[1].trim();
         if (
           loc.length > 2 &&
-          !/^(and|then|lastly|firstly|finally|next|the|a|an|i|my|our|this|that|go|going|will|be|have|had)\b/i.test(
+          !/^(and|then|lastly|firstly|finally|next|the|a|an|i|my|our|this|that|go|going|will|be|have|had|hang|chill|eat|drink|relax|rest|explore|walk|meet|see|watch|play|shop|stay|work|sleep|sit|stand|wait|check|look|enjoy|spend|try|come|find|think|feel|hope|ask|help|take|keep|run|grab|visit|stop|drop|browse|wander|swim|dance|do|get|make|want|give|know|show|tell|bring|buy|rent|open|start|finish|leave|arrive|ride|drive|fly|climb)\b/i.test(
             loc,
           )
         ) {
@@ -599,7 +614,7 @@ export function extractLocationsWithMeta(transcript: string): Array<{
   eventType: string | null;
   timeBlock: string | null;
 }> {
-  const segments = transcript.split(/\band\b|,/i);
+  const segments = transcript.split(/\b(?:and|then|also|plus)\b|,/i);
   const results: Array<{
     location: string;
     eventType: string | null;

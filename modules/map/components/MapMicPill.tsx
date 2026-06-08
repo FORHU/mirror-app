@@ -7,6 +7,7 @@ import {
   MessageSquare,
   Navigation,
   Sparkles,
+  Lightbulb,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -88,7 +89,7 @@ export default function MapMicPill() {
           >
             {error ? (
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-red-400 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0">
+                <span className="text-red-400 text-[10px] font-semibold uppercase tracking-wider shrink-0">
                   Error
                 </span>
                 <p className="text-red-400 text-xs truncate">{error}</p>
@@ -97,7 +98,7 @@ export default function MapMicPill() {
               <div className="flex flex-col gap-1">
                 {transcript && (
                   <div className="flex items-start gap-2 min-w-0">
-                    <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
+                    <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider shrink-0 w-5 pt-px">
                       You
                     </span>
                     <p className="text-white/65 text-xs leading-relaxed line-clamp-1">
@@ -107,7 +108,7 @@ export default function MapMicPill() {
                 )}
                 {reply && (
                   <div className="flex items-start gap-2 min-w-0">
-                    <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-5 pt-px">
+                    <span className="text-blue-400 text-[10px] font-semibold uppercase tracking-wider shrink-0 w-5 pt-px">
                       AI
                     </span>
                     <p className="text-white/90 text-xs leading-relaxed line-clamp-3">
@@ -153,6 +154,30 @@ export default function MapMicPill() {
               }}
             >
               {isNavigating ? "Navigating" : "Exploring"}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Multi-stop tip — shown during any active voice state */}
+      <AnimatePresence>
+        {isActive && (
+          <motion.div
+            key="multi-stop-tip"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-none flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+            style={{
+              background: "rgba(234,179,8,0.12)",
+              border: "1px solid rgba(234,179,8,0.35)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <Lightbulb className="w-3 h-3 text-yellow-400 shrink-0" />
+            <span className="text-xs text-yellow-200/80 tracking-wide">
+              Say &quot;and&quot; or &quot;then&quot; between stops
             </span>
           </motion.div>
         )}

@@ -547,6 +547,76 @@ describe("isMultiEventUtterance", () => {
     expect(isMultiEventUtterance("take me to SM Baguio")).toBe(false);
     expect(isMultiEventUtterance("restaurants near me")).toBe(false);
   });
+
+  // ── Comma-separated bare locations after navigation phrase ────────────────
+  it('"i want to go to SM baguio, san fernando, tagudin ilocaos sur" → true', () => {
+    expect(
+      isMultiEventUtterance(
+        "i want to go to SM baguio, san fernando, tagudin ilocaos sur",
+      ),
+    ).toBe(true);
+  });
+
+  it('"take me to Baguio Cathedral, Burnham Park" → true (2 bare locations)', () => {
+    expect(
+      isMultiEventUtterance("take me to Baguio Cathedral, Burnham Park"),
+    ).toBe(true);
+  });
+
+  it('"navigate to SM City Baguio, Baguio Night Market, Our Lady of Lourdes Grotto" → true', () => {
+    expect(
+      isMultiEventUtterance(
+        "navigate to SM City Baguio, Baguio Night Market, Our Lady of Lourdes Grotto",
+      ),
+    ).toBe(true);
+  });
+
+  it('"take me to SM Baguio" (single destination, no comma) → false', () => {
+    expect(isMultiEventUtterance("take me to SM Baguio")).toBe(false);
+  });
+
+  it('"go to Baguio" → false (navigation phrase + no comma)', () => {
+    expect(isMultiEventUtterance("go to Baguio")).toBe(false);
+  });
+
+  // Voice STT "and" connector (no comma — Chrome STT never inserts commas)
+  it('"okay i want to go to la union san fernando la union and vigan ilocos sur" → true', () => {
+    expect(
+      isMultiEventUtterance(
+        "okay i want to go to la union san fernando la union and vigan ilocos sur",
+      ),
+    ).toBe(true);
+  });
+
+  it('"i want to go to la union and baguio city" → true (two bare locations via and)', () => {
+    expect(
+      isMultiEventUtterance("i want to go to la union and baguio city"),
+    ).toBe(true);
+  });
+
+  it('"i want to go to la union then baguio city" → true (then connector)', () => {
+    expect(
+      isMultiEventUtterance("i want to go to la union then baguio city"),
+    ).toBe(true);
+  });
+
+  it('"take me to sm baguio also vigan city" → true (also connector)', () => {
+    expect(
+      isMultiEventUtterance("take me to sm baguio also vigan city"),
+    ).toBe(true);
+  });
+
+  it('"i want to go to SM baguio and hang out there" → false (verb phrase after and)', () => {
+    expect(
+      isMultiEventUtterance("i want to go to SM baguio and hang out there"),
+    ).toBe(false);
+  });
+
+  it('"take me to baguio and explore the city" → false (verb phrase after and)', () => {
+    expect(
+      isMultiEventUtterance("take me to baguio and explore the city"),
+    ).toBe(false);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
