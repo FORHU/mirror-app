@@ -30,6 +30,8 @@ import {
   chatWonderService,
   resolveAccessToken,
 } from "@/modules/shared/api/chat-wonder.service";
+import { stopAllAudioQueues } from "./audioQueue";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import {
   buildMapInput,
   isNavigationPhrase,
@@ -100,6 +102,62 @@ function buildItineraryConfirmReply(
     : "";
   return `${opener}${routeSummary ?? ""}${poiMention} ${closer}`;
 }
+
+const COSMETIC_SELECTION_WORDS: Record<string, number> = {
+  first: 1,
+  one: 1,
+  second: 2,
+  two: 2,
+  third: 3,
+  three: 3,
+  fourth: 4,
+  four: 4,
+  fifth: 5,
+  five: 5,
+  sixth: 6,
+  six: 6,
+  seventh: 7,
+  seven: 7,
+  eighth: 8,
+  eight: 8,
+  ninth: 9,
+  nine: 9,
+  tenth: 10,
+  ten: 10,
+};
+
+function extractCosmeticSelectionRank(text: string): number | null {
+  const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
+  const wantsSelection =
+    /\b(select|choose|pick|open|show|view|see|tap|highlight|go|navigate|see)\b/.test(lower);
+  if (!wantsSelection) return null;
+
+  const numeric = lower.match(
+    /(?:#\s*(\d{1,2})\b|\b(?:image|product|item|recommendation|option|number|no)\s*(?:number|#)?\s*(\d{1,2})\b)/,
+  );
+  if (numeric) {
+    const rank = Number(numeric[1] ?? numeric[2]);
+    return rank >= 1 && rank <= 10 ? rank : null;
+  }
+
+  const wordPattern = Object.keys(COSMETIC_SELECTION_WORDS).join("|");
+  const targetedWord = lower.match(
+    new RegExp(
+      `\\b(?:image|product|item|recommendation|option|number|the)\\s+(${wordPattern})\\b`,
+    ),
+  );
+  const looseWord = targetedWord ?? lower.match(new RegExp(`\\b(${wordPattern})\\b`));
+  if (!looseWord) return null;
+
+  return COSMETIC_SELECTION_WORDS[looseWord[1]] ?? null;
+}
+
+function isCosmeticHandoffPrompt(text: string): boolean {
+  return /\b(cosmetic|cosmetics|makeup|make-up|skincare|skin care|moisturi[sz]er|cleanser|toner|serum|sunscreen|spf|foundation|concealer|lipstick|blush|face wash|beauty product)\b/i.test(
+    text,
+  );
+}
+
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -166,6 +224,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       eventType?: string;
     }[]
   >([]);
+
+  useEffect(() => {
+    router.prefetch(ROUTES.OVERVIEW);
+    router.prefetch(ROUTES.AI_RECOMMENDATION_COSMETIC);
+    router.prefetch(ROUTES.AI_RECOMMENDATION_FASHION);
+    router.prefetch(ROUTES.MAP);
+  }, [router]);
   const isCollectingItineraryRef = useRef(false);
   const itineraryIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -287,6 +352,28 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (isCosmeticHandoffPrompt(t)) {
+        const assistantReply =
+          "Opening cosmetic recommendations while I find products for you.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        useMirrorStore.getState().setPendingCosmeticsData(null);
+        useMirrorStore.getState().setChatCosmeticsData(null);
+        try {
+          sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+        } catch {
+          /* prompt handoff is best-effort */
+        }
+        router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+        setVoiceState("idle");
+        return;
+      }
+
       const history = historyRef.current
         .flatMap((h) => [
           { role: "user" as const, content: h.user },
@@ -331,8 +418,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (data?.route) {
+        router.push(data.route);
+      }
+
       const finish = () => {
-        if (data?.route) router.push(data.route);
         setVoiceState("idle");
       };
 
@@ -381,6 +471,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const processTranscript = useCallback(
     async (t: string) => {
+      stopPlayback();
+      stopAllAudioQueues();
       setTranscript(t);
 
       try {
@@ -453,11 +545,59 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           pageMode === "cosmetics" ||
           pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
         ) {
-          // Removed weather fetching — backend will handle it
-
           const isCosmetics =
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+
+          const selectionRank = isCosmetics
+            ? extractCosmeticSelectionRank(t)
+            : null;
+          if (selectionRank) {
+            onActionRef.current?.({
+              type: "cosmetic_select_recommendation",
+              rank: selectionRank,
+            });
+            const localReply = `Showing recommendation number ${selectionRank}.`;
+            setReply(localReply);
+            const newHistory = [
+              ...historyRef.current,
+              { user: t, assistant: localReply },
+            ];
+            historyRef.current = newHistory;
+            setChatHistory(newHistory);
+            setVoiceState("idle");
+            return;
+          }
+
+          let weather: Record<string, unknown> | undefined;
+          if (loc) {
+            try {
+              const res = await fetch(
+                `/api/mirror/weather?lat=${loc.lat}&lng=${loc.lng}`,
+              );
+              if (res.ok) {
+                const json = await res.json();
+                const d = json.data ?? json;
+                weather = {
+                  date: new Date().toISOString().split("T")[0],
+                  description: String(d.condition ?? "").toLowerCase(),
+                  estimated: false,
+                  is_cold: Number(d.temperature) < 20,
+                  is_hot: Number(d.temperature) >= 30,
+                  is_rainy:
+                    Number(d.precipitationProb) >= 50 ||
+                    String(d.condition ?? "")
+                      .toLowerCase()
+                      .includes("rain"),
+                  lat: loc.lat,
+                  lon: loc.lng,
+                  temperature_c: Number(d.temperature),
+                };
+              }
+            } catch {
+              /* weather is best-effort */
+            }
+          }
 
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
 

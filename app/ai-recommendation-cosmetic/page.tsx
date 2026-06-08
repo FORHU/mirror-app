@@ -4,9 +4,12 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 
@@ -96,6 +99,12 @@ export default function CosmeticRecommendationPage() {
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const handoffStartedRef = useRef(false);
+  const [isHandoffLoading, setIsHandoffLoading] = useState(() =>
+    typeof window !== "undefined"
+      ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
+      : false,
+  );
 
   const pageContext = useMemo(
     () => ({
@@ -107,8 +116,6 @@ export default function CosmeticRecommendationPage() {
     [],
   );
 
-  const { isListening } = useVoice(pageContext);
-
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
@@ -117,6 +124,8 @@ export default function CosmeticRecommendationPage() {
   }, [chatCosmeticsData]);
 
   const rawRecs = useMemo(() => {
+    if (isHandoffLoading && !pendingCosmeticsData) return [];
+
     if (pendingCosmeticsData) {
       const data = pendingCosmeticsData as {
         recommendations?: unknown[];
@@ -130,7 +139,7 @@ export default function CosmeticRecommendationPage() {
         );
     }
     return skinAnalysisResult?.recommendations || [];
-  }, [pendingCosmeticsData, skinAnalysisResult]);
+  }, [isHandoffLoading, pendingCosmeticsData, skinAnalysisResult]);
 
   const allRecs = useMemo(
     () =>
@@ -166,6 +175,42 @@ export default function CosmeticRecommendationPage() {
 
   const hasRecommendations = sortedRecs.length > 0;
 
+  const handleVoiceAction = useCallback(
+    (action: ChatWonderAction) => {
+      if (action.type !== "cosmetic_select_recommendation") return;
+
+      const selected =
+        sortedRecs.find((rec) => rec.rank === action.rank) ??
+        sortedRecs[action.rank - 1];
+      if (selected) setSelectedRec(selected);
+    },
+    [sortedRecs],
+  );
+
+  const { isListening } = useVoice(pageContext, handleVoiceAction);
+  const { submitText } = useVoiceContext();
+
+  useEffect(() => {
+    if (handoffStartedRef.current) return;
+
+    const prompt = sessionStorage.getItem(COSMETIC_PROMPT_KEY);
+    if (!prompt) return;
+
+    handoffStartedRef.current = true;
+    sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
+    setIsHandoffLoading(true);
+    void submitText(prompt)
+      .catch((err) => {
+        console.error("[cosmetics-handoff]", err);
+      })
+      .finally(() => {
+        setIsHandoffLoading(false);
+      });
+  }, [submitText]);
+
+  const isLoadingRecommendations =
+    isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
+
   return (
     <div
       className="w-full h-full relative overflow-hidden bg-black text-white flex flex-col"
@@ -187,7 +232,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
-            loading={!pendingCosmeticsData && !skinAnalysisResult}
+            loading={isLoadingRecommendations}
             pageSize={5}
             currentPage={0}
             totalPages={1}
@@ -355,7 +400,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}
-            loading={!pendingCosmeticsData && !skinAnalysisResult}
+            loading={isLoadingRecommendations}
             pageSize={5}
             currentPage={0}
             totalPages={1}
