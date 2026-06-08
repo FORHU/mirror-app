@@ -120,11 +120,11 @@ export default function CosmeticRecommendationPage() {
 
                   {/* Product Image Box */}
                   <div className="w-full aspect-square bg-black/40 rounded-2xl mb-6 overflow-hidden flex items-center justify-center p-6 border border-white/5 shadow-inner">
-                    {selectedRec.cosmeticProduct.fileUrl?.fileUrl ? (
+                    {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
-                        alt={selectedRec.cosmeticProduct.name}
+                        alt={selectedRec.cosmeticProduct?.name || "Product"}
                         className="w-full h-full object-contain drop-shadow-2xl"
                       />
                     ) : (
@@ -135,10 +135,10 @@ export default function CosmeticRecommendationPage() {
                   </div>
 
                   <div className="text-[12px] text-pink-300/80 uppercase tracking-widest mb-2 font-semibold">
-                    {selectedRec.cosmeticProduct.brand || "Curated Brand"}
+                    {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
                   </div>
                   <h2 className="text-3xl font-light leading-tight mb-5 text-white/90">
-                    {selectedRec.cosmeticProduct.name}
+                    {selectedRec.cosmeticProduct?.name || "Unknown Product"}
                   </h2>
 
                   <p className="text-[15px] text-white/60 leading-relaxed mb-6 font-light">
@@ -146,7 +146,7 @@ export default function CosmeticRecommendationPage() {
                   </p>
 
                   <div className="flex flex-wrap gap-2">
-                    {selectedRec.cosmeticProduct.tags.slice(0, 4).map((t) => (
+                    {(selectedRec.cosmeticProduct?.tags ?? []).slice(0, 4).map((t) => (
                       <span
                         key={t}
                         className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
