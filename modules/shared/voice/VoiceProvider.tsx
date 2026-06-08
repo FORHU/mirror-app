@@ -2474,7 +2474,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 | null);
           const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
-            input: `[stylist]{t}`,
+            input: `[stylist] ${t}`,
             lang: language,
             voice: true,
             ...(locCtx &&
