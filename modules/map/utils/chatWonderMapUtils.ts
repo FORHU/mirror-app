@@ -142,23 +142,50 @@ const ORDINALS: Record<string, number> = {
   one: 0,
   "number one": 0,
   "option one": 0,
+  "option 1": 0,
+  "1st": 0,
   second: 1,
   two: 1,
   "number two": 1,
   "option two": 1,
+  "option 2": 1,
+  "2nd": 1,
   third: 2,
   three: 2,
   "number three": 2,
   "option three": 2,
+  "option 3": 2,
+  "3rd": 2,
   fourth: 3,
   four: 3,
   "number four": 3,
   "option four": 3,
+  "option 4": 3,
+  "4th": 3,
   fifth: 4,
   five: 4,
   "number five": 4,
   "option five": 4,
+  "option 5": 4,
+  "5th": 4,
 };
+
+/**
+ * Returns the 0-based index encoded by the first ordinal phrase found in the
+ * transcript, or null if none is found.  Longer phrases are matched first so
+ * "option three" beats "three".
+ */
+export function extractOrdinalIndex(transcript: string): number | null {
+  const lower = transcript.toLowerCase();
+  // Sort by phrase length descending so multi-word phrases win over single words
+  const sorted = Object.entries(ORDINALS).sort(
+    (a, b) => b[0].length - a[0].length,
+  );
+  for (const [phrase, idx] of sorted) {
+    if (lower.includes(phrase)) return idx;
+  }
+  return null;
+}
 
 export function matchPOIFromTranscript(
   transcript: string,
@@ -244,6 +271,22 @@ const CLEAR_ROUTE_PATTERN =
 
 export function isClearRoutePhrase(transcript: string): boolean {
   return CLEAR_ROUTE_PATTERN.test(transcript);
+}
+
+const ADDRESS_QUERY_PATTERN =
+  /\bwhat(?:'s|\s+is)\s+(?:the\s+)?address\b|\baddress\s+of\b/i;
+
+/** Returns true when the transcript is asking for a POI's address. */
+export function isAddressQuery(transcript: string): boolean {
+  return ADDRESS_QUERY_PATTERN.test(transcript);
+}
+
+const RATING_QUERY_PATTERN =
+  /\bwhat(?:'s|\s+is|\s+are)\s+(?:the\s+)?(?:rating|stars?|score|reviews?)\b|\bhow\s+(?:(?:well?|good|highly)\s+)?(?:is\s+(?:it\s+)?)?rated?\b|\bhow\s+(?:is|was)\s+.+?\s+rated?\b|\brating\s+of\b|\bhow\s+many\s+stars\b/i;
+
+/** Returns true when the transcript is asking for a POI's rating or review score. */
+export function isRatingQuery(transcript: string): boolean {
+  return RATING_QUERY_PATTERN.test(transcript);
 }
 
 /**
@@ -862,7 +905,7 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
 
   // ── Group 3: "X near me / X nearby" standalone ──────────────────────────
   const nearMeM = transcript.match(
-    /^(?:can\s+you\s+)?(?:give\s+me\s+)?(?:the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby)\s*$/i,
+    /^(?:can\s+you\s+)?(?:give\s+me\s+)?(?:(?:the|a|an)\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby)\s*$/i,
   );
   if (nearMeM) {
     const candidate = nearMeM[1].trim();
@@ -974,6 +1017,12 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   return null;
 }
 
+const LANG_NAMES: Record<string, string> = {
+  "en-US": "English",
+  "fr-FR": "French",
+  "ko-KR": "Korean",
+};
+
 /** Embeds map context into a chat-wonder input string. */
 export function buildMapInput(
   transcript: string,
@@ -985,6 +1034,7 @@ export function buildMapInput(
   routeActive: boolean,
   pendingEvents?: Array<{ eventName: string; timeLabel: string }>,
   prefix: string = "[stylist]",
+  lang?: string,
 ): string {
   const parts: string[] = [];
   if (loc) parts.push(`location: ${loc.lat},${loc.lng}`);
@@ -1001,6 +1051,7 @@ export function buildMapInput(
   }
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
+  const langDirective = lang ? `Respond in ${LANG_NAMES[lang] ?? "English"}. ` : "";
 
-  return `${prefix}${ctx} ${transcript}`;
+  return `${prefix}${ctx} ${langDirective}${transcript}`;
 }

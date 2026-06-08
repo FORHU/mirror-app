@@ -50,7 +50,10 @@ import {
   buildRouteSummary,
   extractNearbyPOIQuery,
   isClearRoutePhrase,
+  isAddressQuery,
+  isRatingQuery,
   isVenueName,
+  extractOrdinalIndex,
 } from "@/modules/map/utils/chatWonderMapUtils";
 import type {
   NearbyPOI,
@@ -657,11 +660,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             // ── Address query: reply with address instead of navigating ───────
             // Must be checked before the name match so "what's the address of
             // Foam Coffee" doesn't accidentally trigger navigation.
-            if (
-              /\bwhat(?:'s|\s+is)\s+(?:the\s+)?address\b|\baddress\s+of\b/i.test(
-                t,
-              )
-            ) {
+            if (isAddressQuery(t)) {
               const addrPOI =
                 matchPOIFromTranscript(t, curatedPOIsRef.current) ??
                 curatedPOIsRef.current[0];
@@ -683,6 +682,48 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 playbackCtxRef.current = playCtx;
                 const decoded = await playCtx.decodeAudioData(
                   addrAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
+            }
+
+            // ── Rating query: reply with rating instead of navigating ────────
+            // Must be checked before the name match so "what's the rating of
+            // Foam Coffee" doesn't accidentally trigger navigation.
+            if (isRatingQuery(t)) {
+              const ratedPOI =
+                matchPOIFromTranscript(t, curatedPOIsRef.current) ??
+                curatedPOIsRef.current[0];
+              const ratingReply =
+                ratedPOI.rating != null
+                  ? `${ratedPOI.name} is rated ${ratedPOI.rating} out of 5${ratedPOI.userRatingsTotal ? `, based on ${ratedPOI.userRatingsTotal} reviews` : ""}.`
+                  : `I don't have a rating for ${ratedPOI.name}.`;
+              const ratingAudio = await mapService
+                .tts(ratingReply)
+                .catch(() => null);
+              setReply(ratingReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: ratingReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (ratingAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  ratingAudio.slice(0),
                 );
                 const src = playCtx.createBufferSource();
                 src.buffer = decoded;
@@ -1541,6 +1582,59 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
+          // ── Itinerary group ordinal selection ────────────────────────────────
+          // "i want to go to the third option" when itinerary groups are active →
+          // resolve the ordinal to the Nth stop of the active group instead of
+          // sending the phrase to ChatWonder where it gets misinterpreted.
+          if (mapState.itineraryGroups.length > 0) {
+            const ordinalIdx = extractOrdinalIndex(t);
+            if (ordinalIdx !== null) {
+              const activeGroup =
+                mapState.itineraryGroups[mapState.activeItineraryIndex];
+              const stop = activeGroup?.stops[ordinalIdx];
+              if (stop) {
+                useMapStore.getState().setDestination({
+                  name: stop.name,
+                  lat: stop.lat,
+                  lng: stop.lng,
+                  address: stop.address,
+                  placeId: stop.placeId,
+                });
+                const ordinalReply = `Taking you to ${stop.name}.`;
+                const ordinalAudio = await mapService
+                  .tts(ordinalReply)
+                  .catch(() => null);
+                setReply(ordinalReply);
+                historyRef.current = [
+                  ...historyRef.current,
+                  { user: t, assistant: ordinalReply },
+                ];
+                setChatHistory(historyRef.current);
+                setVoiceState("speaking");
+                if (ordinalAudio) {
+                  const playCtx = new AudioContext();
+                  playbackCtxRef.current = playCtx;
+                  const decoded = await playCtx.decodeAudioData(
+                    ordinalAudio.slice(0),
+                  );
+                  const src = playCtx.createBufferSource();
+                  src.buffer = decoded;
+                  src.connect(playCtx.destination);
+                  playbackRef.current = src;
+                  src.onended = () => {
+                    stopPlayback();
+                    setVoiceState("idle");
+                  };
+                  src.start(0);
+                } else {
+                  setVoiceState("idle");
+                }
+                return;
+              }
+            }
+          }
+          // ── End itinerary group ordinal selection ─────────────────────────────
+
           // ── Nearby POI intercept ──────────────────────────────────────────────
           // Checked BEFORE session init — most voice queries ("recommend me a cafe")
           // are handled locally and never need ChatWonder.
@@ -1599,6 +1693,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             mapSessionInitRef.current = true;
           }
 
+          const voiceLang = useMirrorStore.getState().voiceLanguage || "en-US";
           const enrichedInput = buildMapInput(
             t,
             mapLoc,
@@ -1606,10 +1701,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             !!mapState.activeRoute,
             pending.length > 0 ? pending : undefined,
             "[maps]",
+            voiceLang,
           );
 
           const res = await chatWonderService.message({
             input: enrichedInput,
+            lang: voiceLang,
           });
 
           if (res.stylist_data?.target_url) {
