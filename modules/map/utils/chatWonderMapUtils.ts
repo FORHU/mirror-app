@@ -1033,9 +1033,21 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
 }
 
 const LANG_NAMES: Record<string, string> = {
-  "en-US": "English",
-  "fr-FR": "French",
-  "ko-KR": "Korean",
+  "en-US": "English", "en-GB": "English (UK)", "en-AU": "English (AU)",
+  "en-IN": "English (IN)", "en-SG": "English (SG)", "en-NZ": "English (NZ)",
+  "en-ZA": "English (ZA)", "en-IE": "English (IE)",
+  "fr-FR": "French", "fr-CA": "French (CA)", "fr-BE": "French (BE)",
+  "de-DE": "German", "de-AT": "German (AT)", "de-CH": "German (CH)",
+  "es-ES": "Spanish", "es-MX": "Spanish (MX)", "es-US": "Spanish (US)",
+  "it-IT": "Italian", "pt-BR": "Portuguese (BR)", "pt-PT": "Portuguese (PT)",
+  "nl-NL": "Dutch", "nl-BE": "Dutch (BE)", "pl-PL": "Polish",
+  "ru-RU": "Russian", "sv-SE": "Swedish", "da-DK": "Danish",
+  "nb-NO": "Norwegian", "fi-FI": "Finnish", "cs-CZ": "Czech",
+  "ro-RO": "Romanian", "tr-TR": "Turkish", "ca-ES": "Catalan",
+  "cy-GB": "Welsh", "is-IS": "Icelandic",
+  "ja-JP": "Japanese", "ko-KR": "Korean",
+  "cmn-CN": "Chinese (Mandarin)", "yue-CN": "Chinese (Cantonese)",
+  "hi-IN": "Hindi", "arb": "Arabic", "ar-AE": "Arabic (Gulf)",
 };
 
 /** Embeds map context into a chat-wonder input string. */
