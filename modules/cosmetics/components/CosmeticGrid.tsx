@@ -49,13 +49,15 @@ export function CosmeticGrid({
   emptyMessage,
 }: CosmeticGridProps) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
       <SectionTitle label={label} />
       <div
+        className="min-h-0 flex-1 overflow-y-auto pr-1"
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
           gap: "8px",
+          alignContent: "start",
         }}
       >
         {loading ? (
@@ -85,7 +87,7 @@ export function CosmeticGrid({
               onClick={() => onSelect(r)}
               className="rounded-md overflow-hidden flex flex-col items-center p-2 bg-white/5 hover:bg-white/10 transition-colors"
               style={{
-                minHeight: columns === 1 ? "292px" : "168px",
+                height: columns === 1 ? "286px" : "168px",
                 borderRadius: "4px",
                 cursor: "pointer",
                 border:
@@ -119,7 +121,7 @@ export function CosmeticGrid({
                 </div>
               )}
 
-              <div className="w-full shrink-0 text-center min-h-[42px]">
+              <div className="w-full shrink-0 text-center min-h-[46px]">
                 <div className="text-[9px] text-white/50 uppercase truncate px-1">
                   {r.cosmeticProduct?.brand || "Brand"}
                 </div>

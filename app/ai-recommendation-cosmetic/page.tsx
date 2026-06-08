@@ -251,9 +251,9 @@ export default function CosmeticRecommendationPage() {
       />
 
       {/* Main 3 Column Layout */}
-      <div className="flex-1 flex w-full h-full p-4 gap-6 pt-2">
+      <div className="flex-1 min-h-0 flex w-full h-full p-4 gap-6 pt-2">
         {/* Left Column - Recommendations 1-5 */}
-        <div className="flex flex-col w-[28%] h-full overflow-hidden">
+        <div className="flex min-h-0 flex-col w-[28%] h-full overflow-hidden">
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
@@ -404,7 +404,7 @@ export default function CosmeticRecommendationPage() {
         </div>
 
         {/* Right Column - Recommendations 6-10 */}
-        <div className="flex flex-col w-[28%] h-full overflow-hidden">
+        <div className="flex min-h-0 flex-col w-[28%] h-full overflow-hidden">
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}
