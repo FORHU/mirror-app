@@ -2267,7 +2267,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       let accumulated = "";
       let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-      const SILENCE_MS = 1000;
+      // Use a longer window only when the transcript already contains a spoken
+      // multi-stop connector — otherwise keep the faster 1 000 ms default so
+      // single-destination commands are not penalised.
+      const SILENCE_MS_DEFAULT = 1000;
+      const SILENCE_MS_MULTI = 1500;
+      const MULTI_STOP_RE = /\b(?:and|then|also|plus)\b/i;
 
       const clearSilenceTimer = () => {
         if (silenceTimer) {
@@ -2301,10 +2306,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (accumulated.trim()) {
+          const silenceMs = MULTI_STOP_RE.test(accumulated)
+            ? SILENCE_MS_MULTI
+            : SILENCE_MS_DEFAULT;
           silenceTimer = setTimeout(() => {
             silenceTimer = null;
             recognition.stop();
-          }, SILENCE_MS);
+          }, silenceMs);
         }
       };
       recognition.onend = async () => {
