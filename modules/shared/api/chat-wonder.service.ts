@@ -27,7 +27,7 @@ export interface ChatWonderMessageRequest {
   sitemapContext?: string[];
   skinAnalysis?: SkinAnalysis | null;
   /** Current page mode — tells the backend which parameters to forward and which intent tag to use. */
-  pageMode?: "garment" | "cosmetics" | "maps" | "stylist" | null;
+  pageMode?: "garment" | "cosmetics" | "map" | "overview" | null;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
