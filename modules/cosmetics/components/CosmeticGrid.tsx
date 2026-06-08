@@ -14,12 +14,14 @@ function SectionTitle({ label }: { label: string }) {
   );
 }
 
-function SkeletonCell() {
+function SkeletonCell({ fitRow = false }: { fitRow?: boolean }) {
   return (
     <div
       className="animate-pulse"
       style={{
-        aspectRatio: "1/1",
+        height: fitRow ? "100%" : undefined,
+        minHeight: 0,
+        aspectRatio: fitRow ? undefined : "1/1",
         background: "rgba(255,255,255,0.1)",
         borderRadius: "4px",
       }}
@@ -48,21 +50,27 @@ export function CosmeticGrid({
   onSelect,
   emptyMessage,
 }: CosmeticGridProps) {
+  const fitRows = columns === 1;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
       <SectionTitle label={label} />
       <div
-        className="min-h-0 flex-1 overflow-y-auto pr-1"
+        className="min-h-0 flex-1 overflow-hidden pr-1"
         style={{
           display: "grid",
           gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gap: "8px",
-          alignContent: "start",
+          gridTemplateRows: fitRows
+            ? `repeat(${pageSize}, minmax(0, 1fr))`
+            : undefined,
+          gap: fitRows ? "6px" : "8px",
+          alignContent: fitRows ? "stretch" : "start",
+          overflowY: fitRows ? "hidden" : "auto",
         }}
       >
         {loading ? (
           Array.from({ length: pageSize }).map((_, i) => (
-            <SkeletonCell key={i} />
+            <SkeletonCell key={i} fitRow={fitRows} />
           ))
         ) : pagedItems.length === 0 ? (
           <div
@@ -85,9 +93,12 @@ export function CosmeticGrid({
             <div
               key={r.id}
               onClick={() => onSelect(r)}
-              className="rounded-md overflow-hidden flex flex-col items-center p-2 bg-white/5 hover:bg-white/10 transition-colors"
+              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/5 hover:bg-white/10 transition-colors ${
+                fitRows ? "p-1.5" : "p-2"
+              }`}
               style={{
-                height: columns === 1 ? "286px" : "168px",
+                height: fitRows ? "100%" : "168px",
+                minHeight: 0,
                 borderRadius: "4px",
                 cursor: "pointer",
                 border:
@@ -104,13 +115,18 @@ export function CosmeticGrid({
 
               {/* Since we might not have reliable product images yet, we render a nice fallback box */}
               {r.cosmeticProduct?.fileUrl?.fileUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <div className="w-full flex-1 min-h-0 flex items-center justify-center pb-2">
+                <div
+                  className={`w-full flex-1 min-h-0 flex items-center justify-center ${
+                    fitRows ? "pb-1" : "pb-2"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={r.cosmeticProduct.fileUrl.fileUrl}
                     alt={r.cosmeticProduct?.name || "Product"}
                     draggable={false}
                     className="max-w-full max-h-full object-contain pointer-events-none"
+                    style={{ filter: "none", opacity: 1 }}
                   />
                 </div>
               ) : (
@@ -121,12 +137,22 @@ export function CosmeticGrid({
                 </div>
               )}
 
-              <div className="w-full shrink-0 text-center min-h-[46px]">
-                <div className="text-[9px] text-white/50 uppercase truncate px-1">
+              <div
+                className={`w-full shrink-0 text-center ${
+                  fitRows ? "min-h-[34px]" : "min-h-[46px]"
+                }`}
+              >
+                <div
+                  className={`text-white/50 uppercase truncate px-1 ${
+                    fitRows ? "text-[8px]" : "text-[9px]"
+                  }`}
+                >
                   {r.cosmeticProduct?.brand || "Brand"}
                 </div>
                 <div
-                  className="text-[10px] text-white/90 font-medium leading-tight px-1 overflow-hidden"
+                  className={`text-white/90 font-medium leading-tight px-1 overflow-hidden ${
+                    fitRows ? "text-[9px]" : "text-[10px]"
+                  }`}
                   style={{
                     display: "-webkit-box",
                     WebkitLineClamp: 2,

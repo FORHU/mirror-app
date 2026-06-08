@@ -270,7 +270,7 @@ export default function CosmeticRecommendationPage() {
           <div className="w-full h-full max-w-lg flex flex-col">
             <div className="flex-1 flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
-                <div className="p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 transition-all duration-300 shadow-2xl">
+                <div className="p-6 bg-[#050505]/85 rounded-2xl border border-white/10 transition-all duration-300 shadow-xl">
                   <div className="flex items-start mb-6">
                     <span className="text-pink-300 text-[11px] font-bold uppercase tracking-widest px-3 py-1 bg-pink-500/10 rounded-full border border-pink-500/20">
                       #{selectedRec.rank} Recommended
@@ -278,13 +278,14 @@ export default function CosmeticRecommendationPage() {
                   </div>
 
                   {/* Product Image Box */}
-                  <div className="w-full aspect-square bg-black/40 rounded-2xl mb-6 overflow-hidden flex items-center justify-center p-6 border border-white/5 shadow-inner">
+                  <div className="w-full aspect-square bg-black rounded-xl mb-5 overflow-hidden flex items-center justify-center p-4 border border-white/10">
                     {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
                         alt={selectedRec.cosmeticProduct?.name || "Product"}
-                        className="w-full h-full object-contain drop-shadow-2xl"
+                        className="w-full h-full object-contain"
+                        style={{ filter: "none", opacity: 1 }}
                       />
                     ) : (
                       <span className="text-white/20 text-xs uppercase tracking-widest">
