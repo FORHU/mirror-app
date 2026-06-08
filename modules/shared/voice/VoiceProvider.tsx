@@ -459,24 +459,25 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
 
           const aiResponse = await chatWonderService.message({
-            input: t,
+            input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             pageMode: effectiveMode,
-            ...(loc && (effectiveMode === "garment" || effectiveMode === "overview" || effectiveMode === "map") ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
+            ...(loc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
+
+          if (aiResponse.cosmetics_data) {
+            useMirrorStore
+              .getState()
+              .setPendingCosmeticsData(aiResponse.cosmetics_data);
+          }
 
           if (aiResponse.stylist_data?.target_url) {
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
-            }
-            if (aiResponse.cosmetics_data) {
-              useMirrorStore
-                .getState()
-                .setPendingCosmeticsData(aiResponse.cosmetics_data);
             }
             if (aiResponse.stylist_data.target_url === "back") {
               router.back();
