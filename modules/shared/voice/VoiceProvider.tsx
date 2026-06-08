@@ -228,10 +228,8 @@ const GARMENT_SLOT_WORDS: Record<string, GarmentSlot> = {
   bags: "bags",
 };
 
-// Strips the backend delimiter ":\n\n." and everything after it.
-// The backend appends this to separate human-readable text from structured data.
 function cleanMessage(text: string): string {
-  const cut = text.indexOf(":\n\n.");
+  const cut = text.indexOf("\n\n");
   return (cut !== -1 ? text.slice(0, cut) : text).trim();
 }
 
