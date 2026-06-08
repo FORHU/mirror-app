@@ -485,7 +485,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
 
           const aiResponse = await chatWonderService.message({
-            input: `[stylist] ${t}`,
+            input: isCosmetics ? `[cosmetics] ${t}` : `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             ...(weather ? { weather } : {}),
@@ -493,16 +493,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
+          if (aiResponse.cosmetics_data) {
+            useMirrorStore
+              .getState()
+              .setPendingCosmeticsData(aiResponse.cosmetics_data);
+          }
+
           if (aiResponse.stylist_data?.target_url) {
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
-            }
-            if (aiResponse.cosmetics_data) {
-              useMirrorStore
-                .getState()
-                .setPendingCosmeticsData(aiResponse.cosmetics_data);
             }
             if (aiResponse.stylist_data.target_url === "back") {
               router.back();

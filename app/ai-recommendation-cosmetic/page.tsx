@@ -10,6 +10,86 @@ import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service"
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function num(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return fallback;
+}
+
+function normalizeRecommendation(
+  raw: unknown,
+  index: number,
+): SkinRecommendation | null {
+  const rec = asRecord(raw);
+  if (!rec) return null;
+
+  const product = asRecord(rec.cosmeticProduct);
+  const productFile = asRecord(product?.fileUrl);
+  const id =
+    str(rec.id) ||
+    str(rec.productId) ||
+    str(rec.cosmeticProductId) ||
+    str(product?.id) ||
+    `cosmetic-${index}`;
+  const name =
+    str(product?.name) ||
+    str(rec.name) ||
+    str(rec.productName) ||
+    str(rec.product_name) ||
+    "Unknown Product";
+  const brand =
+    str(product?.brand) ||
+    str(rec.brand) ||
+    str(rec.brandName) ||
+    str(rec.brand_name) ||
+    null;
+  const imageUrl =
+    str(productFile?.fileUrl) ||
+    str(productFile?.thumbnailUrl) ||
+    str(rec.imageUrl) ||
+    str(rec.image_url) ||
+    str(rec.image);
+  const rawTags = Array.isArray(product?.tags)
+    ? product.tags
+    : Array.isArray(rec.tags)
+      ? rec.tags
+      : [];
+
+  return {
+    id,
+    rank: num(rec.rank, index + 1),
+    score: num(rec.score, 0),
+    reason:
+      str(rec.reason) || str(rec.description) || "Recommended for your profile.",
+    cosmeticProduct: {
+      id: str(product?.id) || id,
+      name,
+      brand,
+      category: str(product?.category) || str(rec.category) || null,
+      type: str(product?.type) || str(rec.type) || null,
+      tags: rawTags.map(String),
+      benefits: Array.isArray(product?.benefits)
+        ? product.benefits.map(String)
+        : Array.isArray(rec.benefits)
+          ? rec.benefits.map(String)
+          : [],
+      fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
+    },
+  };
+}
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
@@ -36,21 +116,29 @@ export default function CosmeticRecommendationPage() {
     useMirrorStore.getState().setPendingCosmeticsData(chatCosmeticsData);
   }, [chatCosmeticsData]);
 
-  // Extract recommendations purely from the initial Skin Analysis
-  // (Ignoring pending LLM response since it lacks DB associations)
-  const allRecs = useMemo(() => {
+  const rawRecs = useMemo(() => {
     if (pendingCosmeticsData) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = pendingCosmeticsData as any;
+      const data = pendingCosmeticsData as {
+        recommendations?: unknown[];
+        sets?: Array<{ recommendations?: unknown[] }>;
+      };
       if (Array.isArray(data)) return data;
       if (Array.isArray(data.recommendations)) return data.recommendations;
       if (Array.isArray(data.sets))
         return data.sets.flatMap(
-          (s: { recommendations?: SkinRecommendation[] }) => s.recommendations || [],
+          (s: { recommendations?: unknown[] }) => s.recommendations || [],
         );
     }
     return skinAnalysisResult?.recommendations || [];
   }, [pendingCosmeticsData, skinAnalysisResult]);
+
+  const allRecs = useMemo(
+    () =>
+      rawRecs
+        .map((rec, index) => normalizeRecommendation(rec, index))
+        .filter((rec): rec is SkinRecommendation => Boolean(rec)),
+    [rawRecs],
+  );
 
   // Sort recommendations by rank
   const sortedRecs = useMemo(() => {
@@ -64,6 +152,19 @@ export default function CosmeticRecommendationPage() {
   const [selectedRec, setSelectedRec] = useState<SkinRecommendation | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!sortedRecs.length) {
+      if (selectedRec) setSelectedRec(null);
+      return;
+    }
+
+    if (!selectedRec || !sortedRecs.some((rec) => rec.id === selectedRec.id)) {
+      setSelectedRec(sortedRecs[0]);
+    }
+  }, [selectedRec, sortedRecs]);
+
+  const hasRecommendations = sortedRecs.length > 0;
 
   return (
     <div
@@ -221,6 +322,12 @@ export default function CosmeticRecommendationPage() {
                       </div>
                     )}
                   </div>
+                </div>
+              ) : hasRecommendations ? (
+                <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
+                  <span className="text-sm uppercase tracking-widest font-light">
+                    Select a product
+                  </span>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
