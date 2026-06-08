@@ -158,20 +158,14 @@ export default function CosmeticRecommendationPage() {
   const leftColRecs = sortedRecs.slice(0, 5);
   const rightColRecs = sortedRecs.slice(5, 10);
 
-  const [selectedRec, setSelectedRec] = useState<SkinRecommendation | null>(
-    null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!sortedRecs.length) {
-      if (selectedRec) setSelectedRec(null);
-      return;
-    }
-
-    if (!selectedRec || !sortedRecs.some((rec) => rec.id === selectedRec.id)) {
-      setSelectedRec(sortedRecs[0]);
-    }
-  }, [selectedRec, sortedRecs]);
+  // Derive the active recommendation during render (defaults to the top rank)
+  // instead of syncing it via an effect, which triggers cascading renders.
+  const selectedRec = useMemo<SkinRecommendation | null>(() => {
+    if (!sortedRecs.length) return null;
+    return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
+  }, [selectedId, sortedRecs]);
 
   const hasRecommendations = sortedRecs.length > 0;
 
@@ -182,7 +176,7 @@ export default function CosmeticRecommendationPage() {
       const selected =
         sortedRecs.find((rec) => rec.rank === action.rank) ??
         sortedRecs[action.rank - 1];
-      if (selected) setSelectedRec(selected);
+      if (selected) setSelectedId(selected.id);
     },
     [sortedRecs],
   );
@@ -198,7 +192,8 @@ export default function CosmeticRecommendationPage() {
 
     handoffStartedRef.current = true;
     sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
-    setIsHandoffLoading(true);
+    // isHandoffLoading is already true from the useState initializer (same key),
+    // so no synchronous setState is needed here.
     void submitText(prompt)
       .catch((err) => {
         console.error("[cosmetics-handoff]", err);
@@ -241,7 +236,7 @@ export default function CosmeticRecommendationPage() {
             onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={setSelectedRec}
+            onSelect={(rec) => setSelectedId(rec.id)}
             emptyMessage="No products available."
           />
         </div>
@@ -257,7 +252,7 @@ export default function CosmeticRecommendationPage() {
                       #{selectedRec.rank} Recommended
                     </span>
                     <button
-                      onClick={() => setSelectedRec(null)}
+                      onClick={() => setSelectedId(null)}
                       className="text-white/40 hover:text-white/80 text-xs tracking-wider uppercase"
                     >
                       Clear
@@ -409,7 +404,7 @@ export default function CosmeticRecommendationPage() {
             onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={setSelectedRec}
+            onSelect={(rec) => setSelectedId(rec.id)}
             emptyMessage="No more products"
           />
         </div>
