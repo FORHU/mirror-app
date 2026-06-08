@@ -480,7 +480,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          const isGarment = pageMode === "garment";
           const isCosmetics =
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
