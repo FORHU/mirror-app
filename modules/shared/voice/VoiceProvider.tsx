@@ -480,12 +480,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
+          const isGarment = pageMode === "garment";
+          const isCosmetics =
+            pageMode === "cosmetics" ||
+            pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             ...(weather ? { weather } : {}),
-            skinAnalysis: useMirrorStore.getState().skinAnalysisResult,
+            ...(loc ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
+            ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
           if (aiResponse.stylist_data?.target_url) {
@@ -1495,7 +1501,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             mapDest,
             !!mapState.activeRoute,
             pending.length > 0 ? pending : undefined,
-            "[stylist]",
+            "[maps]",
           );
 
           const res = await chatWonderService.message({
