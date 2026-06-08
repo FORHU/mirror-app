@@ -800,27 +800,142 @@ export function matchCandidateFromTranscript(
  * patterns and returns the POI search term (e.g. "starbucks", "gas station").
  * Returns null when the phrase isn't a nearby-POI request.
  */
+// Maps activity verbs to Google Places categories when no explicit POI noun is given.
+const ACTIVITY_TO_CATEGORY: Record<string, string> = {
+  eat: "restaurant",
+  eating: "restaurant",
+  drink: "cafe",
+  drinking: "cafe",
+  stay: "hotel",
+  sleep: "hotel",
+  shop: "shopping mall",
+  shopping: "shopping mall",
+  park: "parking",
+  parking: "parking",
+  relax: "park",
+  relaxing: "park",
+  chill: "cafe",
+  "hang out": "cafe",
+  refuel: "gas station",
+  charge: "gas station",
+  rest: "cafe",
+};
+
 export function extractNearbyPOIQuery(transcript: string): string | null {
-  // "nearest X [near me]" / "closest X [near me]"
+  // ── Group 1: "nearest / closest X" ──────────────────────────────────────
   const nearestM = transcript.match(
     /\b(?:nearest|closest)\s+(.+?)(?:\s+(?:near\s+(?:me|my\s+location)|nearby|around\s+(?:here|me))\s*$|\s*$)/i,
   );
   if (nearestM) return nearestM[1].trim() || null;
 
-  // "find/show/give me [a] X near me/my location/nearby"
-  const findM = transcript.match(
-    /\b(?:find|show|give)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me))\s*$/i,
+  // ── Group 2: "find / show / give / get me X" ────────────────────────────
+  // "... near me / nearby / around here"
+  const findNearM = transcript.match(
+    /\b(?:find|show|give|get)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me))\s*$/i,
   );
-  if (findM) return findM[1].trim() || null;
+  if (findNearM) return findNearM[1].trim() || null;
 
-  // "X near me" / "X nearby" standalone
+  // "... here [in / at city]"
+  const findHereM = transcript.match(
+    /\b(?:find|show|give|get)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+here\b/i,
+  );
+  if (findHereM) return findHereM[1].trim() || null;
+
+  // ── Group 3: "X near me / X nearby" standalone ──────────────────────────
   const nearMeM = transcript.match(
     /^(?:can\s+you\s+)?(?:give\s+me\s+)?(?:the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby)\s*$/i,
   );
   if (nearMeM) {
     const candidate = nearMeM[1].trim();
-    // Don't match generic filler phrases
     if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate))
+      return candidate;
+  }
+
+  // ── Group 4: "where" questions ───────────────────────────────────────────
+  // "where is / where are [the/a/nearest] X [near/here/around]"
+  const whereIsM = transcript.match(
+    /\bwhere(?:'s|\s+is|\s+are)\s+(?:the\s+|a\s+|an\s+)?(?:nearest\s+|closest\s+)?(.+?)\s*(?:near(?:\s+me|\s+my\s+location)?|nearby|around(?:\s+(?:here|me))?|here)\s*$/i,
+  );
+  if (whereIsM) return whereIsM[1].trim() || null;
+
+  // "where can I eat / drink [specific food]"
+  const whereCanFoodM = transcript.match(
+    /\bwhere\s+can\s+i\s+(eat|drink)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
+  );
+  if (whereCanFoodM) {
+    const food = whereCanFoodM[2].trim();
+    return food || ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
+  }
+
+  // "where can I eat / drink / shop / park" — activity only, no food noun
+  const whereCanActivityM = transcript.match(
+    /\bwhere\s+can\s+i\s+(eat|drink|sleep|stay|shop|park|relax|chill|refuel)\b/i,
+  );
+  if (whereCanActivityM)
+    return ACTIVITY_TO_CATEGORY[whereCanActivityM[1].toLowerCase()] ?? null;
+
+  // "where can I find / get / buy / grab [a] X"
+  const whereCanFindM = transcript.match(
+    /\bwhere\s+can\s+i\s+(?:find|get|buy|grab|try|have)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
+  );
+  if (whereCanFindM) {
+    const candidate = whereCanFindM[1].trim();
+    if (candidate && !/^(something|anything|stuff|it|one)\s*$/.test(candidate))
+      return candidate;
+  }
+
+  // ── Group 5: "I need / want / crave X" ──────────────────────────────────
+  const needWantM = transcript.match(
+    /\bi\s+(?:need|want|crave)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me)|here)\b/i,
+  );
+  if (needWantM) return needWantM[1].trim() || null;
+
+  // ── Group 6: "looking / searching for X" ────────────────────────────────
+  const lookingM = transcript.match(
+    /\b(?:(?:i(?:'m|\s+am)\s+)?(?:looking|searching)\s+for)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me)|here)\b/i,
+  );
+  if (lookingM) return lookingM[1].trim() || null;
+
+  // ── Group 7: "any X around here / near me" ──────────────────────────────
+  const anyNearM = transcript.match(
+    /\bany\s+(.+?)\s+(?:around\s+(?:here|me)|near(?:\s+me)?|nearby)\b/i,
+  );
+  if (anyNearM) return anyNearM[1].trim() || null;
+
+  // "X around here / around me / around this area"
+  const aroundHereM = transcript.match(
+    /\b(.+?)\s+around\s+(?:here|me|this\s+(?:area|place))\b/i,
+  );
+  if (aroundHereM) {
+    const candidate = aroundHereM[1]
+      .trim()
+      .replace(/^(?:any|some|the|a|an|are\s+there|is\s+there)\s+/i, "");
+    if (
+      candidate &&
+      candidate.split(/\s+/).length <= 4 &&
+      !/^(what|where|how|who|when|i|we|they)\b/i.test(candidate)
+    )
+      return candidate;
+  }
+
+  // ── Group 8: activity intent ("somewhere to eat") ───────────────────────
+  const somewhereM = transcript.match(
+    /\b(?:somewhere|(?:a|good|nice|decent)\s+place)\s+to\s+(eat|drink|stay|sleep|shop|park|relax|chill|refuel|charge|rest|hang\s+out)\b/i,
+  );
+  if (somewhereM)
+    return ACTIVITY_TO_CATEGORY[somewhereM[1].toLowerCase()] ?? somewhereM[1];
+
+  // ── Group 9: "suggest / recommend X" ────────────────────────────────────
+  const suggestM = transcript.match(
+    /\b(?:suggest|recommend)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
+  );
+  if (suggestM) {
+    const candidate = suggestM[1].trim();
+    if (
+      candidate &&
+      candidate.split(/\s+/).length <= 4 &&
+      !/^(?:route|direction|way|path|place\s+to\s+go)\b/i.test(candidate)
+    )
       return candidate;
   }
 
