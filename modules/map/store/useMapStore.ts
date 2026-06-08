@@ -325,12 +325,15 @@ export const useMapStore = create<MapStore>((set, get) => ({
     const origin = userLocation ?? homeLocation;
     if (!selectedDestination || !origin) return;
     set({ isRouting: true });
+    // Capture profile at call time — discard result if tab was switched mid-flight.
+    const profileAtCall = activeProfile;
     try {
       const route = await mapService.directions(
         [origin.lng, origin.lat],
         [selectedDestination.lng, selectedDestination.lat],
         activeProfile,
       );
+      if (get().activeProfile !== profileAtCall) return;
       set({
         activeRoute: route,
         routeDistance: route.distance,
@@ -338,7 +341,7 @@ export const useMapStore = create<MapStore>((set, get) => ({
         isRouting: false,
       });
     } catch {
-      set({ isRouting: false });
+      if (get().activeProfile === profileAtCall) set({ isRouting: false });
     }
   },
 

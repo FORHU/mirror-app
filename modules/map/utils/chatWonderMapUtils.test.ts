@@ -23,6 +23,7 @@ import {
   buildDisambiguationQuestion,
   buildRouteSummary,
   extractOrdinalIndex,
+  buildMapInput,
 } from "@/modules/map/utils/chatWonderMapUtils";
 import type { ChatWonderMapsPlace } from "@/modules/shared/api/chat-wonder.service";
 
@@ -1017,5 +1018,119 @@ describe("extractOrdinalIndex", () => {
 
   it("longer phrase wins over substring: 'option three' beats 'three'", () => {
     expect(extractOrdinalIndex("option three please")).toBe(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// buildMapInput — language directive injection (BG-6 language fix)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("buildMapInput", () => {
+  describe("no context, no lang — baseline", () => {
+    it("uses default prefix and no directive", () => {
+      expect(buildMapInput("take me to Baguio", null, null, false)).toBe(
+        "[stylist] take me to Baguio",
+      );
+    });
+
+    it("accepts explicit prefix without lang", () => {
+      expect(buildMapInput("find a cafe", null, null, false, undefined, "[maps]")).toBe(
+        "[maps] find a cafe",
+      );
+    });
+  });
+
+  describe("lang directive", () => {
+    it('prepends "Respond in English." for en-US', () => {
+      expect(
+        buildMapInput("take me to Baguio", null, null, false, undefined, "[maps]", "en-US"),
+      ).toBe("[maps] Respond in English. take me to Baguio");
+    });
+
+    it('prepends "Respond in French." for fr-FR', () => {
+      expect(
+        buildMapInput("emmène-moi", null, null, false, undefined, "[maps]", "fr-FR"),
+      ).toBe("[maps] Respond in French. emmène-moi");
+    });
+
+    it('prepends "Respond in Korean." for ko-KR', () => {
+      expect(
+        buildMapInput("가자", null, null, false, undefined, "[maps]", "ko-KR"),
+      ).toBe("[maps] Respond in Korean. 가자");
+    });
+
+    it("falls back to English for unknown BCP-47 code", () => {
+      expect(
+        buildMapInput("hola", null, null, false, undefined, "[maps]", "es-ES"),
+      ).toBe("[maps] Respond in English. hola");
+    });
+  });
+
+  describe("context block ordering: prefix → ctx → directive → transcript", () => {
+    it("location context precedes lang directive", () => {
+      expect(
+        buildMapInput(
+          "go here",
+          { lat: 16.41, lng: 120.59 },
+          null,
+          false,
+          undefined,
+          "[maps]",
+          "en-US",
+        ),
+      ).toBe("[maps] [location: 16.41,120.59] Respond in English. go here");
+    });
+
+    it("destination context included", () => {
+      expect(
+        buildMapInput(
+          "nearby?",
+          null,
+          { name: "Baguio Cathedral", lat: 16.406, lng: 120.596 },
+          false,
+          undefined,
+          "[maps]",
+          "en-US",
+        ),
+      ).toBe(
+        "[maps] [destination: Baguio Cathedral (16.406,120.596)] Respond in English. nearby?",
+      );
+    });
+
+    it("route-active flag included", () => {
+      expect(
+        buildMapInput("how long?", null, null, true, undefined, "[maps]", "en-US"),
+      ).toBe("[maps] [route active] Respond in English. how long?");
+    });
+
+    it("pending events included", () => {
+      expect(
+        buildMapInput(
+          "where?",
+          null,
+          null,
+          false,
+          [{ eventName: "dinner", timeLabel: "7pm" }],
+          "[maps]",
+          "en-US",
+        ),
+      ).toBe("[maps] [pending events: dinner/7pm] Respond in English. where?");
+    });
+
+    it("all parts combined", () => {
+      expect(
+        buildMapInput(
+          "what's nearby",
+          { lat: 16.41, lng: 120.59 },
+          { name: "Baguio Cathedral", lat: 16.406, lng: 120.596 },
+          true,
+          [{ eventName: "lunch", timeLabel: "noon" }],
+          "[maps]",
+          "en-US",
+        ),
+      ).toBe(
+        "[maps] [location: 16.41,120.59; destination: Baguio Cathedral (16.406,120.596); route active; pending events: lunch/noon] Respond in English. what's nearby",
+      );
+    });
   });
 });
