@@ -207,7 +207,7 @@ export default function CosmeticRecommendationPage() {
     [sortedRecs],
   );
 
-  const { isListening } = useVoice(pageContext, handleVoiceAction);
+  useVoice(pageContext, handleVoiceAction);
   const { submitText, isProcessing } = useVoiceContext();
 
   useEffect(() => {
@@ -247,7 +247,6 @@ export default function CosmeticRecommendationPage() {
         className="w-full relative z-10"
         style={{ background: "transparent" }}
         onBack={() => router.back()}
-        isListening={isListening}
       />
 
       {/* Main 3 Column Layout */}

@@ -218,7 +218,7 @@ export default function OverviewPage() {
     [setGarments, setOutfits, setCosmetics, setMap],
   );
 
-  const { isListening } = useVoice(pageContext, handleVoiceAction);
+  useVoice(pageContext, handleVoiceAction);
 
   // ── map store → Map tile (the cognitive pipeline sets destinations here) ──
   const selectedDestination = useMapStore((s) => s.selectedDestination);
@@ -365,7 +365,6 @@ export default function OverviewPage() {
           paddingLeft: "16px",
           paddingRight: "16px",
         }}
-        isListening={isListening}
         right={
           <div
             className="flex items-center gap-2 px-3 py-1.5 rounded-full"

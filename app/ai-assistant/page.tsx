@@ -253,7 +253,7 @@ export default function AIAssistantPage() {
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
-      <MirrorHeader isListening={isListening} />
+      <MirrorHeader />
 
       <AnimatePresence mode="wait">
         {showIdle ? (
