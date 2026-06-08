@@ -13,6 +13,7 @@ import {
   useOverviewStore,
   adaptGarmentData,
   adaptMapsData,
+  CameraDisclaimer,
 } from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import {
@@ -322,6 +323,10 @@ export default function AIAssistantPage() {
                 Tap to start
               </p>
             </motion.div>
+
+            <div className="absolute bottom-6 inset-x-0 px-6 z-10">
+              <CameraDisclaimer />
+            </div>
           </motion.div>
         ) : (
           <motion.main
