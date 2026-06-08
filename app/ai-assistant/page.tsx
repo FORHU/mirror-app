@@ -358,10 +358,13 @@ export default function AIAssistantPage() {
                       Mirror
                     </p>
                     <p
-                      className={`font-thin leading-[1.3] tracking-tight ${
+                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
                         error ? "text-red-300/75" : "text-white/90"
                       }`}
-                      style={{ fontSize: "clamp(1.5rem, 4vw, 2.25rem)" }}
+                      style={{
+                        fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
+                        maxHeight: "45vh",
+                      }}
                     >
                       {displayReply}
                     </p>

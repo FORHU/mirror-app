@@ -93,6 +93,33 @@ function normalizeRecommendation(
   };
 }
 
+const COSMETIC_QUOTES = [
+  {
+    text: "Beauty begins the moment you decide to be yourself.",
+    author: "Coco Chanel",
+  },
+  {
+    text: "Invest in your skin. It is going to represent you for a very long time.",
+    author: "Linden Tyler",
+  },
+  {
+    text: "Healthy skin is a reflection of overall wellness.",
+    author: "Dr. Howard Murad",
+  },
+  {
+    text: "Take care of your body. It's the only place you have to live.",
+    author: "Jim Rohn",
+  },
+  {
+    text: "Confidence is the best foundation you can wear.",
+    author: "Unknown",
+  },
+  {
+    text: "Glow comes from within, but a good routine never hurts.",
+    author: "Unknown",
+  },
+];
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
@@ -105,6 +132,8 @@ export default function CosmeticRecommendationPage() {
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
       : false,
   );
+  const [quoteIdx, setQuoteIdx] = useState(0);
+  const [quoteVisible, setQuoteVisible] = useState(true);
 
   const pageContext = useMemo(
     () => ({
@@ -180,7 +209,7 @@ export default function CosmeticRecommendationPage() {
   );
 
   const { isListening } = useVoice(pageContext, handleVoiceAction);
-  const { submitText } = useVoiceContext();
+  const { submitText, isProcessing } = useVoiceContext();
 
   useEffect(() => {
     if (handoffStartedRef.current) return;
@@ -203,6 +232,23 @@ export default function CosmeticRecommendationPage() {
 
   const isLoadingRecommendations =
     isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
+
+  // Show the cycling quotes whenever the AI is talking (overrides the product /
+  // skin-profile view) or while nothing has loaded yet.
+  const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
+
+  // Cycle skincare quotes while the quote view is on screen.
+  useEffect(() => {
+    if (!showQuotes) return;
+    const interval = setInterval(() => {
+      setQuoteVisible(false);
+      setTimeout(() => {
+        setQuoteIdx((i) => (i + 1) % COSMETIC_QUOTES.length);
+        setQuoteVisible(true);
+      }, 600);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [showQuotes]);
 
   return (
     <div
@@ -238,7 +284,7 @@ export default function CosmeticRecommendationPage() {
         <div className="flex-1 h-full flex flex-col items-center justify-center p-6 relative">
           <div className="w-full h-full max-w-lg flex flex-col">
             <div className="flex-1 flex flex-col justify-center">
-              {selectedRec ? (
+              {!showQuotes && selectedRec ? (
                 <div className="p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 transition-all duration-300 shadow-2xl">
                   <div className="flex justify-between items-start mb-6">
                     <span className="text-pink-300 text-[11px] font-bold uppercase tracking-widest px-3 py-1 bg-pink-500/10 rounded-full border border-pink-500/20">
@@ -290,7 +336,7 @@ export default function CosmeticRecommendationPage() {
                     ))}
                   </div>
                 </div>
-              ) : skinAnalysisResult ? (
+              ) : !showQuotes && skinAnalysisResult ? (
                 <div className="p-8 bg-gradient-to-br from-pink-500/10 to-purple-600/10 backdrop-blur-md rounded-3xl border border-pink-500/20 shadow-2xl shadow-pink-500/5 transition-all duration-500">
                   <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center mb-6 border border-pink-500/30">
                     <svg
@@ -357,11 +403,22 @@ export default function CosmeticRecommendationPage() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
-                  <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
-                  <span className="text-sm uppercase tracking-widest font-light">
-                    Analyzing Skin...
-                  </span>
+                <div
+                  className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
+                  style={{
+                    opacity: quoteVisible ? 1 : 0,
+                    transition: "opacity 0.6s ease",
+                  }}
+                >
+                  <p className="text-pink-300/40 text-[9px] uppercase tracking-[0.22em] mb-5">
+                    Skin Tip
+                  </p>
+                  <p className="text-[17px] font-light italic leading-relaxed text-white/85 mb-4">
+                    &ldquo;{COSMETIC_QUOTES[quoteIdx].text}&rdquo;
+                  </p>
+                  <p className="text-[11px] text-white/30 tracking-wide">
+                    — {COSMETIC_QUOTES[quoteIdx].author}
+                  </p>
                 </div>
               )}
             </div>
