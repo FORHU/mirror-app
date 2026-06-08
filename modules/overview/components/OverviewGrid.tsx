@@ -76,9 +76,11 @@ function TileShell({
 function TileFrame({
   children,
   focused,
+  className,
 }: {
   children: React.ReactNode;
   focused: boolean;
+  className?: string;
 }) {
   return (
     <motion.div
@@ -88,7 +90,10 @@ function TileFrame({
         focused
           ? "h-full w-full max-w-[620px] max-h-[690px] justify-self-center"
           : "h-full",
-      ].join(" ")}
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       transition={{ type: "spring", stiffness: 260, damping: 30 }}
     >
       {children}
@@ -483,7 +488,7 @@ export function OverviewGrid() {
           "grid flex-1 min-h-0 gap-4",
           focused
             ? "grid-cols-1 place-items-center"
-            : "grid-cols-1 md:grid-cols-2",
+            : "grid-cols-1 md:grid-cols-[1.5fr_1fr] md:grid-rows-[minmax(0,2fr)_minmax(0,1fr)]",
         ].join(" ")}
       >
         {visibleTiles.map((tile) => (
