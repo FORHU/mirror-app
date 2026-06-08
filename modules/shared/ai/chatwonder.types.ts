@@ -69,6 +69,7 @@ export type ChatWonderAction =
       label: string;
     }
   | { type: "cosmetic_select_recommendation"; rank: number }
+  | { type: "fashion_select_outfit"; index: number }
   | { type: "GARMENT_RECOMMENDATION"; response: unknown };
 
 export interface ChatWonderResponse {

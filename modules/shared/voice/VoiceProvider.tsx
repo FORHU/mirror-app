@@ -153,6 +153,43 @@ function extractCosmeticSelectionRank(text: string): number | null {
   return COSMETIC_SELECTION_WORDS[looseWord[1]] ?? null;
 }
 
+const FASHION_OUTFIT_SELECTION_WORDS: Record<string, number> = {
+  first: 0, one: 0,
+  second: 1, two: 1,
+  third: 2, three: 2,
+  fourth: 3, four: 3,
+};
+
+function extractFashionOutfitSelection(text: string): number | null {
+  const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
+  const wantsSelection =
+    /\b(select|choose|pick|show|view|see|open|switch)\b/.test(lower);
+  if (!wantsSelection) return null;
+
+  const numericOutfit = lower.match(/\boutfit\s*(?:number|#)?\s*(\d{1,2})\b/);
+  if (numericOutfit) {
+    const idx = Number(numericOutfit[1]) - 1;
+    return idx >= 0 && idx <= 9 ? idx : null;
+  }
+
+  const numericPlain = lower.match(
+    /(?:#\s*(\d{1,2})\b|\b(?:number|no|option|item)\s+(\d{1,2})\b)/,
+  );
+  if (numericPlain) {
+    const idx = Number(numericPlain[1] ?? numericPlain[2]) - 1;
+    return idx >= 0 && idx <= 9 ? idx : null;
+  }
+
+  const wordPattern = Object.keys(FASHION_OUTFIT_SELECTION_WORDS).join("|");
+  const wordMatch = lower.match(new RegExp(`\\b(${wordPattern})\\b`));
+  if (wordMatch) {
+    const idx = FASHION_OUTFIT_SELECTION_WORDS[wordMatch[1]];
+    return idx !== undefined ? idx : null;
+  }
+
+  return null;
+}
+
 function isCosmeticHandoffPrompt(text: string): boolean {
   return /\b(cosmetic|cosmetics|makeup|make-up|skincare|skin care|moisturi[sz]er|cleanser|toner|serum|sunscreen|spf|foundation|concealer|lipstick|blush|face wash|beauty product)\b/i.test(
     text,
@@ -563,6 +600,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               rank: selectionRank,
             });
             const localReply = `Showing recommendation number ${selectionRank}.`;
+            setReply(localReply);
+            const newHistory = [
+              ...historyRef.current,
+              { user: t, assistant: localReply },
+            ];
+            historyRef.current = newHistory;
+            setChatHistory(newHistory);
+            setVoiceState("idle");
+            return;
+          }
+
+          const outfitIdx =
+            !isCosmetics && pageMode === "garment"
+              ? extractFashionOutfitSelection(t)
+              : null;
+          if (outfitIdx !== null) {
+            onActionRef.current?.({
+              type: "fashion_select_outfit",
+              index: outfitIdx,
+            });
+            const localReply = `Showing outfit number ${outfitIdx + 1}.`;
             setReply(localReply);
             const newHistory = [
               ...historyRef.current,

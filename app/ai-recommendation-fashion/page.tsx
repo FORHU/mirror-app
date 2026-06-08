@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useVoice } from "@/modules/shared/voice/useVoice";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import MirrorHeader from "@/components/MirrorHeader";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
@@ -99,7 +101,7 @@ const FASHION_QUOTES = [
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const { isProcessing, registerPage, unregisterPage } = useVoiceContext();
+  const { isProcessing } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -437,13 +439,27 @@ export default function VirtualMirrorV2() {
     ],
   );
 
-  useEffect(() => {
-    registerPage(
-      { route: "/ai-recommendation-fashion", pageName: "Fashion Recommendations", mode: "garment" },
-      () => {},
-    );
-    return () => unregisterPage();
-  }, [registerPage, unregisterPage]);
+  const fashionPageContext = useMemo(
+    () => ({
+      route: "/ai-recommendation-fashion",
+      pageName: "Fashion Recommendations",
+      mode: "garment" as const,
+    }),
+    [],
+  );
+
+  const handleVoiceAction = useCallback(
+    (action: ChatWonderAction) => {
+      if (action.type !== "fashion_select_outfit") return;
+      const idx = action.index;
+      if (idx < 0 || idx >= outfits.length) return;
+      setOutfitPage(Math.floor(idx / outfitPageSize));
+      selectOutfit(idx);
+    },
+    [outfits, outfitPageSize, selectOutfit],
+  );
+
+  useVoice(fashionPageContext, handleVoiceAction);
 
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
   useEffect(() => {
