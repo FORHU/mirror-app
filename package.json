@@ -10,7 +10,9 @@
     "start": "next start",
     "lint": "eslint .",
     "check": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
@@ -64,6 +66,7 @@
     "postcss": "^8.5.14",
     "prettier": "^3.5.2",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   }
 }

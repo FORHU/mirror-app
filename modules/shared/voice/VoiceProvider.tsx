@@ -666,6 +666,55 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           // Client-side voice matcher — intercept if curated POIs are pending
           if (curatedPOIsRef.current.length > 0) {
+            // ── Address query: reply with address instead of navigating ───────
+            // Must be checked before the name match so "what's the address of
+            // Foam Coffee" doesn't accidentally trigger navigation.
+            if (
+              /\bwhat(?:'s|\s+is)\s+(?:the\s+)?address\b|\baddress\s+of\b/i.test(
+                t,
+              )
+            ) {
+              const addrPOI =
+                matchPOIFromTranscript(t, curatedPOIsRef.current) ??
+                curatedPOIsRef.current[0];
+              const addrReply = addrPOI.address
+                ? `The address of ${addrPOI.name} is ${addrPOI.address}.`
+                : `I don't have a specific address for ${addrPOI.name}.`;
+              const addrAudio = await mapService
+                .tts(addrReply)
+                .catch(() => null);
+              setReply(addrReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: addrReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (addrAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  addrAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
+            }
+
+            // ── Try to match a POI by name (works even inside navigation phrases) ─
+            // "take me to Foam Coffee" → matches "Foam Coffee" from the list.
+            // If the matched name is in the list, prefer the Google Places location
+            // over a fresh Mapbox geocode.
             const matched = matchPOIFromTranscript(t, curatedPOIsRef.current);
             if (matched) {
               curatedPOIsRef.current = [];
@@ -707,55 +756,75 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               }
               return;
             }
-            // No match — re-ask with a narrowed list instead of silently dropping state.
-            // Filter candidates by word overlap with what the user said, then cap at 3
-            // so the re-ask doesn't repeat all 5 names again.
-            const tLower = t.toLowerCase();
-            const tWords = tLower.split(/\s+/).filter((w) => w.length > 2);
-            const scored = curatedPOIsRef.current.map((p) => {
-              const pName = p.name.toLowerCase();
-              const overlap = tWords.filter(
-                (w) => pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
-              ).length;
-              return { p, overlap };
-            });
-            const reAskPOIs = (
-              scored.some((s) => s.overlap > 0)
-                ? scored.sort((a, b) => b.overlap - a.overlap)
-                : scored
-            )
-              .slice(0, 3)
-              .map((s) => s.p);
-            const names = reAskPOIs.map((p) => p.name);
-            const reAskReply =
-              names.length === 1
-                ? `Did you mean ${names[0]}?`
-                : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
-            const reAskAudio = await mapService.tts(reAskReply).catch(() => null);
-            setReply(reAskReply);
-            historyRef.current = [
-              ...historyRef.current,
-              { user: t, assistant: reAskReply },
-            ];
-            setChatHistory(historyRef.current);
-            setVoiceState("speaking");
-            if (reAskAudio) {
-              const playCtx = new AudioContext();
-              playbackCtxRef.current = playCtx;
-              const decoded = await playCtx.decodeAudioData(reAskAudio.slice(0));
-              const src = playCtx.createBufferSource();
-              src.buffer = decoded;
-              src.connect(playCtx.destination);
-              playbackRef.current = src;
-              src.onended = () => {
-                stopPlayback();
-                setVoiceState("idle");
-              };
-              src.start(0);
+
+            // ── No name match — check if user moved on to a new intent ────────
+            // "I also want to go to la trinidad" / "take me somewhere else" →
+            // clear the curated list and fall through so the itinerary / nav
+            // handlers below can process it.  Only escape on a clear intent
+            // signal so ambiguous fragments still trigger the re-ask below.
+            if (
+              isItineraryPhrase(t) ||
+              isNavigationPhrase(t) ||
+              isClearRoutePhrase(t) ||
+              isMultiEventUtterance(t)
+            ) {
+              curatedPOIsRef.current = [];
+              useMapStore.getState().clearSuggestions();
+              // fall through — do NOT return
             } else {
-              setVoiceState("idle");
+              // ── Re-ask with a narrowed list (max 3, by word overlap) ─────────
+              const tLower = t.toLowerCase();
+              const tWords = tLower.split(/\s+/).filter((w) => w.length > 2);
+              const scored = curatedPOIsRef.current.map((p) => {
+                const pName = p.name.toLowerCase();
+                const overlap = tWords.filter(
+                  (w) =>
+                    pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
+                ).length;
+                return { p, overlap };
+              });
+              const reAskPOIs = (
+                scored.some((s) => s.overlap > 0)
+                  ? scored.sort((a, b) => b.overlap - a.overlap)
+                  : scored
+              )
+                .slice(0, 3)
+                .map((s) => s.p);
+              const names = reAskPOIs.map((p) => p.name);
+              const reAskReply =
+                names.length === 1
+                  ? `Did you mean ${names[0]}?`
+                  : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
+              const reAskAudio = await mapService
+                .tts(reAskReply)
+                .catch(() => null);
+              setReply(reAskReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: reAskReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (reAskAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  reAskAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
             }
-            return;
           }
 
           // ── Disambiguation resolution ─────────────────────────────────────────
@@ -1479,19 +1548,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
           // ── End itinerary intercept ────────────────────────────────────────────
 
-          if (!mapSessionInitRef.current) {
-            await chatWonderService.getSessionId();
-            mapSessionInitRef.current = true;
-          }
-
           const mapState = useMapStore.getState();
           const mapLoc = mapState.userLocation ?? mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
           // ── Nearby POI intercept ──────────────────────────────────────────────
-          // "nearest starbucks", "find me X near me" — bypass ChatWonder (which
-          // can't use the location context) and call nearbyPOIs directly.
+          // Checked BEFORE session init — most voice queries ("recommend me a cafe")
+          // are handled locally and never need ChatWonder.
           const nearbyQuery = extractNearbyPOIQuery(t);
           if (nearbyQuery && mapLoc) {
             try {
@@ -1539,6 +1603,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
           // ── End nearby POI intercept ──────────────────────────────────────────
+
+          // Session init deferred — only pays the round-trip cost for queries
+          // that actually reach ChatWonder (not local POI or itinerary intercepts).
+          if (!mapSessionInitRef.current) {
+            await chatWonderService.getSessionId();
+            mapSessionInitRef.current = true;
+          }
 
           const enrichedInput = buildMapInput(
             t,
