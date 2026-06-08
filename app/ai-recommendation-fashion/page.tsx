@@ -12,6 +12,7 @@ import {
 } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { FittingSlot } from "@/modules/garment/types";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -105,10 +106,9 @@ const FASHION_QUOTES = [
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  const { isProcessing } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
-  const [aiLoading] = useState(false);
-  const [voiceLoading] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -304,7 +304,7 @@ export default function VirtualMirrorV2() {
   );
 
   useEffect(() => {
-    if (!aiLoading && !voiceLoading) return;
+    if (!isProcessing) return;
     const interval = setInterval(() => {
       setQuoteVisible(false);
       setTimeout(() => {
@@ -313,7 +313,7 @@ export default function VirtualMirrorV2() {
       }, 600);
     }, 4000);
     return () => clearInterval(interval);
-  }, [aiLoading, voiceLoading]);
+  }, [isProcessing]);
 
   useEffect(() => {
     // Garment grids resolve independently from the outfit grid
@@ -597,7 +597,7 @@ export default function VirtualMirrorV2() {
                   overflow: "hidden",
                 }}
               >
-                {aiLoading || voiceLoading ? (
+                {isProcessing ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <SkeletonCell
                       key={i}
@@ -713,7 +713,7 @@ export default function VirtualMirrorV2() {
               style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
             >
               {/* Outfit display */}
-              {selectedOutfit && !(aiLoading || voiceLoading) && (
+              {selectedOutfit && !(isProcessing) && (
                 <div
                   style={{
                     width: "100%",
@@ -978,7 +978,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Loading state — cycling fashion quotes */}
-              {(aiLoading || voiceLoading) && (
+              {(isProcessing) && (
                 <div
                   style={{
                     flex: 1,
@@ -1029,7 +1029,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Garment slot cards */}
-              {!selectedOutfit && !(aiLoading || voiceLoading) && (
+              {!selectedOutfit && !(isProcessing) && (
                 <div
                   style={{
                     flex: 1,
@@ -1189,12 +1189,12 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Base layer */}
-          {(aiLoading || voiceLoading || topsBase.length > 0) &&
+          {(isProcessing || topsBase.length > 0) &&
             (!swapSlot || swapSlot === "base") && (
               <GarmentGrid
                 label="Base"
                 pagedItems={pagedTopsBase}
-                loading={aiLoading || voiceLoading}
+                loading={isProcessing}
                 pageSize={topsLayerPageSize}
                 currentPage={topsBasePage}
                 totalPages={totalTopsBasePages}
@@ -1219,12 +1219,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Mid layer */}
-          {(aiLoading || voiceLoading || topsMid.length > 0) &&
+          {(isProcessing || topsMid.length > 0) &&
             (!swapSlot || swapSlot === "mid") && (
               <GarmentGrid
                 label="Mid"
                 pagedItems={pagedTopsMid}
-                loading={aiLoading || voiceLoading}
+                loading={isProcessing}
                 pageSize={topsLayerPageSize}
                 currentPage={topsMidPage}
                 totalPages={totalTopsMidPages}
@@ -1247,12 +1247,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Outer layer */}
-          {(aiLoading || voiceLoading || topsOuter.length > 0) &&
+          {(isProcessing || topsOuter.length > 0) &&
             (!swapSlot || swapSlot === "outer") && (
               <GarmentGrid
                 label="Outer"
                 pagedItems={pagedTopsOuter}
-                loading={aiLoading || voiceLoading}
+                loading={isProcessing}
                 pageSize={topsLayerPageSize}
                 currentPage={topsOuterPage}
                 totalPages={totalTopsOuterPages}
@@ -1280,7 +1280,7 @@ export default function VirtualMirrorV2() {
             <GarmentGrid
               label="Bottoms"
               pagedItems={pagedBottoms}
-              loading={aiLoading || voiceLoading}
+              loading={isProcessing}
               pageSize={bottomsPageSize}
               currentPage={bottomsPage}
               totalPages={totalBottomsPages}
@@ -1306,7 +1306,7 @@ export default function VirtualMirrorV2() {
             <GarmentGrid
               label="Shoes"
               pagedItems={pagedShoes}
-              loading={aiLoading || voiceLoading}
+              loading={isProcessing}
               pageSize={shoesPageSize}
               currentPage={shoesPage}
               totalPages={totalShoesPages}
@@ -1332,7 +1332,7 @@ export default function VirtualMirrorV2() {
             <GarmentGrid
               label="Bags"
               pagedItems={pagedBags}
-              loading={aiLoading || voiceLoading}
+              loading={isProcessing}
               pageSize={accessoryPageSize}
               currentPage={bagsPage}
               totalPages={totalBagsPages}

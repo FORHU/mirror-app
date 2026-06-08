@@ -866,7 +866,14 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   );
   if (nearMeM) {
     const candidate = nearMeM[1].trim();
-    if (candidate && !/^(what|where|how|who|when)\b/i.test(candidate))
+    // Exclude question words, subject pronouns, and command verbs — these indicate
+    // the pattern captured a full sentence rather than a bare POI category.
+    if (
+      candidate &&
+      !/^(what|where|how|who|when|i|i'm|i'd|i'll|we|they|suggest|recommend|looking|searching|find|show|give|get)\b/i.test(
+        candidate,
+      )
+    )
       return candidate;
   }
 
@@ -883,7 +890,12 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   );
   if (whereCanFoodM) {
     const food = whereCanFoodM[2].trim();
-    return food || ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
+    // Reject bare location words captured as the food noun ("where can I eat here"
+    // → food="here").  Fall back to the activity → category map instead.
+    const isLocationWord = /^(?:here|nearby|near\s+me|around\s+here|around\s+me)\s*$/i.test(food);
+    return !isLocationWord && food
+      ? food
+      : ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
   }
 
   // "where can I eat / drink / shop / park" — activity only, no food noun
