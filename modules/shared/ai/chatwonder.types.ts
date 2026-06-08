@@ -10,7 +10,7 @@ export interface PageContext {
   pageName: string;
   activeStep?: string;
   collectedData?: EventSetupData;
-  mode?: "garment" | "map" | "cosmetics";
+  mode?: "garment" | "map" | "cosmetics" | "overview";
   persona?: string;
 }
 
@@ -68,6 +68,8 @@ export type ChatWonderAction =
         | "transit";
       label: string;
     }
+  | { type: "cosmetic_select_recommendation"; rank: number }
+  | { type: "fashion_select_outfit"; index: number }
   | { type: "GARMENT_RECOMMENDATION"; response: unknown };
 
 export interface ChatWonderResponse {

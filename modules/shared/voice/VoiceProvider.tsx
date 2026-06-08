@@ -30,6 +30,8 @@ import {
   chatWonderService,
   resolveAccessToken,
 } from "@/modules/shared/api/chat-wonder.service";
+import { stopAllAudioQueues } from "./audioQueue";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import {
   buildMapInput,
   isNavigationPhrase,
@@ -65,6 +67,7 @@ import {
   createPendingConfirmation,
   isExpired,
 } from "./orchestration/confirmationState";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 const CHAT_SESSION_KEY = "mirror_chat_session";
 const AI_ASSISTANT_WAKE_ONLY =
@@ -100,6 +103,99 @@ function buildItineraryConfirmReply(
     : "";
   return `${opener}${routeSummary ?? ""}${poiMention} ${closer}`;
 }
+
+const COSMETIC_SELECTION_WORDS: Record<string, number> = {
+  first: 1,
+  one: 1,
+  second: 2,
+  two: 2,
+  third: 3,
+  three: 3,
+  fourth: 4,
+  four: 4,
+  fifth: 5,
+  five: 5,
+  sixth: 6,
+  six: 6,
+  seventh: 7,
+  seven: 7,
+  eighth: 8,
+  eight: 8,
+  ninth: 9,
+  nine: 9,
+  tenth: 10,
+  ten: 10,
+};
+
+function extractCosmeticSelectionRank(text: string): number | null {
+  const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
+  const wantsSelection =
+    /\b(select|choose|pick|open|show|view|see|tap|highlight|go|navigate|see)\b/.test(lower);
+  if (!wantsSelection) return null;
+
+  const numeric = lower.match(
+    /(?:#\s*(\d{1,2})\b|\b(?:image|product|item|recommendation|option|number|no)\s*(?:number|#)?\s*(\d{1,2})\b)/,
+  );
+  if (numeric) {
+    const rank = Number(numeric[1] ?? numeric[2]);
+    return rank >= 1 && rank <= 10 ? rank : null;
+  }
+
+  const wordPattern = Object.keys(COSMETIC_SELECTION_WORDS).join("|");
+  const targetedWord = lower.match(
+    new RegExp(
+      `\\b(?:image|product|item|recommendation|option|number|the)\\s+(${wordPattern})\\b`,
+    ),
+  );
+  const looseWord = targetedWord ?? lower.match(new RegExp(`\\b(${wordPattern})\\b`));
+  if (!looseWord) return null;
+
+  return COSMETIC_SELECTION_WORDS[looseWord[1]] ?? null;
+}
+
+const FASHION_OUTFIT_SELECTION_WORDS: Record<string, number> = {
+  first: 0, one: 0,
+  second: 1, two: 1,
+  third: 2, three: 2,
+  fourth: 3, four: 3,
+};
+
+function extractFashionOutfitSelection(text: string): number | null {
+  const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
+  const wantsSelection =
+    /\b(select|choose|pick|show|view|see|open|switch)\b/.test(lower);
+  if (!wantsSelection) return null;
+
+  const numericOutfit = lower.match(/\boutfit\s*(?:number|#)?\s*(\d{1,2})\b/);
+  if (numericOutfit) {
+    const idx = Number(numericOutfit[1]) - 1;
+    return idx >= 0 && idx <= 9 ? idx : null;
+  }
+
+  const numericPlain = lower.match(
+    /(?:#\s*(\d{1,2})\b|\b(?:number|no|option|item)\s+(\d{1,2})\b)/,
+  );
+  if (numericPlain) {
+    const idx = Number(numericPlain[1] ?? numericPlain[2]) - 1;
+    return idx >= 0 && idx <= 9 ? idx : null;
+  }
+
+  const wordPattern = Object.keys(FASHION_OUTFIT_SELECTION_WORDS).join("|");
+  const wordMatch = lower.match(new RegExp(`\\b(${wordPattern})\\b`));
+  if (wordMatch) {
+    const idx = FASHION_OUTFIT_SELECTION_WORDS[wordMatch[1]];
+    return idx !== undefined ? idx : null;
+  }
+
+  return null;
+}
+
+function isCosmeticHandoffPrompt(text: string): boolean {
+  return /\b(cosmetic|cosmetics|makeup|make-up|skincare|skin care|moisturi[sz]er|cleanser|toner|serum|sunscreen|spf|foundation|concealer|lipstick|blush|face wash|beauty product)\b/i.test(
+    text,
+  );
+}
+
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -166,6 +262,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       eventType?: string;
     }[]
   >([]);
+
+  useEffect(() => {
+    router.prefetch(ROUTES.OVERVIEW);
+    router.prefetch(ROUTES.AI_RECOMMENDATION_COSMETIC);
+    router.prefetch(ROUTES.AI_RECOMMENDATION_FASHION);
+    router.prefetch(ROUTES.MAP);
+  }, [router]);
   const isCollectingItineraryRef = useRef(false);
   const itineraryIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -199,6 +302,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
   const mapSessionInitRef = useRef(false);
+
+  const { weather } = useWeather();
+  const weatherRef = useRef(weather);
+  useEffect(() => { weatherRef.current = weather; }, [weather]);
   // Auto-clear voice error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -287,6 +394,28 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (isCosmeticHandoffPrompt(t)) {
+        const assistantReply =
+          "Opening cosmetic recommendations while I find products for you.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        useMirrorStore.getState().setPendingCosmeticsData(null);
+        useMirrorStore.getState().setChatCosmeticsData(null);
+        try {
+          sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+        } catch {
+          /* prompt handoff is best-effort */
+        }
+        router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+        setVoiceState("idle");
+        return;
+      }
+
       const history = historyRef.current
         .flatMap((h) => [
           { role: "user" as const, content: h.user },
@@ -331,8 +460,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (data?.route) {
+        router.push(data.route);
+      }
+
       const finish = () => {
-        if (data?.route) router.push(data.route);
         setVoiceState("idle");
       };
 
@@ -381,6 +513,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const processTranscript = useCallback(
     async (t: string) => {
+      stopPlayback();
+      stopAllAudioQueues();
       setTranscript(t);
 
       try {
@@ -453,20 +587,95 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           pageMode === "cosmetics" ||
           pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic")
         ) {
-          // Removed weather fetching — backend will handle it
-
+          const isCosmeticsRequest = isCosmeticHandoffPrompt(t);
           const isCosmetics =
+            isCosmeticsRequest ||
             pageMode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
 
+          const selectionRank = isCosmetics
+            ? extractCosmeticSelectionRank(t)
+            : null;
+          if (selectionRank) {
+            onActionRef.current?.({
+              type: "cosmetic_select_recommendation",
+              rank: selectionRank,
+            });
+            const localReply = `Showing recommendation number ${selectionRank}.`;
+            setReply(localReply);
+            const newHistory = [
+              ...historyRef.current,
+              { user: t, assistant: localReply },
+            ];
+            historyRef.current = newHistory;
+            setChatHistory(newHistory);
+            setVoiceState("idle");
+            return;
+          }
+
+          const outfitIdx =
+            !isCosmetics && pageMode === "garment"
+              ? extractFashionOutfitSelection(t)
+              : null;
+          if (outfitIdx !== null) {
+            onActionRef.current?.({
+              type: "fashion_select_outfit",
+              index: outfitIdx,
+            });
+            const localReply = `Showing outfit number ${outfitIdx + 1}.`;
+            setReply(localReply);
+            const newHistory = [
+              ...historyRef.current,
+              { user: t, assistant: localReply },
+            ];
+            historyRef.current = newHistory;
+            setChatHistory(newHistory);
+            setVoiceState("idle");
+            return;
+          }
+
           const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
+
+          let resolvedGarmentLoc = loc;
+          if (!resolvedGarmentLoc && typeof window !== "undefined" && navigator.geolocation) {
+            resolvedGarmentLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 60_000 },
+                );
+              },
+            );
+          }
+
+          // Use pre-loaded weather when available; fetch inline on first call if not yet ready
+          let weatherPayload: Record<string, unknown> | null =
+            weatherRef.current as unknown as Record<string, unknown> | null;
+          if (!weatherPayload && resolvedGarmentLoc) {
+            try {
+              const r = await fetch(
+                `/api/mirror/weather?lat=${resolvedGarmentLoc.lat}&lng=${resolvedGarmentLoc.lng}`,
+              );
+              if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+            } catch {}
+            if (!weatherPayload) {
+              try {
+                const r = await fetch(
+                  `/api/weather?lat=${resolvedGarmentLoc.lat}&lon=${resolvedGarmentLoc.lng}`,
+                );
+                if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+              } catch {}
+            }
+          }
 
           const aiResponse = await chatWonderService.message({
             input: `[stylist] ${t}`,
             voice: true,
             sitemapContext: [...SITEMAP_CONTEXT, "back"],
             pageMode: effectiveMode,
-            ...(loc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: loc.lat.toString(), lng: loc.lng.toString() } } : {}),
+            ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
+            ...(weatherPayload ? { weather: weatherPayload } : {}),
             ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
 
@@ -476,20 +685,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          if (aiResponse.stylist_data?.target_url) {
+          const stylistTarget =
+            isCosmetics ||
+            Boolean(aiResponse.cosmetics_data) ||
+            isCosmeticHandoffPrompt(aiResponse.message)
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : aiResponse.stylist_data?.target_url;
+          const needsNavigation = stylistTarget && stylistTarget !== pathname;
+
+          if (needsNavigation) {
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
             }
-            if (aiResponse.stylist_data.target_url === "back") {
+            if (
+              stylistTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&
+              !aiResponse.cosmetics_data
+            ) {
+              try {
+                sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+              } catch {
+                /* prompt handoff is best-effort */
+              }
+            }
+            if (stylistTarget === "back") {
               router.back();
             } else {
-              router.push(aiResponse.stylist_data.target_url);
+              router.push(stylistTarget);
             }
           } else {
-            // No navigation — already on the target page. Push data reactively so
-            // the fashion/cosmetics page's chatGarmentData effect can consume it.
+            // No navigation needed (no target, or already on target page).
+            // Push data reactively so the page's chatGarmentData effect consumes it.
             if (aiResponse.garment_data) {
               useMirrorStore
                 .getState()
@@ -2085,7 +2312,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           let locCtx:
             | { lat: number | string; lng: number | string }
             | undefined;
-          let weatherCtx: Record<string, unknown> | undefined;
 
           // Fallback to homeLocation explicitly when map store has no location
           // (e.g. on the AI assistant page where the map module never initialises).
@@ -2114,14 +2340,23 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             // Removed weather fetching — backend will handle it
           }
           const _isCosmetics =
+            isCosmeticHandoffPrompt(t) ||
             pageCtxRef.current?.mode === "cosmetics" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic");
+          const effectivePageMode = _isCosmetics
+            ? "cosmetics"
+            : (pageCtxRef.current?.mode as
+                | "garment"
+                | "cosmetics"
+                | "map"
+                | "overview"
+                | null);
           const res = await chatWonderService.message({
-            input: t,
+            input: _isCosmetics ? `[cosmetics] ${t}` : t,
             lang: language,
             voice: true,
             ...(locCtx && (pageCtxRef.current?.mode === "garment" || pageCtxRef.current?.mode === "overview" || pageCtxRef.current?.mode === "map") ? { location: locCtx } : {}),
-            pageMode: pageCtxRef.current?.mode as "garment" | "cosmetics" | "map" | "overview" | null,
+            pageMode: effectivePageMode,
             sitemapContext: SITEMAP_CONTEXT,
             ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
           });
@@ -2137,7 +2372,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           let chatAction: ChatWonderAction | null = null;
-          if (res.stylist_data?.target_url) {
+          const resolvedTarget =
+            _isCosmetics ||
+            Boolean(res.cosmetics_data) ||
+            isCosmeticHandoffPrompt(res.message)
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : res.stylist_data?.target_url;
+
+          if (resolvedTarget) {
             if (res.garment_data) {
               useMirrorStore.getState().setPendingGarmentData(res.garment_data);
             }
@@ -2146,8 +2388,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 .getState()
                 .setPendingCosmeticsData(res.cosmetics_data);
             }
+            if (
+              resolvedTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&
+              !res.cosmetics_data
+            ) {
+              try {
+                sessionStorage.setItem(COSMETIC_PROMPT_KEY, t);
+              } catch {
+                /* prompt handoff is best-effort */
+              }
+            }
             void handleStylistTarget(
-              res.stylist_data.target_url,
+              resolvedTarget,
               router,
               pathname,
             );

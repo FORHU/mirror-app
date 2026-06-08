@@ -4,11 +4,15 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
+import { QuoteCarousel } from "@/components/QuoteCarousel";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -90,12 +94,45 @@ function normalizeRecommendation(
   };
 }
 
+const COSMETIC_QUOTES = [
+  {
+    text: "Beauty begins the moment you decide to be yourself.",
+    author: "Coco Chanel",
+  },
+  {
+    text: "Invest in your skin. It is going to represent you for a very long time.",
+    author: "Linden Tyler",
+  },
+  {
+    text: "Healthy skin is a reflection of overall wellness.",
+    author: "Dr. Howard Murad",
+  },
+  {
+    text: "Take care of your body. It's the only place you have to live.",
+    author: "Jim Rohn",
+  },
+  {
+    text: "Confidence is the best foundation you can wear.",
+    author: "Unknown",
+  },
+  {
+    text: "Glow comes from within, but a good routine never hurts.",
+    author: "Unknown",
+  },
+];
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const handoffStartedRef = useRef(false);
+  const [isHandoffLoading, setIsHandoffLoading] = useState(() =>
+    typeof window !== "undefined"
+      ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
+      : false,
+  );
 
   const pageContext = useMemo(
     () => ({
@@ -107,8 +144,6 @@ export default function CosmeticRecommendationPage() {
     [],
   );
 
-  const { isListening } = useVoice(pageContext);
-
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
@@ -117,6 +152,8 @@ export default function CosmeticRecommendationPage() {
   }, [chatCosmeticsData]);
 
   const rawRecs = useMemo(() => {
+    if (isHandoffLoading && !pendingCosmeticsData) return [];
+
     if (pendingCosmeticsData) {
       const data = pendingCosmeticsData as {
         recommendations?: unknown[];
@@ -130,7 +167,7 @@ export default function CosmeticRecommendationPage() {
         );
     }
     return skinAnalysisResult?.recommendations || [];
-  }, [pendingCosmeticsData, skinAnalysisResult]);
+  }, [isHandoffLoading, pendingCosmeticsData, skinAnalysisResult]);
 
   const allRecs = useMemo(
     () =>
@@ -149,22 +186,55 @@ export default function CosmeticRecommendationPage() {
   const leftColRecs = sortedRecs.slice(0, 5);
   const rightColRecs = sortedRecs.slice(5, 10);
 
-  const [selectedRec, setSelectedRec] = useState<SkinRecommendation | null>(
-    null,
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Derive the active recommendation during render (defaults to the top rank)
+  // instead of syncing it via an effect, which triggers cascading renders.
+  const selectedRec = useMemo<SkinRecommendation | null>(() => {
+    if (!sortedRecs.length) return null;
+    return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
+  }, [selectedId, sortedRecs]);
+
+  const handleVoiceAction = useCallback(
+    (action: ChatWonderAction) => {
+      if (action.type !== "cosmetic_select_recommendation") return;
+
+      const selected =
+        sortedRecs.find((rec) => rec.rank === action.rank) ??
+        sortedRecs[action.rank - 1];
+      if (selected) setSelectedId(selected.id);
+    },
+    [sortedRecs],
   );
 
+  const { isListening } = useVoice(pageContext, handleVoiceAction);
+  const { submitText, isProcessing } = useVoiceContext();
+
   useEffect(() => {
-    if (!sortedRecs.length) {
-      if (selectedRec) setSelectedRec(null);
-      return;
-    }
+    if (handoffStartedRef.current) return;
 
-    if (!selectedRec || !sortedRecs.some((rec) => rec.id === selectedRec.id)) {
-      setSelectedRec(sortedRecs[0]);
-    }
-  }, [selectedRec, sortedRecs]);
+    const prompt = sessionStorage.getItem(COSMETIC_PROMPT_KEY);
+    if (!prompt) return;
 
-  const hasRecommendations = sortedRecs.length > 0;
+    handoffStartedRef.current = true;
+    sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
+    // isHandoffLoading is already true from the useState initializer (same key),
+    // so no synchronous setState is needed here.
+    void submitText(prompt)
+      .catch((err) => {
+        console.error("[cosmetics-handoff]", err);
+      })
+      .finally(() => {
+        setIsHandoffLoading(false);
+      });
+  }, [submitText]);
+
+  const isLoadingRecommendations =
+    isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
+
+  // Show the cycling quotes whenever the AI is talking (overrides the product /
+  // skin-profile view) or while nothing has loaded yet.
+  const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
 
   return (
     <div
@@ -187,16 +257,11 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
-            loading={!pendingCosmeticsData && !skinAnalysisResult}
+            loading={isLoadingRecommendations}
             pageSize={5}
-            currentPage={0}
-            totalPages={1}
-            onNext={() => {}}
-            onPrev={() => {}}
-            onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={setSelectedRec}
+            onSelect={(rec) => setSelectedId(rec.id)}
             emptyMessage="No products available."
           />
         </div>
@@ -205,18 +270,12 @@ export default function CosmeticRecommendationPage() {
         <div className="flex-1 h-full flex flex-col items-center justify-center p-6 relative">
           <div className="w-full h-full max-w-lg flex flex-col">
             <div className="flex-1 flex flex-col justify-center">
-              {selectedRec ? (
+              {!showQuotes && selectedRec ? (
                 <div className="p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 transition-all duration-300 shadow-2xl">
-                  <div className="flex justify-between items-start mb-6">
+                  <div className="flex items-start mb-6">
                     <span className="text-pink-300 text-[11px] font-bold uppercase tracking-widest px-3 py-1 bg-pink-500/10 rounded-full border border-pink-500/20">
                       #{selectedRec.rank} Recommended
                     </span>
-                    <button
-                      onClick={() => setSelectedRec(null)}
-                      className="text-white/40 hover:text-white/80 text-xs tracking-wider uppercase"
-                    >
-                      Clear
-                    </button>
                   </div>
 
                   {/* Product Image Box */}
@@ -257,7 +316,7 @@ export default function CosmeticRecommendationPage() {
                     ))}
                   </div>
                 </div>
-              ) : skinAnalysisResult ? (
+              ) : !showQuotes && skinAnalysisResult ? (
                 <div className="p-8 bg-gradient-to-br from-pink-500/10 to-purple-600/10 backdrop-blur-md rounded-3xl border border-pink-500/20 shadow-2xl shadow-pink-500/5 transition-all duration-500">
                   <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center mb-6 border border-pink-500/30">
                     <svg
@@ -323,19 +382,13 @@ export default function CosmeticRecommendationPage() {
                     )}
                   </div>
                 </div>
-              ) : hasRecommendations ? (
-                <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
-                  <span className="text-sm uppercase tracking-widest font-light">
-                    Select a product
-                  </span>
-                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
-                  <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
-                  <span className="text-sm uppercase tracking-widest font-light">
-                    Analyzing Skin...
-                  </span>
-                </div>
+                <QuoteCarousel
+                  quotes={COSMETIC_QUOTES}
+                  label="Skin Tip"
+                  labelClassName="text-pink-300/40"
+                  className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
+                />
               )}
             </div>
 
@@ -355,16 +408,11 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}
-            loading={!pendingCosmeticsData && !skinAnalysisResult}
+            loading={isLoadingRecommendations}
             pageSize={5}
-            currentPage={0}
-            totalPages={1}
-            onNext={() => {}}
-            onPrev={() => {}}
-            onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={setSelectedRec}
+            onSelect={(rec) => setSelectedId(rec.id)}
             emptyMessage="No more products"
           />
         </div>

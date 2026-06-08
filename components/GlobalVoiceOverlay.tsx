@@ -20,6 +20,8 @@ function VoiceUI() {
     useVoiceContext();
   const pathname = usePathname();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
+  const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
 
 
   // Always-on: arm the mic on mount and re-arm after every completed turn.
@@ -53,27 +55,41 @@ function VoiceUI() {
     <>
       {/* Chat History Overlay */}
       <AnimatePresence>
-        {isChatOpen && chatHistory.length > 0 && (
+        {isChatOpen && visibleHistory.length > 0 && (
           <motion.div
             initial={{ opacity: 0, x: 20, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.95 }}
-            className="fixed bottom-[160px] right-5 z-9999 w-80 pointer-events-auto"
+            className={`fixed right-5 z-9999 pointer-events-auto ${
+              isCosmeticsPage
+                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+                : "bottom-[160px] w-80"
+            }`}
           >
             <div
-              className="rounded-2xl p-4 shadow-2xl flex flex-col gap-3 max-h-[60vh] overflow-y-auto"
+              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
+                isCosmeticsPage
+                  ? "gap-2 p-3 max-h-[34vh]"
+                  : "gap-3 p-4 max-h-[60vh]"
+              }`}
               style={{
                 background: "rgba(10,10,18,0.92)",
                 backdropFilter: "blur(20px)",
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              {chatHistory.map((item, idx) => (
+              {visibleHistory.map((item, idx) => (
                 <div key={idx} className="flex flex-col gap-1">
                   <p className="text-xs text-white/60 leading-tight bg-white/5 p-2 rounded-lg rounded-tr-none self-end max-w-[85%]">
                     {item.user}
                   </p>
-                  <p className="text-sm text-white leading-snug bg-[#4fc3f7]/10 p-2.5 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20">
+                  <p
+                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
+                      isCosmeticsPage
+                        ? "text-xs leading-relaxed p-2"
+                        : "text-sm leading-snug p-2.5"
+                    }`}
+                  >
                     {item.assistant}
                   </p>
                 </div>
@@ -91,10 +107,16 @@ function VoiceUI() {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className="fixed z-9999 w-72 pointer-events-none bottom-[160px] right-5"
+            className={`fixed z-9999 right-5 ${
+              isCosmeticsPage
+                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+                : "bottom-[160px] w-72"
+            }`}
           >
             <div
-              className="rounded-2xl px-4 py-3 shadow-2xl"
+              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${
+                isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
+              }`}
               style={{
                 background: "rgba(10,10,18,0.88)",
                 backdropFilter: "blur(16px)",
@@ -112,7 +134,13 @@ function VoiceUI() {
                     </p>
                   )}
                   {reply && (
-                    <p className="text-sm text-white leading-snug">
+                    <p
+                      className={`text-white whitespace-pre-line ${
+                        isCosmeticsPage
+                          ? "text-xs leading-relaxed"
+                          : "text-sm leading-snug"
+                      }`}
+                    >
                       <span className="font-semibold text-[#4fc3f7]">AI:</span>{" "}
                       {reply}
                     </p>

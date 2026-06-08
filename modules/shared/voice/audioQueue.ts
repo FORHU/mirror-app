@@ -1,9 +1,17 @@
+const activeQueues = new Set<AudioQueue>();
+
+export function stopAllAudioQueues() {
+  activeQueues.forEach((queue) => queue.stop());
+}
+
 export class AudioQueue {
   private audioContext: AudioContext | null = null;
   private nextStartTime: number = 0;
   private sources: AudioBufferSourceNode[] = [];
+  private stopped = false;
 
   constructor() {
+    activeQueues.add(this);
     this.initContext();
   }
 
@@ -23,12 +31,15 @@ export class AudioQueue {
   }
 
   public async enqueue(base64Audio: string) {
+    if (this.stopped) return;
     if (!this.audioContext) this.initContext();
     if (!this.audioContext) return;
 
     if (this.audioContext.state === "suspended") {
       await this.audioContext.resume();
     }
+
+    if (this.stopped) return;
 
     try {
       const binaryString = atob(base64Audio);
@@ -39,6 +50,8 @@ export class AudioQueue {
       }
 
       const audioBuffer = await this.audioContext.decodeAudioData(bytes.buffer);
+      if (this.stopped) return;
+
       const source = this.audioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.audioContext.destination);
@@ -61,6 +74,9 @@ export class AudioQueue {
         if (index > -1) {
           this.sources.splice(index, 1);
         }
+        if (!this.sources.length && this.stopped) {
+          activeQueues.delete(this);
+        }
       };
     } catch (err) {
       console.error("[AudioQueue] Error queuing audio chunk:", err);
@@ -68,6 +84,7 @@ export class AudioQueue {
   }
 
   public stop() {
+    this.stopped = true;
     this.sources.forEach((source) => {
       try {
         source.stop();
@@ -78,5 +95,6 @@ export class AudioQueue {
     });
     this.sources = [];
     this.nextStartTime = 0;
+    activeQueues.delete(this);
   }
 }

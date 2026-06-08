@@ -15,6 +15,7 @@ const API_BASE_URL =
 export interface ChatWonderMessageRequest {
   input: string;
   location?: { lat: number | string; lng: number | string };
+  weather?: Record<string, unknown>;
   /** Opt-in: ask the backend to synthesize TTS audio for the reply. */
   voice?: boolean;
   /** TTS language, e.g. "en-US", "fr-FR", "ko-KR". Defaults to en-US. */
@@ -206,7 +207,6 @@ export const chatWonderService = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const body: Record<string, unknown> = { input: request.input };
-    if (request.weather) body.weather = request.weather;
     if (request.location) body.location = request.location;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;

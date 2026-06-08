@@ -1,20 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../../styles/glow.css";
-import {
-  garmentService,
-  type RemoteGarment,
-} from "@/modules/shared/api/garment.service";
-import {
-  outfitService,
-  type RemoteOutfit,
-} from "@/modules/shared/api/outfit.service";
+import type { RemoteGarment } from "@/modules/shared/api/garment.service";
+import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useVoice } from "@/modules/shared/voice/useVoice";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import { FittingSlot } from "@/modules/garment/types";
+import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
@@ -127,15 +123,6 @@ export default function VirtualMirrorV2() {
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const [quoteIdx, setQuoteIdx] = useState(0);
-  const [quoteVisible, setQuoteVisible] = useState(true);
-  const aiPopulatedRef = useRef({
-    tops: false,
-    bottoms: false,
-    shoes: false,
-    bags: false,
-    outfits: false,
-  });
 
   type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
@@ -284,12 +271,6 @@ export default function VirtualMirrorV2() {
     (bottomsPage + 1) * bottomsPageSize,
   );
 
-  const [, setGlasses] = useState<RemoteGarment[]>([]);
-  const [, setEarrings] = useState<RemoteGarment[]>([]);
-  const [, setNeckAccessories] = useState<RemoteGarment[]>([]);
-  const [, setWaistAccessories] = useState<RemoteGarment[]>([]);
-  const [, setBracelets] = useState<RemoteGarment[]>([]);
-  const [, setWatches] = useState<RemoteGarment[]>([]);
   const [bags, setBags] = useState<RemoteGarment[]>([]);
 
   const [bagsPage, setBagsPage] = useState(0);
@@ -302,85 +283,6 @@ export default function VirtualMirrorV2() {
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
-
-  useEffect(() => {
-    if (!isProcessing) return;
-    const interval = setInterval(() => {
-      setQuoteVisible(false);
-      setTimeout(() => {
-        setQuoteIdx((i) => (i + 1) % FASHION_QUOTES.length);
-        setQuoteVisible(true);
-      }, 600);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [isProcessing]);
-
-  useEffect(() => {
-    // Garment grids resolve independently from the outfit grid
-    Promise.allSettled([
-      garmentService
-        .getBySlot(FittingSlot.UpperGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.tops) {
-            setTopsBase(
-              data.filter((g) => (g.layerLevel ?? "BASE") === "BASE"),
-            );
-            setTopsMid(data.filter((g) => g.layerLevel === "MID"));
-            setTopsOuter(data.filter((g) => g.layerLevel === "OUTER"));
-          }
-        })
-        .catch((err) => console.error("[Tops] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.LowerGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.bottoms) setBottoms(data);
-        })
-        .catch((err) => console.error("[Bottoms] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.FootGarment)
-        .then((data) => {
-          if (!aiPopulatedRef.current.shoes) setShoes(data);
-        })
-        .catch((err) => console.error("[Shoes] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Glasses)
-        .then(setGlasses)
-        .catch((err) => console.error("[Glasses] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Earrings)
-        .then(setEarrings)
-        .catch((err) => console.error("[Earrings] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.NeckAccessory)
-        .then(setNeckAccessories)
-        .catch((err) => console.error("[NeckAccessory] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.WaistAccessory)
-        .then(setWaistAccessories)
-        .catch((err) => console.error("[WaistAccessory] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bracelet")
-        .then(setBracelets)
-        .catch((err) => console.error("[Bracelet] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Watch")
-        .then(setWatches)
-        .catch((err) => console.error("[Watch] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag")
-        .then((data) => {
-          if (!aiPopulatedRef.current.bags) setBags(data);
-        })
-        .catch((err) => console.error("[Bag] fetch error:", err)),
-    ]);
-
-    outfitService
-      .getAll()
-      .then((data) => {
-        if (!aiPopulatedRef.current.outfits) setOutfits(data);
-      })
-      .catch((err) => console.error("[Outfits] fetch error:", err));
-  }, []);
 
   const handleAiComplete = useCallback(
     (response: ChatWonderMessageResponse) => {
@@ -462,12 +364,6 @@ export default function VirtualMirrorV2() {
         }
       }
 
-      aiPopulatedRef.current.tops = true;
-      aiPopulatedRef.current.bottoms = true;
-      aiPopulatedRef.current.shoes = true;
-      aiPopulatedRef.current.bags = true;
-      aiPopulatedRef.current.outfits = true;
-
       setTopsBase(newTopsBase);
       setTopsBasePage(0);
       setTopsMid(newTopsMid);
@@ -530,9 +426,29 @@ export default function VirtualMirrorV2() {
     ],
   );
 
+  const fashionPageContext = useMemo(
+    () => ({
+      route: "/ai-recommendation-fashion",
+      pageName: "Fashion Recommendations",
+      mode: "garment" as const,
+    }),
+    [],
+  );
+
+  const handleVoiceAction = useCallback(
+    (action: ChatWonderAction) => {
+      if (action.type !== "fashion_select_outfit") return;
+      const idx = action.index;
+      if (idx < 0 || idx >= outfits.length) return;
+      setOutfitPage(Math.floor(idx / outfitPageSize));
+      selectOutfit(idx);
+    },
+    [outfits, outfitPageSize, selectOutfit],
+  );
+
+  useVoice(fashionPageContext, handleVoiceAction);
+
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  // Runs before the garmentService fetch effect so aiPopulatedRef flags are
-  // set first, preventing fetched data from overwriting AI recommendations.
   useEffect(() => {
     const pending = useMirrorStore.getState().pendingGarmentData;
     if (!pending) return;
@@ -572,7 +488,7 @@ export default function VirtualMirrorV2() {
             className="flex flex-col gap-1"
             style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
           >
-            <SectionTitle label="Outfit" />
+            {!isProcessing && <SectionTitle label="Outfit" />}
             <div
               {...outfitSwipe}
               style={{
@@ -597,18 +513,7 @@ export default function VirtualMirrorV2() {
                   overflow: "hidden",
                 }}
               >
-                {isProcessing ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <SkeletonCell
-                      key={i}
-                      style={{
-                        borderRadius: "10px",
-                        aspectRatio: "unset",
-                        height: "100%",
-                      }}
-                    />
-                  ))
-                ) : outfits.length === 0 ? (
+                {isProcessing ? null : outfits.length === 0 ? (
                   <div
                     style={{
                       gridColumn: "1 / -1",
@@ -677,26 +582,28 @@ export default function VirtualMirrorV2() {
                   })
                 )}
               </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: totalOutfitPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setOutfitPage(i)}
-                    style={{
-                      width: i === outfitPage ? 12 : 4,
-                      height: 4,
-                      borderRadius: "9999px",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      background:
-                        i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
-                      transition: "all 0.3s",
-                    }}
-                  />
-                ))}
-              </div>
+              {!isProcessing && (
+                <div className="flex justify-center gap-1.5 pt-2">
+                  {Array.from({ length: totalOutfitPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setOutfitPage(i)}
+                      style={{
+                        width: i === outfitPage ? 12 : 4,
+                        height: 4,
+                        borderRadius: "9999px",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        background:
+                          i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
+                        transition: "all 0.3s",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -978,54 +885,12 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Loading state — cycling fashion quotes */}
-              {(isProcessing) && (
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "24px 24px 88px",
-                    opacity: quoteVisible ? 1 : 0,
-                    transition: "opacity 0.6s ease",
-                  }}
-                >
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.2)",
-                      fontSize: "9px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.22em",
-                      margin: "0 0 20px 0",
-                    }}
-                  >
-                    Style tip
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.85)",
-                      fontSize: "17px",
-                      fontWeight: 300,
-                      fontStyle: "italic",
-                      lineHeight: 1.65,
-                      textAlign: "center",
-                      margin: "0 0 16px 0",
-                    }}
-                  >
-                    &ldquo;{FASHION_QUOTES[quoteIdx].text}&rdquo;
-                  </p>
-                  <p
-                    style={{
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "11px",
-                      textAlign: "center",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    — {FASHION_QUOTES[quoteIdx].author}
-                  </p>
-                </div>
+              {isProcessing && (
+                <QuoteCarousel
+                  quotes={FASHION_QUOTES}
+                  label="Style tip"
+                  className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
+                />
               )}
 
               {/* Garment slot cards */}
@@ -1189,12 +1054,12 @@ export default function VirtualMirrorV2() {
           )}
 
           {/* Tops — Base layer */}
-          {(isProcessing || topsBase.length > 0) &&
+          {!isProcessing && topsBase.length > 0 &&
             (!swapSlot || swapSlot === "base") && (
               <GarmentGrid
                 label="Base"
                 pagedItems={pagedTopsBase}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsBasePage}
                 totalPages={totalTopsBasePages}
@@ -1219,12 +1084,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Mid layer */}
-          {(isProcessing || topsMid.length > 0) &&
+          {!isProcessing && topsMid.length > 0 &&
             (!swapSlot || swapSlot === "mid") && (
               <GarmentGrid
                 label="Mid"
                 pagedItems={pagedTopsMid}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsMidPage}
                 totalPages={totalTopsMidPages}
@@ -1247,12 +1112,12 @@ export default function VirtualMirrorV2() {
             )}
 
           {/* Tops — Outer layer */}
-          {(isProcessing || topsOuter.length > 0) &&
+          {!isProcessing && topsOuter.length > 0 &&
             (!swapSlot || swapSlot === "outer") && (
               <GarmentGrid
                 label="Outer"
                 pagedItems={pagedTopsOuter}
-                loading={isProcessing}
+                loading={false}
                 pageSize={topsLayerPageSize}
                 currentPage={topsOuterPage}
                 totalPages={totalTopsOuterPages}
@@ -1276,11 +1141,11 @@ export default function VirtualMirrorV2() {
               />
             )}
 
-          {(!swapSlot || swapSlot === "bottoms") && (
+          {!isProcessing && bottoms.length > 0 && (!swapSlot || swapSlot === "bottoms") && (
             <GarmentGrid
               label="Bottoms"
               pagedItems={pagedBottoms}
-              loading={isProcessing}
+              loading={false}
               pageSize={bottomsPageSize}
               currentPage={bottomsPage}
               totalPages={totalBottomsPages}
@@ -1302,11 +1167,11 @@ export default function VirtualMirrorV2() {
             />
           )}
 
-          {(!swapSlot || swapSlot === "shoes") && (
+          {!isProcessing && shoes.length > 0 && (!swapSlot || swapSlot === "shoes") && (
             <GarmentGrid
               label="Shoes"
               pagedItems={pagedShoes}
-              loading={isProcessing}
+              loading={false}
               pageSize={shoesPageSize}
               currentPage={shoesPage}
               totalPages={totalShoesPages}
@@ -1328,11 +1193,11 @@ export default function VirtualMirrorV2() {
             />
           )}
 
-          {(!swapSlot || swapSlot === "bags") && (
+          {!isProcessing && bags.length > 0 && (!swapSlot || swapSlot === "bags") && (
             <GarmentGrid
               label="Bags"
               pagedItems={pagedBags}
-              loading={isProcessing}
+              loading={false}
               pageSize={accessoryPageSize}
               currentPage={bagsPage}
               totalPages={totalBagsPages}
