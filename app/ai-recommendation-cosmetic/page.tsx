@@ -167,8 +167,6 @@ export default function CosmeticRecommendationPage() {
     return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
   }, [selectedId, sortedRecs]);
 
-  const hasRecommendations = sortedRecs.length > 0;
-
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
       if (action.type !== "cosmetic_select_recommendation") return;
@@ -229,11 +227,6 @@ export default function CosmeticRecommendationPage() {
             pagedItems={leftColRecs}
             loading={isLoadingRecommendations}
             pageSize={5}
-            currentPage={0}
-            totalPages={1}
-            onNext={() => {}}
-            onPrev={() => {}}
-            onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={(rec) => setSelectedId(rec.id)}
@@ -363,12 +356,6 @@ export default function CosmeticRecommendationPage() {
                     )}
                   </div>
                 </div>
-              ) : hasRecommendations ? (
-                <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
-                  <span className="text-sm uppercase tracking-widest font-light">
-                    Select a product
-                  </span>
-                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center text-white/30 p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]">
                   <div className="w-12 h-12 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
@@ -397,11 +384,6 @@ export default function CosmeticRecommendationPage() {
             pagedItems={rightColRecs}
             loading={isLoadingRecommendations}
             pageSize={5}
-            currentPage={0}
-            totalPages={1}
-            onNext={() => {}}
-            onPrev={() => {}}
-            onPageChange={() => {}}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={(rec) => setSelectedId(rec.id)}

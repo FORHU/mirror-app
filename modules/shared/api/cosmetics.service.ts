@@ -65,12 +65,4 @@ export const cosmeticsService = {
       );
     }
   },
-
-  getAnalysis: async (id: string): Promise<SkinAnalysis> => {
-    const res = await api.get<StandardResponse<SkinAnalysis>>(
-      `/api/mirror/skin-analyses/${id}`,
-    );
-    if (!res.ok || !res.data?.data) throw new Error("Not found");
-    return res.data.data;
-  },
 };

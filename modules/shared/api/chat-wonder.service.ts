@@ -206,7 +206,6 @@ export const chatWonderService = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const body: Record<string, unknown> = { input: request.input };
-    if (request.weather) body.weather = request.weather;
     if (request.location) body.location = request.location;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
