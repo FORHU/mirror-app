@@ -918,10 +918,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 src.onended = () => {
                   stopPlayback();
                   setVoiceState("idle");
+                  setReply("");
                 };
                 src.start(0);
               } else {
                 setVoiceState("idle");
+                setReply("");
               }
               return;
             }
@@ -1764,10 +1766,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   src.onended = () => {
                     stopPlayback();
                     setVoiceState("idle");
+                    setReply("");
                   };
                   src.start(0);
                 } else {
                   setVoiceState("idle");
+                  setReply("");
                 }
                 return;
               }
