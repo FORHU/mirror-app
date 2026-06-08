@@ -2014,9 +2014,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             | undefined;
           let weatherCtx: Record<string, unknown> | undefined;
 
-          // Fallback to browser geolocation when map store has no location
+          // Fallback to homeLocation explicitly when map store has no location
           // (e.g. on the AI assistant page where the map module never initialises).
           let resolvedLoc = loc;
+          if (!resolvedLoc && useMapStore.getState().homeLocationStatus === "idle") {
+            await useMapStore.getState().loadHomeLocation();
+            const freshMap = useMapStore.getState();
+            resolvedLoc = freshMap.userLocation ?? freshMap.homeLocation;
+          }
+
           if (!resolvedLoc && typeof window !== "undefined" && navigator.geolocation) {
             resolvedLoc = await new Promise<{ lat: number; lng: number } | null>(
               (resolve) => {
@@ -2068,6 +2074,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             lang: language,
             voice: true,
             location: locCtx,
+            pageMode: pageCtxRef.current?.mode ?? null,
             sitemapContext: SITEMAP_CONTEXT,
             ...(weatherCtx ? { weather: weatherCtx } : {}),
             ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
