@@ -195,7 +195,11 @@ export const chatWonderService = {
    */
   async message(
     request: ChatWonderMessageRequest,
-    options?: { onChunk?: (text: string) => void; signal?: AbortSignal },
+    options?: {
+      onChunk?: (text: string) => void;
+      onAudioChunk?: () => void;
+      signal?: AbortSignal;
+    },
   ): Promise<ChatWonderMessageResponse> {
     const token = await resolveAccessToken();
 
@@ -236,6 +240,7 @@ export const chatWonderService = {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let audioNotified = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -253,6 +258,12 @@ export const chatWonderService = {
             try {
               const parsed = JSON.parse(dataStr);
               if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+                if (!audioNotified) {
+                  audioNotified = true;
+                  try {
+                    options?.onAudioChunk?.();
+                  } catch {}
+                }
                 audioQueue.enqueue(parsed.audioBase64);
               } else if (parsed.type === "chunk") {
                 // Stream textual chunks to the caller if provided

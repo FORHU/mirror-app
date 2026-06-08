@@ -673,15 +673,41 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          const aiResponse = await chatWonderService.message({
-            input: `[stylist] ${t}`,
-            voice: true,
-            sitemapContext: [...SITEMAP_CONTEXT, "back"],
-            pageMode: effectiveMode,
-            ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
-            ...(weatherPayload ? { weather: weatherPayload } : {}),
-            ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
-          });
+          setReply("Generating answer...");
+          setVoiceState("processing");
+
+          let aiResponse;
+          try {
+            aiResponse = await chatWonderService.message({
+              input: `[stylist] ${t}`,
+              voice: true,
+              sitemapContext: [...SITEMAP_CONTEXT, "back"],
+              pageMode: effectiveMode,
+              ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
+              ...(weatherPayload ? { weather: weatherPayload } : {}),
+              ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
+            }, {
+              onChunk: (text) => {
+                try {
+                  setReply((p) => p + text);
+                } catch {}
+              },
+              onAudioChunk: () => {
+                try {
+                  setVoiceState("speaking");
+                } catch {}
+              },
+            });
+          } catch (err: unknown) {
+            const message =
+              err instanceof Error
+                ? err.message
+                : "Voice request failed";
+            setError(message);
+            setVoiceState("idle");
+            setReply("");
+            return;
+          }
 
           if (aiResponse.cosmetics_data) {
             useMirrorStore
