@@ -34,6 +34,7 @@ import { stopAllAudioQueues } from "./audioQueue";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import {
   buildMapInput,
+  buildLangDirective,
   isNavigationPhrase,
   isItineraryPhrase,
   isFinishPhrase,
@@ -2359,8 +2360,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 | "map"
                 | "overview"
                 | null);
+          const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
-            input: _isCosmetics ? `[cosmetics] ${t}` : t,
+            input: _isCosmetics ? `[cosmetics] ${langDir}${t}` : `${langDir}${t}`,
             lang: language,
             voice: true,
             ...(locCtx &&

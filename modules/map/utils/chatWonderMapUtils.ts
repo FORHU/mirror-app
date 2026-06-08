@@ -1050,6 +1050,11 @@ const LANG_NAMES: Record<string, string> = {
   "hi-IN": "Hindi", "arb": "Arabic", "ar-AE": "Arabic (Gulf)",
 };
 
+/** Returns a ChatWonder language directive, e.g. "Respond in French. " */
+export function buildLangDirective(lang: string): string {
+  return `Respond in ${LANG_NAMES[lang] ?? "English"}. `;
+}
+
 /** Embeds map context into a chat-wonder input string. */
 export function buildMapInput(
   transcript: string,
