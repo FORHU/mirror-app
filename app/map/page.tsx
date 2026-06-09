@@ -8,7 +8,11 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  getToday,
+  nextWeekday,
+} from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {

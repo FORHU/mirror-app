@@ -68,7 +68,9 @@ export function QuoteCarousel({
       <p className="text-[17px] font-light italic leading-relaxed text-white/85 mb-4">
         &ldquo;{quote.text}&rdquo;
       </p>
-      <p className="text-[11px] text-white/30 tracking-wide">— {quote.author}</p>
+      <p className="text-[11px] text-white/30 tracking-wide">
+        — {quote.author}
+      </p>
     </div>
   );
 }

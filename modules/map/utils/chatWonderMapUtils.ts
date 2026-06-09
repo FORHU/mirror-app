@@ -959,7 +959,8 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
     const food = whereCanFoodM[2].trim();
     // Reject bare location words captured as the food noun ("where can I eat here"
     // → food="here").  Fall back to the activity → category map instead.
-    const isLocationWord = /^(?:here|nearby|near\s+me|around\s+here|around\s+me)\s*$/i.test(food);
+    const isLocationWord =
+      /^(?:here|nearby|near\s+me|around\s+here|around\s+me)\s*$/i.test(food);
     return !isLocationWord && food
       ? food
       : ACTIVITY_TO_CATEGORY[whereCanFoodM[1].toLowerCase()] || null;
@@ -1012,7 +1013,9 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
     if (
       candidate &&
       candidate.split(/\s+/).length <= 4 &&
-      !/^(what|where|how|who|when|i|we|they|find|show|give|get|bring|take)\b/i.test(candidate)
+      !/^(what|where|how|who|when|i|we|they|find|show|give|get|bring|take)\b/i.test(
+        candidate,
+      )
     )
       return candidate;
   }
@@ -1042,21 +1045,47 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
 }
 
 const LANG_NAMES: Record<string, string> = {
-  "en-US": "English", "en-GB": "English (UK)", "en-AU": "English (AU)",
-  "en-IN": "English (IN)", "en-SG": "English (SG)", "en-NZ": "English (NZ)",
-  "en-ZA": "English (ZA)", "en-IE": "English (IE)",
-  "fr-FR": "French", "fr-CA": "French (CA)", "fr-BE": "French (BE)",
-  "de-DE": "German", "de-AT": "German (AT)", "de-CH": "German (CH)",
-  "es-ES": "Spanish", "es-MX": "Spanish (MX)", "es-US": "Spanish (US)",
-  "it-IT": "Italian", "pt-BR": "Portuguese (BR)", "pt-PT": "Portuguese (PT)",
-  "nl-NL": "Dutch", "nl-BE": "Dutch (BE)", "pl-PL": "Polish",
-  "ru-RU": "Russian", "sv-SE": "Swedish", "da-DK": "Danish",
-  "nb-NO": "Norwegian", "fi-FI": "Finnish", "cs-CZ": "Czech",
-  "ro-RO": "Romanian", "tr-TR": "Turkish", "ca-ES": "Catalan",
-  "cy-GB": "Welsh", "is-IS": "Icelandic",
-  "ja-JP": "Japanese", "ko-KR": "Korean",
-  "cmn-CN": "Chinese (Mandarin)", "yue-CN": "Chinese (Cantonese)",
-  "hi-IN": "Hindi", "arb": "Arabic", "ar-AE": "Arabic (Gulf)",
+  "en-US": "English",
+  "en-GB": "English (UK)",
+  "en-AU": "English (AU)",
+  "en-IN": "English (IN)",
+  "en-SG": "English (SG)",
+  "en-NZ": "English (NZ)",
+  "en-ZA": "English (ZA)",
+  "en-IE": "English (IE)",
+  "fr-FR": "French",
+  "fr-CA": "French (CA)",
+  "fr-BE": "French (BE)",
+  "de-DE": "German",
+  "de-AT": "German (AT)",
+  "de-CH": "German (CH)",
+  "es-ES": "Spanish",
+  "es-MX": "Spanish (MX)",
+  "es-US": "Spanish (US)",
+  "it-IT": "Italian",
+  "pt-BR": "Portuguese (BR)",
+  "pt-PT": "Portuguese (PT)",
+  "nl-NL": "Dutch",
+  "nl-BE": "Dutch (BE)",
+  "pl-PL": "Polish",
+  "ru-RU": "Russian",
+  "sv-SE": "Swedish",
+  "da-DK": "Danish",
+  "nb-NO": "Norwegian",
+  "fi-FI": "Finnish",
+  "cs-CZ": "Czech",
+  "ro-RO": "Romanian",
+  "tr-TR": "Turkish",
+  "ca-ES": "Catalan",
+  "cy-GB": "Welsh",
+  "is-IS": "Icelandic",
+  "ja-JP": "Japanese",
+  "ko-KR": "Korean",
+  "cmn-CN": "Chinese (Mandarin)",
+  "yue-CN": "Chinese (Cantonese)",
+  "hi-IN": "Hindi",
+  arb: "Arabic",
+  "ar-AE": "Arabic (Gulf)",
 };
 
 /** Returns a ChatWonder language directive, e.g. "Respond in French. " */
@@ -1092,7 +1121,9 @@ export function buildMapInput(
   }
 
   const ctx = parts.length ? ` [${parts.join("; ")}]` : "";
-  const langDirective = lang ? `Respond in ${LANG_NAMES[lang] ?? "English"}. ` : "";
+  const langDirective = lang
+    ? `Respond in ${LANG_NAMES[lang] ?? "English"}. `
+    : "";
 
   return `${prefix}${ctx} ${langDirective}${transcript}`;
 }

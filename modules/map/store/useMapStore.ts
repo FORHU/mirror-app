@@ -34,8 +34,6 @@ const EVENT_TYPE_TO_POI_CATEGORY: Record<string, string> = {
   party: "restaurant",
 };
 
-
-
 // Shared helper — fetches routes + POIs for a set of stops from a given origin
 async function fetchRoutesAndPOIs(
   stops: {

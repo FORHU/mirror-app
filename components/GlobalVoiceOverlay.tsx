@@ -171,49 +171,49 @@ function VoiceUI() {
           while processing/speaking. Centered via the wrapper so framer-motion's
           scale/width animations don't fight a translate transform. */}
       <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
-      <motion.button
-        onClick={toggle}
-        className="flex items-center justify-center shadow-2xl pointer-events-auto"
-        style={{
-          height: 64,
-          borderRadius: 9999,
-          background: isListening
-            ? "rgba(5,20,12,0.92)"
-            : isActive
-              ? "rgba(8,8,14,0.9)"
-              : "rgba(20,20,30,0.85)",
-          border: isListening
-            ? "2px solid rgba(34,197,94,0.7)"
-            : isActive
-              ? "2px solid rgba(120,180,255,0.45)"
-              : "2px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          boxShadow: isListening
-            ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
-            : isActive
-              ? "0 0 30px rgba(90,150,255,0.4)"
-              : "0 4px 24px rgba(0,0,0,0.5)",
-          overflow: "hidden",
-          padding: 0,
-        }}
-        whileTap={{ scale: 0.95 }}
-        animate={{
-          width: (isProcessing || isSpeaking) ? 224 : 64,
-        }}
-        transition={{ type: "spring", stiffness: 320, damping: 30 }}
-        aria-label="Voice assistant"
-      >
-        {(isProcessing || isSpeaking) ? (
-          <VoiceWaveform
-            active={isActive}
-            level={isProcessing ? 0.45 : 1}
-            width={208}
-            height={56}
-          />
-        ) : (
-          micIcon
-        )}
-      </motion.button>
+        <motion.button
+          onClick={toggle}
+          className="flex items-center justify-center shadow-2xl pointer-events-auto"
+          style={{
+            height: 64,
+            borderRadius: 9999,
+            background: isListening
+              ? "rgba(5,20,12,0.92)"
+              : isActive
+                ? "rgba(8,8,14,0.9)"
+                : "rgba(20,20,30,0.85)",
+            border: isListening
+              ? "2px solid rgba(34,197,94,0.7)"
+              : isActive
+                ? "2px solid rgba(120,180,255,0.45)"
+                : "2px solid rgba(255,255,255,0.15)",
+            backdropFilter: "blur(12px)",
+            boxShadow: isListening
+              ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
+              : isActive
+                ? "0 0 30px rgba(90,150,255,0.4)"
+                : "0 4px 24px rgba(0,0,0,0.5)",
+            overflow: "hidden",
+            padding: 0,
+          }}
+          whileTap={{ scale: 0.95 }}
+          animate={{
+            width: isProcessing || isSpeaking ? 224 : 64,
+          }}
+          transition={{ type: "spring", stiffness: 320, damping: 30 }}
+          aria-label="Voice assistant"
+        >
+          {isProcessing || isSpeaking ? (
+            <VoiceWaveform
+              active={isActive}
+              level={isProcessing ? 0.45 : 1}
+              width={208}
+              height={56}
+            />
+          ) : (
+            micIcon
+          )}
+        </motion.button>
       </div>
     </>
   );

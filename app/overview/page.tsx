@@ -43,7 +43,11 @@ import {
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
-import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  getToday,
+  nextWeekday,
+} from "@/components/QuickResponseChips";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -70,7 +74,14 @@ async function requestGarmentsWithFreshSession(
   const payload = {
     input,
     pageMode: "overview" as const,
-    ...(location ? { location: { lat: location.lat.toString(), lng: location.lng.toString() } } : {}),
+    ...(location
+      ? {
+          location: {
+            lat: location.lat.toString(),
+            lng: location.lng.toString(),
+          },
+        }
+      : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
   };
   try {

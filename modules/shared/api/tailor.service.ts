@@ -25,7 +25,9 @@ export async function generateOutfit(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`);
+    throw new Error(
+      (err as { detail?: string }).detail ?? `HTTP ${res.status}`,
+    );
   }
 
   return res.json() as Promise<GenerateOutfitResult>;

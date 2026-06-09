@@ -78,15 +78,31 @@ export function OutfitPreviewModal({
   let cBag: RemoteGarment | null = selectedBag;
 
   if (activeOutfit) {
-    cBase = null; cMid = null; cOuter = null;
-    cBottom = null; cShoe = null; cBag = null;
+    cBase = null;
+    cMid = null;
+    cOuter = null;
+    cBottom = null;
+    cShoe = null;
+    cBag = null;
     for (const item of activeOutfit.items) {
       const eff = (outfitOverrides[item.id] ?? item.garment) as RemoteGarment;
-      if (eff.garmentType?.includes("Bag")) { cBag = eff; continue; }
-      if (item.slot === "LowerGarment") { cBottom = eff; continue; }
-      if (item.slot === "FootGarment") { cShoe = eff; continue; }
+      if (eff.garmentType?.includes("Bag")) {
+        cBag = eff;
+        continue;
+      }
+      if (item.slot === "LowerGarment") {
+        cBottom = eff;
+        continue;
+      }
+      if (item.slot === "FootGarment") {
+        cShoe = eff;
+        continue;
+      }
       if (item.slot === "UpperGarment") {
-        const layer = resolveSwapSlot(eff.garmentType ?? [], eff.fittingSlot ?? []);
+        const layer = resolveSwapSlot(
+          eff.garmentType ?? [],
+          eff.fittingSlot ?? [],
+        );
         if (layer === "outer") cOuter = eff;
         else if (layer === "mid") cMid = eff;
         else cBase = eff;
@@ -147,7 +163,14 @@ export function OutfitPreviewModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
           {view === "result" && (
             <button
               onClick={() => setView("canvas")}
@@ -178,8 +201,8 @@ export function OutfitPreviewModal({
             {view === "result"
               ? "Generated Outfit"
               : outfitModified
-              ? "Customized Look"
-              : "Your Look"}
+                ? "Customized Look"
+                : "Your Look"}
           </p>
         </div>
 
@@ -207,13 +230,27 @@ export function OutfitPreviewModal({
             </div>
 
             {genError && (
-              <p style={{ color: "#f87171", fontSize: 12, margin: 0, textAlign: "center" }}>
+              <p
+                style={{
+                  color: "#f87171",
+                  fontSize: 12,
+                  margin: 0,
+                  textAlign: "center",
+                }}
+              >
                 {genError}
               </p>
             )}
 
             {!gender && (
-              <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0, textAlign: "center" }}>
+              <p
+                style={{
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: 12,
+                  margin: 0,
+                  textAlign: "center",
+                }}
+              >
                 Tap Generate — Miraj will ask for your gender first.
               </p>
             )}
@@ -237,8 +274,8 @@ export function OutfitPreviewModal({
               {isGenerating
                 ? "Generating…"
                 : !gender
-                ? "Generate Outfit"
-                : "Generate Outfit"}
+                  ? "Generate Outfit"
+                  : "Generate Outfit"}
             </button>
 
             <button

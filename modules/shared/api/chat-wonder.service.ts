@@ -199,6 +199,9 @@ export const chatWonderService = {
       onChunk?: (text: string) => void;
       onAudioChunk?: () => void;
       signal?: AbortSignal;
+      /** Skip the internal AudioQueue playback. Use when the caller speaks its
+       *  own (curated) reply via TTS — otherwise both play at once (dual voice). */
+      silent?: boolean;
     },
   ): Promise<ChatWonderMessageResponse> {
     const token = await resolveAccessToken();
@@ -233,7 +236,7 @@ export const chatWonderService = {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const audioQueue = new AudioQueue();
+    const audioQueue = options?.silent ? null : new AudioQueue();
     let finalData: ChatWonderMessageResponse | null = null;
 
     if (res.body) {
@@ -264,7 +267,7 @@ export const chatWonderService = {
                     options?.onAudioChunk?.();
                   } catch {}
                 }
-                audioQueue.enqueue(parsed.audioBase64);
+                audioQueue?.enqueue(parsed.audioBase64);
               } else if (parsed.type === "chunk") {
                 // Stream textual chunks to the caller if provided
                 try {
@@ -277,7 +280,7 @@ export const chatWonderService = {
               } else if (parsed.type === "complete") {
                 finalData = parsed as ChatWonderMessageResponse;
               } else if (parsed.type === "error") {
-                audioQueue.stop();
+                audioQueue?.stop();
                 if (parsed.code === "session_expired") {
                   throw new Error(
                     "Session expired. Please resend your message.",

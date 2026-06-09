@@ -44,9 +44,13 @@ export interface CreatedOutfit {
 }
 
 export const outfitService = {
-  getAll: async (): Promise<RemoteOutfit[]> => {
+  getAll: async (page?: number, limit?: number): Promise<RemoteOutfit[]> => {
+    const params = new URLSearchParams();
+    if (page) params.set("page", String(page));
+    if (limit) params.set("limit", String(limit));
+    const qs = params.toString();
     const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
-      "/api/mirror/outfits",
+      `/api/mirror/outfits${qs ? `?${qs}` : ""}`,
     );
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch outfits");

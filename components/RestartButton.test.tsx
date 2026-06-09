@@ -4,13 +4,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
-const mockPerformRestart = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockPerformRestart = vi.hoisted(() =>
+  vi.fn().mockResolvedValue(undefined),
+);
 
 vi.mock("@/modules/shared/voice/sessionCommands", () => ({
   performRestart: mockPerformRestart,
 }));
 
-const mockRouter = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }));
+const mockRouter = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
@@ -31,7 +37,9 @@ describe("RestartButton", () => {
 
   it("renders a button with 'New Session' label", () => {
     render(<RestartButton />);
-    expect(screen.getByRole("button", { name: /new session/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /new session/i }),
+    ).toBeInTheDocument();
   });
 
   it("calls performRestart when clicked", () => {

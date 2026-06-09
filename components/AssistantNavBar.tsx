@@ -50,7 +50,10 @@ export default function AssistantNavBar() {
         {/* left group */}
         <div className="flex-1 flex items-center justify-between pr-2">
           <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
-          <NavButton label="Cosmetics" route={ROUTES.AI_RECOMMENDATION_COSMETIC} />
+          <NavButton
+            label="Cosmetics"
+            route={ROUTES.AI_RECOMMENDATION_COSMETIC}
+          />
         </div>
 
         {/* center gap — the global mic floats here (viewport center) */}

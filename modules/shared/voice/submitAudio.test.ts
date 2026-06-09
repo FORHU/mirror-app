@@ -1,10 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  concatFrames,
-  float32ToInt16,
-  transcribeAudio,
-} from "./submitAudio";
+import { concatFrames, float32ToInt16, transcribeAudio } from "./submitAudio";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // concatFrames
@@ -123,43 +119,68 @@ describe("transcribeAudio", () => {
 
   it("returns the transcript string on success", async () => {
     mockFetch(200, { transcript: "hello world" });
-    const result = await transcribeAudio({ int16: SAMPLES, lang: LANG, token: null });
+    const result = await transcribeAudio({
+      int16: SAMPLES,
+      lang: LANG,
+      token: null,
+    });
     expect(result).toBe("hello world");
   });
 
   it("sends a POST with Content-Type application/octet-stream", async () => {
     mockFetch(200, { transcript: "ok" });
     await transcribeAudio({ int16: SAMPLES, lang: LANG, token: null });
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Content-Type"]).toBe("application/octet-stream");
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe(
+      "application/octet-stream",
+    );
     expect(init.method).toBe("POST");
   });
 
   it("encodes the lang param in the URL", async () => {
     mockFetch(200, { transcript: "bonjour" });
     await transcribeAudio({ int16: SAMPLES, lang: "fr-FR", token: null });
-    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     expect(url).toContain("lang=fr-FR");
   });
 
   it("includes Authorization header when token is provided", async () => {
     mockFetch(200, { transcript: "ok" });
     await transcribeAudio({ int16: SAMPLES, lang: LANG, token: "tok_abc" });
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer tok_abc");
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect((init.headers as Record<string, string>)["Authorization"]).toBe(
+      "Bearer tok_abc",
+    );
   });
 
   it("omits Authorization header when token is null", async () => {
     mockFetch(200, { transcript: "ok" });
     await transcribeAudio({ int16: SAMPLES, lang: LANG, token: null });
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)["Authorization"]).toBeUndefined();
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(
+      (init.headers as Record<string, string>)["Authorization"],
+    ).toBeUndefined();
   });
 
   it("sends the Int16Array buffer as the body", async () => {
     mockFetch(200, { transcript: "ok" });
     await transcribeAudio({ int16: SAMPLES, lang: LANG, token: null });
-    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
     expect(init.body).toBe(SAMPLES.buffer);
   });
 
@@ -186,12 +207,19 @@ describe("transcribeAudio", () => {
 
   it("returns an empty string when the transcript field is empty", async () => {
     mockFetch(200, { transcript: "" });
-    const result = await transcribeAudio({ int16: SAMPLES, lang: LANG, token: null });
+    const result = await transcribeAudio({
+      int16: SAMPLES,
+      lang: LANG,
+      token: null,
+    });
     expect(result).toBe("");
   });
 
   it("propagates network errors from fetch", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network down")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Network down")),
+    );
     await expect(
       transcribeAudio({ int16: SAMPLES, lang: LANG, token: null }),
     ).rejects.toThrow("Network down");

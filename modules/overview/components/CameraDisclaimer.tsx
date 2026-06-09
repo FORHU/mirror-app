@@ -18,7 +18,8 @@ export function CameraDisclaimer() {
     >
       <ShieldCheck className="w-4 h-4 text-emerald-400/80 shrink-0" />
       <p className="text-white/55 text-xs sm:text-sm leading-tight text-center">
-        Your camera is used only to power the mirror experience. No camera data is stored or saved.
+        Your camera is used only to power the mirror experience. No camera data
+        is stored or saved.
       </p>
     </div>
   );

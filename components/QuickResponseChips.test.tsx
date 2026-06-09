@@ -30,11 +30,17 @@ vi.mock("motion/react", () => {
   }
   return {
     motion: { div: el("div"), button: el("button") },
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
+    ),
   };
 });
 
-import { QuickResponseChips, getToday, nextWeekday } from "./QuickResponseChips";
+import {
+  QuickResponseChips,
+  getToday,
+  nextWeekday,
+} from "./QuickResponseChips";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -64,8 +70,13 @@ const PROMPTS = ["Suggest an outfit for today", "Find nearby restaurants"];
 // getToday()
 // ─────────────────────────────────────────────────────────────────────────────
 describe("getToday", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(ANCHOR); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(ANCHOR);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("returns a non-empty string", () => {
     expect(getToday().length).toBeGreaterThan(0);
@@ -85,8 +96,13 @@ describe("getToday", () => {
 // nextWeekday()
 // ─────────────────────────────────────────────────────────────────────────────
 describe("nextWeekday", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(ANCHOR); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(ANCHOR);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("returns the correct upcoming Friday (3 days from Tuesday)", () => {
     const result = nextWeekday(5);
@@ -120,7 +136,15 @@ describe("nextWeekday", () => {
   });
 
   it("always returns the correct day-of-week label for every day", () => {
-    const names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const names = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
     for (let day = 0; day < 7; day++) {
       expect(nextWeekday(day)).toContain(names[day]);
     }

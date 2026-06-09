@@ -29,7 +29,9 @@ import type { ChatWonderMapsPlace } from "@/modules/shared/api/chat-wonder.servi
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
-const makePOI = (overrides: Partial<NearbyPOI> & { name: string }): NearbyPOI => ({
+const makePOI = (
+  overrides: Partial<NearbyPOI> & { name: string },
+): NearbyPOI => ({
   placeId: "stub",
   category: "cafe",
   categoryIcon: "☕",
@@ -43,10 +45,31 @@ const makePOI = (overrides: Partial<NearbyPOI> & { name: string }): NearbyPOI =>
   ...overrides,
 });
 
-const FOAM_COFFEE = makePOI({ placeId: "p1", name: "Foam Coffee - Baguio", distance: 300, rating: 4.5 });
-const ITAEWON    = makePOI({ placeId: "p2", name: "Itaewon Korean BBQ", category: "restaurant", distance: 800, rating: 4.2 });
-const GINTO      = makePOI({ placeId: "p3", name: "Ginto Cafe", distance: 1200, rating: 4.8, userRatingsTotal: 300 });
-const NO_RATING  = makePOI({ placeId: "p4", name: "Mystery Bar", distance: 400 });
+const FOAM_COFFEE = makePOI({
+  placeId: "p1",
+  name: "Foam Coffee - Baguio",
+  distance: 300,
+  rating: 4.5,
+});
+const ITAEWON = makePOI({
+  placeId: "p2",
+  name: "Itaewon Korean BBQ",
+  category: "restaurant",
+  distance: 800,
+  rating: 4.2,
+});
+const GINTO = makePOI({
+  placeId: "p3",
+  name: "Ginto Cafe",
+  distance: 1200,
+  rating: 4.8,
+  userRatingsTotal: 300,
+});
+const NO_RATING = makePOI({
+  placeId: "p4",
+  name: "Mystery Bar",
+  distance: 400,
+});
 
 const CAFE_POIS: NearbyPOI[] = [FOAM_COFFEE, ITAEWON, GINTO];
 
@@ -54,7 +77,10 @@ const CAFE_POIS: NearbyPOI[] = [FOAM_COFFEE, ITAEWON, GINTO];
 
 type POIDecision = "address" | "rating" | "navigate" | "escape" | "reask";
 
-function decideCuratedPOI(transcript: string, curatedPOIs: NearbyPOI[]): POIDecision {
+function decideCuratedPOI(
+  transcript: string,
+  curatedPOIs: NearbyPOI[],
+): POIDecision {
   if (isAddressQuery(transcript)) return "address";
   if (isRatingQuery(transcript)) return "rating";
   const matched = matchPOIFromTranscript(transcript, curatedPOIs);
@@ -115,8 +141,8 @@ describe("haversineKm", () => {
   });
 
   it("is symmetric", () => {
-    expect(haversineKm(16.41, 120.59, 16.50, 120.70)).toBeCloseTo(
-      haversineKm(16.50, 120.70, 16.41, 120.59),
+    expect(haversineKm(16.41, 120.59, 16.5, 120.7)).toBeCloseTo(
+      haversineKm(16.5, 120.7, 16.41, 120.59),
       6,
     );
   });
@@ -132,7 +158,7 @@ describe("mapPlaceToNearbyPOI", () => {
     name: "Test Cafe",
     types: ["cafe"],
     lat: 16.42,
-    lng: 120.60,
+    lng: 120.6,
     address: "123 Test St",
     photo_url: null,
     rating: 4.3,
@@ -203,7 +229,12 @@ describe("curatePOIs", () => {
   });
 
   it("falls back to all POIs when fewer than 2 have reviews", () => {
-    const noReviews = makePOI({ name: "Ghost Cafe", distance: 200, rating: 4.9, userRatingsTotal: 0 });
+    const noReviews = makePOI({
+      name: "Ghost Cafe",
+      distance: 200,
+      rating: 4.9,
+      userRatingsTotal: 0,
+    });
     const result = curatePOIs([noReviews, NO_RATING]);
     expect(result).toHaveLength(2);
   });
@@ -246,7 +277,9 @@ describe("buildPOITTS", () => {
 
 describe("matchPOIFromTranscript — Tier 1 (ordinal)", () => {
   it('"first" → index 0', () => {
-    expect(matchPOIFromTranscript("the first one", CAFE_POIS)).toBe(FOAM_COFFEE);
+    expect(matchPOIFromTranscript("the first one", CAFE_POIS)).toBe(
+      FOAM_COFFEE,
+    );
   });
 
   it('"second" → index 1', () => {
@@ -269,7 +302,9 @@ describe("matchPOIFromTranscript — Tier 1 (ordinal)", () => {
 
 describe("matchPOIFromTranscript — Tier 2 (name match)", () => {
   it("full lowercase name matches", () => {
-    expect(matchPOIFromTranscript("take me to foam coffee - baguio", CAFE_POIS)).toBe(FOAM_COFFEE);
+    expect(
+      matchPOIFromTranscript("take me to foam coffee - baguio", CAFE_POIS),
+    ).toBe(FOAM_COFFEE);
   });
 
   it("full name match is case-insensitive", () => {
@@ -281,7 +316,9 @@ describe("matchPOIFromTranscript — Tier 2 (name match)", () => {
   });
 
   it("segment match — full name including qualifier", () => {
-    expect(matchPOIFromTranscript("Itaewon Korean BBQ", CAFE_POIS)).toBe(ITAEWON);
+    expect(matchPOIFromTranscript("Itaewon Korean BBQ", CAFE_POIS)).toBe(
+      ITAEWON,
+    );
   });
 
   it('"itaewon" alone → null (no delimiter in name → one segment "itaewon korean bbq" → not in short transcript)', () => {
@@ -298,11 +335,15 @@ describe("matchPOIFromTranscript — Tier 2 (name match)", () => {
 
 describe("matchPOIFromTranscript — Tier 3 (superlative)", () => {
   it('"closest" → shortest distance', () => {
-    expect(matchPOIFromTranscript("take me to the closest", CAFE_POIS)).toBe(FOAM_COFFEE);
+    expect(matchPOIFromTranscript("take me to the closest", CAFE_POIS)).toBe(
+      FOAM_COFFEE,
+    );
   });
 
   it('"nearest" → shortest distance', () => {
-    expect(matchPOIFromTranscript("the nearest one", CAFE_POIS)).toBe(FOAM_COFFEE);
+    expect(matchPOIFromTranscript("the nearest one", CAFE_POIS)).toBe(
+      FOAM_COFFEE,
+    );
   });
 
   it('"best rated" → highest rating (GINTO: 4.8)', () => {
@@ -323,13 +364,23 @@ describe("matchPOIFromTranscript — Tier 3 (superlative)", () => {
   });
 
   it('"cheapest" → lowest priceLevel', () => {
-    const cheap = makePOI({ name: "Budget Bites", distance: 200, priceLevel: 1 });
-    const pricey = makePOI({ name: "Fancy Place", distance: 100, priceLevel: 3 });
+    const cheap = makePOI({
+      name: "Budget Bites",
+      distance: 200,
+      priceLevel: 1,
+    });
+    const pricey = makePOI({
+      name: "Fancy Place",
+      distance: 100,
+      priceLevel: 3,
+    });
     expect(matchPOIFromTranscript("cheapest", [pricey, cheap])).toBe(cheap);
   });
 
   it("superlative with no matching POI → null", () => {
-    expect(matchPOIFromTranscript("unrecognized superlative xyz", CAFE_POIS)).toBeNull();
+    expect(
+      matchPOIFromTranscript("unrecognized superlative xyz", CAFE_POIS),
+    ).toBeNull();
   });
 });
 
@@ -383,12 +434,12 @@ describe("isFinishPhrase", () => {
     expect(isFinishPhrase(t)).toBe(true);
   });
 
-  it.each([
-    "go to SM City",
-    "I want to go to Baguio",
-  ])('"%s" → false (go to is NOT finish)', (t) => {
-    expect(isFinishPhrase(t)).toBe(false);
-  });
+  it.each(["go to SM City", "I want to go to Baguio"])(
+    '"%s" → false (go to is NOT finish)',
+    (t) => {
+      expect(isFinishPhrase(t)).toBe(false);
+    },
+  );
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -412,13 +463,12 @@ describe("isClearRoutePhrase", () => {
     expect(isClearRoutePhrase(t)).toBe(true);
   });
 
-  it.each([
-    "I want to go somewhere new",
-    "add a stop",
-    "show me the route",
-  ])('"%s" → false', (t) => {
-    expect(isClearRoutePhrase(t)).toBe(false);
-  });
+  it.each(["I want to go somewhere new", "add a stop", "show me the route"])(
+    '"%s" → false',
+    (t) => {
+      expect(isClearRoutePhrase(t)).toBe(false);
+    },
+  );
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -513,7 +563,9 @@ describe("isItineraryPhrase", () => {
 describe("isMultiEventUtterance", () => {
   it("two time markers → true", () => {
     expect(
-      isMultiEventUtterance("I have a meeting this morning and lunch this afternoon"),
+      isMultiEventUtterance(
+        "I have a meeting this morning and lunch this afternoon",
+      ),
     ).toBe(true);
   });
 
@@ -601,9 +653,9 @@ describe("isMultiEventUtterance", () => {
   });
 
   it('"take me to sm baguio also vigan city" → true (also connector)', () => {
-    expect(
-      isMultiEventUtterance("take me to sm baguio also vigan city"),
-    ).toBe(true);
+    expect(isMultiEventUtterance("take me to sm baguio also vigan city")).toBe(
+      true,
+    );
   });
 
   it('"i want to go to SM baguio and hang out there" → false (verb phrase after and)', () => {
@@ -634,7 +686,9 @@ describe("extractNearbyPOIQuery", () => {
     });
 
     it('"nearest starbucks near me" → "starbucks"', () => {
-      expect(extractNearbyPOIQuery("nearest starbucks near me")).toBe("starbucks");
+      expect(extractNearbyPOIQuery("nearest starbucks near me")).toBe(
+        "starbucks",
+      );
     });
   });
 
@@ -644,11 +698,15 @@ describe("extractNearbyPOIQuery", () => {
     });
 
     it('"show me restaurants nearby" → "restaurants"', () => {
-      expect(extractNearbyPOIQuery("show me restaurants nearby")).toBe("restaurants");
+      expect(extractNearbyPOIQuery("show me restaurants nearby")).toBe(
+        "restaurants",
+      );
     });
 
     it('"get me a pharmacy near my location" → "pharmacy"', () => {
-      expect(extractNearbyPOIQuery("get me a pharmacy near my location")).toBe("pharmacy");
+      expect(extractNearbyPOIQuery("get me a pharmacy near my location")).toBe(
+        "pharmacy",
+      );
     });
 
     it('"find me a hotel here" → "hotel"', () => {
@@ -682,13 +740,17 @@ describe("extractNearbyPOIQuery", () => {
     it("Group 3 exclusion blocks 'suggest/recommend' — caught by Group 9", () => {
       // Group 3 exclusion fires on "suggest restaurants" (starts with "suggest")
       // Group 9 "suggest/recommend X" catches it → returns "restaurants"
-      expect(extractNearbyPOIQuery("suggest restaurants near me")).toBe("restaurants");
+      expect(extractNearbyPOIQuery("suggest restaurants near me")).toBe(
+        "restaurants",
+      );
     });
   });
 
   describe("Group 4 — where can I eat / drink / stay", () => {
     it('"where can I eat near me" → "restaurant"', () => {
-      expect(extractNearbyPOIQuery("where can I eat near me")).toBe("restaurant");
+      expect(extractNearbyPOIQuery("where can I eat near me")).toBe(
+        "restaurant",
+      );
     });
 
     it('"where can I eat here" → "restaurant" (not "here")', () => {
@@ -700,7 +762,9 @@ describe("extractNearbyPOIQuery", () => {
     });
 
     it('"where can I get coffee nearby" → "coffee"', () => {
-      expect(extractNearbyPOIQuery("where can I get coffee nearby")).toBe("coffee");
+      expect(extractNearbyPOIQuery("where can I get coffee nearby")).toBe(
+        "coffee",
+      );
     });
   });
 
@@ -710,21 +774,29 @@ describe("extractNearbyPOIQuery", () => {
     });
 
     it('"I need a pharmacy near me" → "pharmacy"', () => {
-      expect(extractNearbyPOIQuery("I need a pharmacy near me")).toBe("pharmacy");
+      expect(extractNearbyPOIQuery("I need a pharmacy near me")).toBe(
+        "pharmacy",
+      );
     });
   });
 
   describe("Group 6 — looking for / searching for", () => {
     it('"I am looking for a restaurant near me" → "restaurant"', () => {
-      expect(extractNearbyPOIQuery("I am looking for a restaurant near me")).toBe("restaurant");
+      expect(
+        extractNearbyPOIQuery("I am looking for a restaurant near me"),
+      ).toBe("restaurant");
     });
 
     it('"I\'m searching for a pharmacy nearby" → "pharmacy"', () => {
-      expect(extractNearbyPOIQuery("I'm searching for a pharmacy nearby")).toBe("pharmacy");
+      expect(extractNearbyPOIQuery("I'm searching for a pharmacy nearby")).toBe(
+        "pharmacy",
+      );
     });
 
     it('"searching for pharmacies near me" → "pharmacies"', () => {
-      expect(extractNearbyPOIQuery("searching for pharmacies near me")).toBe("pharmacies");
+      expect(extractNearbyPOIQuery("searching for pharmacies near me")).toBe(
+        "pharmacies",
+      );
     });
   });
 
@@ -749,19 +821,27 @@ describe("extractNearbyPOIQuery", () => {
 
 describe("extractLocationFromTranscript", () => {
   it('"at Burnham Park" → "Burnham Park"', () => {
-    expect(extractLocationFromTranscript("meeting at Burnham Park this morning")).toBe("Burnham Park");
+    expect(
+      extractLocationFromTranscript("meeting at Burnham Park this morning"),
+    ).toBe("Burnham Park");
   });
 
   it('"to SM City Baguio" → "SM City Baguio"', () => {
-    expect(extractLocationFromTranscript("I want to go to SM City Baguio")).toBe("SM City Baguio");
+    expect(
+      extractLocationFromTranscript("I want to go to SM City Baguio"),
+    ).toBe("SM City Baguio");
   });
 
   it('"in La Union" → "La Union"', () => {
-    expect(extractLocationFromTranscript("I have a date in La Union")).toBe("La Union");
+    expect(extractLocationFromTranscript("I have a date in La Union")).toBe(
+      "La Union",
+    );
   });
 
   it("strips trailing event words", () => {
-    expect(extractLocationFromTranscript("at La Union table launch")).toBe("La Union");
+    expect(extractLocationFromTranscript("at La Union table launch")).toBe(
+      "La Union",
+    );
   });
 
   it("returns null when no location preposition found", () => {
@@ -785,7 +865,9 @@ describe("extractEventTypeFromTranscript", () => {
   });
 
   it("returns null when no event type found", () => {
-    expect(extractEventTypeFromTranscript("take me to Burnham Park")).toBeNull();
+    expect(
+      extractEventTypeFromTranscript("take me to Burnham Park"),
+    ).toBeNull();
   });
 });
 
@@ -800,7 +882,9 @@ describe("extractTimeBlockFromTranscript", () => {
 
   it('extracts "morning" from "this morning" (time-of-day word without "this")', () => {
     // Time-of-day regex captures the bare word; "this" is not included
-    expect(extractTimeBlockFromTranscript("meeting this morning")).toBe("morning");
+    expect(extractTimeBlockFromTranscript("meeting this morning")).toBe(
+      "morning",
+    );
   });
 
   it('"dinner tonight" → "dinner" (meal anchor fires before time-of-day)', () => {
@@ -839,8 +923,12 @@ describe("extractAllLocationsFromTranscript", () => {
   });
 
   it("deduplicates identical locations", () => {
-    const locs = extractAllLocationsFromTranscript("at SM Baguio and at SM Baguio");
-    expect(locs.filter((l) => l.toLowerCase().includes("sm baguio"))).toHaveLength(1);
+    const locs = extractAllLocationsFromTranscript(
+      "at SM Baguio and at SM Baguio",
+    );
+    expect(
+      locs.filter((l) => l.toLowerCase().includes("sm baguio")),
+    ).toHaveLength(1);
   });
 });
 
@@ -849,9 +937,30 @@ describe("extractAllLocationsFromTranscript", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("isAmbiguousGeocode", () => {
-  const close   = { lat: 16.41, lng: 120.59, address: "A", name: "A", placeId: "g1", placeType: "place" };
-  const nearby  = { lat: 16.42, lng: 120.60, address: "B", name: "B", placeId: "g2", placeType: "place" };
-  const farAway = { lat: 20.00, lng: 125.00, address: "C", name: "C", placeId: "g3", placeType: "place" };
+  const close = {
+    lat: 16.41,
+    lng: 120.59,
+    address: "A",
+    name: "A",
+    placeId: "g1",
+    placeType: "place",
+  };
+  const nearby = {
+    lat: 16.42,
+    lng: 120.6,
+    address: "B",
+    name: "B",
+    placeId: "g2",
+    placeType: "place",
+  };
+  const farAway = {
+    lat: 20.0,
+    lng: 125.0,
+    address: "C",
+    name: "C",
+    placeId: "g3",
+    placeType: "place",
+  };
 
   it("< 2 results → false", () => {
     expect(isAmbiguousGeocode([close])).toBe(false);
@@ -872,8 +981,22 @@ describe("isAmbiguousGeocode", () => {
 
 describe("buildDisambiguationQuestion", () => {
   const candidates = [
-    { lat: 16.41, lng: 120.59, address: "Baguio City, Benguet", name: "Vigan", placeId: "g1", placeType: "place" },
-    { lat: 16.50, lng: 120.70, address: "Ilocos Sur Province",  name: "Vigan", placeId: "g2", placeType: "place" },
+    {
+      lat: 16.41,
+      lng: 120.59,
+      address: "Baguio City, Benguet",
+      name: "Vigan",
+      placeId: "g1",
+      placeType: "place",
+    },
+    {
+      lat: 16.5,
+      lng: 120.7,
+      address: "Ilocos Sur Province",
+      name: "Vigan",
+      placeId: "g2",
+      placeType: "place",
+    },
   ];
 
   it("includes the location name", () => {
@@ -932,33 +1055,47 @@ describe("buildRouteSummary", () => {
 describe("decideCuratedPOI integration", () => {
   describe("address queries → 'address' (not navigate)", () => {
     it('"what\'s the address of Foam Coffee" → address', () => {
-      expect(decideCuratedPOI("what's the address of Foam Coffee", CAFE_POIS)).toBe("address");
+      expect(
+        decideCuratedPOI("what's the address of Foam Coffee", CAFE_POIS),
+      ).toBe("address");
     });
 
     it('"address of Ginto Cafe" → address', () => {
-      expect(decideCuratedPOI("address of Ginto Cafe", CAFE_POIS)).toBe("address");
+      expect(decideCuratedPOI("address of Ginto Cafe", CAFE_POIS)).toBe(
+        "address",
+      );
     });
 
     it('"what is the address" (no name) → address (defaults to first POI)', () => {
-      expect(decideCuratedPOI("what is the address", CAFE_POIS)).toBe("address");
+      expect(decideCuratedPOI("what is the address", CAFE_POIS)).toBe(
+        "address",
+      );
     });
   });
 
   describe("rating queries → 'rating' (not navigate)", () => {
     it('"what\'s the rating of Foam Coffee" → rating', () => {
-      expect(decideCuratedPOI("what's the rating of Foam Coffee", CAFE_POIS)).toBe("rating");
+      expect(
+        decideCuratedPOI("what's the rating of Foam Coffee", CAFE_POIS),
+      ).toBe("rating");
     });
 
     it('"how is Ginto Cafe rated" → rating', () => {
-      expect(decideCuratedPOI("how is Ginto Cafe rated", CAFE_POIS)).toBe("rating");
+      expect(decideCuratedPOI("how is Ginto Cafe rated", CAFE_POIS)).toBe(
+        "rating",
+      );
     });
 
     it('"how many stars does it have" → rating', () => {
-      expect(decideCuratedPOI("how many stars does it have", CAFE_POIS)).toBe("rating");
+      expect(decideCuratedPOI("how many stars does it have", CAFE_POIS)).toBe(
+        "rating",
+      );
     });
 
     it('"rating of Itaewon Korean BBQ" → rating', () => {
-      expect(decideCuratedPOI("rating of Itaewon Korean BBQ", CAFE_POIS)).toBe("rating");
+      expect(decideCuratedPOI("rating of Itaewon Korean BBQ", CAFE_POIS)).toBe(
+        "rating",
+      );
     });
 
     it('"what\'s the score" (no name) → rating (defaults to first POI)', () => {
@@ -966,13 +1103,17 @@ describe("decideCuratedPOI integration", () => {
     });
 
     it('"what are the reviews" → rating', () => {
-      expect(decideCuratedPOI("what are the reviews", CAFE_POIS)).toBe("rating");
+      expect(decideCuratedPOI("what are the reviews", CAFE_POIS)).toBe(
+        "rating",
+      );
     });
   });
 
   describe("name match → 'navigate'", () => {
     it('"take me to Foam Coffee" → navigate (not escape despite nav phrase)', () => {
-      expect(decideCuratedPOI("take me to Foam Coffee", CAFE_POIS)).toBe("navigate");
+      expect(decideCuratedPOI("take me to Foam Coffee", CAFE_POIS)).toBe(
+        "navigate",
+      );
     });
 
     it('"foam coffee" → navigate', () => {
@@ -1002,7 +1143,10 @@ describe("decideCuratedPOI integration", () => {
   describe("escape hatch — new intent with no name match", () => {
     it('"I also want to go to la trinidad this afternoon" → escape (multi-event)', () => {
       expect(
-        decideCuratedPOI("I also want to go to la trinidad this afternoon", CAFE_POIS),
+        decideCuratedPOI(
+          "I also want to go to la trinidad this afternoon",
+          CAFE_POIS,
+        ),
       ).toBe("escape");
     });
 
@@ -1029,10 +1173,14 @@ describe("decideCuratedPOI integration", () => {
     });
 
     it('"the one with the view" → reask (no matching POI name)', () => {
-      expect(decideCuratedPOI("the one with the view", CAFE_POIS)).toBe("navigate");
+      expect(decideCuratedPOI("the one with the view", CAFE_POIS)).toBe(
+        "navigate",
+      );
       // Note: "one" is an ORDINALS alias (index 0) → navigates to FOAM_COFFEE.
       // Use a phrase with no ordinal to get a true reask:
-      expect(decideCuratedPOI("the place with the view", CAFE_POIS)).toBe("reask");
+      expect(decideCuratedPOI("the place with the view", CAFE_POIS)).toBe(
+        "reask",
+      );
     });
   });
 
@@ -1040,7 +1188,10 @@ describe("decideCuratedPOI integration", () => {
     it('"what\'s the address of Foam Coffee" does not navigate', () => {
       // Without the address guard, matchPOIFromTranscript would match "Foam Coffee"
       // and return "navigate". The guard must fire first.
-      const decision = decideCuratedPOI("what's the address of Foam Coffee", CAFE_POIS);
+      const decision = decideCuratedPOI(
+        "what's the address of Foam Coffee",
+        CAFE_POIS,
+      );
       expect(decision).toBe("address");
       expect(decision).not.toBe("navigate");
     });
@@ -1050,7 +1201,10 @@ describe("decideCuratedPOI integration", () => {
     it('"what\'s the rating of Ginto Cafe" does not navigate', () => {
       // Without the rating guard, matchPOIFromTranscript would match "Ginto Cafe"
       // and return "navigate". The guard must fire first.
-      const decision = decideCuratedPOI("what's the rating of Ginto Cafe", CAFE_POIS);
+      const decision = decideCuratedPOI(
+        "what's the rating of Ginto Cafe",
+        CAFE_POIS,
+      );
       expect(decision).toBe("rating");
       expect(decision).not.toBe("navigate");
     });
@@ -1104,22 +1258,38 @@ describe("buildMapInput", () => {
     });
 
     it("accepts explicit prefix without lang", () => {
-      expect(buildMapInput("find a cafe", null, null, false, undefined, "[maps]")).toBe(
-        "[maps] find a cafe",
-      );
+      expect(
+        buildMapInput("find a cafe", null, null, false, undefined, "[maps]"),
+      ).toBe("[maps] find a cafe");
     });
   });
 
   describe("lang directive", () => {
     it('prepends "Respond in English." for en-US', () => {
       expect(
-        buildMapInput("take me to Baguio", null, null, false, undefined, "[maps]", "en-US"),
+        buildMapInput(
+          "take me to Baguio",
+          null,
+          null,
+          false,
+          undefined,
+          "[maps]",
+          "en-US",
+        ),
       ).toBe("[maps] Respond in English. take me to Baguio");
     });
 
     it('prepends "Respond in French." for fr-FR', () => {
       expect(
-        buildMapInput("emmène-moi", null, null, false, undefined, "[maps]", "fr-FR"),
+        buildMapInput(
+          "emmène-moi",
+          null,
+          null,
+          false,
+          undefined,
+          "[maps]",
+          "fr-FR",
+        ),
       ).toBe("[maps] Respond in French. emmène-moi");
     });
 
@@ -1169,7 +1339,15 @@ describe("buildMapInput", () => {
 
     it("route-active flag included", () => {
       expect(
-        buildMapInput("how long?", null, null, true, undefined, "[maps]", "en-US"),
+        buildMapInput(
+          "how long?",
+          null,
+          null,
+          true,
+          undefined,
+          "[maps]",
+          "en-US",
+        ),
       ).toBe("[maps] [route active] Respond in English. how long?");
     });
 

@@ -28,10 +28,22 @@ import { useMapStore } from "./useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
 
 const ORIGIN = { lat: 16.41, lng: 120.59 };
-const DEST = { name: "Baguio Cathedral", lat: 16.406, lng: 120.596, address: "Test", placeId: "p1", placeType: "place" };
+const DEST = {
+  name: "Baguio Cathedral",
+  lat: 16.406,
+  lng: 120.596,
+  address: "Test",
+  placeId: "p1",
+  placeType: "place",
+};
 
 function makeRoute(distance: number, duration: number): DirectionsFormatted {
-  return { geojson: { type: "FeatureCollection", features: [] }, steps: [], distance, duration };
+  return {
+    geojson: { type: "FeatureCollection", features: [] },
+    steps: [],
+    distance,
+    duration,
+  };
 }
 
 function resetStoreForRouting() {
@@ -65,7 +77,9 @@ describe("fetchRoute", () => {
   });
 
   it("sets isRouting=false on error when profile still matches", async () => {
-    vi.mocked(mapService.directions).mockRejectedValue(new Error("Network error"));
+    vi.mocked(mapService.directions).mockRejectedValue(
+      new Error("Network error"),
+    );
 
     await useMapStore.getState().fetchRoute();
 
@@ -97,9 +111,12 @@ describe("fetchRoute", () => {
 
     vi.mocked(mapService.directions)
       .mockImplementationOnce(
-        () => new Promise((res) => { resolveCarRoute = res; }),  // car: blocked
+        () =>
+          new Promise((res) => {
+            resolveCarRoute = res;
+          }), // car: blocked
       )
-      .mockResolvedValueOnce(bikeRoute);                          // bicycle: instant
+      .mockResolvedValueOnce(bikeRoute); // bicycle: instant
 
     // Start car route fetch (won't resolve yet)
     const carFetch = useMapStore.getState().fetchRoute();
@@ -128,7 +145,10 @@ describe("fetchRoute", () => {
 
     vi.mocked(mapService.directions)
       .mockImplementationOnce(
-        () => new Promise((_, rej) => { rejectCarRoute = rej; }),  // car: blocked on error
+        () =>
+          new Promise((_, rej) => {
+            rejectCarRoute = rej;
+          }), // car: blocked on error
       )
       .mockResolvedValueOnce(bikeRoute);
 
