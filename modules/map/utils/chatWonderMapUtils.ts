@@ -372,9 +372,18 @@ const ITINERARY_PATTERN =
 const TIME_PATTERN =
   /\b(this morning|this afternoon|this evening|tonight|tomorrow|at \d|for lunch|for dinner|in the morning|in the afternoon|in the evening|morning meeting|afternoon|evening)\b/i;
 
+// Catches bare event statements without a preamble or time word, e.g. "dinner at Marco Polo",
+// "meeting at SM City", "breakfast in Baguio", "gym with coach at BGC".
+const BARE_EVENT_PATTERN =
+  /\b(meeting|lunch|dinner|breakfast|appointment|gym|party|wedding|conference|class|session)\s+(?:at|in|with|near)\b/i;
+
 /** Returns true when the transcript looks like an itinerary stop, not a place search. */
 export function isItineraryPhrase(transcript: string): boolean {
-  return ITINERARY_PATTERN.test(transcript) || TIME_PATTERN.test(transcript);
+  return (
+    ITINERARY_PATTERN.test(transcript) ||
+    TIME_PATTERN.test(transcript) ||
+    BARE_EVENT_PATTERN.test(transcript)
+  );
 }
 
 const EVENT_TYPE_PATTERNS: Array<{ pattern: RegExp; eventType: string }> = [
