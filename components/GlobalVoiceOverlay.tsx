@@ -7,11 +7,12 @@ import { usePathname } from "next/navigation";
 import VoiceWaveform from "@/components/VoiceWaveform";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
-// (GlobalVoiceOverlay previously used ALWAYS_ON_PATHS here, but the mic is now always-on everywhere except /ai-assistant)
-
+// The shared tap-to-talk mic renders on every page. It's hidden only while
+// /ai-assistant sits on its idle "Tap to start" welcome screen, so the spoken
+// greeting gate isn't bypassed by tapping the mic directly.
 export default function GlobalVoiceOverlay() {
-  const pathname = usePathname();
-  if (pathname.startsWith("/ai-assistant")) return null;
+  const assistantIdle = useMirrorStore((s) => s.assistantIdle);
+  if (assistantIdle) return null;
   return <VoiceUI />;
 }
 
@@ -165,11 +166,14 @@ function VoiceUI() {
         </motion.button>
       )}
 
-      {/* Floating voice control — compact circle while listening (ring gives feedback),
-          morphs into a flowing waveform pill while processing/speaking. */}
+      {/* Floating voice control — centered at the bottom. Compact circle while
+          listening (ring gives feedback), morphs into a flowing waveform pill
+          while processing/speaking. Centered via the wrapper so framer-motion's
+          scale/width animations don't fight a translate transform. */}
+      <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
       <motion.button
         onClick={toggle}
-        className="fixed z-9999 flex items-center justify-center shadow-2xl bottom-6 right-5"
+        className="flex items-center justify-center shadow-2xl pointer-events-auto"
         style={{
           height: 64,
           borderRadius: 9999,
@@ -210,6 +214,7 @@ function VoiceUI() {
           micIcon
         )}
       </motion.button>
+      </div>
     </>
   );
 }
