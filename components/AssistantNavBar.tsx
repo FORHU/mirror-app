@@ -11,12 +11,7 @@ function NavButton({ label, route }: { label: string; route: string }) {
       type="button"
       onTouchStart={() => router.push(route)}
       onClick={() => router.push(route)}
-      className="pointer-events-auto px-5 py-2 rounded-full text-[11px] font-light text-white/55 border border-white/15 uppercase tracking-widest transition-colors active:bg-white/10 hover:bg-white/5"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-      }}
+      className="pointer-events-auto px-4 py-2 rounded-2xl text-[11px] font-medium text-white/50 uppercase tracking-[0.18em] transition-colors hover:text-white/85 hover:bg-white/5 active:bg-white/10"
     >
       {label}
     </button>
@@ -24,29 +19,57 @@ function NavButton({ label, route }: { label: string; route: string }) {
 }
 
 /**
- * Fixed bottom nav for the assistant, flanking the shared center-bottom mic:
+ * Fixed bottom nav for the assistant. A single rounded, glassy bar whose center
+ * gap holds the shared GlobalVoiceOverlay mic (the raised green control):
  *
- *   Fashion · Cosmetics · [mic] · Map · Overview
+ *   [ Fashion · Cosmetics ·  (mic)  · Map · Overview ]
+ *                LISTENING…
  *
- * Two equal flex-1 sides hug a centered gap, so the gap (and the GlobalVoiceOverlay
- * mic that floats in it) stays dead-center regardless of differing button widths.
- * Hides itself while the mic morphs into its wide waveform (processing/speaking)
- * so the two never collide.
+ * Two equal flex-1 sides hug a centered gap so the gap — and the viewport-centered
+ * mic floating in it — stays dead-center regardless of button widths. The bar
+ * hides while the mic morphs into its wide waveform (processing/speaking) so the
+ * two never collide.
  */
 export default function AssistantNavBar() {
-  const { isProcessing, isSpeaking } = useVoiceContext();
+  const { isListening, isProcessing, isSpeaking } = useVoiceContext();
   if (isProcessing || isSpeaking) return null;
 
   return (
-    <div className="fixed bottom-6 inset-x-0 z-[9990] h-16 flex items-center px-6 pointer-events-none">
-      <div className="flex-1 flex items-center justify-end gap-3">
-        <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
-        <NavButton label="Cosmetics" route={ROUTES.AI_RECOMMENDATION_COSMETIC} />
-      </div>
-      <div className="w-20 shrink-0" aria-hidden />
-      <div className="flex-1 flex items-center justify-start gap-3">
-        <NavButton label="Map" route={ROUTES.MAP} />
-        <NavButton label="Overview" route={ROUTES.OVERVIEW} />
+    <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
+      <div
+        className="pointer-events-auto relative flex items-center w-[480px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
+        style={{
+          background: "rgba(16,18,24,0.88)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          boxShadow:
+            "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
+        }}
+      >
+        {/* left group */}
+        <div className="flex-1 flex items-center justify-between pr-2">
+          <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
+          <NavButton label="Cosmetics" route={ROUTES.AI_RECOMMENDATION_COSMETIC} />
+        </div>
+
+        {/* center gap — the global mic floats here (viewport center) */}
+        <div className="w-20 shrink-0" aria-hidden />
+
+        {/* right group */}
+        <div className="flex-1 flex items-center justify-between pl-2">
+          <NavButton label="Map" route={ROUTES.MAP} />
+          <NavButton label="Overview" route={ROUTES.OVERVIEW} />
+        </div>
+
+        {/* status label under the mic */}
+        <span
+          className={`absolute left-1/2 -translate-x-1/2 bottom-2 text-[9px] font-semibold uppercase tracking-[0.32em] transition-colors ${
+            isListening ? "text-emerald-400" : "text-white/25"
+          }`}
+        >
+          {isListening ? "Listening…" : "Tap to talk"}
+        </span>
       </div>
     </div>
   );
