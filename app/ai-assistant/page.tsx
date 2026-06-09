@@ -7,6 +7,7 @@ import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickRes
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
+import AssistantNavBar from "@/components/AssistantNavBar";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
@@ -39,10 +40,46 @@ const TAGLINES = [
 ];
 
 const ASSISTANT_GREETINGS = [
-  "Hi! What can I do for you?",
-  "Hello! What can I help you with today?",
-  "Good to see you. What would you like to do?",
-  "Hi there. I'm ready when you are.",
+  "Hi there! Looking for an outfit, beauty tips, or places to explore?",
+  "Hello! How can I help with your style today?",
+  "Hey there! Ready to discover your next look?",
+  "Good to see you! What are we styling today?",
+  "Welcome! Need outfit inspiration, beauty advice, or local recommendations?",
+  "Hi! Let's find something that suits your style.",
+  "Hello there! Looking for fashion, cosmetics, or nearby trends?",
+  "Hey! What kind of look are you going for today?",
+  "Welcome back! Ready for a style refresh?",
+  "Hi there! What would you like help with: outfits, beauty, or places?",
+  "Hello! Let's create a look you'll love.",
+  "Hey there! Looking for the perfect outfit today?",
+  "Hi! Need help choosing cosmetics that fit your style?",
+  "Welcome! Want recommendations tailored to your preferences?",
+  "Hello! Let's discover your next favorite look.",
+  "Good to see you! What occasion are you dressing for today?",
+  "Hi there! Looking for beauty products that match your needs?",
+  "Hello! Need inspiration for your next outfit?",
+  "Hey! Let's find styles that work for you.",
+  "Welcome back! Want help building a complete look?",
+  "Hi! Curious about the latest fashion trends?",
+  "Hello there! Searching for beauty essentials?",
+  "Hey! Need outfit recommendations for an event?",
+  "Welcome! Let's explore looks that fit your vibe.",
+  "Hi there! Looking for something casual, formal, or trendy?",
+  "Hello! Want personalized style suggestions?",
+  "Hey there! Let's find the perfect match for your wardrobe.",
+  "Good to see you! Need help completing your outfit?",
+  "Hi! Looking for cosmetics that complement your features?",
+  "Hello! Ready to elevate your style?",
+  "Welcome back! Let's discover new beauty favorites.",
+  "Hey! Need recommendations for your next shopping trip?",
+  "Hi there! What fashion goal can I help with today?",
+  "Hello! Let's put together a look you'll feel confident in.",
+  "Hey there! Searching for beauty inspiration?",
+  "Welcome! Need help choosing between products?",
+  "Hi! Looking for nearby beauty or fashion spots?",
+  "Hello! Want recommendations based on your style preferences?",
+  "Hey! Let's explore fashion, beauty, and lifestyle together.",
+  "Good to see you! What's your style mood today?"
 ];
 
 export default function AIAssistantPage() {
@@ -250,8 +287,9 @@ export default function AIAssistantPage() {
     }
 
     if (isPresent && showIdle) {
-      // User arrived!
-      setTimeout(() => handleWake(false), 0);
+      // User arrived (detected by camera) — greet out loud, same initial audio
+      // as the tap path, then the welcome flow continues into listening.
+      setTimeout(() => handleWake(true), 0);
     } else if (
       !isPresent &&
       !showIdle &&
@@ -421,26 +459,9 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* Nav Buttons */}
-            <div className="flex gap-3 justify-center pb-3">
-              {[
-                { label: "Fashion", route: ROUTES.AI_RECOMMENDATION_FASHION },
-                { label: "Cosmetics", route: ROUTES.AI_RECOMMENDATION_COSMETIC },
-                { label: "Map", route: ROUTES.MAP },
-                { label: "Overview", route: ROUTES.OVERVIEW },
-              ].map(({ label, route }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onTouchStart={() => router.push(route)}
-                  onClick={() => router.push(route)}
-                  className="px-5 py-2 rounded-full text-[11px] font-light text-white/55 border border-white/15 uppercase tracking-widest transition-colors active:bg-white/10 hover:bg-white/5"
-                  style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
+            <AssistantNavBar />
 
             {/* Quick Response Chips */}
             <QuickResponseChips
@@ -453,7 +474,8 @@ export default function AIAssistantPage() {
               ]}
             />
 
-            <div ref={bottomRef} />
+            {/* reserves room so the chips clear the fixed bottom nav bar */}
+            <div ref={bottomRef} className="h-24 shrink-0" />
           </motion.main>
         )}
       </AnimatePresence>
