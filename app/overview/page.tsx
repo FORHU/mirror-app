@@ -43,6 +43,7 @@ import {
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
+import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -414,6 +415,18 @@ export default function OverviewPage() {
       <div className="mb-4 shrink-0">
         <CameraDisclaimer />
       </div>
+
+      {/* Quick Response Chips — inline below greeting, voice idle only */}
+      <QuickResponseChips
+        className="shrink-0 pb-2"
+        prompts={[
+          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
+          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
+          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
+          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
+          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
+        ]}
+      />
 
       {/* Grid */}
       <div className="flex-1 min-h-0 flex flex-col">

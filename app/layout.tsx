@@ -15,6 +15,7 @@ import { QueryProvider } from "@/modules/shared/providers/QueryProvider";
 import { VoiceProvider } from "@/modules/shared/voice/VoiceProvider";
 import { ChatWonderProvider } from "@/modules/shared/ai/ChatWonderProvider";
 import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
+import RestartButton from "@/components/RestartButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -92,6 +93,7 @@ export default function RootLayout({
               <ChatWonderProvider>
                 <AuthInitializer>{children}</AuthInitializer>
                 <GlobalVoiceOverlay />
+                <RestartButton />
               </ChatWonderProvider>
             </VoiceProvider>
           </QueryProvider>

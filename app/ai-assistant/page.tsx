@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import MirrorHeader from "@/components/MirrorHeader";
+import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
@@ -151,15 +152,6 @@ export default function AIAssistantPage() {
     submitTextRef.current = submitText;
     startListeningRef.current = startListening;
   }, [submitText, startListening]);
-
-  // Re-arm the mic after every idle turn so the mirror stays always-listening
-  // while the user is present. Skipped when showIdle (user walked away).
-  // Uses the stable ref so the effect doesn't re-fire on every startListening re-render.
-  useEffect(() => {
-    if (showIdle || voiceState !== "idle") return;
-    const id = setTimeout(() => void startListeningRef.current(), 400);
-    return () => clearTimeout(id);
-  }, [voiceState, showIdle]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -420,63 +412,6 @@ export default function AIAssistantPage() {
                   }
                   transition={{ duration: 1.5, repeat: Infinity }}
                 />
-                {/* Depleting countdown ring — vanishes over 10 seconds while listening */}
-                <AnimatePresence>
-                  {isListening && (
-                    <motion.svg
-                      key="ai-countdown-ring"
-                      className="absolute pointer-events-none"
-                      width="88"
-                      height="88"
-                      viewBox="0 0 88 88"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <defs>
-                        <filter id="ring-glow" x="-30%" y="-30%" width="160%" height="160%">
-                          <feGaussianBlur stdDeviation="3" result="blur" />
-                          <feMerge>
-                            <feMergeNode in="blur" />
-                            <feMergeNode in="SourceGraphic" />
-                          </feMerge>
-                        </filter>
-                      </defs>
-                      {/* Glow layer */}
-                      <motion.circle
-                        cx="44"
-                        cy="44"
-                        r="38"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.3)"
-                        strokeWidth="6"
-                        strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 38}
-                        transform="rotate(-90 44 44)"
-                        filter="url(#ring-glow)"
-                        initial={{ strokeDashoffset: 0 }}
-                        animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
-                        transition={{ duration: 10, ease: "linear" }}
-                      />
-                      {/* Crisp core */}
-                      <motion.circle
-                        cx="44"
-                        cy="44"
-                        r="38"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.9)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 38}
-                        transform="rotate(-90 44 44)"
-                        initial={{ strokeDashoffset: 0 }}
-                        animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
-                        transition={{ duration: 10, ease: "linear" }}
-                      />
-                    </motion.svg>
-                  )}
-                </AnimatePresence>
               </div>
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
@@ -488,29 +423,45 @@ export default function AIAssistantPage() {
               )}
             </div>
 
+            {/* Nav Buttons */}
+            <div className="flex gap-3 justify-center pb-3">
+              {[
+                { label: "Fashion", route: ROUTES.AI_RECOMMENDATION_FASHION },
+                { label: "Cosmetics", route: ROUTES.AI_RECOMMENDATION_COSMETIC },
+                { label: "Map", route: ROUTES.MAP },
+                { label: "Overview", route: ROUTES.OVERVIEW },
+              ].map(({ label, route }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onTouchStart={() => router.push(route)}
+                  onClick={() => router.push(route)}
+                  className="px-5 py-2 rounded-full text-[11px] font-light text-white/55 border border-white/15 uppercase tracking-widest transition-colors active:bg-white/10 hover:bg-white/5"
+                  style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Response Chips */}
+            <QuickResponseChips
+              prompts={[
+                `What should I wear today? It's ${getToday()} and I want to look put-together.`,
+                `I have a special event this ${nextWeekday(5)} — suggest a complete outfit for me.`,
+                "Recommend skincare products tailored to my skin type and current condition.",
+                "What's nearby worth visiting — restaurants, cafes, or interesting spots around me?",
+                "Give me a full overview of outfit options, skincare picks, and places to go today.",
+              ]}
+            />
+
             <div ref={bottomRef} />
           </motion.main>
         )}
       </AnimatePresence>
 
-      {/* Debug Sleep button for testers without cameras */}
-      {sensorStatus === "unavailable" && !showIdle && (
-        <button
-          onClick={() => {
-            setShowIdle(true);
-            hasGreetedRef.current = false;
-            performRestart(router).finally(() => {
-              window.location.reload();
-            });
-          }}
-          className="absolute bottom-4 right-4 z-50 text-white/30 text-[10px] px-3 py-1.5 border border-white/20 rounded hover:bg-white/10 uppercase tracking-widest cursor-pointer"
-        >
-          Tester: Sleep
-        </button>
-      )}
-
       {/* Camera Debug Overlay */}
-      <div className="fixed top-4 right-4 z-[999] flex flex-col items-end gap-2 pointer-events-none">
+      <div className="fixed top-4 right-4 z-999 flex flex-col items-end gap-2 pointer-events-none">
         <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
           <span className="text-white/60 text-[10px] uppercase tracking-wider font-medium">
             Camera Debug

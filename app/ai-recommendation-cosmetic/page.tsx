@@ -11,6 +11,7 @@ import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
+import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 
@@ -268,7 +269,7 @@ export default function CosmeticRecommendationPage() {
         {/* Center Column - Evaluation/Details */}
         <div className="flex-1 h-full flex flex-col items-center justify-center p-6 relative">
           <div className="w-full h-full max-w-lg flex flex-col">
-            <div className="flex-1 flex flex-col justify-center">
+            <div className="flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
                 <div className="p-6 bg-[#050505]/85 rounded-2xl border border-white/10 transition-all duration-300 shadow-xl">
                   <div className="flex items-start mb-6">
@@ -390,6 +391,16 @@ export default function CosmeticRecommendationPage() {
                   className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
                 />
               )}
+              <QuickResponseChips
+                className="mt-3"
+                prompts={[
+                  `Recommend a morning skincare routine for today, ${getToday()}, based on my skin analysis.`,
+                  `I have an important event on ${nextWeekday(1)} — what products should I use for a fresh, polished look?`,
+                  "What are the top products I should use right now to address my main skin concerns?",
+                  "Suggest a calming evening routine I can follow tonight to repair and hydrate my skin.",
+                  "I want to visibly improve my skin's texture and glow over the next 30 days — build me a product plan.",
+                ]}
+              />
             </div>
 
             {/* AI Voice Bubble */}
@@ -417,6 +428,7 @@ export default function CosmeticRecommendationPage() {
           />
         </div>
       </div>
+
     </div>
   );
 }

@@ -12,6 +12,7 @@ import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
+import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
@@ -1334,6 +1335,21 @@ export default function VirtualMirrorV2() {
           onClose={() => setShowConfirm(false)}
         />
       )}
+
+      {/* Quick Response Chips — fixed to center column footprint, above Create Outfit button */}
+      <div className="fixed bottom-[90px] left-[25%] right-[25%] z-30 pointer-events-none">
+        <div className="pointer-events-auto">
+          <QuickResponseChips
+            prompts={[
+              `Build me a complete outfit for a wedding this ${nextWeekday(5)} — include top, bottom, shoes, and bag.`,
+              `I have a job interview on ${nextWeekday(1)} — suggest an outfit that looks confident and professional.`,
+              `What's a stylish but comfortable outfit I can wear this ${nextWeekday(6)} for a casual weekend out?`,
+              `Give me a versatile layered look for today, ${getToday()}, that takes me from morning to evening.`,
+              "I need a bold outfit for a night out — something eye-catching that makes a statement.",
+            ]}
+          />
+        </div>
+      </div>
     </div>
   );
 }

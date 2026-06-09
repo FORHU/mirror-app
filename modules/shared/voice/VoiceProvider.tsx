@@ -2805,8 +2805,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        setError("Hands-free text submission is only wired on AI Assistant.");
-        setVoiceState("idle");
+        await processTranscript(t);
       } catch (err: unknown) {
         setError(
           err instanceof Error ? err.message : "Voice processing failed.",
@@ -2814,7 +2813,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [handleAIAssistantText, pathname, voiceState],
+    [handleAIAssistantText, pathname, processTranscript, voiceState],
   );
 
   const toggle = useCallback(() => {
