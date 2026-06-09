@@ -1686,6 +1686,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 if (matchedGroup && matchedGroup.pois.length > 0) {
                   const stop = itineraryStops[matchedGroup.stopIndex];
                   const pois = matchedGroup.pois.slice(0, 3);
+                  useMapStore.getState().setSuggestedPOIs(pois, `Near ${stop?.name ?? "stop"}`);
                   const poiLines = pois
                     .map(
                       (p, i) =>
@@ -2048,7 +2049,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             mapDest,
             !!mapState.activeRoute,
             pending.length > 0 ? pending : undefined,
-            "[stylist]",
+            "[map]",
             voiceLang,
           );
 
@@ -2664,9 +2665,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       recognition.onstart = () => setVoiceState("recording");
       recognition.onerror = (event: { error: string }) => {
         clearSilenceTimer();
-        if (event.error !== "no-speech")
+        if (event.error !== "no-speech" && event.error !== "aborted")
           setError("Speech recognition error: " + event.error);
-        if (event.error !== "no-speech") setVoiceState("idle");
+        if (event.error !== "no-speech" && event.error !== "aborted")
+          setVoiceState("idle");
       };
       recognition.onresult = (event: {
         resultIndex: number;
@@ -2787,17 +2789,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     onActionRef.current = null;
   }, []);
 
-  // Continuous listening globally: after each turn returns to idle,
-  // re-arm the mic so the mirror keeps catching voice hands-free on all pages.
-  // Safe because the wake-word gate ignores anything that isn't a "Mirror ..."
-  // command. Waits for "idle" so it never captures its own TTS while speaking.
-  useEffect(() => {
-    if (!isPresent && sensorStatus !== "unavailable") return;
-    if (voiceState !== "idle") return;
-
-    const id = setTimeout(() => startListening(), 600);
-    return () => clearTimeout(id);
-  }, [voiceState, isPresent, sensorStatus, startListening]);
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
