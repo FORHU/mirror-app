@@ -133,7 +133,9 @@ const COSMETIC_SELECTION_WORDS: Record<string, number> = {
 function extractCosmeticSelectionRank(text: string): number | null {
   const lower = text.toLowerCase().replace(/[^\w\s#-]/g, " ");
   const wantsSelection =
-    /\b(select|choose|pick|open|show|view|see|tap|highlight|go|navigate|see)\b/.test(lower);
+    /\b(select|choose|pick|open|show|view|see|tap|highlight|go|navigate|see)\b/.test(
+      lower,
+    );
   if (!wantsSelection) return null;
 
   const numeric = lower.match(
@@ -150,7 +152,8 @@ function extractCosmeticSelectionRank(text: string): number | null {
       `\\b(?:image|product|item|recommendation|option|number|the)\\s+(${wordPattern})\\b`,
     ),
   );
-  const looseWord = targetedWord ?? lower.match(new RegExp(`\\b(${wordPattern})\\b`));
+  const looseWord =
+    targetedWord ?? lower.match(new RegExp(`\\b(${wordPattern})\\b`));
   if (!looseWord) return null;
 
   return COSMETIC_SELECTION_WORDS[looseWord[1]] ?? null;
@@ -158,10 +161,14 @@ function extractCosmeticSelectionRank(text: string): number | null {
 
 // Spoken number forms + ASR homophones — used in context-bound patterns only to avoid false positives
 const SPOKEN_IDX: Record<string, number> = {
-  one: 0, won: 0,
-  two: 1, to: 1, too: 1,
+  one: 0,
+  won: 0,
+  two: 1,
+  to: 1,
+  too: 1,
   three: 2,
-  four: 3, for: 3,
+  four: 3,
+  for: 3,
   five: 4,
   six: 5,
 };
@@ -175,10 +182,14 @@ function parseSpokenIdx(raw: string): number | null {
 
 // Ordinal/cardinal words for the loose match — no homophones to prevent false positives
 const FASHION_OUTFIT_SELECTION_WORDS: Record<string, number> = {
-  first: 0, one: 0,
-  second: 1, two: 1,
-  third: 2, three: 2,
-  fourth: 3, four: 3,
+  first: 0,
+  one: 0,
+  second: 1,
+  two: 1,
+  third: 2,
+  three: 2,
+  fourth: 3,
+  four: 3,
 };
 
 function extractFashionOutfitSelection(text: string): number | null {
@@ -256,7 +267,9 @@ function extractFashionGarmentSelection(
   const slotPat = Object.keys(GARMENT_SLOT_WORDS).join("|");
   // "slot [number/#]? [digit|spoken|homophone]" — slot keyword bounds the number so homophones are safe
   const match = lower.match(
-    new RegExp(`\\b(${slotPat})\\s+(?:number|#)?\\s*(\\d{1,2}|${SPOKEN_IDX_PAT})\\b`),
+    new RegExp(
+      `\\b(${slotPat})\\s+(?:number|#)?\\s*(\\d{1,2}|${SPOKEN_IDX_PAT})\\b`,
+    ),
   );
   if (!match) return null;
 
@@ -382,7 +395,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const { weather } = useWeather();
   const weatherRef = useRef(weather);
-  useEffect(() => { weatherRef.current = weather; }, [weather]);
+  useEffect(() => {
+    weatherRef.current = weather;
+  }, [weather]);
   // Auto-clear voice error after 5 seconds
   useEffect(() => {
     if (error) {
@@ -390,7 +405,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(t);
     }
   }, [error]);
-
 
   // Hydrate the chat-wonder sessionId from sessionStorage so it survives page
   // reloads on non-Attract routes. Cleared only when arriving at /.
@@ -494,6 +508,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     },
     [stopPlayback],
   );
+
+  // Stop any in-flight reply audio when the route changes, so a previous page's
+  // spoken reply (e.g. the /ai-assistant answer that triggered navigation) does
+  // not keep playing — or overlap new audio — once you land on the next page.
+  useEffect(() => {
+    stopPlayback();
+    stopAllAudioQueues();
+  }, [pathname, stopPlayback]);
 
   const handleAIAssistantText = useCallback(
     async (t: string) => {
@@ -602,14 +624,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   );
 
   // VAD-based mic capture (replaces Chrome Web Speech API)
-  const vadRef = useRef<{ start: () => Promise<void>; pause: () => Promise<void> } | null>(null);
+  const vadRef = useRef<{
+    start: () => Promise<void>;
+    pause: () => Promise<void>;
+  } | null>(null);
   const vadInitializingRef = useRef(false);
   const speechFramesRef = useRef<Float32Array[]>([]);
   const isVadSpeakingRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const submitAudioRef = useRef<((frames: Float32Array[]) => Promise<void>) | null>(null);
+  const submitAudioRef = useRef<
+    ((frames: Float32Array[]) => Promise<void>) | null
+  >(null);
   const processTranscript = useCallback(
     async (t: string) => {
       stopPlayback();
@@ -797,19 +824,32 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          const effectiveMode = isCosmetics ? "cosmetics" : pageMode === "garment" ? "garment" : "overview";
+          const effectiveMode = isCosmetics
+            ? "cosmetics"
+            : pageMode === "garment"
+              ? "garment"
+              : "overview";
 
           let resolvedGarmentLoc = loc;
-          if (!resolvedGarmentLoc && typeof window !== "undefined" && navigator.geolocation) {
-            resolvedGarmentLoc = await new Promise<{ lat: number; lng: number } | null>(
-              (resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                  () => resolve(null),
-                  { timeout: 3000, maximumAge: 60_000 },
-                );
-              },
-            );
+          if (
+            !resolvedGarmentLoc &&
+            typeof window !== "undefined" &&
+            navigator.geolocation
+          ) {
+            resolvedGarmentLoc = await new Promise<{
+              lat: number;
+              lng: number;
+            } | null>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                (pos) =>
+                  resolve({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                  }),
+                () => resolve(null),
+                { timeout: 3000, maximumAge: 60_000 },
+              );
+            });
           }
 
           // Use pre-loaded weather when available; fetch inline on first call if not yet ready
@@ -820,14 +860,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const r = await fetch(
                 `/api/mirror/weather?lat=${resolvedGarmentLoc.lat}&lng=${resolvedGarmentLoc.lng}`,
               );
-              if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+              if (r.ok)
+                weatherPayload = (await r.json()) as Record<string, unknown>;
             } catch {}
             if (!weatherPayload) {
               try {
                 const r = await fetch(
                   `/api/weather?lat=${resolvedGarmentLoc.lat}&lon=${resolvedGarmentLoc.lng}`,
                 );
-                if (r.ok) weatherPayload = (await r.json()) as Record<string, unknown>;
+                if (r.ok)
+                  weatherPayload = (await r.json()) as Record<string, unknown>;
               } catch {}
             }
           }
@@ -837,19 +879,35 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           let aiResponse;
           try {
-            aiResponse = await chatWonderService.message({
-              input: `[stylist] ${t}`,
-              sitemapContext: [...SITEMAP_CONTEXT, "back"],
-              pageMode: effectiveMode,
-              ...(resolvedGarmentLoc && (effectiveMode === "garment" || effectiveMode === "overview") ? { location: { lat: resolvedGarmentLoc.lat.toString(), lng: resolvedGarmentLoc.lng.toString() } } : {}),
-              ...(weatherPayload ? { weather: weatherPayload } : {}),
-              ...(isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
-            });
+            aiResponse = await chatWonderService.message(
+              {
+                input: `[stylist] ${t}`,
+                sitemapContext: [...SITEMAP_CONTEXT, "back"],
+                pageMode: effectiveMode,
+                ...(resolvedGarmentLoc &&
+                (effectiveMode === "garment" || effectiveMode === "overview")
+                  ? {
+                      location: {
+                        lat: resolvedGarmentLoc.lat.toString(),
+                        lng: resolvedGarmentLoc.lng.toString(),
+                      },
+                    }
+                  : {}),
+                ...(weatherPayload ? { weather: weatherPayload } : {}),
+                ...(isCosmetics
+                  ? {
+                      skinAnalysis:
+                        useMirrorStore.getState().skinAnalysisResult,
+                    }
+                  : {}),
+              },
+              // We speak a curated snippet below — silence the service's AudioQueue
+              // so the streamed audio and the snippet don't overlap (dual voice).
+              { silent: true },
+            );
           } catch (err: unknown) {
             const message =
-              err instanceof Error
-                ? err.message
-                : "Voice request failed";
+              err instanceof Error ? err.message : "Voice request failed";
             setError(message);
             setVoiceState("idle");
             setReply("");
@@ -1239,8 +1297,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const scored = curatedPOIsRef.current.map((p) => {
                 const pName = p.name.toLowerCase();
                 const overlap = tWords.filter(
-                  (w) =>
-                    pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
+                  (w) => pName.includes(w) || w.includes(pName.split(/\s+/)[0]),
                 ).length;
                 return { p, overlap };
               });
@@ -1393,10 +1450,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   .reverse()
                   .find(({ pois }) => pois.length > 0);
                 if (lastGroup) {
-                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  const s =
+                    useMapStore.getState().itineraryStops[lastGroup.stopIndex];
                   useMapStore
                     .getState()
-                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                    .setSuggestedPOIs(
+                      lastGroup.pois.slice(0, 3),
+                      `Near ${s?.name ?? "stop"}`,
+                    );
                 }
               }
               const disambigReply =
@@ -1786,7 +1847,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 if (matchedGroup && matchedGroup.pois.length > 0) {
                   const stop = itineraryStops[matchedGroup.stopIndex];
                   const pois = matchedGroup.pois.slice(0, 3);
-                  useMapStore.getState().setSuggestedPOIs(pois, `Near ${stop?.name ?? "stop"}`);
+                  useMapStore
+                    .getState()
+                    .setSuggestedPOIs(pois, `Near ${stop?.name ?? "stop"}`);
                   const poiLines = pois
                     .map(
                       (p, i) =>
@@ -1986,10 +2049,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                       .reverse()
                       .find(({ pois }) => pois.length > 0);
                     if (lastGroup) {
-                      const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                      const s =
+                        useMapStore.getState().itineraryStops[
+                          lastGroup.stopIndex
+                        ];
                       useMapStore
                         .getState()
-                        .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                        .setSuggestedPOIs(
+                          lastGroup.pois.slice(0, 3),
+                          `Near ${s?.name ?? "stop"}`,
+                        );
                     }
                   }
                   const stopReply = buildItineraryConfirmReply(
@@ -2230,10 +2299,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             voiceLang,
           );
 
-          const res = await chatWonderService.message({
-            input: enrichedInput,
-            lang: voiceLang,
-          });
+          const res = await chatWonderService.message(
+            {
+              input: enrichedInput,
+              lang: voiceLang,
+            },
+            // Map page speaks its own short curated reply below — silence the
+            // service AudioQueue so they don't overlap (dual voice).
+            { silent: true },
+          );
 
           if (res.stylist_data?.target_url) {
             if (res.stylist_data.target_url === "back") {
@@ -2291,16 +2365,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 placesAllStops.length,
               );
               const placesStopPOIs = useMapStore.getState().itineraryStopPOIs;
-              const placesHasPOIs = placesStopPOIs.some((s) => s.pois.length > 0);
+              const placesHasPOIs = placesStopPOIs.some(
+                (s) => s.pois.length > 0,
+              );
               if (placesHasPOIs) {
                 const lastGroup = [...placesStopPOIs]
                   .reverse()
                   .find(({ pois }) => pois.length > 0);
                 if (lastGroup) {
-                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  const s =
+                    useMapStore.getState().itineraryStops[lastGroup.stopIndex];
                   useMapStore
                     .getState()
-                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                    .setSuggestedPOIs(
+                      lastGroup.pois.slice(0, 3),
+                      `Near ${s?.name ?? "stop"}`,
+                    );
                 }
               }
               itineraryConfirmReply = buildItineraryConfirmReply(
@@ -2424,16 +2504,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 resolvedStops.length,
               );
               const resolvedStopPOIs = useMapStore.getState().itineraryStopPOIs;
-              const resolvedHasPOIs = resolvedStopPOIs.some((s) => s.pois.length > 0);
+              const resolvedHasPOIs = resolvedStopPOIs.some(
+                (s) => s.pois.length > 0,
+              );
               if (resolvedHasPOIs) {
                 const lastGroup = [...resolvedStopPOIs]
                   .reverse()
                   .find(({ pois }) => pois.length > 0);
                 if (lastGroup) {
-                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  const s =
+                    useMapStore.getState().itineraryStops[lastGroup.stopIndex];
                   useMapStore
                     .getState()
-                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                    .setSuggestedPOIs(
+                      lastGroup.pois.slice(0, 3),
+                      `Near ${s?.name ?? "stop"}`,
+                    );
                 }
               }
               itineraryConfirmReply = buildItineraryConfirmReply(
@@ -2631,23 +2717,34 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // Fallback to homeLocation explicitly when map store has no location
           // (e.g. on the AI assistant page where the map module never initialises).
           let resolvedLoc = loc;
-          if (!resolvedLoc && useMapStore.getState().homeLocationStatus === "idle") {
+          if (
+            !resolvedLoc &&
+            useMapStore.getState().homeLocationStatus === "idle"
+          ) {
             await useMapStore.getState().loadHomeLocation();
             const freshMap = useMapStore.getState();
             resolvedLoc = freshMap.userLocation ?? freshMap.homeLocation;
           }
 
-          if (!resolvedLoc && typeof window !== "undefined" && navigator.geolocation) {
-            resolvedLoc = await new Promise<{ lat: number; lng: number } | null>(
-              (resolve) => {
-                navigator.geolocation.getCurrentPosition(
-                  (pos) =>
-                    resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                  () => resolve(null),
-                  { timeout: 3000, maximumAge: 60_000 },
-                );
-              },
-            );
+          if (
+            !resolvedLoc &&
+            typeof window !== "undefined" &&
+            navigator.geolocation
+          ) {
+            resolvedLoc = await new Promise<{
+              lat: number;
+              lng: number;
+            } | null>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                (pos) =>
+                  resolve({
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                  }),
+                () => resolve(null),
+                { timeout: 3000, maximumAge: 60_000 },
+              );
+            });
           }
 
           if (resolvedLoc) {
@@ -2659,17 +2756,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             !directNavigationRequest &&
             (isCosmeticHandoffPrompt(t) ||
               pageCtxRef.current?.mode === "cosmetics" ||
-              pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic"));
+              pageCtxRef.current?.route?.includes(
+                "ai-recommendation-cosmetic",
+              ));
           const effectivePageMode = _isCosmetics
             ? "cosmetics"
             : directNavigationRequest
               ? "map"
               : (pageCtxRef.current?.mode as
-                | "garment"
-                | "cosmetics"
-                | "map"
-                | "overview"
-                | null);
+                  | "garment"
+                  | "cosmetics"
+                  | "map"
+                  | "overview"
+                  | null);
           const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
@@ -2684,7 +2783,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               : {}),
             pageMode: effectivePageMode,
             sitemapContext: SITEMAP_CONTEXT,
-            ...(_isCosmetics ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult } : {}),
+            ...(_isCosmetics
+              ? { skinAnalysis: useMirrorStore.getState().skinAnalysisResult }
+              : {}),
           });
 
           r = res.message;
@@ -2719,11 +2820,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 /* prompt handoff is best-effort */
               }
             }
-            void handleStylistTarget(
-              resolvedTarget,
-              router,
-              pathname,
-            );
+            void handleStylistTarget(resolvedTarget, router, pathname);
           } else if (res.garment_data || res.maps_data || res.cosmetics_data) {
             // Synthetic action that triggers handleVoiceAction catchers
             chatAction = {
@@ -2831,9 +2928,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setVoiceState("idle");
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Transcription failed.",
-        );
+        setError(err instanceof Error ? err.message : "Transcription failed.");
         setVoiceState("idle");
       }
     },
@@ -3002,7 +3097,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     pageCtxRef.current = null;
     onActionRef.current = null;
   }, []);
-
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";

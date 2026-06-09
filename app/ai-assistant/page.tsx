@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import MirrorHeader from "@/components/MirrorHeader";
-import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  getToday,
+  nextWeekday,
+  type PromptCategory,
+} from "@/components/QuickResponseChips";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
@@ -79,15 +84,66 @@ const ASSISTANT_GREETINGS = [
   "Hi! Looking for nearby beauty or fashion spots?",
   "Hello! Want recommendations based on your style preferences?",
   "Hey! Let's explore fashion, beauty, and lifestyle together.",
-  "Good to see you! What's your style mood today?"
+  "Good to see you! What's your style mood today?",
+];
+
+const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
+  {
+    label: "Fashion",
+    icon: "👗",
+    prompts: [
+      `What should I wear today? It's ${getToday()} and I want something stylish but comfortable.`,
+      `I have an event this ${nextWeekday(5)} — build me a full outfit from head to toe.`,
+      `Give me a clean, minimal look for today — effortless but put together.`,
+      `Suggest a bold outfit for when I want to stand out.`,
+      `I don't know what to wear — give me 3 outfit options.`,
+      `Give me a simple but attractive everyday look.`,
+    ],
+  },
+  {
+    label: "Skincare",
+    icon: "✨",
+    prompts: [
+      `My skin feels dull lately — what skincare routine should I follow?`,
+      `Recommend a simple morning and night skincare routine for normal skin.`,
+      `What products should I use for glowing skin fast?`,
+      `I need help fixing dry skin — what routine should I follow?`,
+      `Suggest a calming evening routine to repair and hydrate my skin.`,
+      `What are the best products to improve my skin texture and glow?`,
+    ],
+  },
+  {
+    label: "Places",
+    icon: "📍",
+    prompts: [
+      `What are some good cafes or restaurants near me worth visiting?`,
+      `I want to go somewhere relaxing today — any nice spots nearby?`,
+      `Suggest a fun place to visit this weekend around my area.`,
+      `Give me a hidden gem spot I can visit that isn't too crowded.`,
+      `What's a great place to go today for a quick escape?`,
+      `Find me somewhere nearby that's good for photos.`,
+    ],
+  },
+  {
+    label: "Lifestyle",
+    icon: "🌟",
+    prompts: [
+      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
+      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
+      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
+      `Give me a weekend-ready outfit and a place I should visit.`,
+      `What should I wear and how should I care for my skin in hot weather?`,
+      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
+    ],
+  },
 ];
 
 export default function AIAssistantPage() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
-  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
-  const startListeningRef = useRef<() => void>(() => {});
+  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => { });
+  const startListeningRef = useRef<() => void>(() => { });
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
@@ -226,7 +282,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
-        m.chatWonderService.restart().catch(() => {});
+        m.chatWonderService.restart().catch(() => { });
       });
     }
   }, []);
@@ -258,16 +314,19 @@ export default function AIAssistantPage() {
     [activeGreeting, speakText],
   );
 
-  const handleWake = useCallback((shouldSpeak = true) => {
-    if (!showIdle) return;
-    setShowIdle(false);
+  const handleWake = useCallback(
+    (shouldSpeak = true) => {
+      if (!showIdle) return;
+      setShowIdle(false);
 
-    if (!hasGreetedRef.current) {
-      const greeting = chooseGreeting();
-      setActiveGreeting(greeting);
-      if (shouldSpeak) playGreeting(greeting);
-    }
-  }, [chooseGreeting, playGreeting, showIdle]);
+      if (!hasGreetedRef.current) {
+        const greeting = chooseGreeting();
+        setActiveGreeting(greeting);
+        if (shouldSpeak) playGreeting(greeting);
+      }
+    },
+    [chooseGreeting, playGreeting, showIdle],
+  );
 
   // Camera-gated wake on the real mirror. But when the proximity sensor is
   // unavailable (dev machine / no camera), fall back to arming the mic on load
@@ -431,9 +490,8 @@ export default function AIAssistantPage() {
                       Mirror
                     </p>
                     <p
-                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
-                        error ? "text-red-300/75" : "text-white/90"
-                      }`}
+                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${error ? "text-red-300/75" : "text-white/90"
+                        }`}
                       style={{
                         fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
                         maxHeight: "45vh",
@@ -458,19 +516,12 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* Chips sit in flow, above the fixed nav bar.
-                AssistantNavBar = h-20 (80px) + bottom-4 (16px) = 96px from viewport bottom.
-                mb-28 (112px) guarantees chips end above the nav on any screen height. */}
-            <QuickResponseChips
-              className="shrink-0 mb-48"
-              prompts={[
-                `What should I wear today? It's ${getToday()} and I want to look put-together.`,
-                `I have a special event this ${nextWeekday(5)} — suggest a complete outfit for me.`,
-                "Recommend skincare products tailored to my skin type and current condition.",
-                "What's nearby worth visiting — restaurants, cafes, or interesting spots around me?",
-                "Give me a full overview of outfit options, skincare picks, and places to go today.",
-              ]}
-            />
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
+            <AssistantNavBar />
+
+            {/* Quick Response Chips — categorised */}
+            <QuickResponseChips categories={ASSISTANT_CHIP_CATEGORIES} />
 
             {/* Bottom nav — flanks the shared center-bottom mic */}
             <AssistantNavBar />

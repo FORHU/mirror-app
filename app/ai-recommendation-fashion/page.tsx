@@ -12,95 +12,20 @@ import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
-import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
-import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
+import { getToday } from "@/components/QuickResponseChips";
+import { PromptFloater } from "@/components/PromptFloater";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
+import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
+import {
+  GarmentSelectionPanel,
+  type GarmentSlotConfig,
+} from "@/modules/fashion/components/GarmentSelectionPanel";
+import { CreateOutfitBar } from "@/modules/fashion/components/CreateOutfitBar";
+import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
+import type { SwapSlot } from "@/modules/fashion/types";
+import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
+import { FASHION_QUOTES } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
-
-function useSwipe(onLeft: () => void, onRight: () => void) {
-  const startX = useRef<number | null>(null);
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (startX.current === null) return;
-      const delta = e.changedTouches[0].clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseDown: (e: React.MouseEvent) => {
-      startX.current = e.clientX;
-    },
-    onMouseUp: (e: React.MouseEvent) => {
-      if (startX.current === null) return;
-      const delta = e.clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseLeave: () => {
-      startX.current = null;
-    },
-  };
-}
-
-function SectionTitle({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 px-1 py-1">
-      <div className="flex-1 h-px bg-white/20" />
-      <span className="text-white text-xs font-bold tracking-widest uppercase">
-        {label}
-      </span>
-      <div className="flex-1 h-px bg-white/20" />
-    </div>
-  );
-}
-
-function SkeletonCell({
-  ratio = "1/1",
-  style,
-}: {
-  ratio?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <div
-      className="animate-pulse"
-      style={{
-        aspectRatio: ratio,
-        background: "rgba(255,255,255,0.1)",
-        borderRadius: "4px",
-        ...style,
-      }}
-    />
-  );
-}
-
-const FASHION_QUOTES = [
-  {
-    text: "Fashion is the armor to survive the reality of everyday life.",
-    author: "Bill Cunningham",
-  },
-  {
-    text: "Style is a way to say who you are without having to speak.",
-    author: "Rachel Zoe",
-  },
-  {
-    text: "Elegance is not about being noticed, it's about being remembered.",
-    author: "Giorgio Armani",
-  },
-  {
-    text: "Fashion is what you buy. Style is what you do with it.",
-    author: "Unknown",
-  },
-  {
-    text: "Dress shabbily and they remember the dress; dress impeccably and they remember the woman.",
-    author: "Coco Chanel",
-  },
-  { text: "The joy of dressing is an art.", author: "John Galliano" },
-];
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
@@ -128,7 +53,6 @@ export default function VirtualMirrorV2() {
 
   const [showConfirm, setShowConfirm] = useState(false);
 
-  type SwapSlot = "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
   const [swapItemId, setSwapItemId] = useState<string | null>(null);
   const [outfitOverrides, setOutfitOverrides] = useState<
@@ -450,14 +374,17 @@ export default function VirtualMirrorV2() {
       }
       if (action.type === "fashion_select_garment") {
         const { slot, index } = action;
-        type SlotEntry = { arr: RemoteGarment[]; set: (g: RemoteGarment) => void };
+        type SlotEntry = {
+          arr: RemoteGarment[];
+          set: (g: RemoteGarment) => void;
+        };
         const slotMap: Record<typeof slot, SlotEntry> = {
-          base:    { arr: pagedTopsBase,  set: setSelectedTopBase },
-          mid:     { arr: pagedTopsMid,   set: setSelectedTopMid },
-          outer:   { arr: pagedTopsOuter, set: setSelectedTopOuter },
-          bottoms: { arr: pagedBottoms,   set: setSelectedBottom },
-          shoes:   { arr: pagedShoes,     set: setSelectedShoe },
-          bags:    { arr: pagedBags,      set: setSelectedBag },
+          base: { arr: pagedTopsBase, set: setSelectedTopBase },
+          mid: { arr: pagedTopsMid, set: setSelectedTopMid },
+          outer: { arr: pagedTopsOuter, set: setSelectedTopOuter },
+          bottoms: { arr: pagedBottoms, set: setSelectedBottom },
+          shoes: { arr: pagedShoes, set: setSelectedShoe },
+          bags: { arr: pagedBags, set: setSelectedBag },
         };
         const target = slotMap[slot];
         const garment = target.arr[index];
@@ -474,13 +401,27 @@ export default function VirtualMirrorV2() {
       }
     },
     [
-      outfits, outfitPageSize, selectOutfit,
-      pagedTopsBase, pagedTopsMid, pagedTopsOuter,
-      pagedBottoms, pagedShoes, pagedBags,
-      swapSlot, swapItemId,
-      setSelectedTopBase, setSelectedTopMid, setSelectedTopOuter,
-      setSelectedBottom, setSelectedShoe, setSelectedBag,
-      setSelectedOutfitIdx, setOutfitOverrides, setSwapSlot, setSwapItemId,
+      outfits,
+      outfitPageSize,
+      selectOutfit,
+      pagedTopsBase,
+      pagedTopsMid,
+      pagedTopsOuter,
+      pagedBottoms,
+      pagedShoes,
+      pagedBags,
+      swapSlot,
+      swapItemId,
+      setSelectedTopBase,
+      setSelectedTopMid,
+      setSelectedTopOuter,
+      setSelectedBottom,
+      setSelectedShoe,
+      setSelectedBag,
+      setSelectedOutfitIdx,
+      setOutfitOverrides,
+      setSwapSlot,
+      setSwapItemId,
     ],
   );
 
@@ -507,144 +448,163 @@ export default function VirtualMirrorV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatGarmentData]);
 
+  // Select a garment for a slot — applies a pending swap, or sets the slot and
+  // clears the active outfit selection (same behavior as the old inline grids).
+  const handleSlotSelect = (slot: SwapSlot, g: RemoteGarment) => {
+    if (swapSlot === slot && swapItemId) {
+      applySwap(g);
+      return;
+    }
+    const setters: Record<SwapSlot, (g: RemoteGarment) => void> = {
+      base: setSelectedTopBase,
+      mid: setSelectedTopMid,
+      outer: setSelectedTopOuter,
+      bottoms: setSelectedBottom,
+      shoes: setSelectedShoe,
+      bags: setSelectedBag,
+    };
+    setters[slot](g);
+    setSelectedOutfitIdx(null);
+  };
+
+  const garmentSlots: GarmentSlotConfig[] = [
+    {
+      key: "base",
+      label: "Base",
+      items: topsBase,
+      pagedItems: pagedTopsBase,
+      pageSize: topsLayerPageSize,
+      currentPage: topsBasePage,
+      totalPages: totalTopsBasePages,
+      onPageChange: setTopsBasePage,
+      selectedId: selectedTopBase?.id,
+      emptyMessage: "No recommended Base",
+    },
+    {
+      key: "mid",
+      label: "Mid",
+      items: topsMid,
+      pagedItems: pagedTopsMid,
+      pageSize: topsLayerPageSize,
+      currentPage: topsMidPage,
+      totalPages: totalTopsMidPages,
+      onPageChange: setTopsMidPage,
+      selectedId: selectedTopMid?.id,
+      emptyMessage: "No recommended Mid",
+    },
+    {
+      key: "outer",
+      label: "Outer",
+      items: topsOuter,
+      pagedItems: pagedTopsOuter,
+      pageSize: topsLayerPageSize,
+      currentPage: topsOuterPage,
+      totalPages: totalTopsOuterPages,
+      onPageChange: setTopsOuterPage,
+      selectedId: selectedTopOuter?.id,
+      emptyMessage: "No recommended Outer",
+    },
+    {
+      key: "bottoms",
+      label: "Bottoms",
+      items: bottoms,
+      pagedItems: pagedBottoms,
+      pageSize: bottomsPageSize,
+      currentPage: bottomsPage,
+      totalPages: totalBottomsPages,
+      onPageChange: setBottomsPage,
+      selectedId: selectedBottom?.id,
+      emptyMessage: "No recommended Bottoms",
+    },
+    {
+      key: "shoes",
+      label: "Shoes",
+      items: shoes,
+      pagedItems: pagedShoes,
+      pageSize: shoesPageSize,
+      currentPage: shoesPage,
+      totalPages: totalShoesPages,
+      onPageChange: setShoesPage,
+      selectedId: selectedShoe?.id,
+      emptyMessage: "No recommended Shoes",
+    },
+    {
+      key: "bags",
+      label: "Bags",
+      items: bags,
+      pagedItems: pagedBags,
+      pageSize: accessoryPageSize,
+      currentPage: bagsPage,
+      totalPages: totalBagsPages,
+      onPageChange: setBagsPage,
+      selectedId: selectedBag?.id,
+      columns: 3,
+      emptyMessage: "No recommended Bags",
+    },
+  ];
+
+  // Idle showcase: nothing recommended yet and not mid-request → run the
+  // outfit image carousel so the screen isn't just black.
+  const hasRecommendations =
+    outfits.length > 0 ||
+    topsBase.length > 0 ||
+    topsMid.length > 0 ||
+    topsOuter.length > 0 ||
+    bottoms.length > 0 ||
+    shoes.length > 0 ||
+    bags.length > 0;
+  const showShowcase = !hasRecommendations && !isProcessing;
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       <ChatNavLoader />
 
       <MirrorHeader />
 
+      {/* Create Outfit — just below the header; hidden when an outfit is selected (unless modified) */}
+      <CreateOutfitBar
+        visible={selectedOutfitIdx === null || outfitModified}
+        disabled={
+          selectedOutfitIdx === null &&
+          !outfitModified &&
+          !(
+            (selectedTopBase || selectedTopMid || selectedTopOuter) &&
+            !!selectedBottom &&
+            !!selectedShoe
+          )
+        }
+        label={outfitModified ? "Customize Outfit" : "Create Outfit"}
+        onCreate={() => setShowConfirm(true)}
+      />
+
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
-      <div className="flex flex-1" style={{ height: "546px" }}>
-        {/* Left panel — Accessories */}
+      {/* Idle showcase — outfit image carousel fills the black space until the
+          user has recommendations (sits behind the prompts/mic). */}
+      {showShowcase && (
         <div
-          className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-          style={{ flex: "0 0 25%", width: "25%" }}
+          className="absolute inset-x-0 z-0 px-6"
+          style={{ top: 80, bottom: 170 }}
         >
-          <div
-            className="flex flex-col gap-1"
-            style={{ flex: 1, minHeight: 0, overflow: "hidden" }}
-          >
-            {!isProcessing && <SectionTitle label="Outfit" />}
-            <div
-              {...outfitSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                flex: 1,
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(1, 1fr)",
-                  gridTemplateRows: "repeat(4, 1fr)",
-                  gap: "6px",
-                  flex: 1,
-                  minHeight: 0,
-                  overflow: "hidden",
-                }}
-              >
-                {isProcessing ? null : outfits.length === 0 ? (
-                  <div
-                    style={{
-                      gridColumn: "1 / -1",
-                      height: "160px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "rgba(255,255,255,0.3)",
-                      fontSize: "12px",
-                      border: "1px dashed rgba(255,255,255,0.1)",
-                      borderRadius: "10px",
-                    }}
-                  >
-                    No recommended Outfits
-                  </div>
-                ) : (
-                  pagedOutfits.map((outfit, i) => {
-                    const globalIdx = outfitPage * outfitPageSize + i;
-                    return (
-                      <div
-                        key={outfit.id}
-                        onClick={() => selectOutfit(globalIdx)}
-                        style={{
-                          position: "relative",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.01)",
-                          cursor: "pointer",
-                          border:
-                            selectedOutfitIdx === globalIdx
-                              ? "2px solid rgba(255,255,255,0.6)"
-                              : "2px solid transparent",
-                          transition: "border-color 0.2s",
-                        }}
-                      >
-                        {outfit.file?.fileUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={outfit.file.fileUrl}
-                            alt={outfit.name}
-                            draggable={false}
-                            className="w-full h-full object-cover pointer-events-none"
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <span
-                              style={{
-                                color: "rgba(255,255,255,0.2)",
-                                fontSize: "11px",
-                              }}
-                            >
-                              {outfit.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {!isProcessing && (
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: totalOutfitPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setOutfitPage(i)}
-                      style={{
-                        width: i === outfitPage ? 12 : 4,
-                        height: 4,
-                        borderRadius: "9999px",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                        background:
-                          i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
-                        transition: "all 0.3s",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <OutfitImageCarousel />
         </div>
+      )}
+
+      <div className="flex flex-1" style={{ height: "546px" }}>
+        {/* Left panel — recommended outfit list */}
+        <OutfitListPanel
+          outfits={outfits}
+          pagedOutfits={pagedOutfits}
+          outfitPage={outfitPage}
+          outfitPageSize={outfitPageSize}
+          totalOutfitPages={totalOutfitPages}
+          selectedOutfitIdx={selectedOutfitIdx}
+          isProcessing={isProcessing}
+          swipeHandlers={outfitSwipe}
+          onSelect={selectOutfit}
+          onPageChange={setOutfitPage}
+        />
 
         {/* Center panel */}
         {(() => {
@@ -658,7 +618,7 @@ export default function VirtualMirrorV2() {
               style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
             >
               {/* Outfit display */}
-              {selectedOutfit && !(isProcessing) && (
+              {selectedOutfit && !isProcessing && (
                 <div
                   style={{
                     width: "100%",
@@ -932,7 +892,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Garment slot cards */}
-              {!selectedOutfit && !(isProcessing) && (
+              {!selectedOutfit && !isProcessing && (
                 <div
                   style={{
                     flex: 1,
@@ -1050,271 +1010,15 @@ export default function VirtualMirrorV2() {
           );
         })()}
 
-        {/* Right panel — Tops / Bottoms / Shoes */}
-        <div
-          className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-          style={{ flex: "0 0 25%", width: "25%" }}
-        >
-          {/* Cancel swap mode */}
-          {swapSlot && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                paddingBottom: "2px",
-              }}
-            >
-              <span
-                style={{
-                  color: "rgba(255,255,255,0.5)",
-                  fontSize: "10px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                Select replacement
-              </span>
-              <button
-                onClick={cancelSwap}
-                style={{
-                  color: "rgba(255,255,255,0.4)",
-                  fontSize: "11px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "2px 4px",
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Tops — Base layer */}
-          {!isProcessing && topsBase.length > 0 &&
-            (!swapSlot || swapSlot === "base") && (
-              <GarmentGrid
-                label="Base"
-                pagedItems={pagedTopsBase}
-                loading={false}
-                pageSize={topsLayerPageSize}
-                currentPage={topsBasePage}
-                totalPages={totalTopsBasePages}
-                onNext={() =>
-                  setTopsBasePage((p) =>
-                    Math.min(p + 1, totalTopsBasePages - 1),
-                  )
-                }
-                onPrev={() => setTopsBasePage((p) => Math.max(p - 1, 0))}
-                onPageChange={setTopsBasePage}
-                selectedId={selectedTopBase?.id}
-                onSelect={(g) => {
-                  if (swapSlot === "base" && swapItemId) {
-                    applySwap(g);
-                  } else {
-                    setSelectedTopBase(g);
-                    setSelectedOutfitIdx(null);
-                  }
-                }}
-                emptyMessage="No recommended Base"
-              />
-            )}
-
-          {/* Tops — Mid layer */}
-          {!isProcessing && topsMid.length > 0 &&
-            (!swapSlot || swapSlot === "mid") && (
-              <GarmentGrid
-                label="Mid"
-                pagedItems={pagedTopsMid}
-                loading={false}
-                pageSize={topsLayerPageSize}
-                currentPage={topsMidPage}
-                totalPages={totalTopsMidPages}
-                onNext={() =>
-                  setTopsMidPage((p) => Math.min(p + 1, totalTopsMidPages - 1))
-                }
-                onPrev={() => setTopsMidPage((p) => Math.max(p - 1, 0))}
-                onPageChange={setTopsMidPage}
-                selectedId={selectedTopMid?.id}
-                onSelect={(g) => {
-                  if (swapSlot === "mid" && swapItemId) {
-                    applySwap(g);
-                  } else {
-                    setSelectedTopMid(g);
-                    setSelectedOutfitIdx(null);
-                  }
-                }}
-                emptyMessage="No recommended Mid"
-              />
-            )}
-
-          {/* Tops — Outer layer */}
-          {!isProcessing && topsOuter.length > 0 &&
-            (!swapSlot || swapSlot === "outer") && (
-              <GarmentGrid
-                label="Outer"
-                pagedItems={pagedTopsOuter}
-                loading={false}
-                pageSize={topsLayerPageSize}
-                currentPage={topsOuterPage}
-                totalPages={totalTopsOuterPages}
-                onNext={() =>
-                  setTopsOuterPage((p) =>
-                    Math.min(p + 1, totalTopsOuterPages - 1),
-                  )
-                }
-                onPrev={() => setTopsOuterPage((p) => Math.max(p - 1, 0))}
-                onPageChange={setTopsOuterPage}
-                selectedId={selectedTopOuter?.id}
-                onSelect={(g) => {
-                  if (swapSlot === "outer" && swapItemId) {
-                    applySwap(g);
-                  } else {
-                    setSelectedTopOuter(g);
-                    setSelectedOutfitIdx(null);
-                  }
-                }}
-                emptyMessage="No recommended Outer"
-              />
-            )}
-
-          {!isProcessing && bottoms.length > 0 && (!swapSlot || swapSlot === "bottoms") && (
-            <GarmentGrid
-              label="Bottoms"
-              pagedItems={pagedBottoms}
-              loading={false}
-              pageSize={bottomsPageSize}
-              currentPage={bottomsPage}
-              totalPages={totalBottomsPages}
-              onNext={() =>
-                setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1))
-              }
-              onPrev={() => setBottomsPage((p) => Math.max(p - 1, 0))}
-              onPageChange={setBottomsPage}
-              selectedId={selectedBottom?.id}
-              onSelect={(g) => {
-                if (swapSlot === "bottoms" && swapItemId) {
-                  applySwap(g);
-                } else {
-                  setSelectedBottom(g);
-                  setSelectedOutfitIdx(null);
-                }
-              }}
-              emptyMessage="No recommended Bottoms"
-            />
-          )}
-
-          {!isProcessing && shoes.length > 0 && (!swapSlot || swapSlot === "shoes") && (
-            <GarmentGrid
-              label="Shoes"
-              pagedItems={pagedShoes}
-              loading={false}
-              pageSize={shoesPageSize}
-              currentPage={shoesPage}
-              totalPages={totalShoesPages}
-              onNext={() =>
-                setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1))
-              }
-              onPrev={() => setShoesPage((p) => Math.max(p - 1, 0))}
-              onPageChange={setShoesPage}
-              selectedId={selectedShoe?.id}
-              onSelect={(g) => {
-                if (swapSlot === "shoes" && swapItemId) {
-                  applySwap(g);
-                } else {
-                  setSelectedShoe(g);
-                  setSelectedOutfitIdx(null);
-                }
-              }}
-              emptyMessage="No recommended Shoes"
-            />
-          )}
-
-          {!isProcessing && bags.length > 0 && (!swapSlot || swapSlot === "bags") && (
-            <GarmentGrid
-              label="Bags"
-              pagedItems={pagedBags}
-              loading={false}
-              pageSize={accessoryPageSize}
-              currentPage={bagsPage}
-              totalPages={totalBagsPages}
-              onNext={() =>
-                setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1))
-              }
-              onPrev={() => setBagsPage((p) => Math.max(p - 1, 0))}
-              onPageChange={setBagsPage}
-              columns={3}
-              selectedId={selectedBag?.id}
-              onSelect={(g) => {
-                if (swapSlot === "bags" && swapItemId) {
-                  applySwap(g);
-                } else {
-                  setSelectedBag(g);
-                  setSelectedOutfitIdx(null);
-                }
-              }}
-              emptyMessage="No recommended Bags"
-            />
-          )}
-        </div>
+        {/* Right panel — per-slot garment pickers */}
+        <GarmentSelectionPanel
+          slots={garmentSlots}
+          swapSlot={swapSlot}
+          isProcessing={isProcessing}
+          onCancelSwap={cancelSwap}
+          onSelect={handleSlotSelect}
+        />
       </div>
-
-      {/* Create Outfit — fixed to viewport bottom center, hidden when outfit is selected (unless modified) */}
-      {(selectedOutfitIdx === null || outfitModified) &&
-        (() => {
-          const hasTop = !!(
-            selectedTopBase ||
-            selectedTopMid ||
-            selectedTopOuter
-          );
-          const canCreate = hasTop && !!selectedBottom && !!selectedShoe;
-          const isCreateMode = selectedOutfitIdx === null && !outfitModified;
-          const disabled = isCreateMode && !canCreate;
-          return (
-            <button
-              disabled={disabled}
-              style={{
-                position: "fixed",
-                bottom: "28px",
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 50,
-                padding: "14px 52px",
-                background: disabled ? "rgba(255,255,255,0.25)" : "#ffffff",
-                color: disabled ? "rgba(0,0,0,0.35)" : "#000",
-                border: "none",
-                borderRadius: "14px",
-                fontSize: "16px",
-                fontWeight: "700",
-                cursor: disabled ? "not-allowed" : "pointer",
-                letterSpacing: "0.4px",
-                boxShadow: disabled ? "none" : "0 4px 24px rgba(0,0,0,0.4)",
-                transition: "opacity 0.2s, transform 0.1s",
-              }}
-              onMouseEnter={(e) => {
-                if (!disabled) e.currentTarget.style.opacity = "0.88";
-              }}
-              onMouseLeave={(e) => {
-                if (!disabled) e.currentTarget.style.opacity = "1";
-              }}
-              onMouseDown={(e) => {
-                if (!disabled)
-                  e.currentTarget.style.transform =
-                    "translateX(-50%) scale(0.97)";
-              }}
-              onMouseUp={(e) => {
-                if (!disabled)
-                  e.currentTarget.style.transform = "translateX(-50%) scale(1)";
-              }}
-              onClick={() => {
-                if (!disabled) setShowConfirm(true);
-              }}
-            >
-              {outfitModified ? "Customize Outfit" : "Create Outfit"}
-            </button>
-          );
-        })()}
 
       {showConfirm && (
         <OutfitPreviewModal
@@ -1336,21 +1040,41 @@ export default function VirtualMirrorV2() {
         />
       )}
 
-      {/* Quick Response Chips — fixed to center column footprint, above Create Outfit button */}
-      {/* bottom-48 (192px) = mic top (176px) + 16px gap. Create Outfit is at bottom:28px so no clash. */}
-      <div className="fixed bottom-48 left-[25%] right-[25%] z-30 pointer-events-none">
-        <div className="pointer-events-auto">
-          <QuickResponseChips
-            prompts={[
-              `Build me a complete outfit for a wedding this ${nextWeekday(5)} — include top, bottom, shoes, and bag.`,
-              `I have a job interview on ${nextWeekday(1)} — suggest an outfit that looks confident and professional.`,
-              `What's a stylish but comfortable outfit I can wear this ${nextWeekday(6)} for a casual weekend out?`,
-              `Give me a versatile layered look for today, ${getToday()}, that takes me from morning to evening.`,
-              "I need a bold outfit for a night out — something eye-catching that makes a statement.",
-            ]}
-          />
-        </div>
-      </div>
+      {/* Suggested prompts — collapsible floater centered above the mic */}
+      <PromptFloater
+        prompts={[
+          "Formal outfit — top, bottom, shoes, and bag.",
+          "Business look that feels confident and professional.",
+          "Casual outfit for an everyday relaxed day.",
+          `SmartCasual layered outfit for today, ${getToday()}.`,
+          "Streetwear look with a bold statement vibe.",
+
+          "Athleisure outfit that blends comfort and style.",
+          "Activewear outfit for performance and movement.",
+          "Sportswear outfit suitable for training or activity.",
+
+          "Winterwear outfit with warm layers and structure.",
+          "Summerwear outfit that stays light and breathable.",
+          "Springwear outfit for transitional weather.",
+          "Autumnwear outfit with cozy layering.",
+          "Rainwear outfit that stays practical and stylish.",
+
+          "Minimalist outfit with clean lines and neutral tones.",
+          "Luxury-inspired outfit with a refined aesthetic.",
+          "AvantGarde outfit with an experimental fashion edge.",
+          "Vintage-inspired outfit with retro influence.",
+
+          "Traditional outfit with cultural inspiration.",
+          "Cultural outfit with heritage influence.",
+          "Uniform-inspired structured outfit style.",
+
+          "SmartCasual outfit that balances comfort and polish.",
+          "Casual outfit that still looks elevated.",
+          "Streetwear outfit with oversized silhouettes.",
+          "Minimalist outfit with everyday versatility.",
+          "Luxury outfit with understated styling.",
+        ]}
+      />
     </div>
   );
 }

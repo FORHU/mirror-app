@@ -64,7 +64,11 @@ export default function MapMicPill() {
         width="36"
         height="36"
         viewBox="0 0 36 36"
-        style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-90deg)" }}
+        style={{
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%,-50%) rotate(-90deg)",
+        }}
       >
         <motion.circle
           cx="18"

@@ -31,7 +31,7 @@ async function consumePendingLocation() {
       isSearching: false,
       searchResults: [],
     });
-  } catch {}
+  } catch { }
 }
 
 async function consumePendingDirections() {
@@ -47,7 +47,7 @@ async function consumePendingDirections() {
     if (!results.length) return;
 
     await useMapStore.getState().setDestination(results[0]);
-  } catch {}
+  } catch { }
 }
 
 export default function MapPage() {
@@ -57,7 +57,7 @@ export default function MapPage() {
     loadHomeLocation,
     loadOutlineStops,
   } = useMapStore();
-  const onAction = useCallback(() => {}, []);
+  const onAction = useCallback(() => { }, []);
 
   useVoice(
     {

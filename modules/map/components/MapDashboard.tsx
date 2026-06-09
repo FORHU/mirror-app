@@ -27,7 +27,6 @@ export default function MapDashboard() {
 
   const hasSavedHomeRef = useRef(false);
 
-
   // Geolocation watch — auto-saves first fix as homeLocation
   useEffect(() => {
     if (!("geolocation" in navigator)) return;

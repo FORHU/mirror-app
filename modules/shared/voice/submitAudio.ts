@@ -29,8 +29,11 @@ export async function transcribeAudio(opts: {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
+  // Use OpenAI Whisper — far more reliable than AWS streaming Transcribe on the
+  // short utterances common on the fashion page ("number 2", "next"), which AWS
+  // often returns empty for (→ "Could not transcribe audio").
   const res = await fetch(
-    `/api/mirror/voice/transcribe?lang=${encodeURIComponent(lang)}`,
+    `/api/mirror/voice/transcribe?lang=${encodeURIComponent(lang)}&provider=openai`,
     { method: "POST", headers, body: int16.buffer as ArrayBuffer },
   );
 

@@ -76,10 +76,17 @@ export function ChatWonderProvider({
           if (payload.gender_update?.gender) {
             const g = payload.gender_update.gender.toUpperCase();
             if (g === "MALE" || g === "FEMALE") {
-              useAuthStore.getState().updateUser({ gender: g as "MALE" | "FEMALE" });
-              void authService.updateProfile({ gender: g as "MALE" | "FEMALE" }).catch((e) => {
-                console.warn("[ChatWonderProvider] gender_update persist failed:", e);
-              });
+              useAuthStore
+                .getState()
+                .updateUser({ gender: g as "MALE" | "FEMALE" });
+              void authService
+                .updateProfile({ gender: g as "MALE" | "FEMALE" })
+                .catch((e) => {
+                  console.warn(
+                    "[ChatWonderProvider] gender_update persist failed:",
+                    e,
+                  );
+                });
             }
           }
           useMirrorStore.getState().setChatNavPending(false);

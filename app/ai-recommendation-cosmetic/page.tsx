@@ -11,7 +11,11 @@ import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
-import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  getToday,
+  nextWeekday,
+} from "@/components/QuickResponseChips";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 
@@ -77,7 +81,9 @@ function normalizeRecommendation(
     rank: num(rec.rank, index + 1),
     score: num(rec.score, 0),
     reason:
-      str(rec.reason) || str(rec.description) || "Recommended for your profile.",
+      str(rec.reason) ||
+      str(rec.description) ||
+      "Recommended for your profile.",
     cosmeticProduct: {
       id: str(product?.id) || id,
       name,
@@ -356,14 +362,16 @@ export default function CosmeticRecommendationPage() {
                   </p>
 
                   <div className="flex flex-wrap gap-2">
-                    {(selectedRec.cosmeticProduct?.tags ?? []).slice(0, 4).map((t) => (
-                      <span
-                        key={t}
-                        className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
-                      >
-                        {t}
-                      </span>
-                    ))}
+                    {(selectedRec.cosmeticProduct?.tags ?? [])
+                      .slice(0, 4)
+                      .map((t) => (
+                        <span
+                          key={t}
+                          className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
+                        >
+                          {t}
+                        </span>
+                      ))}
                   </div>
                 </div>
               ) : !showQuotes && skinAnalysisResult ? (
@@ -458,9 +466,7 @@ export default function CosmeticRecommendationPage() {
                 <span className="text-[9px] uppercase tracking-[0.38em] text-pink-200/45">
                   Skin focus
                 </span>
-                <span className="text-[10px] text-white/25">
-                  Tap a concern
-                </span>
+                <span className="text-[10px] text-white/25">Tap a concern</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {COSMETIC_QUICK_CHATS.map((item) => {
@@ -517,7 +523,6 @@ export default function CosmeticRecommendationPage() {
           />
         </div>
       </div>
-
     </div>
   );
 }

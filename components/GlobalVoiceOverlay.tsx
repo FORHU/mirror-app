@@ -49,18 +49,16 @@ function VoiceUI() {
             initial={{ opacity: 0, x: 20, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.95 }}
-            className={`fixed right-5 z-9999 pointer-events-auto ${
-              isCosmeticsPage
-                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
-                : "bottom-[160px] w-80"
-            }`}
+            className={`fixed right-5 z-9999 pointer-events-auto ${isCosmeticsPage
+              ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+              : "bottom-[160px] w-80"
+              }`}
           >
             <div
-              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
-                isCosmeticsPage
-                  ? "gap-2 p-3 max-h-[34vh]"
-                  : "gap-3 p-4 max-h-[60vh]"
-              }`}
+              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${isCosmeticsPage
+                ? "gap-2 p-3 max-h-[34vh]"
+                : "gap-3 p-4 max-h-[60vh]"
+                }`}
               style={{
                 background: "rgba(10,10,18,0.92)",
                 backdropFilter: "blur(20px)",
@@ -73,11 +71,10 @@ function VoiceUI() {
                     {item.user}
                   </p>
                   <p
-                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
-                      isCosmeticsPage
-                        ? "text-xs leading-relaxed p-2"
-                        : "text-sm leading-snug p-2.5"
-                    }`}
+                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${isCosmeticsPage
+                      ? "text-xs leading-relaxed p-2"
+                      : "text-sm leading-snug p-2.5"
+                      }`}
                   >
                     {item.assistant}
                   </p>
@@ -96,16 +93,14 @@ function VoiceUI() {
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className={`fixed z-9999 right-5 ${
-              isCosmeticsPage
-                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
-                : "bottom-[160px] w-72"
-            }`}
+            className={`fixed z-9999 right-5 ${isCosmeticsPage
+              ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+              : "bottom-[160px] w-72"
+              }`}
           >
             <div
-              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${
-                isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
-              }`}
+              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
+                }`}
               style={{
                 background: "rgba(10,10,18,0.88)",
                 backdropFilter: "blur(16px)",
@@ -124,11 +119,10 @@ function VoiceUI() {
                   )}
                   {reply && (
                     <p
-                      className={`text-white whitespace-pre-line ${
-                        isCosmeticsPage
-                          ? "text-xs leading-relaxed"
-                          : "text-sm leading-snug"
-                      }`}
+                      className={`text-white whitespace-pre-line ${isCosmeticsPage
+                        ? "text-xs leading-relaxed"
+                        : "text-sm leading-snug"
+                        }`}
                     >
                       <span className="font-semibold text-[#4fc3f7]">AI:</span>{" "}
                       {reply}
@@ -170,51 +164,50 @@ function VoiceUI() {
           listening (ring gives feedback), morphs into a flowing waveform pill
           while processing/speaking. Centered via the wrapper so framer-motion's
           scale/width animations don't fight a translate transform. */}
-      {/* bottom-28 on /ai-assistant clears AssistantNavBar; bottom-6 everywhere else */}
-      <div className={`fixed z-9999 ${pathname === "/ai-assistant" ? "bottom-28" : "bottom-6"} inset-x-0 flex justify-center pointer-events-none`}>
-      <motion.button
-        onClick={toggle}
-        className="flex items-center justify-center shadow-2xl pointer-events-auto"
-        style={{
-          height: 64,
-          borderRadius: 9999,
-          background: isListening
-            ? "rgba(5,20,12,0.92)"
-            : isActive
-              ? "rgba(8,8,14,0.9)"
-              : "rgba(20,20,30,0.85)",
-          border: isListening
-            ? "2px solid rgba(34,197,94,0.7)"
-            : isActive
-              ? "2px solid rgba(120,180,255,0.45)"
-              : "2px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          boxShadow: isListening
-            ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
-            : isActive
-              ? "0 0 30px rgba(90,150,255,0.4)"
-              : "0 4px 24px rgba(0,0,0,0.5)",
-          overflow: "hidden",
-          padding: 0,
-        }}
-        whileTap={{ scale: 0.95 }}
-        animate={{
-          width: (isProcessing || isSpeaking) ? 224 : 64,
-        }}
-        transition={{ type: "spring", stiffness: 320, damping: 30 }}
-        aria-label="Voice assistant"
-      >
-        {(isProcessing || isSpeaking) ? (
-          <VoiceWaveform
-            active={isActive}
-            level={isProcessing ? 0.45 : 1}
-            width={208}
-            height={56}
-          />
-        ) : (
-          micIcon
-        )}
-      </motion.button>
+      <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
+        <motion.button
+          onClick={toggle}
+          className="flex items-center justify-center shadow-2xl pointer-events-auto"
+          style={{
+            height: 64,
+            borderRadius: 9999,
+            background: isListening
+              ? "rgba(5,20,12,0.92)"
+              : isActive
+                ? "rgba(8,8,14,0.9)"
+                : "rgba(20,20,30,0.85)",
+            border: isListening
+              ? "2px solid rgba(34,197,94,0.7)"
+              : isActive
+                ? "2px solid rgba(120,180,255,0.45)"
+                : "2px solid rgba(255,255,255,0.15)",
+            backdropFilter: "blur(12px)",
+            boxShadow: isListening
+              ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
+              : isActive
+                ? "0 0 30px rgba(90,150,255,0.4)"
+                : "0 4px 24px rgba(0,0,0,0.5)",
+            overflow: "hidden",
+            padding: 0,
+          }}
+          whileTap={{ scale: 0.95 }}
+          animate={{
+            width: isProcessing || isSpeaking ? 224 : 64,
+          }}
+          transition={{ type: "spring", stiffness: 320, damping: 30 }}
+          aria-label="Voice assistant"
+        >
+          {isProcessing || isSpeaking ? (
+            <VoiceWaveform
+              active={isActive}
+              level={isProcessing ? 0.45 : 1}
+              width={208}
+              height={56}
+            />
+          ) : (
+            micIcon
+          )}
+        </motion.button>
       </div>
     </>
   );

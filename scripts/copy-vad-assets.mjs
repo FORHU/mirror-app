@@ -26,9 +26,13 @@ copy(path.join(vadDistDir, "vad.worklet.bundle.min.js"));
 copy(path.join(vadDistDir, "silero_vad_v5.onnx"));
 copy(path.join(vadDistDir, "silero_vad_legacy.onnx"));
 
-for (const f of fs.readdirSync(ortDistDir).filter(
-  (f) => f.startsWith("ort-wasm-simd-threaded") && (f.endsWith(".wasm") || f.endsWith(".mjs")),
-)) {
+for (const f of fs
+  .readdirSync(ortDistDir)
+  .filter(
+    (f) =>
+      f.startsWith("ort-wasm-simd-threaded") &&
+      (f.endsWith(".wasm") || f.endsWith(".mjs")),
+  )) {
   copy(path.join(ortDistDir, f));
 }
 
