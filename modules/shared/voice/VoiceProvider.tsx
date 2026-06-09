@@ -806,11 +806,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           const stylistTarget =
-            isCosmetics ||
+            aiResponse.stylist_data?.target_url ??
+            (isCosmetics ||
             Boolean(aiResponse.cosmetics_data) ||
             isCosmeticHandoffPrompt(aiResponse.message)
               ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : aiResponse.stylist_data?.target_url;
+              : undefined);
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -2502,11 +2503,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           let chatAction: ChatWonderAction | null = null;
           const resolvedTarget =
-            _isCosmetics ||
+            res.stylist_data?.target_url ??
+            (_isCosmetics ||
             Boolean(res.cosmetics_data) ||
             isCosmeticHandoffPrompt(res.message)
               ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : res.stylist_data?.target_url;
+              : undefined);
 
           if (resolvedTarget) {
             if (res.garment_data) {

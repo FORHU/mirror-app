@@ -42,6 +42,7 @@ export interface ChatWonderCompletePayload {
   maps_data?: unknown | null;
   nav?: unknown | null;
   nav_data?: unknown | null;
+  gender_update?: { gender?: string } | null;
   events?: unknown[];
   sets?: unknown[];
   raw?: string;

@@ -16,6 +16,8 @@ import {
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
 import type { ChatWonderGarmentData } from "@/modules/shared/api/chat-wonder.service";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { authService } from "@/modules/shared/api/auth.service";
 
 export const ChatWonderContext =
   createContext<UseChatWonderStreamResult | null>(null);
@@ -70,6 +72,15 @@ export function ChatWonderProvider({
             useMirrorStore
               .getState()
               .setChatCosmeticsData(payload.cosmetics_data);
+          }
+          if (payload.gender_update?.gender) {
+            const g = payload.gender_update.gender.toUpperCase();
+            if (g === "MALE" || g === "FEMALE") {
+              useAuthStore.getState().updateUser({ gender: g as "MALE" | "FEMALE" });
+              void authService.updateProfile({ gender: g as "MALE" | "FEMALE" }).catch((e) => {
+                console.warn("[ChatWonderProvider] gender_update persist failed:", e);
+              });
+            }
           }
           useMirrorStore.getState().setChatNavPending(false);
           options?.onComplete?.(payload);
