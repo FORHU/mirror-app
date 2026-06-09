@@ -2684,6 +2684,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
       let accumulated = "";
       let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+      let speakingLimitTimer: ReturnType<typeof setTimeout> | null = null;
       // Use a longer window only when the transcript already contains a spoken
       // multi-stop connector — otherwise keep the faster 1 000 ms default so
       // single-destination commands are not penalised.
@@ -2698,9 +2699,24 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      recognition.onstart = () => setVoiceState("recording");
+      const clearSpeakingLimitTimer = () => {
+        if (speakingLimitTimer) {
+          clearTimeout(speakingLimitTimer);
+          speakingLimitTimer = null;
+        }
+      };
+
+      recognition.onstart = () => {
+        setVoiceState("recording");
+        // Hard 10-second limit — stop and process whatever was captured.
+        speakingLimitTimer = setTimeout(() => {
+          speakingLimitTimer = null;
+          recognition.stop();
+        }, 10000);
+      };
       recognition.onerror = (event: { error: string }) => {
         clearSilenceTimer();
+        clearSpeakingLimitTimer();
         if (event.error !== "no-speech" && event.error !== "aborted")
           setError("Speech recognition error: " + event.error);
         if (event.error !== "no-speech" && event.error !== "aborted")
@@ -2735,6 +2751,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       };
       recognition.onend = async () => {
         clearSilenceTimer();
+        clearSpeakingLimitTimer();
         const text = accumulated.trim();
         if (text) {
           setVoiceState("processing");

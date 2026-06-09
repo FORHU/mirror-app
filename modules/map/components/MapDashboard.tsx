@@ -9,13 +9,13 @@ const MapViewport = dynamic(() => import("./MapViewport"), { ssr: false });
 import SuggestedPOIMarkers from "./SuggestedPOIMarkers";
 import POICurationStack from "./POICurationStack";
 import RoutePreviewCard from "./RoutePreviewCard";
-import WeatherWidget from "./WeatherWidget";
 import ItineraryPOIPanel from "./ItineraryPOIPanel";
 
 export default function MapDashboard() {
   const {
     setUserLocation,
     saveHomeLocation,
+    homeLocation,
     suggestedPOIs,
     suggestionLabel,
     setDestination,
@@ -27,10 +27,6 @@ export default function MapDashboard() {
 
   const hasSavedHomeRef = useRef(false);
 
-  // WeatherWidget location: destination when route active, mirror location otherwise
-  const selectedDest = useMapStore((s) => s.selectedDestination);
-  const homeLocation = useMapStore((s) => s.homeLocation);
-  const weatherLocation = selectedDest ?? homeLocation;
 
   // Geolocation watch — auto-saves first fix as homeLocation
   useEffect(() => {
@@ -58,11 +54,6 @@ export default function MapDashboard() {
       {/* Map — full screen */}
       <div className="absolute inset-0">
         <MapViewport />
-      </div>
-
-      {/* Top-left: weather */}
-      <div className="absolute top-6 left-6 z-40 pointer-events-none">
-        <WeatherWidget location={weatherLocation} />
       </div>
 
       <RoutePreviewCard />

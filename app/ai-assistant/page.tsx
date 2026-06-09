@@ -152,6 +152,15 @@ export default function AIAssistantPage() {
     startListeningRef.current = startListening;
   }, [submitText, startListening]);
 
+  // Re-arm the mic after every idle turn so the mirror stays always-listening
+  // while the user is present. Skipped when showIdle (user walked away).
+  // Uses the stable ref so the effect doesn't re-fire on every startListening re-render.
+  useEffect(() => {
+    if (showIdle || voiceState !== "idle") return;
+    const id = setTimeout(() => void startListeningRef.current(), 400);
+    return () => clearTimeout(id);
+  }, [voiceState, showIdle]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, transcript, reply, error]);
@@ -380,36 +389,95 @@ export default function AIAssistantPage() {
 
             {/* ambient state indicator — centered in bottom half */}
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <motion.button
-                type="button"
-                onClick={handleMicTap}
-                aria-label="Toggle voice input"
-                className="rounded-full outline-none"
-                style={{
-                  width: 56,
-                  height: 56,
-                  background: isListening
-                    ? "rgba(255,255,255,0.10)"
-                    : isSpeaking
-                      ? "rgba(255,255,255,0.07)"
-                      : "rgba(255,255,255,0.04)",
-                  border: isListening
-                    ? "1px solid rgba(255,255,255,0.40)"
-                    : isSpeaking
-                      ? "1px solid rgba(255,255,255,0.25)"
-                      : "1px solid rgba(255,255,255,0.10)",
-                }}
-                animate={
-                  isListening
-                    ? { scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }
-                    : isProcessing
-                      ? { opacity: [0.4, 0.9, 0.4] }
+              <div className="relative flex items-center justify-center">
+                <motion.button
+                  type="button"
+                  onClick={handleMicTap}
+                  aria-label="Toggle voice input"
+                  className="rounded-full outline-none"
+                  style={{
+                    width: 56,
+                    height: 56,
+                    background: isListening
+                      ? "rgba(255,255,255,0.10)"
                       : isSpeaking
-                        ? { scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }
-                        : { scale: 1, opacity: 0.4 }
-                }
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
+                        ? "rgba(255,255,255,0.07)"
+                        : "rgba(255,255,255,0.04)",
+                    border: isListening
+                      ? "1px solid rgba(255,255,255,0.40)"
+                      : isSpeaking
+                        ? "1px solid rgba(255,255,255,0.25)"
+                        : "1px solid rgba(255,255,255,0.10)",
+                  }}
+                  animate={
+                    isListening
+                      ? { scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }
+                      : isProcessing
+                        ? { opacity: [0.4, 0.9, 0.4] }
+                        : isSpeaking
+                          ? { scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }
+                          : { scale: 1, opacity: 0.4 }
+                  }
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                {/* Depleting countdown ring — vanishes over 10 seconds while listening */}
+                <AnimatePresence>
+                  {isListening && (
+                    <motion.svg
+                      key="ai-countdown-ring"
+                      className="absolute pointer-events-none"
+                      width="88"
+                      height="88"
+                      viewBox="0 0 88 88"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <defs>
+                        <filter id="ring-glow" x="-30%" y="-30%" width="160%" height="160%">
+                          <feGaussianBlur stdDeviation="3" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      {/* Glow layer */}
+                      <motion.circle
+                        cx="44"
+                        cy="44"
+                        r="38"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.3)"
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 38}
+                        transform="rotate(-90 44 44)"
+                        filter="url(#ring-glow)"
+                        initial={{ strokeDashoffset: 0 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
+                        transition={{ duration: 10, ease: "linear" }}
+                      />
+                      {/* Crisp core */}
+                      <motion.circle
+                        cx="44"
+                        cy="44"
+                        r="38"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.9)"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 38}
+                        transform="rotate(-90 44 44)"
+                        initial={{ strokeDashoffset: 0 }}
+                        animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
+                        transition={{ duration: 10, ease: "linear" }}
+                      />
+                    </motion.svg>
+                  )}
+                </AnimatePresence>
+              </div>
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>

@@ -179,8 +179,71 @@ function VoiceUI() {
         </motion.button>
       )}
 
-      {/* Floating voice control — morphs into a flowing waveform while talking
-          to the AI, and is a round mic button when idle. */}
+      {/* Countdown ring — depletes over 10 s while listening, then vanishes */}
+      <AnimatePresence>
+        {isListening && (
+          <motion.svg
+            key="countdown-ring"
+            className="fixed pointer-events-none"
+            style={{
+              zIndex: 10000,
+              bottom: "calc(1.5rem - 12px)",
+              right: "calc(1.25rem - 12px)",
+              width: 88,
+              height: 88,
+            }}
+            viewBox="0 0 88 88"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <defs>
+              <filter id="global-ring-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {/* Glow layer */}
+            <motion.circle
+              cx="44"
+              cy="44"
+              r="38"
+              fill="none"
+              stroke="rgba(34,197,94,0.4)"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 38}
+              transform="rotate(-90 44 44)"
+              filter="url(#global-ring-glow)"
+              initial={{ strokeDashoffset: 0 }}
+              animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
+              transition={{ duration: 10, ease: "linear" }}
+            />
+            {/* Crisp core */}
+            <motion.circle
+              cx="44"
+              cy="44"
+              r="38"
+              fill="none"
+              stroke="rgba(34,197,94,0.95)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 38}
+              transform="rotate(-90 44 44)"
+              initial={{ strokeDashoffset: 0 }}
+              animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
+              transition={{ duration: 10, ease: "linear" }}
+            />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+
+      {/* Floating voice control — compact circle while listening (ring gives feedback),
+          morphs into a flowing waveform pill while processing/speaking. */}
       <motion.button
         onClick={toggle}
         className="fixed z-9999 flex items-center justify-center shadow-2xl bottom-6 right-5"
@@ -208,17 +271,17 @@ function VoiceUI() {
         }}
         whileTap={{ scale: 0.95 }}
         animate={{
-          width: isActive ? 224 : 64,
+          width: (isProcessing || isSpeaking) ? 224 : 64,
         }}
         transition={{ type: "spring", stiffness: 320, damping: 30 }}
         aria-label="Voice assistant"
       >
-        {isActive ? (
+        {(isProcessing || isSpeaking) ? (
           <VoiceWaveform
             active={isActive}
-            level={isActive ? (isProcessing ? 0.45 : 1) : 0.24}
-            width={isActive ? 208 : 88}
-            height={isActive ? 56 : 64}
+            level={isProcessing ? 0.45 : 1}
+            width={208}
+            height={56}
           />
         ) : (
           micIcon

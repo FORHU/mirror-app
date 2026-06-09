@@ -52,8 +52,35 @@ export default function MapMicPill() {
         ? "Speaking…"
         : "Ask Mirror";
 
+  const RING_R = 14;
+  const RING_CIRCUMFERENCE = 2 * Math.PI * RING_R;
+
   const micIcon = isListening ? (
-    <Mic className="w-5 h-5 text-emerald-400" />
+    <div className="relative flex items-center justify-center">
+      <Mic className="w-5 h-5 text-emerald-400 relative z-10" />
+      {/* Depleting countdown ring — vanishes over 10 seconds */}
+      <svg
+        className="absolute pointer-events-none"
+        width="36"
+        height="36"
+        viewBox="0 0 36 36"
+        style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%) rotate(-90deg)" }}
+      >
+        <motion.circle
+          cx="18"
+          cy="18"
+          r={RING_R}
+          fill="none"
+          stroke="rgba(34,197,94,0.75)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          initial={{ strokeDashoffset: 0 }}
+          animate={{ strokeDashoffset: RING_CIRCUMFERENCE }}
+          transition={{ duration: 10, ease: "linear" }}
+        />
+      </svg>
+    </div>
   ) : isProcessing ? (
     <Loader2 className="w-5 h-5 text-white/60 animate-spin" />
   ) : isSpeaking ? (
