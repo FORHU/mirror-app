@@ -447,7 +447,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       } else {
         setVoiceState("idle");
       }
-    }, 10000);
+    }, 15000);
   }, [clearItineraryIdleTimer]);
 
   // ----------------------
@@ -1644,6 +1644,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             isNavigationPhrase(t) ||
             isCollectingItineraryRef.current
           ) {
+            // Cancel any pending idle-timeout immediately — geocoding is async and
+            // the timer could otherwise fire mid-flight, falsely ending the session.
+            clearItineraryIdleTimer();
+
             // ── Show-POIs intercept ─────────────────────────────────────────────
             // "show me the recommended places from SM City Baguio" while collecting
             // stops → read out the POIs for that stop, then re-ask for more stops.
@@ -1728,10 +1732,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     src.onended = () => {
                       stopPlayback();
                       setVoiceState("idle");
+                      startItineraryIdleTimer();
                     };
                     src.start(0);
                   } else {
                     setVoiceState("idle");
+                    startItineraryIdleTimer();
                   }
                   return;
                 }
