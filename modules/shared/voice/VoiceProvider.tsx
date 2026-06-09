@@ -266,7 +266,7 @@ function extractFashionGarmentSelection(
 }
 
 function isCosmeticHandoffPrompt(text: string): boolean {
-  return /\b(cosmetic|cosmetics|makeup|make-up|skincare|skin care|moisturi[sz]er|cleanser|toner|serum|sunscreen|spf|foundation|concealer|lipstick|blush|face wash|beauty product)\b/i.test(
+  return /(cosmetic|makeup|make-up|skincare|skin care|foundation|moisturi|lipstick|sunscreen|serum|cleanser|toner|blush|concealer|spf|lotion|facial|eyeshadow|eye shadow|eyeliner|eye liner|lip gloss|lipgloss|lip balm|retinol|hyaluronic|niacinamide|exfoliat|acne|primer|essence|bb cream|cc cream|eye cream|face wash|face mask|face cream|sheet mask|clay mask|cream|mask|face oil|facial oil|skin oil|hair oil|body oil)\b/i.test(
     text,
   );
 }
@@ -823,7 +823,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          const stylistTarget = aiResponse.stylist_data?.target_url;
+          // Fall back to data-type-implied route if the server omitted target_url.
+          const stylistTarget =
+            aiResponse.stylist_data?.target_url ??
+            (aiResponse.garment_data ? ROUTES.AI_RECOMMENDATION_FASHION : undefined) ??
+            (aiResponse.cosmetics_data ? ROUTES.AI_RECOMMENDATION_COSMETIC : undefined);
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
