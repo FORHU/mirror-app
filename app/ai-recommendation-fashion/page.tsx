@@ -1337,7 +1337,8 @@ export default function VirtualMirrorV2() {
       )}
 
       {/* Quick Response Chips — fixed to center column footprint, above Create Outfit button */}
-      <div className="fixed bottom-[90px] left-[25%] right-[25%] z-30 pointer-events-none">
+      {/* bottom-48 (192px) = mic top (176px) + 16px gap. Create Outfit is at bottom:28px so no clash. */}
+      <div className="fixed bottom-48 left-[25%] right-[25%] z-30 pointer-events-none">
         <div className="pointer-events-auto">
           <QuickResponseChips
             prompts={[

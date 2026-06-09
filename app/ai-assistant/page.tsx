@@ -446,9 +446,8 @@ export default function AIAssistantPage() {
               </AnimatePresence>
             </div>
 
-            {/* ambient state indicator — the mic control itself is the shared
-                center-bottom GlobalVoiceOverlay button; here we only echo state. */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-24">
+            {/* ambient state indicator — NOT flex-1 so chips below have room */}
+            <div className="shrink-0 flex flex-col items-center justify-center gap-3 py-4">
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>
@@ -459,12 +458,11 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* Bottom nav — flanks the shared center-bottom mic:
-                Fashion · Cosmetics · [mic] · Map · Overview */}
-            <AssistantNavBar />
-
-            {/* Quick Response Chips */}
+            {/* Chips sit in flow, above the fixed nav bar.
+                AssistantNavBar = h-20 (80px) + bottom-4 (16px) = 96px from viewport bottom.
+                mb-28 (112px) guarantees chips end above the nav on any screen height. */}
             <QuickResponseChips
+              className="shrink-0 mb-48"
               prompts={[
                 `What should I wear today? It's ${getToday()} and I want to look put-together.`,
                 `I have a special event this ${nextWeekday(5)} — suggest a complete outfit for me.`,
@@ -474,14 +472,15 @@ export default function AIAssistantPage() {
               ]}
             />
 
-            {/* reserves room so the chips clear the fixed bottom nav bar */}
-            <div ref={bottomRef} className="h-24 shrink-0" />
+            {/* Bottom nav — flanks the shared center-bottom mic */}
+            <AssistantNavBar />
+            <div ref={bottomRef} />
           </motion.main>
         )}
       </AnimatePresence>
 
-      {/* Camera Debug Overlay */}
-      <div className="fixed top-4 right-4 z-999 flex flex-col items-end gap-2 pointer-events-none">
+      {/* Camera Debug Overlay — left side so it doesn't clash with LanguageSelector */}
+      <div className="fixed top-24 left-4 z-999 flex flex-col items-start gap-2 pointer-events-none">
         <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
           <span className="text-white/60 text-[10px] uppercase tracking-wider font-medium">
             Camera Debug

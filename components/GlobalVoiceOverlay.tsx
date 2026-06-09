@@ -170,7 +170,8 @@ function VoiceUI() {
           listening (ring gives feedback), morphs into a flowing waveform pill
           while processing/speaking. Centered via the wrapper so framer-motion's
           scale/width animations don't fight a translate transform. */}
-      <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
+      {/* bottom-28 on /ai-assistant clears AssistantNavBar; bottom-6 everywhere else */}
+      <div className={`fixed z-9999 ${pathname === "/ai-assistant" ? "bottom-28" : "bottom-6"} inset-x-0 flex justify-center pointer-events-none`}>
       <motion.button
         onClick={toggle}
         className="flex items-center justify-center shadow-2xl pointer-events-auto"
