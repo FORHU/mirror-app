@@ -1,11 +1,12 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Mic, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { usePathname } from "next/navigation";
 import VoiceWaveform from "@/components/VoiceWaveform";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 // (GlobalVoiceOverlay previously used ALWAYS_ON_PATHS here, but the mic is now always-on everywhere except /ai-assistant)
 
@@ -19,7 +20,8 @@ function VoiceUI() {
   const { voiceState, transcript, reply, error, toggle, chatHistory, startListening } =
     useVoiceContext();
   const pathname = usePathname();
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const isChatOpen = useMirrorStore((s) => s.isChatOpen);
+  const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
   const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
   const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
 
@@ -155,7 +157,7 @@ function VoiceUI() {
       {/* Toggle Chat History */}
       {chatHistory.length > 0 && (
         <motion.button
-          onClick={() => setIsChatOpen((o) => !o)}
+          onClick={() => setIsChatOpen(!isChatOpen)}
           className="fixed z-9999 flex items-center justify-center rounded-full shadow-lg transition-all"
           style={{
             bottom: "100px",

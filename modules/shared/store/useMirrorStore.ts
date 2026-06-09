@@ -29,6 +29,10 @@ interface MirrorState {
   isPresent: boolean;
   sensorStatus: TrackerStatus;
   setPresence: (isPresent: boolean, sensorStatus: TrackerStatus) => void;
+  /** Whether the GlobalVoiceOverlay chat panel is open. Lifted here so
+   *  OutfitPreviewModal can open it programmatically to ask for gender. */
+  isChatOpen: boolean;
+  setIsChatOpen: (open: boolean) => void;
   /** Chat-path early navigation state (set on nav_early, cleared on complete) */
   chatNavPending: boolean;
   setChatNavPending: (pending: boolean) => void;
@@ -64,6 +68,8 @@ export const useMirrorStore = create<MirrorState>()(
       sensorStatus: "starting",
       setPresence: (isPresent, sensorStatus) =>
         set({ isPresent, sensorStatus }),
+      isChatOpen: false,
+      setIsChatOpen: (open) => set({ isChatOpen: open }),
       chatNavPending: false,
       setChatNavPending: (pending) => set({ chatNavPending: pending }),
       chatStreamingText: "",

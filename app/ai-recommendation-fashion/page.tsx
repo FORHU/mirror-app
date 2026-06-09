@@ -14,6 +14,7 @@ import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { GarmentGrid } from "@/modules/fashion/components/GarmentGrid";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
+import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
   const startX = useRef<number | null>(null);
@@ -121,6 +122,8 @@ export default function VirtualMirrorV2() {
     null,
   );
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
+
+  const canvasRef = useRef<OutfitPreviewCanvasHandle>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -1327,6 +1330,7 @@ export default function VirtualMirrorV2() {
           selectedBottom={selectedBottom}
           selectedShoe={selectedShoe}
           selectedBag={selectedBag}
+          canvasRef={canvasRef}
           onClose={() => setShowConfirm(false)}
         />
       )}
