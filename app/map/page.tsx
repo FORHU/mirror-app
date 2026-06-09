@@ -8,11 +8,7 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
+import { QuickResponseChips, nextWeekday } from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {
@@ -35,7 +31,7 @@ async function consumePendingLocation() {
       isSearching: false,
       searchResults: [],
     });
-  } catch {}
+  } catch { }
 }
 
 async function consumePendingDirections() {
@@ -51,7 +47,7 @@ async function consumePendingDirections() {
     if (!results.length) return;
 
     await useMapStore.getState().setDestination(results[0]);
-  } catch {}
+  } catch { }
 }
 
 export default function MapPage() {
@@ -61,7 +57,7 @@ export default function MapPage() {
     loadHomeLocation,
     loadOutlineStops,
   } = useMapStore();
-  const onAction = useCallback(() => {}, []);
+  const onAction = useCallback(() => { }, []);
 
   useVoice(
     {
@@ -122,16 +118,17 @@ export default function MapPage() {
 
       <MapDashboard />
 
-      {/* Quick Response Chips — absolute so map-library transforms can't trap it */}
-      <div className="absolute bottom-16 left-0 right-0 z-30 pointer-events-none">
+      {/* Quick Response Chips — absolute so map-library GPU transforms can't trap it.
+          bottom-28 (112px) clears the fixed mic (bottom-6 + 64px tall = top at 88px). */}
+      <div className="absolute bottom-28 left-0 right-0 z-30 pointer-events-none">
         <div className="pointer-events-auto">
           <QuickResponseChips
             prompts={[
-              `Find restaurants, cafes, and interesting spots near me that are open today, ${getToday()}.`,
-              `I have a meeting at the mall at 10am and lunch in the next city at noon on ${nextWeekday(1)} — plan my full route.`,
+              "Show me restaurants and cafes near me.",
+              `I have a meeting at SM City at 10am and lunch at La Trinidad at noon on ${nextWeekday(1)} — plan my full route.`,
               "Show me the fastest route from my current location to the nearest mall.",
-              "I need to make multiple stops today — find a pharmacy, a cafe, and a grocery store near me.",
-              "What's the estimated travel time to get to SM City from my current location right now?",
+              "Show me a pharmacy near me.",
+              "Take me to SM City.",
             ]}
           />
         </div>

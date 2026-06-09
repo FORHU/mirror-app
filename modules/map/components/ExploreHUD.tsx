@@ -1,14 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useMapStore } from "../store/useMapStore";
 import { INITIAL_VIEW_STATE } from "../constants/config";
 import {
   Navigation,
   LocateFixed,
   X,
-  Home,
-  Check,
   MapPin,
   PersonStanding,
   Car,
@@ -36,24 +34,7 @@ export const ExploreHUD = () => {
     map,
     origin,
     setUserLocation,
-    patchHomeLocation,
   } = useMapStore();
-
-  const [savingHome, setSavingHome] = useState(false);
-  const [homeSaved, setHomeSaved] = useState(false);
-
-  const handleSetHomeHere = async () => {
-    const target = userLocation || origin;
-    if (!target || savingHome) return;
-    setSavingHome(true);
-    try {
-      await patchHomeLocation(target);
-      setHomeSaved(true);
-      setTimeout(() => setHomeSaved(false), 2000);
-    } finally {
-      setSavingHome(false);
-    }
-  };
 
   const handleRecenter = () => {
     const target = userLocation || origin;
@@ -90,17 +71,6 @@ export const ExploreHUD = () => {
         <IconButton
           onClick={handleRecenter}
           icon={<LocateFixed className="w-5 h-5 text-white/80" />}
-        />
-        <IconButton
-          onClick={handleSetHomeHere}
-          disabled={savingHome}
-          icon={
-            homeSaved ? (
-              <Check className="w-5 h-5 text-green-400" />
-            ) : (
-              <Home className="w-5 h-5 text-white/80" />
-            )
-          }
         />
       </motion.div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   outfitService,
@@ -11,6 +11,9 @@ interface OutfitImageCarouselProps {
   /** Auto-advance interval in ms. */
   intervalMs?: number;
 }
+
+/** How many outfits per fetched batch (one batch = one stepper run). */
+const BATCH = 10;
 
 /** Fisher-Yates shuffle — returns a new randomly-ordered array. */
 function shuffle<T>(arr: T[]): T[] {
@@ -33,39 +36,75 @@ export function OutfitImageCarousel({
 }: OutfitImageCarouselProps) {
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [idx, setIdx] = useState(0);
+  const pageRef = useRef(1);
+  const nextBatchRef = useRef<RemoteOutfit[] | null>(null);
+  const fetchingRef = useRef(false);
 
-  // Fetch once on mount; keep only outfits with an image, in random order.
+  // Fetch one page of outfits with images, in random order.
+  const fetchBatch = useCallback(
+    async (page: number): Promise<RemoteOutfit[]> => {
+      const data = await outfitService
+        .getAll(page, BATCH)
+        .catch(() => [] as RemoteOutfit[]);
+      return shuffle(data.filter((o) => o.file?.fileUrl));
+    },
+    [],
+  );
+
+  // Initial batch.
   useEffect(() => {
     let cancelled = false;
-    outfitService
-      .getAll()
-      .then((data) => {
-        if (cancelled) return;
-        setOutfits(shuffle(data.filter((o) => o.file?.fileUrl)));
-      })
-      .catch(() => {
-        /* show-off is best-effort — silently skip if it fails */
-      });
+    fetchBatch(1).then((b) => {
+      if (cancelled) return;
+      pageRef.current = 1;
+      setOutfits(b);
+    });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchBatch]);
 
-  // Auto-advance through the random order without repeating. When a full pass
-  // completes, reshuffle for a fresh random order (avoiding an immediate repeat
-  // of the last image), so nothing is reused within a viewing pass.
+  // As the stepper nears the end of the current batch, prefetch the NEXT batch
+  // from the backend so the reel keeps pulling fresh outfits. Wraps back to
+  // page 1 when a page returns empty (past the end of the catalog).
+  useEffect(() => {
+    if (outfits.length <= 1 || idx < outfits.length - 1) return;
+    if (fetchingRef.current || nextBatchRef.current) return;
+    fetchingRef.current = true;
+    (async () => {
+      const nextPage = pageRef.current + 1;
+      let batch = await fetchBatch(nextPage);
+      let page = nextPage;
+      if (batch.length === 0) {
+        batch = await fetchBatch(1);
+        page = 1;
+      }
+      pageRef.current = page;
+      nextBatchRef.current = batch.length ? batch : null;
+      fetchingRef.current = false;
+    })();
+  }, [idx, outfits.length, fetchBatch]);
+
+  // Auto-advance. When the batch finishes, swap to the prefetched next batch
+  // (fresh outfits from the backend); fall back to reshuffling if it isn't ready.
   useEffect(() => {
     if (outfits.length <= 1) return;
     const id = setInterval(() => {
       setIdx((i) => {
         if (i + 1 < outfits.length) return i + 1;
-        setOutfits((q) => {
-          const next = shuffle(q);
-          if (q.length > 1 && next[0].id === q[i].id) {
-            [next[0], next[1]] = [next[1], next[0]];
-          }
-          return next;
-        });
+        const next = nextBatchRef.current;
+        if (next && next.length) {
+          nextBatchRef.current = null;
+          setOutfits(next);
+        } else {
+          setOutfits((q) => {
+            const r = shuffle(q);
+            if (q.length > 1 && r[0].id === q[i].id) {
+              [r[0], r[1]] = [r[1], r[0]];
+            }
+            return r;
+          });
+        }
         return 0;
       });
     }, intervalMs);

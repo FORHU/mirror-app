@@ -47,8 +47,7 @@ export default function AssistantNavBar() {
             "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
-        {/* left group */}
-        <div className="flex-1 flex items-center justify-between pr-2">
+        <div className="flex-1 flex items-center justify-around">
           <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
           <NavButton
             label="Cosmetics"
@@ -64,15 +63,6 @@ export default function AssistantNavBar() {
           <NavButton label="Map" route={ROUTES.MAP} />
           <NavButton label="Overview" route={ROUTES.OVERVIEW} />
         </div>
-
-        {/* status label under the mic */}
-        <span
-          className={`absolute left-1/2 -translate-x-1/2 bottom-2 text-[9px] font-semibold uppercase tracking-[0.32em] transition-colors ${
-            isListening ? "text-emerald-400" : "text-white/25"
-          }`}
-        >
-          {isListening ? "Listening…" : "Tap to talk"}
-        </span>
       </div>
     </div>
   );

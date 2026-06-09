@@ -279,7 +279,7 @@ function extractFashionGarmentSelection(
 }
 
 function isCosmeticHandoffPrompt(text: string): boolean {
-  return /\b(cosmetic|cosmetics|makeup|make-up|skincare|skin care|moisturi[sz]er|cleanser|toner|serum|sunscreen|spf|foundation|concealer|lipstick|blush|face wash|beauty product)\b/i.test(
+  return /(cosmetic|makeup|make-up|skincare|skin care|foundation|moisturi|lipstick|sunscreen|serum|cleanser|toner|blush|concealer|spf|lotion|facial|eyeshadow|eye shadow|eyeliner|eye liner|lip gloss|lipgloss|lip balm|retinol|hyaluronic|niacinamide|exfoliat|acne|primer|essence|bb cream|cc cream|eye cream|face wash|face mask|face cream|sheet mask|clay mask|cream|mask|face oil|facial oil|skin oil|hair oil|body oil)\b/i.test(
     text,
   );
 }
@@ -410,24 +410,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (stored) sessionIdRef.current = stored;
   }, []);
 
-  // Reset pending state on route change
-  useEffect(() => {
-    confirmationRef.current = createIdleConfirmation();
-    curatedPOIsRef.current = [];
-    itineraryStopsRef.current = [];
-    isCollectingItineraryRef.current = false;
-    if (!pathname.startsWith("/map")) mapSessionInitRef.current = false;
-
-    // Begin a fresh chat-wonder Voice session on arrival at the Attract screen.
-    // Auth, kiosk pairing, and gender are cleared by their own owners (see ADR 0001).
-    if (pathname === ROUTES.WELCOME) {
-      sessionIdRef.current = undefined;
-      sessionStorage.removeItem(CHAT_SESSION_KEY);
-      historyRef.current = [];
-      queueMicrotask(() => setChatHistory([]));
-    }
-  }, [pathname]);
-
   const clearItineraryIdleTimer = useCallback(() => {
     if (itineraryIdleTimerRef.current) {
       clearTimeout(itineraryIdleTimerRef.current);
@@ -471,6 +453,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current?.close();
     playbackCtxRef.current = null;
   }, []);
+
+  // Reset pending state on route change
+  useEffect(() => {
+    confirmationRef.current = createIdleConfirmation();
+    curatedPOIsRef.current = [];
+    itineraryStopsRef.current = [];
+    isCollectingItineraryRef.current = false;
+    if (!pathname.startsWith("/map")) mapSessionInitRef.current = false;
+
+    // On arrival at the Attract screen, kill any in-flight audio and start a
+    // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
+    if (pathname === ROUTES.WELCOME) {
+      stopPlayback();
+      vadRef.current?.pause();
+      setVoiceState("idle");
+      sessionIdRef.current = undefined;
+      sessionStorage.removeItem(CHAT_SESSION_KEY);
+      historyRef.current = [];
+      queueMicrotask(() => setChatHistory([]));
+    }
+  }, [pathname, stopPlayback]);
 
   const speakText = useCallback(
     async (text: string): Promise<void> => {
@@ -881,7 +884,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          const stylistTarget = aiResponse.stylist_data?.target_url;
+          // Fall back to data-type-implied route if the server omitted target_url.
+          const stylistTarget =
+            aiResponse.stylist_data?.target_url ??
+            (aiResponse.garment_data ? ROUTES.AI_RECOMMENDATION_FASHION : undefined) ??
+            (aiResponse.cosmetics_data ? ROUTES.AI_RECOMMENDATION_COSMETIC : undefined);
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -2033,7 +2040,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── End itinerary intercept ────────────────────────────────────────────
 
           const mapState = useMapStore.getState();
-          const mapLoc = mapState.userLocation ?? mapState.homeLocation;
+          let mapLoc = mapState.userLocation ?? mapState.homeLocation;
+          // GPS fallback — if the store has no location yet (home never configured or
+          // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
+          if (!mapLoc && typeof window !== "undefined" && "geolocation" in navigator) {
+            mapLoc = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                ({ coords }) => {
+                  const loc = { lat: coords.latitude, lng: coords.longitude };
+                  useMapStore.getState().setUserLocation(loc);
+                  resolve(loc);
+                },
+                () => resolve(null),
+                { timeout: 3000, maximumAge: 10000 },
+              );
+            });
+          }
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
@@ -2095,16 +2117,66 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── Nearby POI intercept ──────────────────────────────────────────────
           // Checked BEFORE session init — most voice queries ("recommend me a cafe")
           // are handled locally and never need ChatWonder.
+          //
+          // Two paths:
+          //   • "nearest/closest X" → route-to-nearest (5 km radius, setDestination)
+          //   • "find X near me"    → browse list (1.5 km radius, curated POI cards)
           const nearbyQuery = extractNearbyPOIQuery(t);
+          const isNearestRouteQuery =
+            nearbyQuery !== null && /\b(?:nearest|closest)\b/i.test(t);
           if (nearbyQuery && mapLoc) {
             try {
               const { pois } = await mapService.nearbyPOIs(
                 mapLoc.lat,
                 mapLoc.lng,
-                1500,
+                isNearestRouteQuery ? 5000 : 1500,
                 nearbyQuery,
               );
               if (pois.length > 0) {
+                if (isNearestRouteQuery) {
+                  // Route directly to the nearest result.
+                  const nearest = pois[0];
+                  useMapStore.getState().setDestination({
+                    name: nearest.name,
+                    lat: nearest.lat,
+                    lng: nearest.lng,
+                    address: nearest.address,
+                    placeId: nearest.placeId,
+                  });
+                  const routeReply = `Taking you to ${nearest.name}${nearest.address ? `, at ${nearest.address}` : ""}.`;
+                  const routeAudio = await mapService
+                    .tts(routeReply)
+                    .catch(() => null);
+                  setReply(routeReply);
+                  historyRef.current = [
+                    ...historyRef.current,
+                    { user: t, assistant: routeReply },
+                  ];
+                  setChatHistory(historyRef.current);
+                  setVoiceState("speaking");
+                  if (routeAudio) {
+                    const playCtx = new AudioContext();
+                    playbackCtxRef.current = playCtx;
+                    const decoded = await playCtx.decodeAudioData(
+                      routeAudio.slice(0),
+                    );
+                    const src = playCtx.createBufferSource();
+                    src.buffer = decoded;
+                    src.connect(playCtx.destination);
+                    playbackRef.current = src;
+                    src.onended = () => {
+                      stopPlayback();
+                      setVoiceState("idle");
+                      setReply("");
+                    };
+                    src.start(0);
+                  } else {
+                    setVoiceState("idle");
+                    setReply("");
+                  }
+                  return;
+                }
+                // Browse intent — list the curated POI cards as before.
                 const curated = curatePOIs(pois);
                 curatedPOIsRef.current = curated;
                 useMapStore.getState().setSuggestedPOIs(curated, nearbyQuery);
