@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "scripts/**",
+    // Minified / generated assets — not source code
+    "public/**",
   ]),
   {
     rules: {

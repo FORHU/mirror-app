@@ -30,7 +30,6 @@ import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const isChatOpen = useMirrorStore((s) => s.isChatOpen);
   const { isProcessing } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
@@ -88,21 +87,24 @@ export default function VirtualMirrorV2() {
     setSwapItemId(null);
   }
 
-  const clearSlots = () => {
+  const clearSlots = useCallback(() => {
     setSelectedBag(null);
     setSelectedTopBase(null);
     setSelectedTopMid(null);
     setSelectedTopOuter(null);
     setSelectedBottom(null);
     setSelectedShoe(null);
-  };
-  const selectOutfit = (idx: number) => {
-    setSelectedOutfitIdx(idx);
-    clearSlots();
-    setOutfitOverrides({});
-    setSwapSlot(null);
-    setSwapItemId(null);
-  };
+  }, []);
+  const selectOutfit = useCallback(
+    (idx: number) => {
+      setSelectedOutfitIdx(idx);
+      clearSlots();
+      setOutfitOverrides({});
+      setSwapSlot(null);
+      setSwapItemId(null);
+    },
+    [clearSlots],
+  );
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
