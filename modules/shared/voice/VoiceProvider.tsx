@@ -1301,9 +1301,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 disambigRoutes,
                 disambigAllStops.length,
               );
-              const hasPOIs = useMapStore
-                .getState()
-                .itineraryStopPOIs.some((s) => s.pois.length > 0);
+              const disambigStopPOIs = useMapStore.getState().itineraryStopPOIs;
+              const hasPOIs = disambigStopPOIs.some((s) => s.pois.length > 0);
+              if (hasPOIs) {
+                const lastGroup = [...disambigStopPOIs]
+                  .reverse()
+                  .find(({ pois }) => pois.length > 0);
+                if (lastGroup) {
+                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  useMapStore
+                    .getState()
+                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                }
+              }
               const disambigReply =
                 pending.length > 0
                   ? `Got it! Added ${allNew.length} stops: ${allNew.map((s) => s.name).join(", ")}.${disambigRouteSummary} Any more stops?`
@@ -1878,9 +1888,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     stopRoutes,
                     allStops.length,
                   );
-                  const hasPOIs = useMapStore
-                    .getState()
-                    .itineraryStopPOIs.some((s) => s.pois.length > 0);
+                  const stopPOIData = useMapStore.getState().itineraryStopPOIs;
+                  const hasPOIs = stopPOIData.some((s) => s.pois.length > 0);
+                  if (hasPOIs) {
+                    const lastGroup = [...stopPOIData]
+                      .reverse()
+                      .find(({ pois }) => pois.length > 0);
+                    if (lastGroup) {
+                      const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                      useMapStore
+                        .getState()
+                        .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                    }
+                  }
                   const stopReply = buildItineraryConfirmReply(
                     dest.name,
                     hasPOIs,
@@ -2114,9 +2134,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 placesRoutes,
                 placesAllStops.length,
               );
-              const placesHasPOIs = useMapStore
-                .getState()
-                .itineraryStopPOIs.some((s) => s.pois.length > 0);
+              const placesStopPOIs = useMapStore.getState().itineraryStopPOIs;
+              const placesHasPOIs = placesStopPOIs.some((s) => s.pois.length > 0);
+              if (placesHasPOIs) {
+                const lastGroup = [...placesStopPOIs]
+                  .reverse()
+                  .find(({ pois }) => pois.length > 0);
+                if (lastGroup) {
+                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  useMapStore
+                    .getState()
+                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                }
+              }
               itineraryConfirmReply = buildItineraryConfirmReply(
                 dest.name,
                 placesHasPOIs,
@@ -2237,9 +2267,19 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 resolvedRoutes,
                 resolvedStops.length,
               );
-              const resolvedHasPOIs = useMapStore
-                .getState()
-                .itineraryStopPOIs.some((s) => s.pois.length > 0);
+              const resolvedStopPOIs = useMapStore.getState().itineraryStopPOIs;
+              const resolvedHasPOIs = resolvedStopPOIs.some((s) => s.pois.length > 0);
+              if (resolvedHasPOIs) {
+                const lastGroup = [...resolvedStopPOIs]
+                  .reverse()
+                  .find(({ pois }) => pois.length > 0);
+                if (lastGroup) {
+                  const s = useMapStore.getState().itineraryStops[lastGroup.stopIndex];
+                  useMapStore
+                    .getState()
+                    .setSuggestedPOIs(lastGroup.pois.slice(0, 3), `Near ${s?.name ?? "stop"}`);
+                }
+              }
               itineraryConfirmReply = buildItineraryConfirmReply(
                 stops[0].name,
                 resolvedHasPOIs,

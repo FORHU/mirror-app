@@ -34,38 +34,7 @@ const EVENT_TYPE_TO_POI_CATEGORY: Record<string, string> = {
   party: "restaurant",
 };
 
-// Infer a nearby-POI category from a stop's resolved place name when no
-// explicit event type was provided. Covers common visitor destinations so that,
-// e.g., a church stop surfaces nearby restaurants and a school stop surfaces
-// cafes without the user needing to say "for lunch".
-function inferCategoryFromName(name: string): string | undefined {
-  const n = name.toLowerCase();
-  if (
-    /\b(church|chapel|cathedral|basilica|shrine|parish|convent|monastery|grotto)\b/.test(
-      n,
-    )
-  )
-    return "restaurant";
-  if (/\b(university|college|school|academy|institute|campus)\b/.test(n))
-    return "cafe";
-  if (/\b(hospital|clinic|medical center|health center)\b/.test(n))
-    return "pharmacy";
-  if (/\b(mall|supermarket|department store|grocery)\b/.test(n))
-    return "restaurant";
-  if (/\b(park|garden|plaza|square|grounds)\b/.test(n)) return "cafe";
-  if (/\b(market|public market|night market|tiangge|palengke)\b/.test(n))
-    return "restaurant";
-  if (/\b(museum|gallery|cultural center|heritage)\b/.test(n)) return "cafe";
-  if (/\b(hotel|resort|inn|lodge|hostel)\b/.test(n)) return "restaurant";
-  if (
-    /\b(farm|eco-park|ecopark|agritourism|viewpoint|view point|lookout|vista|overlook)\b/.test(
-      n,
-    )
-  )
-    return "cafe";
-  if (/\b(terminal|station|port|pier|airport)\b/.test(n)) return "restaurant";
-  return undefined;
-}
+
 
 // Shared helper — fetches routes + POIs for a set of stops from a given origin
 async function fetchRoutesAndPOIs(
@@ -101,14 +70,13 @@ async function fetchRoutesAndPOIs(
   const pois = await Promise.all(
     stops.map(async (stop, i) => {
       try {
-        const category =
-          (stop.eventType
-            ? EVENT_TYPE_TO_POI_CATEGORY[stop.eventType]
-            : undefined) ?? inferCategoryFromName(stop.name);
+        const category = stop.eventType
+          ? EVENT_TYPE_TO_POI_CATEGORY[stop.eventType]
+          : undefined;
         const { pois } = await mapService.nearbyPOIs(
           stop.lat,
           stop.lng,
-          600,
+          1500,
           category,
         );
         return { stopIndex: i, pois: pois.slice(0, 5) };
