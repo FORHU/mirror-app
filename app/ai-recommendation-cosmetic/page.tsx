@@ -122,6 +122,29 @@ const COSMETIC_QUOTES = [
   },
 ];
 
+const COSMETIC_QUICK_CHATS = [
+  {
+    label: "Oily skin",
+    prompt: "Show products for oily skin",
+    tone: "from-emerald-300/15 to-cyan-300/10",
+  },
+  {
+    label: "Dry skin",
+    prompt: "Show products for dry skin",
+    tone: "from-amber-200/15 to-pink-200/10",
+  },
+  {
+    label: "Acne-prone",
+    prompt: "Show products for acne-prone skin",
+    tone: "from-rose-300/15 to-red-300/10",
+  },
+  {
+    label: "Sensitive",
+    prompt: "Show products for sensitive skin",
+    tone: "from-violet-200/15 to-sky-200/10",
+  },
+] as const;
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
@@ -134,6 +157,7 @@ export default function CosmeticRecommendationPage() {
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
       : false,
   );
+  const [activeQuickChat, setActiveQuickChat] = useState<string | null>(null);
 
   const pageContext = useMemo(
     () => ({
@@ -211,6 +235,29 @@ export default function CosmeticRecommendationPage() {
   useVoice(pageContext, handleVoiceAction);
   const { submitText, isProcessing } = useVoiceContext();
 
+  const runQuickChat = useCallback(
+    async (prompt: string) => {
+      if (isProcessing || isHandoffLoading) return;
+
+      setActiveQuickChat(prompt);
+      setSelectedId(null);
+      setIsHandoffLoading(true);
+      const mirrorStore = useMirrorStore.getState();
+      mirrorStore.setPendingCosmeticsData(null);
+      mirrorStore.setChatCosmeticsData(null);
+      mirrorStore.clearAiSuggestion();
+
+      try {
+        await submitText(prompt);
+      } catch (err) {
+        console.error("[cosmetics-quick-chat]", err);
+      } finally {
+        setIsHandoffLoading(false);
+      }
+    },
+    [isHandoffLoading, isProcessing, submitText],
+  );
+
   useEffect(() => {
     if (handoffStartedRef.current) return;
 
@@ -232,6 +279,8 @@ export default function CosmeticRecommendationPage() {
 
   const isLoadingRecommendations =
     isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
+  const showRecommendationSkeletons = isLoadingRecommendations || isProcessing;
+  const quickChatBusy = isProcessing || isHandoffLoading;
 
   // Show the cycling quotes whenever the AI is talking (overrides the product /
   // skin-profile view) or while nothing has loaded yet.
@@ -257,7 +306,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
-            loading={isLoadingRecommendations}
+            loading={showRecommendationSkeletons}
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}
@@ -404,6 +453,46 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             {/* AI Voice Bubble */}
+            <div className="mt-5 shrink-0">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <span className="text-[9px] uppercase tracking-[0.38em] text-pink-200/45">
+                  Skin focus
+                </span>
+                <span className="text-[10px] text-white/25">
+                  Tap a concern
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {COSMETIC_QUICK_CHATS.map((item) => {
+                  const active =
+                    activeQuickChat === item.prompt && quickChatBusy;
+                  return (
+                    <button
+                      key={item.prompt}
+                      type="button"
+                      disabled={quickChatBusy}
+                      onClick={() => void runQuickChat(item.prompt)}
+                      className={`group min-h-[44px] rounded-lg border px-3 text-left transition-all duration-200 ${
+                        active
+                          ? "border-pink-300/50 bg-pink-300/15 text-white"
+                          : "border-white/10 bg-white/[0.035] text-white/70 hover:border-pink-200/35 hover:bg-white/[0.07]"
+                      } disabled:cursor-wait disabled:opacity-70`}
+                    >
+                      <span
+                        className={`block h-1 w-9 rounded-full bg-gradient-to-r ${item.tone} mb-2 opacity-90`}
+                      />
+                      <span className="block text-[12px] font-medium leading-none">
+                        {item.label}
+                      </span>
+                      <span className="mt-1 block text-[9px] uppercase tracking-[0.22em] text-white/30 group-hover:text-pink-100/45">
+                        Products
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {aiSuggestion && (
               <div className="mt-6 p-5 bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/20 rounded-2xl backdrop-blur-md shrink-0 shadow-lg">
                 <p className="text-[14px] text-pink-100/90 italic leading-relaxed font-light">
@@ -419,7 +508,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}
-            loading={isLoadingRecommendations}
+            loading={showRecommendationSkeletons}
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}

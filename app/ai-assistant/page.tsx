@@ -38,6 +38,13 @@ const TAGLINES = [
   "Reflect. Navigate. Discover.",
 ];
 
+const ASSISTANT_GREETINGS = [
+  "Hi! What can I do for you?",
+  "Hello! What can I help you with today?",
+  "Good to see you. What would you like to do?",
+  "Hi there. I'm ready when you are.",
+];
+
 export default function AIAssistantPage() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -53,6 +60,7 @@ export default function AIAssistantPage() {
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
+  const [activeGreeting, setActiveGreeting] = useState(ASSISTANT_GREETINGS[0]);
   const hasGreetedRef = useRef(false);
   const hasBeenPresentRef = useRef(false);
   const hasCapturedSkinRef = useRef(false);
@@ -99,6 +107,7 @@ export default function AIAssistantPage() {
     chatHistory,
     submitText,
     startListening,
+    speakText,
   } = useVoiceContext();
 
   const {
@@ -188,15 +197,33 @@ export default function AIAssistantPage() {
     return () => clearInterval(id);
   }, [showIdle, taglines.length]);
 
-  const handleWake = useCallback(() => {
+  const chooseGreeting = useCallback(() => {
+    return ASSISTANT_GREETINGS[
+      Math.floor(Math.random() * ASSISTANT_GREETINGS.length)
+    ];
+  }, []);
+
+  const playGreeting = useCallback(
+    (greeting = activeGreeting) => {
+      hasGreetedRef.current = true;
+      setActiveGreeting(greeting);
+      void speakText(greeting).finally(() => {
+        startListeningRef.current();
+      });
+    },
+    [activeGreeting, speakText],
+  );
+
+  const handleWake = useCallback((shouldSpeak = true) => {
     if (!showIdle) return;
     setShowIdle(false);
 
     if (!hasGreetedRef.current) {
-      hasGreetedRef.current = true;
-      startListeningRef.current();
+      const greeting = chooseGreeting();
+      setActiveGreeting(greeting);
+      if (shouldSpeak) playGreeting(greeting);
     }
-  }, [showIdle]);
+  }, [chooseGreeting, playGreeting, showIdle]);
 
   // Camera-gated wake on the real mirror. But when the proximity sensor is
   // unavailable (dev machine / no camera), fall back to arming the mic on load
@@ -205,7 +232,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (hasAutoWokeRef.current || sensorStatus !== "unavailable") return;
     hasAutoWokeRef.current = true;
-    const id = setTimeout(() => handleWake(), 400);
+    const id = setTimeout(() => handleWake(false), 400);
     return () => clearTimeout(id);
   }, [sensorStatus, handleWake]);
 
@@ -217,7 +244,7 @@ export default function AIAssistantPage() {
 
     if (isPresent && showIdle) {
       // User arrived!
-      setTimeout(handleWake, 0);
+      setTimeout(() => handleWake(false), 0);
     } else if (
       !isPresent &&
       !showIdle &&
@@ -245,12 +272,15 @@ export default function AIAssistantPage() {
 
   const latest = chatHistory[chatHistory.length - 1];
   const displayUser = transcript || latest?.user || "";
-  const displayReply =
-    error || reply || latest?.assistant || "Hi! What can I do for you?";
+  const displayReply = error || reply || latest?.assistant || activeGreeting;
 
   const handleMicTap = useCallback(() => {
+    if (!hasGreetedRef.current) {
+      playGreeting();
+      return;
+    }
     toggle();
-  }, [toggle]);
+  }, [playGreeting, toggle]);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
@@ -265,7 +295,7 @@ export default function AIAssistantPage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer relative"
-            onClick={handleWake}
+            onClick={() => handleWake(true)}
           >
             {/* 
               Placeholder Abstract Video Loop 
