@@ -1,6 +1,7 @@
 "use client";
 
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -216,6 +217,19 @@ export default function CosmeticRecommendationPage() {
   // The design requests 10 items total, split 5 on left, 5 on right.
   const leftColRecs = sortedRecs.slice(0, 5);
   const rightColRecs = sortedRecs.slice(5, 10);
+
+  // Mirror cosmetics results to the shared session store so Overview can aggregate them.
+  useEffect(() => {
+    if (!sortedRecs.length) return;
+    useOverviewStore.getState().setCosmetics(
+      sortedRecs.map((rec) => ({
+        id: rec.id,
+        name: rec.cosmeticProduct.name,
+        imageUrl: rec.cosmeticProduct.fileUrl?.fileUrl ?? "",
+        brand: rec.cosmeticProduct.brand ?? undefined,
+      })),
+    );
+  }, [sortedRecs]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

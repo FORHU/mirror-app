@@ -12,7 +12,6 @@ import {
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
-import AssistantNavBar from "@/components/AssistantNavBar";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
@@ -142,8 +141,8 @@ export default function AIAssistantPage() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
-  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => { });
-  const startListeningRef = useRef<() => void>(() => { });
+  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => void>(() => {});
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
@@ -282,7 +281,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
-        m.chatWonderService.restart().catch(() => { });
+        m.chatWonderService.restart().catch(() => {});
       });
     }
   }, []);
@@ -490,8 +489,9 @@ export default function AIAssistantPage() {
                       Mirror
                     </p>
                     <p
-                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${error ? "text-red-300/75" : "text-white/90"
-                        }`}
+                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
+                        error ? "text-red-300/75" : "text-white/90"
+                      }`}
                       style={{
                         fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
                         maxHeight: "45vh",
@@ -516,15 +516,9 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* Bottom nav — flanks the shared center-bottom mic:
-                Fashion · Cosmetics · [mic] · Map · Overview */}
-            <AssistantNavBar />
-
             {/* Quick Response Chips — categorised */}
             <QuickResponseChips categories={ASSISTANT_CHIP_CATEGORIES} />
 
-            {/* Bottom nav — flanks the shared center-bottom mic */}
-            <AssistantNavBar />
             <div ref={bottomRef} />
           </motion.main>
         )}

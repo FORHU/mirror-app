@@ -6,6 +6,7 @@ import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -29,6 +30,7 @@ import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas
 
 export default function VirtualMirrorV2() {
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  const isChatOpen = useMirrorStore((s) => s.isChatOpen);
   const { isProcessing } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
@@ -328,6 +330,21 @@ export default function VirtualMirrorV2() {
         }));
       setOutfits(newAiOutfits);
       setOutfitPage(0);
+
+      // Mirror results to the shared session store so Overview can aggregate them.
+      useOverviewStore.getState().setOutfits(
+        newAiOutfits.map((o) => ({
+          id: o.id,
+          name: o.name,
+          imageUrl: o.file?.fileUrl ?? "",
+          reason: o.description ?? undefined,
+          garments: o.items.map((item) => ({
+            id: item.garment.id,
+            name: item.garment.name,
+            imageUrl: item.garment.imageUrl ?? "",
+          })),
+        })),
+      );
     },
     [
       setTopsBase,

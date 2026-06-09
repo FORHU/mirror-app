@@ -15,7 +15,7 @@
  *  4. Until each tool's data arrives, its tile shows a skeleton.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ScanFace, Loader2, CameraOff } from "lucide-react";
 import "../../styles/glow.css";
@@ -37,10 +37,8 @@ import {
   adaptGarmentData,
   adaptCosmeticsData,
   adaptMapsData,
-  adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
-import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
@@ -115,11 +113,6 @@ export default function OverviewPage() {
 
   const greeting = useOverviewStore((s) => s.greeting);
 
-  // Explicit gate for the full-screen loader: true while the initial Outline
-  // hydration is in flight (so we don't flash empty tiles before data arrives),
-  // and while any tile is actively resolving a live request.
-  const [hydrating, setHydrating] = useState(true);
-
   const garmentsLoading = useOverviewStore(
     (s) => s.garments.status === "loading",
   );
@@ -132,48 +125,29 @@ export default function OverviewPage() {
   const mapLoading = useOverviewStore((s) => s.map.status === "loading");
 
   const isLoading =
-    hydrating ||
-    garmentsLoading ||
-    outfitsLoading ||
-    cosmeticsLoading ||
-    mapLoading;
+    garmentsLoading || outfitsLoading || cosmeticsLoading || mapLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
   const handoffFiredRef = useRef(false);
 
-  // ── no longer reset the grid whenever a fresh session lands here ──
-  // because we route here from /ai-assistant and need to preserve the data we just caught.
-
-  // ── hybrid hydration: reflect the persisted Outline on arrival ──
-  // Overview is a downstream dashboard, so on mount we fill the tiles from the
-  // user's saved Outline. Live ChatWonder updates overwrite these afterward. The
-  // Map tile fills via the map-store effect once loadOutlineStops geocodes the
-  // events' destinations.
+  // ── Sync skin analysis from the shared mirror store on mount ──
+  // The biometric scan runs on /ai-assistant and is persisted in useMirrorStore.
+  // Overview reads it here so the Skin Profile tile is pre-populated without
+  // the user having to prompt anything.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const outline = await outlineService.getActive();
-        if (cancelled || !outline) return;
-        const { garments, outfits, cosmetics, skinAnalysis } =
-          adaptOutlineToTiles(outline);
-        setGarments(garments);
-        setOutfits(outfits);
-        setCosmetics(cosmetics);
-        setSkinAnalysis(skinAnalysis);
-        void useMapStore.getState().loadOutlineStops();
-      } catch {
-        /* hydration is best-effort; live updates still populate the tiles */
-      } finally {
-        if (!cancelled) setHydrating(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
+    const result = useMirrorStore.getState().skinAnalysisResult;
+    if (!result) return;
+    setSkinAnalysis({
+      skinType: result.skinType,
+      skinTone: result.skinTone,
+      hydrationPct: result.hydrationPct,
+      oilinessPct: result.oilinessPct,
+      concerns: result.concerns,
+      imageUrl: useMirrorStore.getState().skinCaptureUrl,
+    });
+  }, [setSkinAnalysis]);
 
   // ── face detection → greet (fires once) ──
   const onFaceDetected = useCallback(() => {
@@ -311,10 +285,12 @@ export default function OverviewPage() {
           : response.maps_data;
         const m = adaptMapsData(mapPayload);
         if (m) setMap(m);
+        else emptyMap();
       } catch {
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
+        emptyMap();
       }
     },
     [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics],
@@ -396,7 +372,7 @@ export default function OverviewPage() {
       />
 
       {/* Greeting + identity */}
-      <div className="text-center mb-4 shrink-0 min-h-[64px] flex flex-col justify-center">
+      <div className="text-center mb-4 shrink-0 min-h-[40px] flex flex-col justify-center">
         <AnimatePresence mode="wait">
           {greeting ? (
             <motion.h1
@@ -427,26 +403,21 @@ export default function OverviewPage() {
         <CameraDisclaimer />
       </div>
 
-      {/* Quick Response Chips — inline below greeting, voice idle only */}
+      {/* Quick Response Chips — domain-specific shortcuts across fashion, cosmetics, and map */}
       <QuickResponseChips
         className="shrink-0 pb-2"
         prompts={[
-          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
-          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
-          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
-          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
-          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
+          `Style me head to toe for today, ${getToday()}`,
+          `Plan my complete look for ${nextWeekday(5)}`,
+          "Recommend makeup and skincare for my skin type",
+          "Find somewhere great to go and style me for it",
+          "Show my best outfit, beauty picks, and a destination",
         ]}
       />
 
       {/* Grid */}
       <div className="flex-1 min-h-0 flex flex-col">
         <OverviewGrid />
-      </div>
-
-      {/* Footer (Manual buttons removed for full-voice experience) */}
-      <div className="flex justify-between items-center mt-4 shrink-0">
-        {/* Buttons previously here were removed */}
       </div>
 
       {/* Full-screen video loader overlay when resolving data */}
@@ -468,6 +439,13 @@ export default function OverviewPage() {
               loop
               className="absolute inset-0 w-full h-full object-cover opacity-60"
             />
+            {/* Fallback spinner — always visible if video fails to load */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <Loader2 className="w-8 h-8 text-white/30 animate-spin mb-4 relative z-10" />
+              <p className="text-white/40 text-sm tracking-wide relative z-10">
+                Personalizing your session…
+              </p>
+            </div>
             {greeting && (
               <motion.h1
                 key="greeting"

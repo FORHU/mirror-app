@@ -23,7 +23,8 @@ function VoiceUI() {
   const isChatOpen = useMirrorStore((s) => s.isChatOpen);
   const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
   const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
-  const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
+  const isAssistantPage = pathname.startsWith("/ai-assistant");
+  const isContentPage = !isAssistantPage;
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -42,39 +43,115 @@ function VoiceUI() {
 
   return (
     <>
-      {/* Chat History Overlay */}
+      {/* ── Chat: modal on content pages ──────────────────────────────────── */}
       <AnimatePresence>
-        {isChatOpen && visibleHistory.length > 0 && (
+        {isChatOpen && isContentPage && chatHistory.length > 0 && (
+          <>
+            {/* Backdrop — covers content area only (excludes 80px sidebar) */}
+            <motion.div
+              key="chat-backdrop"
+              className="fixed top-0 bottom-0 left-0 z-[9988] bg-black/60"
+              style={{ right: "80px", backdropFilter: "blur(4px)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsChatOpen(false)}
+            />
+
+            {/* Centered modal panel */}
+            <motion.div
+              key="chat-modal"
+              className="fixed top-0 bottom-[96px] left-0 z-[9989] flex items-center justify-center pointer-events-none"
+              style={{ right: "80px" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="pointer-events-auto w-[min(480px,calc(100vw-200px))] max-h-[60vh] flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+                style={{
+                  background: "rgba(10,10,18,0.96)",
+                  backdropFilter: "blur(24px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                }}
+                initial={{ scale: 0.94, y: 16 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.94, y: 16 }}
+                transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.07] shrink-0">
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-medium">
+                    Conversation
+                  </span>
+                  <button
+                    onClick={() => setIsChatOpen(false)}
+                    className="text-white/30 hover:text-white/70 transition-colors text-lg leading-none"
+                    aria-label="Close chat"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Scrollable history */}
+                <div className="flex flex-col gap-3 p-4 overflow-y-auto">
+                  {chatHistory.map((item, idx) => (
+                    <div key={idx} className="flex flex-col gap-1.5">
+                      <p className="text-xs text-white/55 leading-relaxed bg-white/5 px-3 py-2 rounded-xl rounded-tr-none self-end max-w-[85%]">
+                        {item.user}
+                      </p>
+                      <p className="text-sm leading-relaxed text-white bg-[#4fc3f7]/10 px-3 py-2 rounded-xl rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line">
+                        <span className="font-semibold text-[#4fc3f7] mr-1">
+                          AI:
+                        </span>
+                        {item.assistant}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Chat: floating side panel on /ai-assistant ────────────────────── */}
+      <AnimatePresence>
+        {isChatOpen && isAssistantPage && chatHistory.length > 0 && (
           <motion.div
+            key="chat-assistant"
             initial={{ opacity: 0, x: 20, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.95 }}
-            className={`fixed right-5 z-9999 pointer-events-auto ${isCosmeticsPage
-              ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
-              : "bottom-[160px] w-80"
-              }`}
+            className={`fixed right-5 z-9999 pointer-events-auto ${
+              isCosmeticsPage
+                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+                : "bottom-[160px] w-80"
+            }`}
           >
             <div
-              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${isCosmeticsPage
-                ? "gap-2 p-3 max-h-[34vh]"
-                : "gap-3 p-4 max-h-[60vh]"
-                }`}
+              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
+                isCosmeticsPage
+                  ? "gap-2 p-3 max-h-[34vh]"
+                  : "gap-3 p-4 max-h-[60vh]"
+              }`}
               style={{
                 background: "rgba(10,10,18,0.92)",
                 backdropFilter: "blur(20px)",
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              {visibleHistory.map((item, idx) => (
+              {chatHistory.map((item, idx) => (
                 <div key={idx} className="flex flex-col gap-1">
                   <p className="text-xs text-white/60 leading-tight bg-white/5 p-2 rounded-lg rounded-tr-none self-end max-w-[85%]">
                     {item.user}
                   </p>
                   <p
-                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${isCosmeticsPage
-                      ? "text-xs leading-relaxed p-2"
-                      : "text-sm leading-snug p-2.5"
-                      }`}
+                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
+                      isCosmeticsPage
+                        ? "text-xs leading-relaxed p-2"
+                        : "text-sm leading-snug p-2.5"
+                    }`}
                   >
                     {item.assistant}
                   </p>
@@ -85,22 +162,24 @@ function VoiceUI() {
         )}
       </AnimatePresence>
 
-      {/* Transcript / reply bubble — appears above the mic button */}
+      {/* ── Transcript / reply bubble (voice active, chat closed, assistant only) */}
       <AnimatePresence>
-        {(transcript || reply || error) && !isChatOpen && (
+        {!isContentPage && (transcript || reply || error) && !isChatOpen && (
           <motion.div
             key="bubble"
             initial={{ opacity: 0, y: 16, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className={`fixed z-9999 right-5 ${isCosmeticsPage
-              ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
-              : "bottom-[160px] w-72"
-              }`}
+            className={`fixed z-9999 right-5 ${
+              isCosmeticsPage
+                ? "bottom-[132px] w-[min(20rem,calc(100vw-2.5rem))]"
+                : "bottom-[160px] w-72"
+            }`}
           >
             <div
-              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
-                }`}
+              className={`rounded-2xl shadow-2xl overflow-y-auto pointer-events-auto ${
+                isCosmeticsPage ? "px-3 py-2 max-h-[24vh]" : "px-4 py-3"
+              }`}
               style={{
                 background: "rgba(10,10,18,0.88)",
                 backdropFilter: "blur(16px)",
@@ -119,10 +198,11 @@ function VoiceUI() {
                   )}
                   {reply && (
                     <p
-                      className={`text-white whitespace-pre-line ${isCosmeticsPage
-                        ? "text-xs leading-relaxed"
-                        : "text-sm leading-snug"
-                        }`}
+                      className={`text-white whitespace-pre-line ${
+                        isCosmeticsPage
+                          ? "text-xs leading-relaxed"
+                          : "text-sm leading-snug"
+                      }`}
                     >
                       <span className="font-semibold text-[#4fc3f7]">AI:</span>{" "}
                       {reply}
@@ -135,14 +215,14 @@ function VoiceUI() {
         )}
       </AnimatePresence>
 
-      {/* Toggle Chat History */}
+      {/* ── Chat toggle button ─────────────────────────────────────────────── */}
       {chatHistory.length > 0 && (
         <motion.button
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="fixed z-9999 flex items-center justify-center rounded-full shadow-lg transition-all"
+          className="fixed z-[9990] flex items-center justify-center rounded-full shadow-lg transition-all"
           style={{
             bottom: "100px",
-            right: "27px",
+            right: "90px",
             width: 46,
             height: 46,
             background: isChatOpen
@@ -160,10 +240,7 @@ function VoiceUI() {
         </motion.button>
       )}
 
-      {/* Floating voice control — centered at the bottom. Compact circle while
-          listening (ring gives feedback), morphs into a flowing waveform pill
-          while processing/speaking. Centered via the wrapper so framer-motion's
-          scale/width animations don't fight a translate transform. */}
+      {/* Floating voice control — centered at the bottom */}
       <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
         <motion.button
           onClick={toggle}

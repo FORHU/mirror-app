@@ -4,7 +4,8 @@ import {
   WandSparkles,
   MapPin,
   AlertCircle,
-  Sparkles,
+  Palette,
+  ScanFace,
   type LucideIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -51,7 +52,7 @@ function TileShell({
           <h3 className="text-white font-semibold text-lg leading-tight truncate">
             {title}
           </h3>
-          <p className="text-white/35 text-xs truncate">{subtitle}</p>
+          <p className="text-white/55 text-xs truncate">{subtitle}</p>
         </div>
       </div>
 
@@ -124,12 +125,12 @@ function PendingStrip({
           <span className="font-medium text-white/60">{title}</span>
           <span>
             {status === "loading"
-              ? "loading"
+              ? "Preparing…"
               : status === "error"
-                ? "needs attention"
+                ? "Unavailable"
                 : status === "empty"
-                  ? "no result"
-                  : "waiting"}
+                  ? "Nothing found"
+                  : "Waiting…"}
           </span>
         </div>
       ))}
@@ -277,32 +278,31 @@ function WardrobeContent({ outfits }: { outfits: OutfitTileItem[] }) {
 function MapContent({ data }: { data: MapTileData }) {
   return (
     <div className="space-y-3">
+      {/* Destination hero */}
       <div
-        className="relative rounded-2xl overflow-hidden border border-white/10"
+        className="relative rounded-2xl overflow-hidden border border-white/10 flex items-center gap-4 px-4 py-4"
         style={{
-          height: 130,
           background:
-            "radial-gradient(120% 120% at 30% 20%, rgba(96,140,255,0.18), rgba(255,255,255,0.02) 70%)",
+            "radial-gradient(120% 120% at 20% 50%, rgba(96,140,255,0.22), rgba(255,255,255,0.02) 70%)",
         }}
       >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <motion.div
-            animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2.2, repeat: Infinity }}
-          >
-            <MapPin className="w-8 h-8 text-blue-300" />
-          </motion.div>
+        <motion.div
+          animate={{ scale: [1, 1.18, 1], opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 2.4, repeat: Infinity }}
+          className="shrink-0"
+        >
+          <MapPin className="w-7 h-7 text-blue-300" />
+        </motion.div>
+        <div className="min-w-0">
+          <p className="text-white font-semibold text-base leading-tight truncate">
+            {data.name}
+          </p>
+          {data.address && (
+            <p className="text-white/50 text-xs truncate mt-0.5">
+              {data.address}
+            </p>
+          )}
         </div>
-        <span className="absolute bottom-2 right-3 text-[10px] text-white/40 font-mono">
-          {data.lat.toFixed(3)}, {data.lng.toFixed(3)}
-        </span>
-      </div>
-
-      <div>
-        <p className="text-white text-sm font-medium truncate">{data.name}</p>
-        {data.address && (
-          <p className="text-white/40 text-xs truncate">{data.address}</p>
-        )}
       </div>
 
       {data.stops && data.stops.length > 1 && (
@@ -447,7 +447,7 @@ export function OverviewGrid() {
       key: "cosmetics",
       title: "Cosmetics",
       subtitle: "Makeup matching your vibe",
-      icon: Sparkles,
+      icon: Palette,
       state: cosmetics,
       empty: "No cosmetics recommended.",
       content: cosmetics.data ? (
@@ -467,7 +467,7 @@ export function OverviewGrid() {
       key: "skinAnalysis",
       title: "Skin Profile",
       subtitle: "Biometric Scan",
-      icon: Sparkles,
+      icon: ScanFace,
       state: skinAnalysis,
       empty: "Scan not available",
       content: skinAnalysis.data ? (
@@ -488,7 +488,7 @@ export function OverviewGrid() {
           "grid flex-1 min-h-0 gap-4",
           focused
             ? "grid-cols-1 place-items-center"
-            : "grid-cols-1 md:grid-cols-[1.5fr_1fr] md:grid-rows-[minmax(0,2fr)_minmax(0,1fr)]",
+            : "grid-cols-[1.5fr_1fr] grid-rows-[minmax(0,2fr)_minmax(0,1fr)]",
         ].join(" ")}
       >
         {visibleTiles.map((tile) => (

@@ -71,20 +71,20 @@ export default function MirrorHeader({
 
   return (
     <header
-      className={`flex items-center shrink-0 py-4 px-4 ${className}`.trim()}
-      style={{ background: "rgba(0,0,0,0.85)", ...style }}
+      className={`grid items-center shrink-0 py-4 px-5 ${className}`.trim()}
+      style={{
+        gridTemplateColumns: "1fr auto 1fr",
+        background: "rgba(0,0,0,0.85)",
+        ...style,
+      }}
     >
-      <div style={{ flex: "0 0 25%", display: "flex", alignItems: "center" }}>
+      {/* Left — weather */}
+      <div className="flex items-center">
         <WeatherWidget iconSize={iconSize} />
       </div>
-      <div
-        style={{
-          flex: "0 0 50%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
+
+      {/* Center — clock, always truly centered */}
+      <div className="flex flex-col items-center">
         <span
           className="text-white font-thin select-none"
           style={{ fontSize: "2rem", lineHeight: 1 }}
@@ -95,15 +95,9 @@ export default function MirrorHeader({
           {day}, {date}
         </span>
       </div>
-      <div
-        style={{
-          flex: "0 0 25%",
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          gap: "12px",
-        }}
-      >
+
+      {/* Right — custom slot + language selector */}
+      <div className="flex items-center justify-end gap-3 min-w-0">
         {rightContent}
         <LanguageSelector />
       </div>

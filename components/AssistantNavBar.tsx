@@ -1,38 +1,50 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+
+const APP_ROUTES = new Set<string>(Object.values(ROUTES));
 
 function NavButton({ label, route }: { label: string; route: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isActive = pathname === route;
+
   return (
     <button
       type="button"
       onTouchStart={() => router.push(route)}
       onClick={() => router.push(route)}
-      className="pointer-events-auto px-4 py-2 rounded-2xl text-[11px] font-medium text-white/50 uppercase tracking-[0.18em] transition-colors hover:text-white/85 hover:bg-white/5 active:bg-white/10"
+      className={`pointer-events-auto relative px-4 py-2.5 rounded-2xl text-[11px] font-medium uppercase tracking-[0.18em] transition-colors ${
+        isActive
+          ? "text-white"
+          : "text-white/45 hover:text-white/80 hover:bg-white/5 active:bg-white/10"
+      }`}
     >
       {label}
+      {isActive && (
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#4fc3f7]" />
+      )}
     </button>
   );
 }
 
 /**
- * Fixed bottom nav for the assistant. A single rounded, glassy bar whose center
- * gap holds the shared GlobalVoiceOverlay mic (the raised green control):
- *
- *   [ Fashion · Cosmetics ·  (mic)  · Map · Overview ]
- *                LISTENING…
- *
- * Two equal flex-1 sides hug a centered gap so the gap — and the viewport-centered
- * mic floating in it — stays dead-center regardless of button widths. The bar
- * hides while the mic morphs into its wide waveform (processing/speaking) so the
- * two never collide.
+ * Fixed bottom nav — renders on all 5 app routes.
+ * Center gap holds the GlobalVoiceOverlay mic (viewport-centered, z-9999).
+ * Hides during AI processing/speaking so the waveform pill doesn't collide.
+ * Hides on /ai-assistant while the idle welcome screen is active.
  */
 export default function AssistantNavBar() {
-  const { isListening, isProcessing, isSpeaking } = useVoiceContext();
+  const { isProcessing, isSpeaking } = useVoiceContext();
+  const pathname = usePathname();
+  const assistantIdle = useMirrorStore((s) => s.assistantIdle);
+
+  if (!APP_ROUTES.has(pathname)) return null;
   if (isProcessing || isSpeaking) return null;
+  if (pathname === ROUTES.WELCOME && assistantIdle) return null;
 
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
@@ -55,7 +67,7 @@ export default function AssistantNavBar() {
           />
         </div>
 
-        {/* center gap — the global mic floats here (viewport center) */}
+        {/* center gap — GlobalVoiceOverlay mic floats here at viewport center */}
         <div className="w-20 shrink-0" aria-hidden />
 
         {/* right group */}

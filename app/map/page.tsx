@@ -8,7 +8,10 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import { QuickResponseChips, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  nextWeekday,
+} from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {
@@ -31,7 +34,7 @@ async function consumePendingLocation() {
       isSearching: false,
       searchResults: [],
     });
-  } catch { }
+  } catch {}
 }
 
 async function consumePendingDirections() {
@@ -47,7 +50,7 @@ async function consumePendingDirections() {
     if (!results.length) return;
 
     await useMapStore.getState().setDestination(results[0]);
-  } catch { }
+  } catch {}
 }
 
 export default function MapPage() {
@@ -57,7 +60,7 @@ export default function MapPage() {
     loadHomeLocation,
     loadOutlineStops,
   } = useMapStore();
-  const onAction = useCallback(() => { }, []);
+  const onAction = useCallback(() => {}, []);
 
   useVoice(
     {
