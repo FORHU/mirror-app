@@ -907,6 +907,101 @@ const ACTIVITY_TO_CATEGORY: Record<string, string> = {
   rest: "cafe",
 };
 
+// Maps place/activity keywords to a geocodable destination query + display label.
+// Used for cross-feature intent: user says "I want to go hiking" or "let's grab coffee"
+// on any non-map page → map page pre-loads with the nearest matching spot.
+// Multi-word entries must come first so they match before their single-word substrings.
+const PLACE_INTENT_MAP: Record<string, { query: string; label: string }> = {
+  // ── Outdoors & sports ──────────────────────────────────────────────────────
+  "mountain biking": { query: "mountain bike trail", label: "Mountain Bike Trail" },
+  "rock climbing":   { query: "climbing area",       label: "Rock Climbing" },
+  "coffee shop":     { query: "cafe",                label: "Coffee Shop" },
+  "fast food":       { query: "fast food restaurant",label: "Fast Food" },
+  "food court":      { query: "food court",          label: "Food Court" },
+  hiking:    { query: "hiking trail",   label: "Hiking Trail" },
+  hike:      { query: "hiking trail",   label: "Hiking Trail" },
+  trekking:  { query: "trekking trail", label: "Trekking Trail" },
+  trek:      { query: "trekking trail", label: "Trekking Trail" },
+  camping:   { query: "campsite",       label: "Campsite" },
+  camp:      { query: "campsite",       label: "Campsite" },
+  surfing:   { query: "surf spot",      label: "Surf Spot" },
+  surf:      { query: "surf spot",      label: "Surf Spot" },
+  swimming:  { query: "swimming area",  label: "Swimming Area" },
+  swim:      { query: "swimming area",  label: "Swimming Area" },
+  biking:    { query: "bike trail",     label: "Bike Trail" },
+  cycling:   { query: "bike trail",     label: "Bike Trail" },
+  running:   { query: "running trail",  label: "Running Trail" },
+  jogging:   { query: "running trail",  label: "Running Trail" },
+  climbing:  { query: "climbing area",  label: "Climbing Area" },
+  fishing:   { query: "fishing spot",   label: "Fishing Spot" },
+  skiing:    { query: "ski resort",     label: "Ski Resort" },
+  golf:      { query: "golf course",    label: "Golf Course" },
+  tennis:    { query: "tennis court",   label: "Tennis Court" },
+  basketball:{ query: "basketball court", label: "Basketball Court" },
+  beach:     { query: "beach",          label: "Beach" },
+  picnic:    { query: "park",           label: "Picnic Spot" },
+  // ── Food & drink ───────────────────────────────────────────────────────────
+  restaurant: { query: "restaurant",  label: "Restaurant" },
+  diner:      { query: "restaurant",  label: "Restaurant" },
+  cafe:       { query: "cafe",        label: "Cafe" },
+  coffee:     { query: "cafe",        label: "Cafe" },
+  bar:        { query: "bar",         label: "Bar" },
+  pub:        { query: "bar",         label: "Bar" },
+  pizza:      { query: "pizza restaurant", label: "Pizza Place" },
+  burger:     { query: "burger restaurant", label: "Burger Place" },
+  // ── Religious & community ──────────────────────────────────────────────────
+  church:     { query: "church",      label: "Church" },
+  cathedral:  { query: "cathedral",   label: "Cathedral" },
+  chapel:     { query: "chapel",      label: "Chapel" },
+  mosque:     { query: "mosque",      label: "Mosque" },
+  temple:     { query: "temple",      label: "Temple" },
+  shrine:     { query: "shrine",      label: "Shrine" },
+  // ── Education ──────────────────────────────────────────────────────────────
+  school:     { query: "school",      label: "School" },
+  university: { query: "university",  label: "University" },
+  college:    { query: "college",     label: "College" },
+  // ── Medical ────────────────────────────────────────────────────────────────
+  hospital:   { query: "hospital",    label: "Hospital" },
+  clinic:     { query: "clinic",      label: "Clinic" },
+  pharmacy:   { query: "pharmacy",    label: "Pharmacy" },
+  drugstore:  { query: "pharmacy",    label: "Pharmacy" },
+  dentist:    { query: "dental clinic", label: "Dentist" },
+  // ── Shopping ───────────────────────────────────────────────────────────────
+  mall:       { query: "shopping mall", label: "Mall" },
+  supermarket:{ query: "supermarket",   label: "Supermarket" },
+  grocery:    { query: "grocery store", label: "Grocery Store" },
+  market:     { query: "market",        label: "Market" },
+  // ── Services ───────────────────────────────────────────────────────────────
+  bank:       { query: "bank",          label: "Bank" },
+  atm:        { query: "ATM",           label: "ATM" },
+  hotel:      { query: "hotel",         label: "Hotel" },
+  hostel:     { query: "hostel",        label: "Hostel" },
+  // ── Leisure ────────────────────────────────────────────────────────────────
+  cinema:     { query: "cinema",        label: "Cinema" },
+  museum:     { query: "museum",        label: "Museum" },
+  zoo:        { query: "zoo",           label: "Zoo" },
+  park:       { query: "park",          label: "Park" },
+};
+
+/**
+ * Returns a geocodable destination for any place or activity keyword found in
+ * the transcript, or null if none is recognised.
+ * Multi-word entries are evaluated before single-word ones.
+ */
+export function extractActivityDestination(
+  transcript: string,
+): { query: string; label: string } | null {
+  const keys = Object.keys(PLACE_INTENT_MAP).sort(
+    (a, b) => b.length - a.length,
+  );
+  for (const key of keys) {
+    if (new RegExp(`\\b${key}\\b`, "i").test(transcript)) {
+      return PLACE_INTENT_MAP[key];
+    }
+  }
+  return null;
+}
+
 export function extractNearbyPOIQuery(transcript: string): string | null {
   // ── Group 1: "nearest / closest X" ──────────────────────────────────────
   const nearestM = transcript.match(

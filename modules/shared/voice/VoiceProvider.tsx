@@ -53,6 +53,7 @@ import {
   matchCandidateFromTranscript,
   buildRouteSummary,
   extractNearbyPOIQuery,
+  extractActivityDestination,
   isClearRoutePhrase,
   isAddressQuery,
   isRatingQuery,
@@ -322,6 +323,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
+  // Holds the activity destination (e.g. "hiking trail") detected in the user's last
+  // non-map transcript. Cleared when the user responds yes/no to the map offer.
+  const pendingActivityDestRef = useRef<{ query: string; label: string } | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const curatedPOIsRef = useRef<NearbyPOI[]>([]);
   const itineraryStopsRef = useRef<
@@ -613,6 +617,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setTranscript(t);
 
       try {
+        // ── Activity map offer: yes/no intercept ────────────────────────────────
+        // If the AI just offered to show an activity spot on the map, handle the
+        // user's response before any other processing.
+        if (pendingActivityDestRef.current && !pathname.startsWith("/map")) {
+          const dest = pendingActivityDestRef.current;
+          pendingActivityDestRef.current = null;
+          if (
+            /\b(yes|yeah|sure|okay|ok|please|go|yep|yup|alright|of course|definitely|absolutely|show me|yes please)\b/i.test(
+              t,
+            )
+          ) {
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem(
+                "mirror_pending_map_location",
+                JSON.stringify(dest),
+              );
+            }
+            router.push(ROUTES.MAP);
+            setVoiceState("idle");
+            return;
+          }
+          // Any other response — clear the offer and continue normally.
+        }
+
+        // Detect activity intent on non-map pages. If found, the garment/general
+        // response handler will chain a map offer after speaking the main reply.
+        if (!pathname.startsWith("/map")) {
+          const actDest = extractActivityDestination(t);
+          if (actDest) pendingActivityDestRef.current = actDest;
+        }
+        // ── End activity map offer ──────────────────────────────────────────────
+
         const map = useMapStore.getState();
         const loc = map.userLocation ?? map.homeLocation;
         const now = new Date();
@@ -870,10 +906,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           const displayMessage = cleanMessage(aiResponse.message);
-          setReply(displayMessage);
+          const actDest = pendingActivityDestRef.current;
+          const offerText = actDest
+            ? `Want me to also show you ${actDest.label.toLowerCase()} spots near you on the map?`
+            : null;
+          const fullDisplay = offerText
+            ? `${displayMessage}\n\n${offerText}`
+            : displayMessage;
+          setReply(fullDisplay);
           const newHistory = [
             ...historyRef.current,
-            { user: t, assistant: displayMessage },
+            { user: t, assistant: fullDisplay },
           ];
           historyRef.current = newHistory;
           setChatHistory(newHistory);
@@ -889,7 +932,30 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             src.buffer = decoded;
             src.connect(playCtx.destination);
             playbackRef.current = src;
-            src.onended = () => {
+            src.onended = async () => {
+              if (offerText) {
+                // Chain the map offer after the main fashion response.
+                const offerAudio = await mapService
+                  .tts(offerText)
+                  .catch(() => null);
+                if (offerAudio) {
+                  const offerCtx = new AudioContext();
+                  playbackCtxRef.current = offerCtx;
+                  const offerDecoded = await offerCtx.decodeAudioData(
+                    offerAudio.slice(0),
+                  );
+                  const offerSrc = offerCtx.createBufferSource();
+                  offerSrc.buffer = offerDecoded;
+                  offerSrc.connect(offerCtx.destination);
+                  playbackRef.current = offerSrc;
+                  offerSrc.onended = () => {
+                    stopPlayback();
+                    setVoiceState("idle");
+                  };
+                  offerSrc.start(0);
+                  return;
+                }
+              }
               stopPlayback();
               setVoiceState("idle");
             };
