@@ -33,6 +33,11 @@ interface MirrorState {
    *  OutfitPreviewModal can open it programmatically to ask for gender. */
   isChatOpen: boolean;
   setIsChatOpen: (open: boolean) => void;
+  /** True while /ai-assistant sits on its idle "Tap to start" welcome screen.
+   *  Lets GlobalVoiceOverlay hide the shared mic there so the spoken greeting
+   *  gate isn't bypassed. Ephemeral — never persisted. */
+  assistantIdle: boolean;
+  setAssistantIdle: (idle: boolean) => void;
   /** Chat-path early navigation state (set on nav_early, cleared on complete) */
   chatNavPending: boolean;
   setChatNavPending: (pending: boolean) => void;
@@ -70,6 +75,8 @@ export const useMirrorStore = create<MirrorState>()(
         set({ isPresent, sensorStatus }),
       isChatOpen: false,
       setIsChatOpen: (open) => set({ isChatOpen: open }),
+      assistantIdle: false,
+      setAssistantIdle: (idle) => set({ assistantIdle: idle }),
       chatNavPending: false,
       setChatNavPending: (pending) => set({ chatNavPending: pending }),
       chatStreamingText: "",

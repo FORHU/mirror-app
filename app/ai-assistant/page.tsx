@@ -57,6 +57,7 @@ export default function AIAssistantPage() {
   const setMap = useOverviewStore((s) => s.setMap);
   const setSkinAnalysisResult = useMirrorStore((s) => s.setSkinAnalysisResult);
   const setSkinCaptureUrl = useMirrorStore((s) => s.setSkinCaptureUrl);
+  const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -100,7 +101,6 @@ export default function AIAssistantPage() {
     transcript,
     reply,
     error,
-    toggle,
     isListening,
     isProcessing,
     isSpeaking,
@@ -161,6 +161,13 @@ export default function AIAssistantPage() {
     submitTextRef.current = submitText;
     startListeningRef.current = startListening;
   }, [submitText, startListening]);
+
+  // Tell the shared mic to hide while the idle welcome screen is up (so a tap
+  // can't bypass the spoken greeting), and clear the flag on unmount.
+  useEffect(() => {
+    setAssistantIdle(showIdle);
+  }, [showIdle, setAssistantIdle]);
+  useEffect(() => () => setAssistantIdle(false), [setAssistantIdle]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -273,14 +280,6 @@ export default function AIAssistantPage() {
   const latest = chatHistory[chatHistory.length - 1];
   const displayUser = transcript || latest?.user || "";
   const displayReply = error || reply || latest?.assistant || activeGreeting;
-
-  const handleMicTap = useCallback(() => {
-    if (!hasGreetedRef.current) {
-      playGreeting();
-      return;
-    }
-    toggle();
-  }, [playGreeting, toggle]);
 
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
@@ -409,40 +408,9 @@ export default function AIAssistantPage() {
               </AnimatePresence>
             </div>
 
-            {/* ambient state indicator — centered in bottom half */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <div className="relative flex items-center justify-center">
-                <motion.button
-                  type="button"
-                  onClick={handleMicTap}
-                  aria-label="Toggle voice input"
-                  className="rounded-full outline-none"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    background: isListening
-                      ? "rgba(255,255,255,0.10)"
-                      : isSpeaking
-                        ? "rgba(255,255,255,0.07)"
-                        : "rgba(255,255,255,0.04)",
-                    border: isListening
-                      ? "1px solid rgba(255,255,255,0.40)"
-                      : isSpeaking
-                        ? "1px solid rgba(255,255,255,0.25)"
-                        : "1px solid rgba(255,255,255,0.10)",
-                  }}
-                  animate={
-                    isListening
-                      ? { scale: [1, 1.12, 1], opacity: [0.7, 1, 0.7] }
-                      : isProcessing
-                        ? { opacity: [0.4, 0.9, 0.4] }
-                        : isSpeaking
-                          ? { scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }
-                          : { scale: 1, opacity: 0.4 }
-                  }
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              </div>
+            {/* ambient state indicator — the mic control itself is the shared
+                center-bottom GlobalVoiceOverlay button; here we only echo state. */}
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-24">
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>

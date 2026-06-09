@@ -308,9 +308,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const isPresent = useMirrorStore((s) => s.isPresent);
-  const sensorStatus = useMirrorStore((s) => s.sensorStatus);
-
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [reply, setReply] = useState("");
@@ -462,31 +459,32 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const speakText = useCallback(
-    (text: string): Promise<void> =>
-      new Promise((resolve) => {
-        stopPlayback();
-        mapService
-          .tts(text)
-          .then(async (audio) => {
-            setVoiceState("speaking");
-            const playCtx = new AudioContext();
-            playbackCtxRef.current = playCtx;
-            const decoded = await playCtx.decodeAudioData(audio.slice(0));
-            const src = playCtx.createBufferSource();
-            src.buffer = decoded;
-            src.connect(playCtx.destination);
-            playbackRef.current = src;
-            src.onended = () => {
-              setVoiceState("idle");
-              resolve();
-            };
-            src.start(0);
-          })
-          .catch(() => {
-            setVoiceState("idle");
-            resolve();
-          });
-      }),
+    async (text: string): Promise<void> => {
+      const t = text?.trim();
+      if (!t) return;
+      stopPlayback();
+      const audio = await mapService.tts(t).catch(() => null);
+      if (!audio) {
+        setVoiceState("idle");
+        return;
+      }
+      setVoiceState("speaking");
+      const playCtx = new AudioContext();
+      playbackCtxRef.current = playCtx;
+      const decoded = await playCtx.decodeAudioData(audio.slice(0));
+      const src = playCtx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(playCtx.destination);
+      playbackRef.current = src;
+      await new Promise<void>((resolve) => {
+        src.onended = () => {
+          stopPlayback();
+          setVoiceState("idle");
+          resolve();
+        };
+        src.start(0);
+      });
+    },
     [stopPlayback],
   );
 
@@ -2810,20 +2808,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [voiceState]);
 
-  // Full-voice: keep the mic continuously armed on every page while someone is
-  // at the mirror. Whenever the pipeline returns to idle, re-arm after a short
-  // beat so the mirror is always listening hands-free — spoken commands route
-  // through processTranscript → [stylist]. Gated on camera presence so an empty
-  // room isn't transcribed; falls through when the sensor is "unavailable"
-  // (dev / no camera) so it stays testable. startListening() no-ops unless idle.
-  useEffect(() => {
-    if (voiceState !== "idle") return;
-    if (!isPresent && sensorStatus !== "unavailable") return;
-    const id = setTimeout(() => {
-      void startListening();
-    }, 500);
-    return () => clearTimeout(id);
-  }, [voiceState, startListening, isPresent, sensorStatus]);
+  // Touch-to-talk: the mic is no longer continuously armed. The user taps the
+  // mic control to start listening; the pipeline then auto-stops on silence
+  // (see startListening's VAD), processes, speaks, and returns to idle — where
+  // it stays until the next tap. Every page shares this same handling.
 
   const submitText = useCallback(
     async (text: string) => {
