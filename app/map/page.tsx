@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
@@ -8,6 +8,7 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
+import { QuickResponseChips, getToday, nextWeekday } from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {
@@ -116,6 +117,21 @@ export default function MapPage() {
       <MirrorHeader className="absolute top-0 inset-x-0 z-50" />
 
       <MapDashboard />
+
+      {/* Quick Response Chips — absolute so map-library transforms can't trap it */}
+      <div className="absolute bottom-16 left-0 right-0 z-30 pointer-events-none">
+        <div className="pointer-events-auto">
+          <QuickResponseChips
+            prompts={[
+              `Find restaurants, cafes, and interesting spots near me that are open today, ${getToday()}.`,
+              `I have a meeting at the mall at 10am and lunch in the next city at noon on ${nextWeekday(1)} — plan my full route.`,
+              "Show me the fastest route from my current location to the nearest mall.",
+              "I need to make multiple stops today — find a pharmacy, a cafe, and a grocery store near me.",
+              "What's the estimated travel time to get to SM City from my current location right now?",
+            ]}
+          />
+        </div>
+      </div>
     </main>
   );
 }

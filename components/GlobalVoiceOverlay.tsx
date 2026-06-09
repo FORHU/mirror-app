@@ -1,7 +1,6 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { useEffect } from "react";
 import { Mic, Loader2, Volume2, MessageSquare } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { usePathname } from "next/navigation";
@@ -17,26 +16,13 @@ export default function GlobalVoiceOverlay() {
 }
 
 function VoiceUI() {
-  const { voiceState, transcript, reply, error, toggle, chatHistory, startListening } =
+  const { voiceState, transcript, reply, error, toggle, chatHistory } =
     useVoiceContext();
   const pathname = usePathname();
   const isChatOpen = useMirrorStore((s) => s.isChatOpen);
   const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
   const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
   const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
-
-
-  // Always-on: arm the mic on mount and re-arm after every completed turn.
-  // Applied to ALL pages rendered by GlobalVoiceOverlay (i.e., every page except
-  // /ai-assistant which handles its own mic). This ensures the mic stays hot
-  // across page transitions — navigating Fashion → Overview → Map never closes it.
-  useEffect(() => {
-    if (voiceState !== "idle") return;
-    const id = setTimeout(() => {
-      void startListening();
-    }, 400);
-    return () => clearTimeout(id);
-  }, [voiceState, startListening, pathname]);
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -178,69 +164,6 @@ function VoiceUI() {
           <MessageSquare className="w-5 h-5 text-white/80" />
         </motion.button>
       )}
-
-      {/* Countdown ring — depletes over 10 s while listening, then vanishes */}
-      <AnimatePresence>
-        {isListening && (
-          <motion.svg
-            key="countdown-ring"
-            className="fixed pointer-events-none"
-            style={{
-              zIndex: 10000,
-              bottom: "calc(1.5rem - 12px)",
-              right: "calc(1.25rem - 12px)",
-              width: 88,
-              height: 88,
-            }}
-            viewBox="0 0 88 88"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <defs>
-              <filter id="global-ring-glow" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* Glow layer */}
-            <motion.circle
-              cx="44"
-              cy="44"
-              r="38"
-              fill="none"
-              stroke="rgba(34,197,94,0.4)"
-              strokeWidth="7"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 38}
-              transform="rotate(-90 44 44)"
-              filter="url(#global-ring-glow)"
-              initial={{ strokeDashoffset: 0 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
-              transition={{ duration: 10, ease: "linear" }}
-            />
-            {/* Crisp core */}
-            <motion.circle
-              cx="44"
-              cy="44"
-              r="38"
-              fill="none"
-              stroke="rgba(34,197,94,0.95)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeDasharray={2 * Math.PI * 38}
-              transform="rotate(-90 44 44)"
-              initial={{ strokeDashoffset: 0 }}
-              animate={{ strokeDashoffset: 2 * Math.PI * 38 }}
-              transition={{ duration: 10, ease: "linear" }}
-            />
-          </motion.svg>
-        )}
-      </AnimatePresence>
 
       {/* Floating voice control — compact circle while listening (ring gives feedback),
           morphs into a flowing waveform pill while processing/speaking. */}
