@@ -805,13 +805,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          const stylistTarget =
-            aiResponse.stylist_data?.target_url ??
-            (isCosmetics ||
-            Boolean(aiResponse.cosmetics_data) ||
-            isCosmeticHandoffPrompt(aiResponse.message)
-              ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : undefined);
+          const stylistTarget = aiResponse.stylist_data?.target_url;
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -2542,13 +2536,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           let chatAction: ChatWonderAction | null = null;
-          const resolvedTarget =
-            res.stylist_data?.target_url ??
-            (_isCosmetics ||
-            Boolean(res.cosmetics_data) ||
-            isCosmeticHandoffPrompt(res.message)
-              ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : undefined);
+          const resolvedTarget = res.stylist_data?.target_url;
 
           if (resolvedTarget) {
             if (res.garment_data) {
