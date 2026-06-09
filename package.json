@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack -p 3001",
-    "build": "next build",
+    "copy-vad": "node scripts/copy-vad-assets.mjs",
+    "dev": "node scripts/copy-vad-assets.mjs && cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack -p 3001",
+    "build": "node scripts/copy-vad-assets.mjs && next build",
     "export": "next build",
     "deploy": "next build && gh-pages -d out",
     "start": "next start",
@@ -15,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ricky0123/vad-web": "^0.0.30",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tensorflow-models/blazeface": "^0.1.0",

@@ -17,6 +17,7 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
+import { concatFrames, float32ToInt16, transcribeAudio } from "./submitAudio";
 import { OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
@@ -282,6 +283,7 @@ export interface VoiceContextValue {
   startListening: () => void;
   stopListening: () => void;
   submitText: (text: string) => Promise<void>;
+  speakText: (text: string) => Promise<void>;
   registerPage: (
     ctx: PageContext,
     onAction: (action: ChatWonderAction) => void,
@@ -459,6 +461,35 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current = null;
   }, []);
 
+  const speakText = useCallback(
+    (text: string): Promise<void> =>
+      new Promise((resolve) => {
+        stopPlayback();
+        mapService
+          .tts(text)
+          .then(async (audio) => {
+            setVoiceState("speaking");
+            const playCtx = new AudioContext();
+            playbackCtxRef.current = playCtx;
+            const decoded = await playCtx.decodeAudioData(audio.slice(0));
+            const src = playCtx.createBufferSource();
+            src.buffer = decoded;
+            src.connect(playCtx.destination);
+            playbackRef.current = src;
+            src.onended = () => {
+              setVoiceState("idle");
+              resolve();
+            };
+            src.start(0);
+          })
+          .catch(() => {
+            setVoiceState("idle");
+            resolve();
+          });
+      }),
+    [stopPlayback],
+  );
+
   const handleAIAssistantText = useCallback(
     async (t: string) => {
       if (AI_ASSISTANT_WAKE_ONLY.test(t.trim())) {
@@ -565,26 +596,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback],
   );
 
-  interface ISpeechRecognition {
-    lang: string;
-    interimResults: boolean;
-    maxAlternatives: number;
-    continuous: boolean;
-    onstart: () => void;
-    onend: () => void;
-    onerror: (event: { error: string }) => void;
-    onresult: (event: {
-      resultIndex: number;
-      results: Array<{
-        isFinal: boolean;
-        [index: number]: { transcript: string };
-      }>;
-    }) => void;
-    stop: () => void;
-    start: () => void;
-  }
-
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  // VAD-based mic capture (replaces Chrome Web Speech API)
+  const vadRef = useRef<{ start: () => Promise<void>; pause: () => Promise<void> } | null>(null);
+  const vadInitializingRef = useRef(false);
+  const speechFramesRef = useRef<Float32Array[]>([]);
+  const isVadSpeakingRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const submitAudioRef = useRef<((frames: Float32Array[]) => Promise<void>) | null>(null);
   const processTranscript = useCallback(
     async (t: string) => {
       stopPlayback();
@@ -2656,121 +2676,137 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  const startListening = useCallback(async () => {
-    if (voiceState !== "idle") return;
-    setError(null);
-    try {
-      type SpeechRecognitionConstructor = new () => ISpeechRecognition;
-      const SpeechRecognition =
-        (
-          window as unknown as {
-            SpeechRecognition: SpeechRecognitionConstructor;
-          }
-        ).SpeechRecognition ||
-        (
-          window as unknown as {
-            webkitSpeechRecognition: SpeechRecognitionConstructor;
-          }
-        ).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        setError("Speech recognition is not supported in this browser.");
+  const submitAudio = useCallback(
+    async (frames: Float32Array[]) => {
+      if (frames.length === 0) {
+        setVoiceState("idle");
         return;
       }
-      const recognition = new SpeechRecognition();
-      recognition.lang = useMirrorStore.getState().voiceLanguage || "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = true;
 
-      let accumulated = "";
-      let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-      let speakingLimitTimer: ReturnType<typeof setTimeout> | null = null;
-      // Use a longer window only when the transcript already contains a spoken
-      // multi-stop connector — otherwise keep the faster 1 000 ms default so
-      // single-destination commands are not penalised.
-      const SILENCE_MS_DEFAULT = 1000;
-      const SILENCE_MS_MULTI = 1500;
-      const MULTI_STOP_RE = /\b(?:and|then|also|plus)\b/i;
+      const int16 = float32ToInt16(concatFrames(frames));
 
-      const clearSilenceTimer = () => {
-        if (silenceTimer) {
-          clearTimeout(silenceTimer);
-          silenceTimer = null;
-        }
-      };
-
-      const clearSpeakingLimitTimer = () => {
-        if (speakingLimitTimer) {
-          clearTimeout(speakingLimitTimer);
-          speakingLimitTimer = null;
-        }
-      };
-
-      recognition.onstart = () => {
-        setVoiceState("recording");
-        // Hard 10-second limit — stop and process whatever was captured.
-        speakingLimitTimer = setTimeout(() => {
-          speakingLimitTimer = null;
-          recognition.stop();
-        }, 10000);
-      };
-      recognition.onerror = (event: { error: string }) => {
-        clearSilenceTimer();
-        clearSpeakingLimitTimer();
-        if (event.error !== "no-speech" && event.error !== "aborted")
-          setError("Speech recognition error: " + event.error);
-        if (event.error !== "no-speech" && event.error !== "aborted")
-          setVoiceState("idle");
-      };
-      recognition.onresult = (event: {
-        resultIndex: number;
-        results: Array<{
-          isFinal: boolean;
-          [index: number]: { transcript: string };
-        }>;
-      }) => {
-        // Reset silence timer on every new final segment — only stop + process
-        // after SILENCE_MS of no new speech, so Chrome sentence-boundary onend
-        // events mid-utterance don't cut the user off prematurely.
-        clearSilenceTimer();
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            accumulated +=
-              (accumulated ? " " : "") + event.results[i][0].transcript;
-          }
-        }
-        if (accumulated.trim()) {
-          const silenceMs = MULTI_STOP_RE.test(accumulated)
-            ? SILENCE_MS_MULTI
-            : SILENCE_MS_DEFAULT;
-          silenceTimer = setTimeout(() => {
-            silenceTimer = null;
-            recognition.stop();
-          }, silenceMs);
-        }
-      };
-      recognition.onend = async () => {
-        clearSilenceTimer();
-        clearSpeakingLimitTimer();
-        const text = accumulated.trim();
-        if (text) {
-          setVoiceState("processing");
-          await processTranscript(text);
+      try {
+        const lang = useMirrorStore.getState().voiceLanguage || "en-US";
+        const token = await resolveAccessToken();
+        const transcript = await transcribeAudio({ int16, lang, token });
+        if (transcript?.trim()) {
+          await processTranscript(transcript.trim());
         } else {
           setVoiceState("idle");
         }
-      };
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch {
-      setError("Microphone access denied.");
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Transcription failed.",
+        );
+        setVoiceState("idle");
+      }
+    },
+    [processTranscript, resolveAccessToken],
+  );
+
+  // Keep a stable ref so VAD callbacks (created once) always call the latest version
+  useEffect(() => {
+    submitAudioRef.current = submitAudio;
+  }, [submitAudio]);
+
+  const startListening = useCallback(async () => {
+    if (voiceState !== "idle") return;
+    setError(null);
+
+    // Reuse existing VAD instance — just re-start it
+    if (vadRef.current) {
+      vadRef.current.start();
+      return;
     }
-  }, [voiceState, processTranscript]);
+
+    // Prevent concurrent initialisation
+    if (vadInitializingRef.current) return;
+    vadInitializingRef.current = true;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { noiseSuppression: true, echoCancellation: true },
+      });
+
+      // Capture raw 16 kHz PCM using ScriptProcessorNode while VAD is active
+      const audioCtx = new AudioContext({ sampleRate: 16000 });
+      const source = audioCtx.createMediaStreamSource(stream);
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = (e: AudioProcessingEvent) => {
+        if (isVadSpeakingRef.current) {
+          speechFramesRef.current.push(
+            new Float32Array(e.inputBuffer.getChannelData(0)),
+          );
+        }
+      };
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
+      audioCtxRef.current = audioCtx;
+      processorRef.current = processor;
+      mediaStreamRef.current = stream;
+
+      const { MicVAD } = await import("@ricky0123/vad-web");
+      const vad = await MicVAD.new({
+        getStream: () => Promise.resolve(stream),
+        baseAssetPath: "/",
+        onnxWASMBasePath: "/",
+        model: "v5",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ortConfig(ort: any) {
+          ort.env.wasm.wasmPaths = "/";
+        },
+        onSpeechStart: () => {
+          isVadSpeakingRef.current = true;
+          speechFramesRef.current = [];
+          setVoiceState("recording");
+        },
+        onSpeechEnd: async () => {
+          // Guard: stopListening force-submit already cleared this
+          if (!isVadSpeakingRef.current) return;
+          isVadSpeakingRef.current = false;
+          const frames = speechFramesRef.current;
+          speechFramesRef.current = [];
+          setVoiceState("processing");
+          await submitAudioRef.current?.(frames);
+        },
+        onVADMisfire: () => {
+          isVadSpeakingRef.current = false;
+          speechFramesRef.current = [];
+          setVoiceState("idle");
+        },
+      });
+
+      vadRef.current = vad;
+      vadInitializingRef.current = false;
+      vad.start();
+    } catch (err) {
+      vadInitializingRef.current = false;
+      const msg =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Microphone access denied."
+          : err instanceof Error
+            ? err.message
+            : "Microphone initialisation failed.";
+      setError(msg);
+    }
+  }, [voiceState]);
 
   const stopListening = useCallback(async () => {
     if (voiceState !== "recording") return;
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
+
+    if (isVadSpeakingRef.current && speechFramesRef.current.length > 0) {
+      // Force-submit: claim the frames before VAD's onSpeechEnd can fire
+      isVadSpeakingRef.current = false;
+      const frames = speechFramesRef.current;
+      speechFramesRef.current = [];
+      vadRef.current?.pause();
+      setVoiceState("processing");
+      await submitAudioRef.current?.(frames);
+    } else {
+      vadRef.current?.pause();
+      setVoiceState("idle");
     }
   }, [voiceState]);
 
@@ -2860,6 +2896,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         startListening,
         stopListening,
         submitText,
+        speakText,
         registerPage,
         unregisterPage,
         aiEvents,
