@@ -474,7 +474,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (pathname === ROUTES.WELCOME) {
       stopPlayback();
       vadRef.current?.pause();
-      setVoiceState("idle");
+      queueMicrotask(() => setVoiceState("idle"));
       sessionIdRef.current = undefined;
       sessionStorage.removeItem(CHAT_SESSION_KEY);
       historyRef.current = [];
@@ -2782,7 +2782,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   | "map"
                   | "overview"
                   | null);
-          const langDir = buildLangDirective(language || "en-US");
+          const _langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
@@ -2945,7 +2945,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [processTranscript, resolveAccessToken],
+    [processTranscript],
   );
 
   // Keep a stable ref so VAD callbacks (created once) always call the latest version
@@ -2975,7 +2975,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       // Capture raw 16 kHz PCM using ScriptProcessorNode while VAD is active
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       const source = audioCtx.createMediaStreamSource(stream);
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
         if (isVadSpeakingRef.current) {
@@ -3022,6 +3021,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         },
       });
 
+      // eslint-disable-next-line react-hooks/immutability
       vadRef.current = vad;
       vadInitializingRef.current = false;
       vad.start();
