@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
-import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
+import { outfitService, type RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -24,7 +24,7 @@ import {
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
-import { FASHION_QUOTES } from "@/modules/fashion/constants";
+import { FASHION_QUOTES, FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 function CreateOutfitFloaterButton({
@@ -64,7 +64,7 @@ function CreateOutfitFloaterButton({
 export default function VirtualMirrorV2() {
   const router = useRouter();
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const { isProcessing } = useVoiceContext();
+  const { isProcessing, submitText } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -121,21 +121,22 @@ export default function VirtualMirrorV2() {
     setSwapItemId(null);
   }
 
-  const clearSlots = () => {
+  const clearSlots = useCallback(() => {
     setSelectedBag(null);
     setSelectedTopBase(null);
     setSelectedTopMid(null);
     setSelectedTopOuter(null);
     setSelectedBottom(null);
     setSelectedShoe(null);
-  };
-  const selectOutfit = (idx: number) => {
+  }, []);
+
+  const selectOutfit = useCallback((idx: number) => {
     setSelectedOutfitIdx(idx);
     clearSlots();
     setOutfitOverrides({});
     setSwapSlot(null);
     setSwapItemId(null);
-  };
+  }, [clearSlots]);
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -257,6 +258,75 @@ export default function VirtualMirrorV2() {
       setSelectedShoe(null);
       setSelectedOutfitIdx(null);
 
+      const rawData = response.garment_data as Record<string, unknown> | null;
+      const query = typeof rawData?.query === "string" ? rawData.query : null;
+
+      if (query) {
+        // New format: ChatWonder sends query params, we fetch real DB outfits
+        outfitService.getByQuery(query).then((fetchedOutfits) => {
+          const newTopsBase: RemoteGarment[] = [];
+          const newTopsMid: RemoteGarment[] = [];
+          const newTopsOuter: RemoteGarment[] = [];
+          const newBottoms: RemoteGarment[] = [];
+          const newShoes: RemoteGarment[] = [];
+          const newBags: RemoteGarment[] = [];
+          const seen = new Set<string>();
+
+          for (const outfit of fetchedOutfits) {
+            for (const item of outfit.items) {
+              const g = item.garment;
+              if (seen.has(g.id)) continue;
+              seen.add(g.id);
+
+              const mapped: RemoteGarment = {
+                id: g.id,
+                name: g.name,
+                description: g.description ?? "",
+                imageUrl: g.imageUrl,
+                fittingSlot: g.fittingSlot,
+                garmentType: g.garmentType,
+                category: [],
+                tags: [],
+                gender: null,
+                silhouette: null,
+                layerLevel: g.layerLevel ?? null,
+                file: null,
+              };
+
+              if (g.fittingSlot.includes("UpperGarment")) {
+                const layer = g.layerLevel ?? "BASE";
+                if (layer === "OUTER") newTopsOuter.push(mapped);
+                else if (layer === "MID") newTopsMid.push(mapped);
+                else newTopsBase.push(mapped);
+              } else if (g.fittingSlot.includes("LowerGarment")) {
+                newBottoms.push(mapped);
+              } else if (g.fittingSlot.includes("FootGarment")) {
+                newShoes.push(mapped);
+              } else if (g.garmentType.includes("Bag")) {
+                newBags.push(mapped);
+              }
+            }
+          }
+
+          setTopsBase(newTopsBase);
+          setTopsBasePage(0);
+          setTopsMid(newTopsMid);
+          setTopsMidPage(0);
+          setTopsOuter(newTopsOuter);
+          setTopsOuterPage(0);
+          setBottoms(newBottoms);
+          setBottomsPage(0);
+          setShoes(newShoes);
+          setShoesPage(0);
+          setBags(newBags);
+          setBagsPage(0);
+          setOutfits(fetchedOutfits);
+          setOutfitPage(0);
+        }).catch(console.error);
+        return;
+      }
+
+      // Legacy format: ChatWonder sends sets[] with inline recommendations
       type AiItem = {
         id?: string;
         name: string;
@@ -270,6 +340,7 @@ export default function VirtualMirrorV2() {
         layerLevel?: string;
       };
 
+      const sets = Array.isArray(rawData?.sets) ? rawData.sets as Record<string, unknown>[] : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -285,11 +356,7 @@ export default function VirtualMirrorV2() {
         imageUrl: item.imageUrl ?? "",
         fittingSlot: [slot],
         garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-        category: Array.isArray(item.category)
-          ? item.category
-          : item.category
-            ? [item.category]
-            : [],
+        category: Array.isArray(item.category) ? item.category : item.category ? [item.category] : [],
         tags: [],
         gender: null,
         silhouette: null,
@@ -297,33 +364,24 @@ export default function VirtualMirrorV2() {
         file: null,
       });
 
-      function push(
-        item: AiItem | undefined,
-        bucket: RemoteGarment[],
-        slot: string,
-      ) {
+      function push(item: AiItem | undefined, bucket: RemoteGarment[], slot: string) {
         if (!item?.id) return;
         if (seen.has(item.id)) return;
         seen.add(item.id);
         bucket.push(toGarment(item, slot));
       }
 
-      // ── /message format: response.garment_data.sets[].recommendations[] ────────
-      const sets = response.garment_data?.sets ?? [];
       for (const s of sets) {
-        for (const r of (s.recommendations ?? []) as AiItem[]) {
+        for (const r of (Array.isArray(s.recommendations) ? s.recommendations : []) as AiItem[]) {
           if (r.fittingSlot?.includes("UpperGarment")) {
             const layer = r.layerLevel ?? "BASE";
             if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
             else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
             else push(r, newTopsBase, "UpperGarment");
           }
-          if (r.fittingSlot?.includes("LowerGarment"))
-            push(r, newBottoms, "LowerGarment");
-          if (r.fittingSlot?.includes("FootGarment"))
-            push(r, newShoes, "FootGarment");
-          if (r.garmentType?.includes("Bag"))
-            push(r, newBags, "RightHandAccessory");
+          if (r.fittingSlot?.includes("LowerGarment")) push(r, newBottoms, "LowerGarment");
+          if (r.fittingSlot?.includes("FootGarment")) push(r, newShoes, "FootGarment");
+          if (r.garmentType?.includes("Bag")) push(r, newBags, "RightHandAccessory");
         }
       }
 
@@ -344,24 +402,24 @@ export default function VirtualMirrorV2() {
       const newAiOutfits: RemoteOutfit[] = sets
         .filter((s) => s.outfit_imageUrl)
         .map((s, i) => {
-          const baseId = s.outfit_id || `outfit-${i}`;
+          const baseId = String(s.outfit_id ?? `outfit-${i}`);
           const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
           seenOutfitIds.add(id);
           return {
             id,
-            name: s.outfit_name,
-            description: s.reason,
-            file: { fileUrl: s.outfit_imageUrl },
-            items: s.recommendations.map((r) => ({
-              id: r.id,
-              slot: r.fittingSlot[0] ?? "UpperGarment",
+            name: String(s.outfit_name ?? "Outfit"),
+            description: String(s.reason ?? ""),
+            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
+            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map((r) => ({
+              id: String(r.id ?? crypto.randomUUID()),
+              slot: String((r.fittingSlot as string[])?.[0] ?? "UpperGarment"),
               garment: {
-                id: r.id,
-                name: r.name,
-                description: r.description,
-                imageUrl: r.imageUrl,
-                garmentType: r.garmentType,
-                fittingSlot: r.fittingSlot,
+                id: String(r.id ?? ""),
+                name: String(r.name ?? ""),
+                description: String(r.description ?? ""),
+                imageUrl: String(r.imageUrl ?? ""),
+                garmentType: (r.garmentType as string[]) ?? [],
+                fittingSlot: (r.fittingSlot as string[]) ?? [],
               },
             })),
             metaData: null,
@@ -467,6 +525,18 @@ export default function VirtualMirrorV2() {
   );
 
   useVoice(fashionPageContext, handleVoiceAction);
+
+  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
+  const handoffFiredRef = useRef(false);
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
   useEffect(() => {
@@ -601,7 +671,7 @@ export default function VirtualMirrorV2() {
   const showShowcase = !hasRecommendations && !isProcessing;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
+    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
@@ -796,7 +866,16 @@ export default function VirtualMirrorV2() {
                           return (
                             <div
                               key={item.id}
-                              className="flex"
+                              role="button"
+                              tabIndex={0}
+                              aria-pressed={isSwapping}
+                              className="flex focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.currentTarget.click();
+                                }
+                              }}
                               onClick={() => {
                                 const slot = resolveSwapSlot(
                                   item.garment.garmentType,

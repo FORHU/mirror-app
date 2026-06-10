@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, X } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -28,6 +28,12 @@ export function PromptFloater({
   const isIdle = !isListening && !isProcessing && !isSpeaking;
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    const timeoutId = window.setTimeout(() => setOpen(false), 12000);
+    return () => window.clearTimeout(timeoutId);
+  }, [open]);
+
   if (!isIdle) return null;
 
   return (
@@ -52,7 +58,11 @@ export function PromptFloater({
               boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
             }}
           >
-            <QuickResponseChips prompts={prompts} categories={categories} />
+            <QuickResponseChips
+              prompts={prompts}
+              categories={categories}
+              onPromptSelect={() => setOpen(false)}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -102,39 +102,8 @@ export interface ChatWonderEvent {
 }
 
 export interface ChatWonderGarmentData {
-  success: boolean;
-  gender: string;
-  event_type?: string;
-  event_date?: string;
-  location?: string;
-  sets_requested?: number;
-  sets: ChatWonderSet[];
-  weather_note?: string;
-  styling_tips?: string[];
-}
-
-export interface ChatWonderSet {
-  set_number: number;
-  outfit_id: string;
-  vibe: string;
-  trend_note: string;
-  reason: string;
-  outfit_name: string;
-  outfit_description: string;
-  outfit_imageUrl: string;
-  recommendations: ChatWonderRecommendation[];
-}
-
-export interface ChatWonderRecommendation {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  fittingSlot: string[];
-  garmentType: string[];
-  category: string[];
-  layerLevel?: string;
-  silhouette?: string;
+  query: string;
+  reason?: string;
 }
 
 // ─── Token helper (mirrors api-client.ts interceptor logic) ──────────────────

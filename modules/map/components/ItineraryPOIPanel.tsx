@@ -6,6 +6,14 @@ import { stopColor } from "../constants/stopColors";
 import type { NearbyPOI } from "../services/map.service";
 import Image from "next/image";
 
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+function poiPhotoSrc(poi: NearbyPOI): string | null {
+  if (poi.photo) return poi.photo;
+  if (!MAPBOX_TOKEN) return null;
+  return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${poi.lng},${poi.lat},15/300x90?access_token=${MAPBOX_TOKEN}`;
+}
+
 const ItineraryPOIPanel: React.FC = () => {
   const itineraryStopPOIs = useMapStore((s) => s.itineraryStopPOIs);
   const itineraryStops = useMapStore((s) => s.itineraryStops);
@@ -112,8 +120,9 @@ const ItineraryPOIPanel: React.FC = () => {
           </div>
 
           {/* POI rows — top 3 only */}
-          {pois.map((poi, i) => (
-            <button
+          {pois.map((poi, i) => {
+            const photoSrc = poiPhotoSrc(poi);
+            return <button
               key={poi.placeId ?? poi.name}
               onClick={() => handleNavigate(poi, stopIndex)}
               style={{
@@ -140,9 +149,9 @@ const ItineraryPOIPanel: React.FC = () => {
                   width: "100%",
                 }}
               >
-                {poi.photo ? (
+                {photoSrc ? (
                   <Image
-                    src={poi.photo}
+                    src={photoSrc}
                     alt=""
                     width={300}
                     height={90}
@@ -226,8 +235,8 @@ const ItineraryPOIPanel: React.FC = () => {
                   )}
                 </div>
               </div>
-            </button>
-          ))}
+            </button>;
+          })}
         </div>
       ))}
     </div>

@@ -408,7 +408,7 @@ export default function AIAssistantPage() {
   const displayReply = error || reply || latest?.assistant || activeGreeting;
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <MirrorHeader />
 
       <AnimatePresence mode="wait">
@@ -491,7 +491,7 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 min-h-0 flex flex-col px-10 py-8"
+            className="flex-1 min-h-0 flex flex-col px-10 pt-8 pb-28"
           >
             {/* conversation — top half */}
             <div className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl mx-auto w-full">

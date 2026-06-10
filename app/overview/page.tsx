@@ -21,7 +21,6 @@ import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -43,11 +42,6 @@ import {
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -96,8 +90,6 @@ async function requestGarmentsWithFreshSession(
 }
 
 export default function OverviewPage() {
-  const user = useAuthStore((s) => s.user);
-
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
@@ -353,7 +345,16 @@ export default function OverviewPage() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        aria-hidden
+        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
+      />
+
       <MirrorHeader
         className="w-full"
         style={{
@@ -392,7 +393,7 @@ export default function OverviewPage() {
               opacity: 0,
               transition: { duration: 0.5, ease: "easeInOut" },
             }}
-            className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
+            className="absolute inset-0 z-50 bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"

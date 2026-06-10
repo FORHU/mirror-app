@@ -13,6 +13,7 @@ export interface RemoteOutfitGarment {
   imageUrl: string;
   garmentType: string[];
   fittingSlot: string[];
+  layerLevel?: string | null;
 }
 
 export interface RemoteOutfitItem {
@@ -52,6 +53,18 @@ export const outfitService = {
     const qs = params.toString();
     const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
       `/api/mirror/outfits${qs ? `?${qs}` : ""}`,
+    );
+    if (!response.ok) {
+      throw new Error(response.problem ?? "Failed to fetch outfits");
+    }
+    const items = response.data?.data?.items;
+    if (Array.isArray(items)) return items;
+    throw new Error("Unexpected response shape");
+  },
+
+  getByQuery: async (queryString: string): Promise<RemoteOutfit[]> => {
+    const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
+      `/api/mirror/outfits?${queryString}`,
     );
     if (!response.ok) {
       throw new Error(response.problem ?? "Failed to fetch outfits");

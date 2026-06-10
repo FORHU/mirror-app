@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { MapDashboard } from "@/modules/map";
+import { MapDashboard, MAP_PROMPT_KEY } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import {
@@ -63,6 +64,7 @@ export default function MapPage() {
   } = useMapStore();
   const router = useRouter();
   const onAction = useCallback(() => {}, []);
+  const { submitText } = useVoiceContext();
 
   useVoice(
     {
@@ -73,6 +75,17 @@ export default function MapPage() {
     },
     onAction,
   );
+
+  const handoffFiredRef = useRef(false);
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(MAP_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(MAP_PROMPT_KEY);
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadHomeLocation();
@@ -87,7 +100,7 @@ export default function MapPage() {
 
   if (homeLocationStatus === "idle" || homeLocationStatus === "loading") {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center">
+      <div className="fixed inset-0 bg-canvas flex flex-col items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
         <p className="text-white/50 text-sm font-light tracking-wide">
           Setting up your map…
@@ -115,7 +128,7 @@ export default function MapPage() {
   // }
 
   return (
-    <main className="w-screen h-dvh bg-black relative overflow-hidden">
+    <main className="w-screen h-dvh bg-canvas relative overflow-hidden">
       <ChatNavLoader />
 
       {/* Header — weather left, time center, back right */}
