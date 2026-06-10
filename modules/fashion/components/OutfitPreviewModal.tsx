@@ -66,6 +66,8 @@ export function OutfitPreviewModal({
 
   const gender = useAuthStore((s) => s.user?.gender ?? null);
   const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
+  const chatTailorData = useMirrorStore((s) => s.chatTailorData);
+  const setChatTailorData = useMirrorStore((s) => s.setChatTailorData);
   const { sendMessage } = useChatWonderContext();
 
   // Watch gender: if it lands while we're on the canvas view after having
@@ -74,6 +76,14 @@ export function OutfitPreviewModal({
   useEffect(() => {
     genderRef.current = gender;
   }, [gender]);
+
+  // When stylist calls generate_outfit_image via chat, the result lands here.
+  useEffect(() => {
+    if (!chatTailorData) return;
+    setChatTailorData(null);
+    setResultUrl(chatTailorData.image_url);
+    setView("result");
+  }, [chatTailorData, setChatTailorData]);
 
   // Garment resolution (same logic as before)
   let cBase: RemoteGarment | null = selectedTopBase;
@@ -118,9 +128,17 @@ export function OutfitPreviewModal({
 
   async function handleGenerate() {
     if (!gender) {
-      // No gender — open chat, let Miraj ask, button becomes active when it lands
+      // No gender — send garment URLs so stylist can call generate_outfit_image
+      // immediately after the user provides their gender in chat.
+      const garmentUrls = [cBase, cMid, cOuter, cBottom, cShoe, cBag]
+        .filter((g): g is RemoteGarment => !!g?.imageUrl)
+        .map((g) => g.imageUrl);
+      const annotation =
+        garmentUrls.length > 0
+          ? `[GARMENT_IMAGES:${JSON.stringify(garmentUrls)}] `
+          : "";
       setIsChatOpen(true);
-      void sendMessage("I'd like to generate my outfit.");
+      void sendMessage(`${annotation}I'd like to generate my outfit.`);
       return;
     }
 
