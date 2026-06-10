@@ -44,3 +44,9 @@ next-env.d.ts
 /.claude
 /docs
 public/mirror-tester.html
+
+# VAD / onnxruntime-web assets — copied from node_modules by
+# scripts/copy-vad-assets.mjs on every dev/build (regenerated, not source)
+public/ort-wasm-simd-threaded.*
+public/silero_vad_*.onnx
+public/vad.worklet.bundle.min.js
