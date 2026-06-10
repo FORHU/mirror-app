@@ -3,6 +3,7 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { mapService } from "@/modules/map/services/map.service";
+import { buildPOITTS, curatePOIs } from "@/modules/map/utils/chatWonderMapUtils";
 import { ROUTES } from "@/navigation";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
@@ -11,6 +12,7 @@ export async function executeAction(
   router: AppRouterInstance,
   pathname: string,
   onAction?: (action: ChatWonderAction) => void,
+  options?: { onSuggestPlaces?: (tts: string) => void },
 ) {
   if (!action) return;
 
@@ -150,7 +152,10 @@ export async function executeAction(
       mapService
         .nearbyPOIs(loc.lat, loc.lng, 1500, googleCategory)
         .then(({ pois }) => {
-          useMapStore.getState().setSuggestedPOIs(pois, action.label);
+          const curated = curatePOIs(pois);
+          useMapStore.getState().setSuggestedPOIs(curated, action.label);
+          const tts = buildPOITTS(curated);
+          if (tts) options?.onSuggestPlaces?.(tts);
         })
         .catch((err) => {
           console.error("[maps_suggest_places] Failed to load POIs:", err);
