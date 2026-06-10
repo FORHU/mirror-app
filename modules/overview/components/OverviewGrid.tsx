@@ -167,7 +167,9 @@ function WardrobeContent({
             {outfit.name}
           </p>
           {outfit.vibe && (
-            <p className="text-white/50 text-sm mt-0.5 truncate">{outfit.vibe}</p>
+            <p className="text-white/50 text-sm mt-0.5 truncate">
+              {outfit.vibe}
+            </p>
           )}
         </div>
       </div>
@@ -391,9 +393,13 @@ function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
     <div className="flex flex-col gap-3 h-full">
       {pin(100)}
       <div className="shrink-0">
-        <p className="text-white text-base font-semibold truncate">{data.name}</p>
+        <p className="text-white text-base font-semibold truncate">
+          {data.name}
+        </p>
         {data.address && (
-          <p className="text-white/35 text-sm truncate mt-0.5">{data.address}</p>
+          <p className="text-white/35 text-sm truncate mt-0.5">
+            {data.address}
+          </p>
         )}
       </div>
       {stopList}
@@ -524,12 +530,7 @@ export function OverviewGrid() {
           )}
 
           {showMap && (
-            <Tile
-              icon={MapPin}
-              label="Map"
-              state={map}
-              className="flex-1"
-            >
+            <Tile icon={MapPin} label="Map" state={map} className="flex-1">
               {map.data ? <MapContent data={map.data} wide={mapWide} /> : null}
             </Tile>
           )}

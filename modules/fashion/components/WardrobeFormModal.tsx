@@ -64,12 +64,27 @@ export function WardrobeFormModal({
     try {
       const blob = await canvasRef.current?.getBlob();
       const items = [
-        selectedTopBase && { garmentId: selectedTopBase.id, slot: "UpperGarment" },
-        selectedTopMid && { garmentId: selectedTopMid.id, slot: "UpperGarment" },
-        selectedTopOuter && { garmentId: selectedTopOuter.id, slot: "UpperGarment" },
-        selectedBottom && { garmentId: selectedBottom.id, slot: "LowerGarment" },
+        selectedTopBase && {
+          garmentId: selectedTopBase.id,
+          slot: "UpperGarment",
+        },
+        selectedTopMid && {
+          garmentId: selectedTopMid.id,
+          slot: "UpperGarment",
+        },
+        selectedTopOuter && {
+          garmentId: selectedTopOuter.id,
+          slot: "UpperGarment",
+        },
+        selectedBottom && {
+          garmentId: selectedBottom.id,
+          slot: "LowerGarment",
+        },
         selectedShoe && { garmentId: selectedShoe.id, slot: "FootGarment" },
-        selectedBag && { garmentId: selectedBag.id, slot: "RightHandAccessory" },
+        selectedBag && {
+          garmentId: selectedBag.id,
+          slot: "RightHandAccessory",
+        },
       ].filter(Boolean) as { garmentId: string; slot: string }[];
 
       await outfitService.create({
@@ -116,7 +131,14 @@ export function WardrobeFormModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
           <p
             style={{
               color: "white",
@@ -195,7 +217,14 @@ export function WardrobeFormModal({
         </div>
 
         {error && (
-          <p style={{ color: "#f87171", fontSize: 12, margin: 0, textAlign: "center" }}>
+          <p
+            style={{
+              color: "#f87171",
+              fontSize: 12,
+              margin: 0,
+              textAlign: "center",
+            }}
+          >
             {error}
           </p>
         )}
