@@ -11,6 +11,8 @@ interface PromptFloaterProps {
   categories?: PromptCategory[];
   /** Positioning classes for the floating button container. */
   className?: string;
+  /** Override default submitText — when provided, skips ChatWonder entirely */
+  onSelect?: (prompt: string) => void;
 }
 
 /**
@@ -23,6 +25,7 @@ export function PromptFloater({
   prompts,
   categories,
   className,
+  onSelect,
 }: PromptFloaterProps) {
   const { isListening, isProcessing, isSpeaking } = useVoiceContext();
   const isIdle = !isListening && !isProcessing && !isSpeaking;
@@ -62,6 +65,7 @@ export function PromptFloater({
               prompts={prompts}
               categories={categories}
               onPromptSelect={() => setOpen(false)}
+              onSelect={onSelect}
             />
           </motion.div>
         )}

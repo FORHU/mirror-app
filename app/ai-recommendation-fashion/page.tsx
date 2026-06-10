@@ -248,99 +248,11 @@ export default function VirtualMirrorV2() {
     (bagsPage + 1) * accessoryPageSize,
   );
 
-  const handleAiComplete = useCallback(
-    (response: ChatWonderMessageResponse) => {
-      setSelectedBag(null);
-      setSelectedTopBase(null);
-      setSelectedTopMid(null);
-      setSelectedTopOuter(null);
-      setSelectedBottom(null);
-      setSelectedShoe(null);
-      setSelectedOutfitIdx(null);
-
-      const rawData = response.garment_data as Record<string, unknown> | null;
-      const query = typeof rawData?.query === "string" ? rawData.query : null;
-
-      if (query) {
-        // New format: ChatWonder sends query params, we fetch real DB outfits
-        outfitService.getByQuery(query).then((fetchedOutfits) => {
-          const newTopsBase: RemoteGarment[] = [];
-          const newTopsMid: RemoteGarment[] = [];
-          const newTopsOuter: RemoteGarment[] = [];
-          const newBottoms: RemoteGarment[] = [];
-          const newShoes: RemoteGarment[] = [];
-          const newBags: RemoteGarment[] = [];
-          const seen = new Set<string>();
-
-          for (const outfit of fetchedOutfits) {
-            for (const item of outfit.items) {
-              const g = item.garment;
-              if (seen.has(g.id)) continue;
-              seen.add(g.id);
-
-              const mapped: RemoteGarment = {
-                id: g.id,
-                name: g.name,
-                description: g.description ?? "",
-                imageUrl: g.imageUrl,
-                fittingSlot: g.fittingSlot,
-                garmentType: g.garmentType,
-                category: [],
-                tags: [],
-                gender: null,
-                silhouette: null,
-                layerLevel: g.layerLevel ?? null,
-                file: null,
-              };
-
-              if (g.fittingSlot.includes("UpperGarment")) {
-                const layer = g.layerLevel ?? "BASE";
-                if (layer === "OUTER") newTopsOuter.push(mapped);
-                else if (layer === "MID") newTopsMid.push(mapped);
-                else newTopsBase.push(mapped);
-              } else if (g.fittingSlot.includes("LowerGarment")) {
-                newBottoms.push(mapped);
-              } else if (g.fittingSlot.includes("FootGarment")) {
-                newShoes.push(mapped);
-              } else if (g.garmentType.includes("Bag")) {
-                newBags.push(mapped);
-              }
-            }
-          }
-
-          setTopsBase(newTopsBase);
-          setTopsBasePage(0);
-          setTopsMid(newTopsMid);
-          setTopsMidPage(0);
-          setTopsOuter(newTopsOuter);
-          setTopsOuterPage(0);
-          setBottoms(newBottoms);
-          setBottomsPage(0);
-          setShoes(newShoes);
-          setShoesPage(0);
-          setBags(newBags);
-          setBagsPage(0);
-          setOutfits(fetchedOutfits);
-          setOutfitPage(0);
-        }).catch(console.error);
-        return;
-      }
-
-      // Legacy format: ChatWonder sends sets[] with inline recommendations
-      type AiItem = {
-        id?: string;
-        name: string;
-        type?: string;
-        description?: string;
-        reason?: string;
-        imageUrl?: string;
-        category?: string | string[];
-        garmentType?: string[];
-        fittingSlot?: string[];
-        layerLevel?: string;
-      };
-
-      const sets = Array.isArray(rawData?.sets) ? rawData.sets as Record<string, unknown>[] : [];
+  // HARDCODED BYPASS: called directly from PromptFloater onSelect, skips ChatWonder entirely
+  // TODO: remove once ChatWonder sends query params and handleAiComplete flow is restored
+  const HARDCODED_QUERY = "limit=4";
+  const fetchHardcodedOutfits = useCallback(() => {
+    outfitService.getByQuery(HARDCODED_QUERY).then((fetchedOutfits) => {
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -348,85 +260,47 @@ export default function VirtualMirrorV2() {
       const newShoes: RemoteGarment[] = [];
       const newBags: RemoteGarment[] = [];
       const seen = new Set<string>();
-
-      const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
-        id: item.id ?? crypto.randomUUID(),
-        name: item.name,
-        description: item.reason ?? item.description ?? "",
-        imageUrl: item.imageUrl ?? "",
-        fittingSlot: [slot],
-        garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-        category: Array.isArray(item.category) ? item.category : item.category ? [item.category] : [],
-        tags: [],
-        gender: null,
-        silhouette: null,
-        layerLevel: item.layerLevel ?? null,
-        file: null,
-      });
-
-      function push(item: AiItem | undefined, bucket: RemoteGarment[], slot: string) {
-        if (!item?.id) return;
-        if (seen.has(item.id)) return;
-        seen.add(item.id);
-        bucket.push(toGarment(item, slot));
-      }
-
-      for (const s of sets) {
-        for (const r of (Array.isArray(s.recommendations) ? s.recommendations : []) as AiItem[]) {
-          if (r.fittingSlot?.includes("UpperGarment")) {
-            const layer = r.layerLevel ?? "BASE";
-            if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
-            else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
-            else push(r, newTopsBase, "UpperGarment");
-          }
-          if (r.fittingSlot?.includes("LowerGarment")) push(r, newBottoms, "LowerGarment");
-          if (r.fittingSlot?.includes("FootGarment")) push(r, newShoes, "FootGarment");
-          if (r.garmentType?.includes("Bag")) push(r, newBags, "RightHandAccessory");
+      for (const outfit of fetchedOutfits) {
+        for (const item of outfit.items) {
+          const g = item.garment;
+          if (seen.has(g.id)) continue;
+          seen.add(g.id);
+          const mapped: RemoteGarment = {
+            id: g.id, name: g.name, description: g.description ?? "",
+            imageUrl: g.imageUrl, fittingSlot: g.fittingSlot,
+            garmentType: g.garmentType, category: [], tags: [],
+            gender: null, silhouette: null, layerLevel: g.layerLevel ?? null, file: null,
+          };
+          if (g.fittingSlot.includes("UpperGarment")) {
+            const layer = g.layerLevel ?? "BASE";
+            if (layer === "OUTER") newTopsOuter.push(mapped);
+            else if (layer === "MID") newTopsMid.push(mapped);
+            else newTopsBase.push(mapped);
+          } else if (g.fittingSlot.includes("LowerGarment")) newBottoms.push(mapped);
+          else if (g.fittingSlot.includes("FootGarment")) newShoes.push(mapped);
+          else if (g.garmentType.includes("Bag")) newBags.push(mapped);
         }
       }
-
       setTopsBase(newTopsBase);
-      setTopsBasePage(0);
       setTopsMid(newTopsMid);
-      setTopsMidPage(0);
       setTopsOuter(newTopsOuter);
-      setTopsOuterPage(0);
       setBottoms(newBottoms);
-      setBottomsPage(0);
       setShoes(newShoes);
-      setShoesPage(0);
       setBags(newBags);
-      setBagsPage(0);
-
-      const seenOutfitIds = new Set<string>();
-      const newAiOutfits: RemoteOutfit[] = sets
-        .filter((s) => s.outfit_imageUrl)
-        .map((s, i) => {
-          const baseId = String(s.outfit_id ?? `outfit-${i}`);
-          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
-          seenOutfitIds.add(id);
-          return {
-            id,
-            name: String(s.outfit_name ?? "Outfit"),
-            description: String(s.reason ?? ""),
-            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
-            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map((r) => ({
-              id: String(r.id ?? crypto.randomUUID()),
-              slot: String((r.fittingSlot as string[])?.[0] ?? "UpperGarment"),
-              garment: {
-                id: String(r.id ?? ""),
-                name: String(r.name ?? ""),
-                description: String(r.description ?? ""),
-                imageUrl: String(r.imageUrl ?? ""),
-                garmentType: (r.garmentType as string[]) ?? [],
-                fittingSlot: (r.fittingSlot as string[]) ?? [],
-              },
-            })),
-            metaData: null,
-          };
-        });
-      setOutfits(newAiOutfits);
+      setOutfits(fetchedOutfits);
       setOutfitPage(0);
+    }).catch(console.error);
+  }, [setTopsBase, setTopsMid, setTopsOuter, setBottoms, setShoes, setBags, setOutfits, setOutfitPage]);
+
+  const handleAiComplete = useCallback(
+    (_response: ChatWonderMessageResponse) => {
+      // TODO: restore once ChatWonder sends query params
+      // setSelectedBag(null); setSelectedTopBase(null); setSelectedTopMid(null);
+      // setSelectedTopOuter(null); setSelectedBottom(null); setSelectedShoe(null); setSelectedOutfitIdx(null);
+      // const rawData = _response.garment_data as Record<string, unknown> | null;
+      // const query = typeof rawData?.query === "string" ? rawData.query : null;
+      // if (query) { outfitService.getByQuery(query).then(...) } — new format
+      // else { sets[] legacy path } — old format
     },
     [
       setTopsBase,
@@ -464,13 +338,12 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      if (action.type === "GARMENT_RECOMMENDATION") {
-        const res = action.response as { garment_data?: unknown } | null;
-        if (res?.garment_data) {
-          handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse);
-        }
-        return;
-      }
+      // TODO: restore once ChatWonder query-param flow is confirmed
+      // if (action.type === "GARMENT_RECOMMENDATION") {
+      //   const res = action.response as { garment_data?: unknown } | null;
+      //   if (res?.garment_data) { handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse); }
+      //   return;
+      // }
       if (action.type === "fashion_select_outfit") {
         const idx = action.index;
         if (idx < 0 || idx >= outfits.length) return;
@@ -546,30 +419,21 @@ export default function VirtualMirrorV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-
-    setTimeout(() => {
-      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // useEffect(() => {
+  //   const pending = useMirrorStore.getState().pendingGarmentData;
+  //   if (!pending) return;
+  //   useMirrorStore.getState().setPendingGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
+  // }, []);
 
   // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
-  useEffect(() => {
-    if (!chatGarmentData) return;
-    useMirrorStore.getState().setChatGarmentData(null);
-
-    setTimeout(() => {
-      handleAiComplete({
-        garment_data: chatGarmentData,
-      } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatGarmentData]);
+  // useEffect(() => {
+  //   if (!chatGarmentData) return;
+  //   useMirrorStore.getState().setChatGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
+  // }, [chatGarmentData]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
@@ -1167,6 +1031,7 @@ export default function VirtualMirrorV2() {
 
       {/* Suggested prompts — collapsible floater centered above the mic */}
       <PromptFloater
+        onSelect={fetchHardcodedOutfits}
         prompts={[
           "Formal outfit — top, bottom, shoes, and bag.",
           "Business look that feels confident and professional.",
