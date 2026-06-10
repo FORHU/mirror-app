@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
-import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import {
+  chatWonderService,
+  type ChatWonderMessageResponse,
+} from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -24,7 +26,6 @@ import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
 } from "@/modules/fashion/components/GarmentSelectionPanel";
-import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import {
@@ -35,8 +36,10 @@ import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas
 
 export default function VirtualMirrorV2() {
   const router = useRouter();
-  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  const searchParams = useSearchParams();
   const { isProcessing, submitText } = useVoiceContext();
+  const [isChipLoading, setIsChipLoading] = useState(false);
+  const isLoading = isProcessing || isChipLoading;
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -444,12 +447,26 @@ export default function VirtualMirrorV2() {
     ],
   );
 
-  // DEMO BYPASS: skip ChatWonder, fetch hardcoded outfits directly when suggestion chip is tapped
-  // TODO: remove once ChatWonder sends [GARMENT_DATA] query-param format and GARMENT_RECOMMENDATION is restored
-  const HARDCODED_QUERY = "limit=4";
-  const fetchHardcodedOutfits = useCallback(() => {
-    handleAiComplete({ garment_data: { query: HARDCODED_QUERY } } as ChatWonderMessageResponse);
-  }, [handleAiComplete]);
+  const handleChipSelect = useCallback(
+    async (prompt: string) => {
+      setIsChipLoading(true);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "garment",
+        });
+        const query = response.garment_data?.query;
+        const params = new URLSearchParams(query ?? "");
+        if (!params.has("limit")) params.set("limit", "4");
+        router.push(`/ai-recommendation-fashion?${params.toString()}`);
+      } catch {
+        router.push("/ai-recommendation-fashion?limit=4");
+      } finally {
+        setIsChipLoading(false);
+      }
+    },
+    [router],
+  );
 
   const fashionPageContext = useMemo(
     () => ({
@@ -530,6 +547,20 @@ export default function VirtualMirrorV2() {
   );
 
   useVoice(fashionPageContext, handleVoiceAction);
+
+  // Re-fetch whenever URL params change — covers both initial mount and
+  // chip-tap navigation (?metaCategory=Casual&limit=4 etc.).
+  // limit=4 is injected if the caller omitted it.
+  const lastSearchParamsRef = useRef<string | null>(null);
+  useEffect(() => {
+    const current = searchParams.toString();
+    if (lastSearchParamsRef.current === current) return;
+    lastSearchParamsRef.current = current;
+    const params = new URLSearchParams(current);
+    if (!params.has("limit")) params.set("limit", "4");
+    handleAiComplete({ garment_data: { query: params.toString() } } as ChatWonderMessageResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
   const handoffFiredRef = useRef(false);
@@ -654,17 +685,6 @@ export default function VirtualMirrorV2() {
     },
   ];
 
-  // Idle showcase: nothing recommended yet and not mid-request → run the
-  // outfit image carousel so the screen isn't just black.
-  const hasRecommendations =
-    outfits.length > 0 ||
-    topsBase.length > 0 ||
-    topsMid.length > 0 ||
-    topsOuter.length > 0 ||
-    bottoms.length > 0 ||
-    shoes.length > 0 ||
-    bags.length > 0;
-  const showShowcase = !hasRecommendations && !isProcessing;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
@@ -673,7 +693,7 @@ export default function VirtualMirrorV2() {
       <MirrorHeader onBack={() => router.back()} />
 
       {/* Action row — Create a Wardrobe + Suggestions, between header and outfit panels */}
-      {!isProcessing && (
+      {!isLoading && (
         <div
           style={{
             display: "flex",
@@ -700,7 +720,7 @@ export default function VirtualMirrorV2() {
             </span>
           </button>
           <PromptFloater
-            onSelect={fetchHardcodedOutfits}
+            onSelect={handleChipSelect}
             prompts={[
               "Formal outfit — top, bottom, shoes, and bag.",
               "Business look that feels confident and professional.",
@@ -732,16 +752,6 @@ export default function VirtualMirrorV2() {
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
-      {/* Idle showcase — outfit image carousel fills the black space until the
-          user has recommendations (sits behind the prompts/mic). */}
-      {showShowcase && (
-        <div
-          className="absolute inset-x-0 z-0 px-6"
-          style={{ top: 80, bottom: 100, pointerEvents: "none" }}
-        >
-          <OutfitImageCarousel />
-        </div>
-      )}
 
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — recommended outfit list */}
@@ -752,7 +762,7 @@ export default function VirtualMirrorV2() {
           outfitPageSize={outfitPageSize}
           totalOutfitPages={totalOutfitPages}
           selectedOutfitIdx={selectedOutfitIdx}
-          isProcessing={isProcessing}
+          isProcessing={isLoading}
           swipeHandlers={outfitSwipe}
           onSelect={selectOutfit}
           onPageChange={setOutfitPage}
@@ -770,7 +780,7 @@ export default function VirtualMirrorV2() {
               style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
             >
               {/* Outfit display */}
-              {selectedOutfit && !isProcessing && (
+              {selectedOutfit && !isLoading && (
                 <div
                   style={{
                     width: "100%",
@@ -1044,7 +1054,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Loading state — cycling fashion quotes */}
-              {isProcessing && (
+              {isLoading && (
                 <QuoteCarousel
                   quotes={FASHION_QUOTES}
                   label="Style tip"
@@ -1053,7 +1063,7 @@ export default function VirtualMirrorV2() {
               )}
 
               {/* Garment slot cards */}
-              {!selectedOutfit && !isProcessing && (
+              {!selectedOutfit && !isLoading && (
                 <div
                   style={{
                     flex: 1,
@@ -1175,7 +1185,7 @@ export default function VirtualMirrorV2() {
         <GarmentSelectionPanel
           slots={garmentSlots}
           swapSlot={swapSlot}
-          isProcessing={isProcessing}
+          isProcessing={isLoading}
           onCancelSwap={cancelSwap}
           onSelect={handleSlotSelect}
         />
