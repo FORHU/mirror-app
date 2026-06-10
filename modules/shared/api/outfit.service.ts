@@ -60,6 +60,18 @@ export const outfitService = {
     throw new Error("Unexpected response shape");
   },
 
+  getByQuery: async (queryString: string): Promise<RemoteOutfit[]> => {
+    const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
+      `/api/mirror/outfits?${queryString}`,
+    );
+    if (!response.ok) {
+      throw new Error(response.problem ?? "Failed to fetch outfits");
+    }
+    const items = response.data?.data?.items;
+    if (Array.isArray(items)) return items;
+    throw new Error("Unexpected response shape");
+  },
+
   create: async ({
     name,
     items,
