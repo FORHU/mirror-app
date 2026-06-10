@@ -444,6 +444,13 @@ export default function VirtualMirrorV2() {
     ],
   );
 
+  // DEMO BYPASS: skip ChatWonder, fetch hardcoded outfits directly when suggestion chip is tapped
+  // TODO: remove once ChatWonder sends [GARMENT_DATA] query-param format and GARMENT_RECOMMENDATION is restored
+  const HARDCODED_QUERY = "limit=4";
+  const fetchHardcodedOutfits = useCallback(() => {
+    handleAiComplete({ garment_data: { query: HARDCODED_QUERY } } as ChatWonderMessageResponse);
+  }, [handleAiComplete]);
+
   const fashionPageContext = useMemo(
     () => ({
       route: "/ai-recommendation-fashion",
@@ -693,6 +700,7 @@ export default function VirtualMirrorV2() {
             </span>
           </button>
           <PromptFloater
+            onSelect={fetchHardcodedOutfits}
             prompts={[
               "Formal outfit — top, bottom, shoes, and bag.",
               "Business look that feels confident and professional.",

@@ -3,6 +3,16 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { ChatWonderGarmentData } from "@/modules/shared/api/chat-wonder.service";
 import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 import type { TrackerStatus } from "@/modules/shared/hooks/useProximitySensor";
+import type {
+  CosmeticTileItem,
+  GarmentTileItem,
+  OutfitTileItem,
+} from "@/modules/overview/types";
+
+interface OverviewFashionSnapshot {
+  garments: GarmentTileItem[];
+  outfits: OutfitTileItem[];
+}
 
 interface MirrorState {
   /** AI-generated recommendation text to display in Fashion/Cosmetics screens */
@@ -50,6 +60,15 @@ interface MirrorState {
   /** Cosmetics data from chat path (nav_early flow). Consumed once by cosmetics page. */
   chatCosmeticsData: unknown | null;
   setChatCosmeticsData: (data: unknown | null) => void;
+  /** Tailor-generated outfit image from chat path. Consumed once by OutfitPreviewModal. */
+  chatTailorData: { image_url: string; gender: string } | null;
+  setChatTailorData: (data: { image_url: string; gender: string } | null) => void;
+  /** Last normalized fashion data shown on /ai-recommendation-fashion, for /overview mini cards. */
+  overviewFashionSnapshot: OverviewFashionSnapshot | null;
+  setOverviewFashionSnapshot: (data: OverviewFashionSnapshot | null) => void;
+  /** Last normalized cosmetic recommendations shown on /ai-recommendation-cosmetic. */
+  overviewCosmeticsSnapshot: CosmeticTileItem[] | null;
+  setOverviewCosmeticsSnapshot: (data: CosmeticTileItem[] | null) => void;
   clearChatNav: () => void;
 }
 
@@ -85,12 +104,21 @@ export const useMirrorStore = create<MirrorState>()(
       setChatGarmentData: (data) => set({ chatGarmentData: data }),
       chatCosmeticsData: null,
       setChatCosmeticsData: (data) => set({ chatCosmeticsData: data }),
+      chatTailorData: null,
+      setChatTailorData: (data) => set({ chatTailorData: data }),
+      overviewFashionSnapshot: null,
+      setOverviewFashionSnapshot: (data) =>
+        set({ overviewFashionSnapshot: data }),
+      overviewCosmeticsSnapshot: null,
+      setOverviewCosmeticsSnapshot: (data) =>
+        set({ overviewCosmeticsSnapshot: data }),
       clearChatNav: () =>
         set({
           chatNavPending: false,
           chatStreamingText: "",
           chatGarmentData: null,
           chatCosmeticsData: null,
+          chatTailorData: null,
         }),
     }),
     {
@@ -105,6 +133,8 @@ export const useMirrorStore = create<MirrorState>()(
         pendingCosmeticsData: state.pendingCosmeticsData,
         skinAnalysisResult: state.skinAnalysisResult,
         skinCaptureUrl: state.skinCaptureUrl,
+        overviewFashionSnapshot: state.overviewFashionSnapshot,
+        overviewCosmeticsSnapshot: state.overviewCosmeticsSnapshot,
       }),
     },
   ),

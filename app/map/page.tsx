@@ -10,10 +10,7 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import {
-  QuickResponseChips,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
+import { QuickResponseChips } from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {
@@ -146,7 +143,7 @@ export default function MapPage() {
           <QuickResponseChips
             prompts={[
               "Show me restaurants and cafes near me.",
-              `I have a back-to-back schedule on ${nextWeekday(1)} — plan my full route for the day.`,
+              "Show me popular spots and attractions near me.",
               "Show me the fastest route from my current location to the nearest mall.",
               "Show me a pharmacy near me.",
               "Show me the nearest grocery or convenience store.",

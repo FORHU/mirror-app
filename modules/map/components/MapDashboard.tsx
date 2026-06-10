@@ -19,7 +19,7 @@ export default function MapDashboard() {
     suggestedPOIs,
     suggestionLabel,
     setSelectedPOI,
-    clearSuggestions,
+    selectedPOI,
     isPanning,
   } = useMapStore();
   const { transcriptOpen, transcript, reply, error } = useVoiceContext();
@@ -60,7 +60,7 @@ export default function MapDashboard() {
       <ExploreHUD />
       <SuggestedPOIMarkers />
       <POICurationStack
-        pois={isPanning ? [] : suggestedPOIs}
+        pois={isPanning || selectedPOI ? [] : suggestedPOIs}
         label={suggestionLabel || undefined}
         chatVisible={chatVisible}
         onSelect={(poi) => {
@@ -73,7 +73,9 @@ export default function MapDashboard() {
             placeId: poi.placeId,
             photo: poi.photo,
           });
-          clearSuggestions();
+          // Don't call clearSuggestions here — the card strip hides automatically
+          // when selectedPOI is set (see pois prop above), and the map pins stay
+          // intact so the user can dismiss ExploreHUD and return to browsing.
         }}
       />
       <ItineraryPOIPanel />

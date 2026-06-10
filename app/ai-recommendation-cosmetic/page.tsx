@@ -1,6 +1,5 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
@@ -11,6 +10,7 @@ import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { adaptCosmeticsData } from "@/modules/overview";
 import MirrorHeader from "@/components/MirrorHeader";
 import { getToday, nextWeekday } from "@/components/QuickResponseChips";
 import { PromptFloater } from "@/components/PromptFloater";
@@ -186,6 +186,13 @@ export default function CosmeticRecommendationPage() {
   const sortedRecs = useMemo(() => {
     return [...allRecs].sort((a, b) => (a.rank || 0) - (b.rank || 0));
   }, [allRecs]);
+
+  useEffect(() => {
+    if (!sortedRecs.length) return;
+    useMirrorStore
+      .getState()
+      .setOverviewCosmeticsSnapshot(adaptCosmeticsData(sortedRecs));
+  }, [sortedRecs]);
 
   // The design requests 10 items total, split 5 on left, 5 on right.
   const leftColRecs = sortedRecs.slice(0, 5);

@@ -73,6 +73,13 @@ export function ChatWonderProvider({
               .getState()
               .setChatCosmeticsData(payload.cosmetics_data);
           }
+          if (payload.tailor_data) {
+            useMirrorStore
+              .getState()
+              .setChatTailorData(
+                payload.tailor_data as { image_url: string; gender: string },
+              );
+          }
           if (payload.gender_update?.gender) {
             const g = payload.gender_update.gender.toUpperCase();
             if (g === "MALE" || g === "FEMALE") {
