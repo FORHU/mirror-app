@@ -96,7 +96,7 @@ export function QuickResponseChips({
                     onClick={() => setActiveTab(i)}
                     onTouchStart={() => setActiveTab(i)}
                     whileTap={{ scale: 0.94 }}
-                    className="relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 select-none"
+                    className="relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 select-none"
                     style={{
                       background: active
                         ? "rgba(255,255,255,0.10)"
@@ -105,8 +105,8 @@ export function QuickResponseChips({
                         ? "1px solid rgba(255,255,255,0.22)"
                         : "1px solid rgba(255,255,255,0.07)",
                       color: active
-                        ? "rgba(255,255,255,0.90)"
-                        : "rgba(255,255,255,0.38)",
+                        ? "rgba(255,255,255,0.92)"
+                        : "rgba(255,255,255,0.58)",
                       backdropFilter: "blur(10px)",
                       WebkitBackdropFilter: "blur(10px)",
                     }}
@@ -155,7 +155,7 @@ export function QuickResponseChips({
                   whileTap={{ scale: 0.96, opacity: 0.8 }}
                   onTouchStart={() => handleTap(prompt)}
                   onClick={() => handleTap(prompt)}
-                  className="px-4 py-2 rounded-full text-left text-[11px] leading-snug font-light text-white/60 border border-white/10 transition-colors active:bg-white/10 hover:text-white/85 hover:border-white/20"
+                  className="px-4 py-2 rounded-full text-left text-[12px] leading-snug font-light text-white/70 border border-white/10 transition-colors active:bg-white/10 hover:text-white/90 hover:border-white/20"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     backdropFilter: "blur(12px)",

@@ -353,7 +353,16 @@ export default function OverviewPage() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        aria-hidden
+        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
+      />
+
       <MirrorHeader
         className="w-full"
         style={{
@@ -392,7 +401,7 @@ export default function OverviewPage() {
               opacity: 0,
               transition: { duration: 0.5, ease: "easeInOut" },
             }}
-            className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
+            className="absolute inset-0 z-50 bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"

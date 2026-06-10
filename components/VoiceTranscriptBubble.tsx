@@ -82,8 +82,8 @@ export default function VoiceTranscriptBubble({
               ) : (
                 <>
                   {transcript && (
-                    <p className="text-xs text-white/50 leading-tight mb-1">
-                      <span className="font-semibold text-white/70">You:</span>{" "}
+                    <p className="text-[13px] text-white/60 leading-tight mb-1">
+                      <span className="font-semibold text-white/75">You:</span>{" "}
                       {transcript}
                     </p>
                   )}

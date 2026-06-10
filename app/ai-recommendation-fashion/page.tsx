@@ -603,7 +603,7 @@ export default function VirtualMirrorV2() {
   const showShowcase = !hasRecommendations && !isProcessing;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
+    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
@@ -798,7 +798,16 @@ export default function VirtualMirrorV2() {
                           return (
                             <div
                               key={item.id}
-                              className="flex"
+                              role="button"
+                              tabIndex={0}
+                              aria-pressed={isSwapping}
+                              className="flex focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.currentTarget.click();
+                                }
+                              }}
                               onClick={() => {
                                 const slot = resolveSwapSlot(
                                   item.garment.garmentType,
