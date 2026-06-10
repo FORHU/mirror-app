@@ -8,8 +8,8 @@ import {
 } from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
-import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 
 interface ItineraryMap {
   destination?: string;
@@ -42,6 +42,7 @@ export interface ChatWonderCompletePayload {
   maps_data?: unknown | null;
   nav?: unknown | null;
   nav_data?: unknown | null;
+  tailor_data?: unknown | null;
   gender_update?: { gender?: string } | null;
   events?: unknown[];
   sets?: unknown[];
@@ -88,19 +89,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   // Keep track of the AbortController so we can cancel streams if needed
   const abortControllerRef = useRef<AbortController | null>(null);
-
   const audioQueueRef = useRef<AudioQueue | null>(null);
-
-  useEffect(() => {
-    // Initialize AudioQueue on mount
-    audioQueueRef.current = new AudioQueue();
-    return () => {
-      // Stop and clean up on unmount
-      if (audioQueueRef.current) {
-        audioQueueRef.current.stop();
-      }
-    };
-  }, []);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -156,6 +145,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         if (audioQueueRef.current) {
           audioQueueRef.current.stop();
         }
+        audioQueueRef.current = new AudioQueue();
 
         const payload: Record<string, unknown> = {
           input: finalInput,

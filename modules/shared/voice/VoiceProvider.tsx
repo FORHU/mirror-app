@@ -32,6 +32,19 @@ import {
   resolveAccessToken,
 } from "@/modules/shared/api/chat-wonder.service";
 import { stopAllAudioQueues } from "./audioQueue";
+
+// ── Amazon Polly TTS ──────────────────────────────────────────────────────────
+// Calls /api/mirror/voice/tts which synthesises speech directly via AWS Polly.
+async function pollyTts(text: string): Promise<ArrayBuffer> {
+  const lang = useMirrorStore.getState().voiceLanguage ?? "en-US";
+  const res = await fetch("/api/mirror/voice/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, lang }),
+  });
+  if (!res.ok) throw new Error(`Polly TTS failed: ${res.status}`);
+  return res.arrayBuffer();
+}
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import { MAP_PROMPT_KEY } from "@/modules/map/constants";
@@ -293,7 +306,7 @@ function isFashionHandoffPrompt(text: string): boolean {
 }
 
 function isMapDiscoveryPrompt(text: string): boolean {
-  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?)\b/i.test(
+  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?|plan (?:my |the |a )?(?:full |)route|back-to-back schedule|route for the day|plan my (?:full |)day|fastest route|show me (?:the )?(?:fastest|quickest|shortest) route)\b/i.test(
     text,
   );
 }
@@ -349,6 +362,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
+
+  // Streaming AWS Transcribe WebSocket session
+  const transcribeWsRef = useRef<WebSocket | null>(null);
+  const partialTranscriptRef = useRef<string>("");
+  const wsResolveRef = useRef<((t: string) => void) | null>(null);
+  const wsRejectRef = useRef<((e: Error) => void) | null>(null);
   // Holds the activity destination (e.g. "hiking trail") detected in the user's last
   // non-map transcript. Cleared when the user responds yes/no to the map offer.
   const pendingActivityDestRef = useRef<{
@@ -444,7 +463,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       itineraryStopsRef.current = [];
       const closing = "Alright, your route is all set! Enjoy your trip.";
       setReply(closing);
-      const audio = await mapService.tts(closing).catch(() => null);
+      const audio = await pollyTts(closing).catch(() => null);
       if (audio) {
         setVoiceState("speaking");
         const playCtx = new AudioContext();
@@ -498,7 +517,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const t = text?.trim();
       if (!t) return;
       stopPlayback();
-      const audio = await mapService.tts(t).catch(() => null);
+      const audio = await pollyTts(t).catch(() => null);
       if (!audio) {
         setVoiceState("idle");
         return;
@@ -564,8 +583,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t)) {
-        const assistantReply = "Opening the map to find places near you.";
+      const alreadyOnMap = pageCtxRef.current?.route === ROUTES.MAP;
+      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t) && !alreadyOnMap) {
+        const assistantReply = /route|schedule/i.test(t)
+          ? "Opening the map to plan your route."
+          : "Opening the map to find places near you.";
         setReply(assistantReply);
         const newHistory = [
           ...historyRef.current,
@@ -657,7 +679,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       };
 
-      const audio = await mapService.tts(assistantReply).catch(() => null);
+      const audio = await pollyTts(assistantReply).catch(() => null);
       if (!audio) {
         finish();
         return;
@@ -692,7 +714,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const submitAudioRef = useRef<
-    ((frames: Float32Array[]) => Promise<void>) | null
+    ((frames: Float32Array[], preTranscript?: string) => Promise<void>) | null
   >(null);
   const processTranscript = useCallback(
     async (t: string) => {
@@ -977,15 +999,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          // Fall back to data-type-implied route if the server omitted target_url.
-          const stylistTarget =
-            aiResponse.stylist_data?.target_url ??
-            (aiResponse.garment_data
-              ? ROUTES.AI_RECOMMENDATION_FASHION
-              : undefined) ??
-            (aiResponse.cosmetics_data
-              ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : undefined);
+          const stylistTarget = aiResponse.stylist_data?.target_url;
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -1041,7 +1055,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setChatHistory(newHistory);
 
           const snippet = firstNSentences(displayMessage, 3);
-          const ttsAudio = await mapService.tts(snippet).catch(() => null);
+          const ttsAudio = await pollyTts(snippet).catch(() => null);
           if (ttsAudio) {
             setVoiceState("speaking");
             const playCtx = new AudioContext();
@@ -1054,8 +1068,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             src.onended = async () => {
               if (offerText) {
                 // Chain the map offer after the main fashion response.
-                const offerAudio = await mapService
-                  .tts(offerText)
+                const offerAudio = await pollyTts(offerText)
                   .catch(() => null);
                 if (offerAudio) {
                   const offerCtx = new AudioContext();
@@ -1193,7 +1206,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 },
               });
               const confirmReply = `Here's info on ${matchedPOI.name}.`;
-              const confirmAudio = await mapService.tts(confirmReply);
+              const confirmAudio = await pollyTts(confirmReply);
               setReply(confirmReply);
               const confirmHistory = [
                 ...historyRef.current,
@@ -1236,8 +1249,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const addrReply = addrPOI.address
                 ? `The address of ${addrPOI.name} is ${addrPOI.address}.`
                 : `I don't have a specific address for ${addrPOI.name}.`;
-              const addrAudio = await mapService
-                .tts(addrReply)
+              const addrAudio = await pollyTts(addrReply)
                 .catch(() => null);
               setReply(addrReply);
               historyRef.current = [
@@ -1278,8 +1290,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 ratedPOI.rating != null
                   ? `${ratedPOI.name} is rated ${ratedPOI.rating} out of 5${ratedPOI.userRatingsTotal ? `, based on ${ratedPOI.userRatingsTotal} reviews` : ""}.`
                   : `I don't have a rating for ${ratedPOI.name}.`;
-              const ratingAudio = await mapService
-                .tts(ratingReply)
+              const ratingAudio = await pollyTts(ratingReply)
                 .catch(() => null);
               setReply(ratingReply);
               historyRef.current = [
@@ -1325,7 +1336,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               });
               useMapStore.getState().clearSuggestions();
               const confirmReply = `Taking you to ${matched.name}.`;
-              const confirmAudio = await mapService.tts(confirmReply);
+              const confirmAudio = await pollyTts(confirmReply);
               setReply(confirmReply);
               const confirmHistory = [
                 ...historyRef.current,
@@ -1394,8 +1405,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 names.length === 1
                   ? `Did you mean ${names[0]}?`
                   : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
-              const reAskAudio = await mapService
-                .tts(reAskReply)
+              const reAskAudio = await pollyTts(reAskReply)
                 .catch(() => null);
               setReply(reAskReply);
               historyRef.current = [
@@ -1472,8 +1482,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   nextAmbiguous.name,
                   nextAmbiguous.allResults.slice(0, 3),
                 );
-                const nextAudio = await mapService
-                  .tts(nextClarify)
+                const nextAudio = await pollyTts(nextClarify)
                   .catch(() => null);
                 setReply(nextClarify);
                 historyRef.current = [
@@ -1549,8 +1558,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                       hasPOIs,
                       disambigRouteSummary,
                     );
-              const disambigAudio = await mapService
-                .tts(disambigReply)
+              const disambigAudio = await pollyTts(disambigReply)
                 .catch(() => null);
               setReply(disambigReply);
               historyRef.current = [
@@ -1582,7 +1590,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             } else {
               const top = disambiguationCandidatesRef.current.slice(0, 2);
               const reAsk = `Sorry, I didn't catch that. Option 1: ${top[0].address}, or option 2: ${top[1]?.address ?? "the other one"}?`;
-              const reAskAudio = await mapService.tts(reAsk).catch(() => null);
+              const reAskAudio = await pollyTts(reAsk).catch(() => null);
               setReply(reAsk);
               setVoiceState("speaking");
               if (reAskAudio) {
@@ -1685,8 +1693,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     ambiguous.name,
                     ambiguous.allResults.slice(0, 3),
                   );
-                  const clarifyAudio = await mapService
-                    .tts(clarifyReply)
+                  const clarifyAudio = await pollyTts(clarifyReply)
                     .catch(() => null);
                   setReply(clarifyReply);
                   historyRef.current = [
@@ -1750,8 +1757,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     : "";
                 const names = merged.map((s) => s.name).join(", ");
                 const multiReply = `Got it! Added ${merged.length} stops: ${names}.${poiLine}${etaNarration} Any more stops?`;
-                const multiAudio = await mapService
-                  .tts(multiReply)
+                const multiAudio = await pollyTts(multiReply)
                   .catch(() => null);
                 setReply(multiReply);
                 historyRef.current = [
@@ -1797,8 +1803,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             pendingAmbiguousQueueRef.current = [];
             await useMapStore.getState().clearItinerary();
             const clearReply = "Route cleared. What's your first stop?";
-            const clearAudio = await mapService
-              .tts(clearReply)
+            const clearAudio = await pollyTts(clearReply)
               .catch(() => null);
             setReply(clearReply);
             historyRef.current = [
@@ -1836,7 +1841,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               stops.length > 1
                 ? `Here's your full route with ${stops.length} stops!`
                 : "Here's your route!";
-            const finishAudio = await mapService.tts(finishReply);
+            const finishAudio = await pollyTts(finishReply);
             setReply(finishReply);
             const fh = [
               ...historyRef.current,
@@ -1944,8 +1949,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                       )
                     ];
                   const poiReply = `Here are the recommended places near ${stop?.name ?? "that stop"}: ${poiLines}. ${closer}`;
-                  const poiAudio = await mapService
-                    .tts(poiReply)
+                  const poiAudio = await pollyTts(poiReply)
                     .catch(() => null);
                   setReply(poiReply);
                   historyRef.current = [
@@ -2025,8 +2029,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     displayName,
                     results.slice(0, 3),
                   );
-                  const clarifyAudio = await mapService
-                    .tts(clarifyReply)
+                  const clarifyAudio = await pollyTts(clarifyReply)
                     .catch(() => null);
                   setReply(clarifyReply);
                   historyRef.current = [
@@ -2147,8 +2150,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     hasPOIs,
                     routeSummary,
                   );
-                  const stopAudio = await mapService
-                    .tts(stopReply)
+                  const stopAudio = await pollyTts(stopReply)
                     .catch(() => null);
                   setReply(stopReply);
                   historyRef.current = [
@@ -2233,8 +2235,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   placeId: stop.placeId,
                 });
                 const ordinalReply = `Taking you to ${stop.name}.`;
-                const ordinalAudio = await mapService
-                  .tts(ordinalReply)
+                const ordinalAudio = await pollyTts(ordinalReply)
                   .catch(() => null);
                 setReply(ordinalReply);
                 historyRef.current = [
@@ -2299,8 +2300,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     placeId: nearest.placeId,
                   });
                   const routeReply = `Taking you to ${nearest.name}${nearest.address ? `, at ${nearest.address}` : ""}.`;
-                  const routeAudio = await mapService
-                    .tts(routeReply)
+                  const routeAudio = await pollyTts(routeReply)
                     .catch(() => null);
                   setReply(routeReply);
                   historyRef.current = [
@@ -2336,7 +2336,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 curatedPOIsRef.current = curated;
                 useMapStore.getState().setSuggestedPOIs(curated, nearbyQuery);
                 const poiTTS = buildPOITTS(curated);
-                const poiAudio = await mapService.tts(poiTTS).catch(() => null);
+                const poiAudio = await pollyTts(poiTTS).catch(() => null);
                 setReply(poiTTS);
                 historyRef.current = [
                   ...historyRef.current,
@@ -2367,8 +2367,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               // No results found at this location — give a clear error instead of
               // silently falling through to ChatWonder (which always fails for POI queries).
               const noResultReply = `I couldn't find a nearby ${nearbyQuery} in this area. You can try asking for a different type of place.`;
-              const noResultAudio = await mapService
-                .tts(noResultReply)
+              const noResultAudio = await pollyTts(noResultReply)
                 .catch(() => null);
               setReply(noResultReply);
               historyRef.current = [
@@ -2424,10 +2423,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           );
 
           if (res.stylist_data?.target_url) {
-            if (res.stylist_data.target_url === "back") {
+            const targetUrl = res.stylist_data.target_url;
+            if (targetUrl === "back") {
               router.back();
-            } else {
-              router.push(res.stylist_data.target_url);
+            } else if (targetUrl !== ROUTES.OVERVIEW) {
+              // Never let ChatWonder redirect away to /overview from the map page —
+              // route/schedule queries should always be resolved on the map.
+              router.push(targetUrl);
             }
           }
 
@@ -2715,7 +2717,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           if (curatedPOIsRef.current.length > 1) {
             mapReply = buildPOITTS(curatedPOIsRef.current);
             [mapAudio] = await Promise.all([
-              mapService.tts(mapReply),
+              pollyTts(mapReply),
               waitForMapSettle(),
             ]);
           } else {
@@ -2736,7 +2738,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               rawAudio = bytes.buffer;
             }
             [mapAudio] = await Promise.all([
-              rawAudio ? Promise.resolve(rawAudio) : mapService.tts(mapReply),
+              rawAudio ? Promise.resolve(rawAudio) : pollyTts(mapReply),
               waitForMapSettle(),
             ]);
           }
@@ -2814,12 +2816,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               } else {
                 r = guard.reply ?? SYSTEM_RESPONSES.cancelled;
               }
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
               bypassMainExecution = true;
             } else if (isNo) {
               confirmationRef.current = createIdleConfirmation();
               r = SYSTEM_RESPONSES.cancelled;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
               bypassMainExecution = true;
             } else {
               // UNCERTAIN — pass mode flag so AI knows to ask for clarification
@@ -2912,7 +2914,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
-            voice: true,
             ...(locCtx &&
             (directNavigationRequest ||
               pageCtxRef.current?.mode === "garment" ||
@@ -2929,13 +2930,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           r = res.message;
           events = res.events ?? [];
-          if (res.audioBase64) {
-            const buf = Buffer.from(res.audioBase64, "base64");
-            audioBuffer = buf.buffer.slice(
-              buf.byteOffset,
-              buf.byteOffset + buf.byteLength,
-            ) as ArrayBuffer;
-          }
 
           let chatAction: ChatWonderAction | null = null;
           const resolvedTarget = res.stylist_data?.target_url;
@@ -2987,12 +2981,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 result.reply || r,
               );
               r = result.reply || r;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
             } else if (result.reply) {
               // If the kernel intercepted with a custom reply (e.g. Gender Guard)
               r = result.reply;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
             }
+          }
+
+          // Polly generates audio for any reply not already handled by the kernel
+          if (!audioBuffer && r) {
+            audioBuffer = await pollyTts(r).catch(() => null);
           }
         }
 
@@ -3049,15 +3048,25 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitAudio = useCallback(
-    async (frames: Float32Array[]) => {
-      if (frames.length === 0) {
-        setVoiceState("idle");
-        return;
-      }
-
-      const int16 = float32ToInt16(concatFrames(frames));
-
+    async (frames: Float32Array[], preTranscript?: string) => {
       try {
+        // Fast path: WebSocket already delivered the transcript
+        if (preTranscript !== undefined) {
+          if (preTranscript.trim()) {
+            await processTranscript(preTranscript.trim());
+          } else {
+            setVoiceState("idle");
+          }
+          return;
+        }
+
+        // HTTP fallback: send full audio buffer to AWS Transcribe
+        if (frames.length === 0) {
+          setVoiceState("idle");
+          return;
+        }
+
+        const int16 = float32ToInt16(concatFrames(frames));
         const lang = useMirrorStore.getState().voiceLanguage || "en-US";
         const token = await resolveAccessToken();
         const transcript = await transcribeAudio({ int16, lang, token });
@@ -3105,9 +3114,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
         if (isVadSpeakingRef.current) {
-          speechFramesRef.current.push(
-            new Float32Array(e.inputBuffer.getChannelData(0)),
-          );
+          const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+          speechFramesRef.current.push(chunk);
+          // Stream each chunk in real-time to the AWS Transcribe WebSocket
+          const ws = transcribeWsRef.current;
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(float32ToInt16(chunk).buffer as ArrayBuffer);
+          }
         }
       };
       source.connect(processor);
@@ -3130,7 +3143,53 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         onSpeechStart: () => {
           isVadSpeakingRef.current = true;
           speechFramesRef.current = [];
+          partialTranscriptRef.current = "";
           setVoiceState("recording");
+
+          // Open a streaming AWS Transcribe WebSocket immediately so audio
+          // chunks can be forwarded in real-time as the user speaks.
+          const lang = useMirrorStore.getState().voiceLanguage || "en-US";
+          const proto =
+            window.location.protocol === "https:" ? "wss" : "ws";
+          const ws = new WebSocket(
+            `${proto}://${window.location.host}/api/mirror/voice/transcribe-ws?lang=${encodeURIComponent(lang)}`,
+          );
+          ws.onmessage = (ev: MessageEvent<string>) => {
+            try {
+              const msg = JSON.parse(ev.data) as {
+                type: string;
+                transcript?: string;
+                message?: string;
+              };
+              if (
+                (msg.type === "partial" || msg.type === "final") &&
+                msg.transcript
+              ) {
+                partialTranscriptRef.current = msg.transcript;
+                // Show live partial text while the user speaks
+                if (msg.type === "partial") setTranscript(msg.transcript);
+              } else if (msg.type === "done") {
+                wsResolveRef.current?.(partialTranscriptRef.current);
+                wsResolveRef.current = null;
+              } else if (msg.type === "error") {
+                wsRejectRef.current?.(
+                  new Error(msg.message ?? "Transcription error"),
+                );
+                wsRejectRef.current = null;
+              }
+            } catch {
+              /* ignore parse errors */
+            }
+          };
+          ws.onclose = () => {
+            wsResolveRef.current?.(partialTranscriptRef.current);
+            wsResolveRef.current = null;
+          };
+          ws.onerror = () => {
+            wsRejectRef.current?.(new Error("WebSocket transcription failed"));
+            wsRejectRef.current = null;
+          };
+          transcribeWsRef.current = ws;
         },
         onSpeechEnd: async () => {
           // Guard: stopListening force-submit already cleared this
@@ -3139,7 +3198,31 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const frames = speechFramesRef.current;
           speechFramesRef.current = [];
           setVoiceState("processing");
-          await submitAudioRef.current?.(frames);
+
+          const ws = transcribeWsRef.current;
+          transcribeWsRef.current = null;
+
+          if (ws?.readyState === WebSocket.OPEN) {
+            // Signal end of audio and wait up to 10s for the final transcript
+            const transcript = await Promise.race([
+              new Promise<string>((resolve, reject) => {
+                wsResolveRef.current = resolve;
+                wsRejectRef.current = reject;
+                ws.send(JSON.stringify({ type: "end" }));
+              }),
+              new Promise<string>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("Transcription timeout")),
+                  10000,
+                ),
+              ),
+            ]).catch(() => "");
+
+            await submitAudioRef.current?.([], transcript);
+          } else {
+            // WebSocket unavailable — fall back to HTTP AWS Transcribe
+            await submitAudioRef.current?.(frames);
+          }
         },
         onVADMisfire: () => {
           isVadSpeakingRef.current = false;
@@ -3173,8 +3256,31 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       speechFramesRef.current = [];
       vadRef.current?.pause();
       setVoiceState("processing");
-      await submitAudioRef.current?.(frames);
+
+      const ws = transcribeWsRef.current;
+      transcribeWsRef.current = null;
+
+      if (ws?.readyState === WebSocket.OPEN) {
+        const transcript = await Promise.race([
+          new Promise<string>((resolve) => {
+            wsResolveRef.current = resolve;
+            wsRejectRef.current = () => resolve("");
+            ws.send(JSON.stringify({ type: "end" }));
+          }),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve(""), 10000),
+          ),
+        ]).catch(() => "");
+
+        await submitAudioRef.current?.([], transcript);
+      } else {
+        await submitAudioRef.current?.(frames);
+      }
     } else {
+      // Abort any in-flight WebSocket without waiting for transcription
+      const ws = transcribeWsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) ws.close();
+      transcribeWsRef.current = null;
       vadRef.current?.pause();
       setVoiceState("idle");
     }
@@ -3218,6 +3324,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
       vadRef.current?.pause();
+      // Abort any in-flight streaming transcription
+      const ws = transcribeWsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) ws.close();
+      transcribeWsRef.current = null;
+      wsResolveRef.current = null;
+      wsRejectRef.current = null;
       setTranscript("");
       setReply("");
       setError(null);
