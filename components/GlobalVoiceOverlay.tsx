@@ -8,12 +8,16 @@ import VoiceWaveform from "@/components/VoiceWaveform";
 import VoiceTranscriptBubble from "@/components/VoiceTranscriptBubble";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
+const NO_MIC_ROUTES = ["/wardrobe/create"];
+
 // The shared tap-to-talk mic renders on every page. It's hidden only while
 // /ai-assistant sits on its idle "Tap to start" welcome screen, so the spoken
 // greeting gate isn't bypassed by tapping the mic directly.
 export default function GlobalVoiceOverlay() {
   const assistantIdle = useMirrorStore((s) => s.assistantIdle);
+  const pathname = usePathname();
   if (assistantIdle) return null;
+  if (NO_MIC_ROUTES.some((r) => pathname.startsWith(r))) return null;
   return <VoiceUI />;
 }
 

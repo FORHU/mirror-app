@@ -33,6 +33,7 @@ export interface RemoteOutfit {
 
 export interface CreateOutfitParams {
   name: string;
+  description?: string;
   items: OutfitItem[];
   pngBlob?: Blob | null;
   isPublic?: boolean;
@@ -75,12 +76,14 @@ export const outfitService = {
 
   create: async ({
     name,
+    description,
     items,
     pngBlob,
     isPublic = false,
   }: CreateOutfitParams): Promise<CreatedOutfit> => {
     const form = new FormData();
     form.append("name", name);
+    if (description) form.append("description", description);
     form.append("items", JSON.stringify(items));
     form.append("isPublic", String(isPublic));
     if (pngBlob) {

@@ -549,7 +549,8 @@ export default function AIAssistantPage() {
             {/* Quick Response Chips — categorised */}
             <QuickResponseChips categories={chipCategories} />
 
-            {/* Bottom nav — flanks the shared center-bottom mic */}
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
             <AssistantNavBar />
             <div ref={bottomRef} />
           </motion.main>

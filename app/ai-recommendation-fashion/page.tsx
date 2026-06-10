@@ -398,27 +398,33 @@ export default function VirtualMirrorV2() {
       setBags(newBags);
       setBagsPage(0);
 
+      const seenOutfitIds = new Set<string>();
       const newAiOutfits: RemoteOutfit[] = sets
         .filter((s) => s.outfit_imageUrl)
-        .map((s) => ({
-          id: String(s.outfit_id ?? crypto.randomUUID()),
-          name: String(s.outfit_name ?? "Outfit"),
-          description: String(s.reason ?? ""),
-          file: { fileUrl: String(s.outfit_imageUrl ?? "") },
-          items: ((s.recommendations ?? []) as Record<string, unknown>[]).map((r) => ({
-            id: String(r.id ?? crypto.randomUUID()),
-            slot: String((r.fittingSlot as string[])?.[0] ?? "UpperGarment"),
-            garment: {
-              id: String(r.id ?? ""),
-              name: String(r.name ?? ""),
-              description: String(r.description ?? ""),
-              imageUrl: String(r.imageUrl ?? ""),
-              garmentType: (r.garmentType as string[]) ?? [],
-              fittingSlot: (r.fittingSlot as string[]) ?? [],
-            },
-          })),
-          metaData: null,
-        }));
+        .map((s, i) => {
+          const baseId = String(s.outfit_id ?? `outfit-${i}`);
+          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
+          seenOutfitIds.add(id);
+          return {
+            id,
+            name: String(s.outfit_name ?? "Outfit"),
+            description: String(s.reason ?? ""),
+            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
+            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map((r) => ({
+              id: String(r.id ?? crypto.randomUUID()),
+              slot: String((r.fittingSlot as string[])?.[0] ?? "UpperGarment"),
+              garment: {
+                id: String(r.id ?? ""),
+                name: String(r.name ?? ""),
+                description: String(r.description ?? ""),
+                imageUrl: String(r.imageUrl ?? ""),
+                garmentType: (r.garmentType as string[]) ?? [],
+                fittingSlot: (r.fittingSlot as string[]) ?? [],
+              },
+            })),
+            metaData: null,
+          };
+        });
       setOutfits(newAiOutfits);
       setOutfitPage(0);
     },
@@ -538,7 +544,9 @@ export default function VirtualMirrorV2() {
     if (!pending) return;
     useMirrorStore.getState().setPendingGarmentData(null);
 
-    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    setTimeout(() => {
+      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -547,9 +555,11 @@ export default function VirtualMirrorV2() {
     if (!chatGarmentData) return;
     useMirrorStore.getState().setChatGarmentData(null);
 
-    handleAiComplete({
-      garment_data: chatGarmentData,
-    } as ChatWonderMessageResponse);
+    setTimeout(() => {
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse);
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatGarmentData]);
 
@@ -1138,26 +1148,12 @@ export default function VirtualMirrorV2() {
         />
       )}
 
-      {/* Create Outfit — fixed above the Suggestions floater, hidden during voice */}
+      {/* Create a Wardrobe — navigates to the garment selection/creation page */}
       {!isProcessing && (
         <CreateOutfitFloaterButton
-          hasSelection={
-            selectedOutfitIdx !== null ||
-            outfitModified ||
-            !!(
-              (selectedTopBase || selectedTopMid || selectedTopOuter) &&
-              selectedBottom &&
-              selectedShoe
-            )
-          }
-          label={
-            outfitModified
-              ? "Customize Outfit"
-              : selectedOutfitIdx !== null
-                ? "Generate Look"
-                : "Create Outfit"
-          }
-          onPress={() => setShowConfirm(true)}
+          hasSelection={false}
+          label="Create a Wardrobe"
+          onPress={() => router.push("/wardrobe/create")}
         />
       )}
 
