@@ -3,8 +3,8 @@ RUN corepack enable
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --ignore-scripts && pnpm rebuild sharp
 
 FROM base AS builder
 WORKDIR /app
