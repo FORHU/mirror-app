@@ -1,3 +1,5 @@
+export const FASHION_PROMPT_KEY = "mirror_fashion_prompt";
+
 /** Style quotes cycled on the fashion loading screen while the AI composes outfits. */
 export const FASHION_QUOTES = [
   {
