@@ -15,6 +15,7 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
 import { concatFrames, float32ToInt16, transcribeAudio } from "./submitAudio";
@@ -931,6 +932,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             });
           }
 
+          // Background-geocode any destination mentioned in the transcript so /map and
+          // /overview are pre-loaded by the time the user navigates there.
+          const mentionedDestination = extractLocationFromTranscript(t);
+          let geocodedDestPromise: Promise<GeocodeResult | null> | null = null;
+          if (mentionedDestination) {
+            geocodedDestPromise = mapService
+              .geocode(mentionedDestination, resolvedGarmentLoc ?? undefined)
+              .then(({ results }) => results[0] ?? null)
+              .catch(() => null);
+          }
+
           // Use pre-loaded weather when available; fetch inline on first call if not yet ready
           let weatherPayload: Record<string, unknown> | null =
             weatherRef.current as unknown as Record<string, unknown> | null;
@@ -1066,10 +1078,47 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             src.connect(playCtx.destination);
             playbackRef.current = src;
             src.onended = async () => {
-              if (offerText) {
+              const geocodedDest = geocodedDestPromise
+                ? await geocodedDestPromise
+                : null;
+              if (geocodedDest) {
+                // Silently pre-load the destination in both map stores so /map
+                // and /overview reflect it as soon as the user navigates there.
+                void useMapStore.getState().setDestination({
+                  name: geocodedDest.name,
+                  lat: geocodedDest.lat,
+                  lng: geocodedDest.lng,
+                  address: geocodedDest.address,
+                  placeId: geocodedDest.placeId,
+                });
+                useOverviewStore.getState().setMap({
+                  name: geocodedDest.name,
+                  lat: geocodedDest.lat,
+                  lng: geocodedDest.lng,
+                  address: geocodedDest.address,
+                });
+                const routeText = `I've also routed ${geocodedDest.name} on the map for you.`;
+                const routeAudio = await pollyTts(routeText).catch(() => null);
+                if (routeAudio) {
+                  const routeCtx = new AudioContext();
+                  playbackCtxRef.current = routeCtx;
+                  const routeDecoded = await routeCtx.decodeAudioData(
+                    routeAudio.slice(0),
+                  );
+                  const routeSrc = routeCtx.createBufferSource();
+                  routeSrc.buffer = routeDecoded;
+                  routeSrc.connect(routeCtx.destination);
+                  playbackRef.current = routeSrc;
+                  routeSrc.onended = () => {
+                    stopPlayback();
+                    setVoiceState("idle");
+                  };
+                  routeSrc.start(0);
+                  return;
+                }
+              } else if (offerText) {
                 // Chain the map offer after the main fashion response.
-                const offerAudio = await pollyTts(offerText)
-                  .catch(() => null);
+                const offerAudio = await pollyTts(offerText).catch(() => null);
                 if (offerAudio) {
                   const offerCtx = new AudioContext();
                   playbackCtxRef.current = offerCtx;
