@@ -18,7 +18,7 @@ export default function MapDashboard() {
     homeLocation,
     suggestedPOIs,
     suggestionLabel,
-    setDestination,
+    setSelectedPOI,
     clearSuggestions,
     isPanning,
   } = useMapStore();
@@ -64,12 +64,14 @@ export default function MapDashboard() {
         label={suggestionLabel || undefined}
         chatVisible={chatVisible}
         onSelect={(poi) => {
-          setDestination({
+          setSelectedPOI({
             name: poi.name,
-            lat: poi.lat,
-            lng: poi.lng,
+            category: poi.category,
             address: poi.address,
+            distance: poi.distance != null ? poi.distance * 1000 : undefined,
+            location: { lat: poi.lat, lng: poi.lng },
             placeId: poi.placeId,
+            photo: poi.photo,
           });
           clearSuggestions();
         }}

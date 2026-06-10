@@ -139,8 +139,8 @@ export function OutfitImageCarousel({
         </AnimatePresence>
       </div>
 
-      {/* Fixed-height caption — name crossfades in place, never pushes the dots. */}
-      <div className="h-5 w-[70%] flex items-center justify-center overflow-hidden">
+      {/* Caption — name crossfades in place, clamp to 2 lines so nothing gets cut */}
+      <div className="w-[70%] flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.span
             key={current.id}
@@ -148,7 +148,7 @@ export function OutfitImageCarousel({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="text-white/45 text-[11px] uppercase tracking-[0.35em] font-light text-center truncate"
+            className="text-white/45 text-[11px] uppercase tracking-[0.35em] font-light text-center line-clamp-2"
           >
             {current.name}
           </motion.span>

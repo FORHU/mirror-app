@@ -1006,27 +1006,31 @@ export function extractActivityDestination(
 }
 
 export function extractNearbyPOIQuery(transcript: string): string | null {
+  // Strip trailing punctuation so "Show me cafes near me." matches the same as
+  // "Show me cafes near me" — STT and chip texts often end with a period.
+  const t = transcript.replace(/[.,!?]+\s*$/, "").trim();
+
   // ── Group 1: "nearest / closest X" ──────────────────────────────────────
-  const nearestM = transcript.match(
+  const nearestM = t.match(
     /\b(?:nearest|closest)\s+(.+?)(?:\s+(?:near\s+(?:me|my\s+location)|nearby|around\s+(?:here|me))\s*$|\s*$)/i,
   );
   if (nearestM) return nearestM[1].trim() || null;
 
   // ── Group 2: "find / show / give / get me X" ────────────────────────────
   // "... near me / nearby / around here"
-  const findNearM = transcript.match(
+  const findNearM = t.match(
     /\b(?:find|show|give|get)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me))\s*$/i,
   );
   if (findNearM) return findNearM[1].trim() || null;
 
   // "... here [in / at city]"
-  const findHereM = transcript.match(
+  const findHereM = t.match(
     /\b(?:find|show|give|get)\s+me\s+(?:a\s+|an\s+|the\s+)?(.+?)\s+here\b/i,
   );
   if (findHereM) return findHereM[1].trim() || null;
 
   // ── Group 3: "X near me / X nearby" standalone ──────────────────────────
-  const nearMeM = transcript.match(
+  const nearMeM = t.match(
     /^(?:can\s+you\s+)?(?:give\s+me\s+)?(?:(?:the|a|an)\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby)\s*$/i,
   );
   if (nearMeM) {
@@ -1044,13 +1048,13 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
 
   // ── Group 4: "where" questions ───────────────────────────────────────────
   // "where is / where are [the/a/nearest] X [near/here/around]"
-  const whereIsM = transcript.match(
+  const whereIsM = t.match(
     /\bwhere(?:'s|\s+is|\s+are)\s+(?:the\s+|a\s+|an\s+)?(?:nearest\s+|closest\s+)?(.+?)\s*(?:near(?:\s+me|\s+my\s+location)?|nearby|around(?:\s+(?:here|me))?|here)\s*$/i,
   );
   if (whereIsM) return whereIsM[1].trim() || null;
 
   // "where can I eat / drink [specific food]"
-  const whereCanFoodM = transcript.match(
+  const whereCanFoodM = t.match(
     /\bwhere\s+can\s+i\s+(eat|drink)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
   );
   if (whereCanFoodM) {
@@ -1065,14 +1069,14 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   }
 
   // "where can I eat / drink / shop / park" — activity only, no food noun
-  const whereCanActivityM = transcript.match(
+  const whereCanActivityM = t.match(
     /\bwhere\s+can\s+i\s+(eat|drink|sleep|stay|shop|park|relax|chill|refuel)\b/i,
   );
   if (whereCanActivityM)
     return ACTIVITY_TO_CATEGORY[whereCanActivityM[1].toLowerCase()] ?? null;
 
   // "where can I find / get / buy / grab [a] X"
-  const whereCanFindM = transcript.match(
+  const whereCanFindM = t.match(
     /\bwhere\s+can\s+i\s+(?:find|get|buy|grab|try|have)\s+(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
   );
   if (whereCanFindM) {
@@ -1082,25 +1086,25 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   }
 
   // ── Group 5: "I need / want / crave X" ──────────────────────────────────
-  const needWantM = transcript.match(
+  const needWantM = t.match(
     /\bi\s+(?:need|want|crave)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me)|here)\b/i,
   );
   if (needWantM) return needWantM[1].trim() || null;
 
   // ── Group 6: "looking / searching for X" ────────────────────────────────
-  const lookingM = transcript.match(
+  const lookingM = t.match(
     /\b(?:(?:i(?:'m|\s+am)\s+)?(?:looking|searching)\s+for)\s+(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:near(?:\s+me|\s+my\s+location)?|nearby|around\s+(?:here|me)|here)\b/i,
   );
   if (lookingM) return lookingM[1].trim() || null;
 
   // ── Group 7: "any X around here / near me" ──────────────────────────────
-  const anyNearM = transcript.match(
+  const anyNearM = t.match(
     /\bany\s+(.+?)\s+(?:around\s+(?:here|me)|near(?:\s+me)?|nearby)\b/i,
   );
   if (anyNearM) return anyNearM[1].trim() || null;
 
   // "X around here / around me / around this area"
-  const aroundHereM = transcript.match(
+  const aroundHereM = t.match(
     /\b(.+?)\s+around\s+(?:here|me|this\s+(?:area|place))\b/i,
   );
   if (aroundHereM) {
@@ -1119,14 +1123,14 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   }
 
   // ── Group 8: activity intent ("somewhere to eat") ───────────────────────
-  const somewhereM = transcript.match(
+  const somewhereM = t.match(
     /\b(?:somewhere|(?:a|good|nice|decent)\s+place)\s+to\s+(eat|drink|stay|sleep|shop|park|relax|chill|refuel|charge|rest|hang\s+out)\b/i,
   );
   if (somewhereM)
     return ACTIVITY_TO_CATEGORY[somewhereM[1].toLowerCase()] ?? somewhereM[1];
 
   // ── Group 9: "suggest / recommend X" ────────────────────────────────────
-  const suggestM = transcript.match(
+  const suggestM = t.match(
     /\b(?:suggest|recommend)\s+(?:me\s+)?(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
   );
   if (suggestM) {

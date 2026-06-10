@@ -15,13 +15,12 @@
  *  4. Until each tool's data arrives, its tile shows a skeleton.
  */
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ScanFace, Loader2, CameraOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -37,15 +36,13 @@ import {
   adaptGarmentData,
   adaptCosmeticsData,
   adaptMapsData,
+  adaptSkinAnalysisData,
+  adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
+import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -94,8 +91,6 @@ async function requestGarmentsWithFreshSession(
 }
 
 export default function OverviewPage() {
-  const user = useAuthStore((s) => s.user);
-
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
@@ -112,6 +107,20 @@ export default function OverviewPage() {
   const failMap = useOverviewStore((s) => s.failMap);
 
   const greeting = useOverviewStore((s) => s.greeting);
+  const overviewFashionSnapshot = useMirrorStore(
+    (s) => s.overviewFashionSnapshot,
+  );
+  const overviewCosmeticsSnapshot = useMirrorStore(
+    (s) => s.overviewCosmeticsSnapshot,
+  );
+  const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
+  const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
+
+  // Explicit gate for the full-screen loader: true while the initial Outline
+  // hydration is in flight (so we don't flash empty tiles before data arrives),
+  // and while any tile is actively resolving a live request.
+  const [hydrating, setHydrating] = useState(true);
 
   const garmentsLoading = useOverviewStore(
     (s) => s.garments.status === "loading",
@@ -125,29 +134,53 @@ export default function OverviewPage() {
   const mapLoading = useOverviewStore((s) => s.map.status === "loading");
 
   const isLoading =
-    garmentsLoading || outfitsLoading || cosmeticsLoading || mapLoading;
+    hydrating ||
+    garmentsLoading ||
+    outfitsLoading ||
+    cosmeticsLoading ||
+    mapLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
   const handoffFiredRef = useRef(false);
 
-  // ── Sync skin analysis from the shared mirror store on mount ──
-  // The biometric scan runs on /ai-assistant and is persisted in useMirrorStore.
-  // Overview reads it here so the Skin Profile tile is pre-populated without
-  // the user having to prompt anything.
+  // ── no longer reset the grid whenever a fresh session lands here ──
+  // because we route here from /ai-assistant and need to preserve the data we just caught.
+
+  // ── hybrid hydration: reflect the persisted Outline on arrival ──
+  // Overview is a downstream dashboard, so on mount we fill the tiles from the
+  // user's saved Outline. Live ChatWonder updates overwrite these afterward. The
+  // Map tile fills via the map-store effect once loadOutlineStops geocodes the
+  // events' destinations.
   useEffect(() => {
-    const result = useMirrorStore.getState().skinAnalysisResult;
-    if (!result) return;
-    setSkinAnalysis({
-      skinType: result.skinType,
-      skinTone: result.skinTone,
-      hydrationPct: result.hydrationPct,
-      oilinessPct: result.oilinessPct,
-      concerns: result.concerns,
-      imageUrl: useMirrorStore.getState().skinCaptureUrl,
-    });
-  }, [setSkinAnalysis]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const outline = await outlineService.getActive();
+        if (cancelled || !outline) return;
+        const { garments, outfits, cosmetics, skinAnalysis } =
+          adaptOutlineToTiles(outline);
+        // Skip overwriting tiles the handoff already set to "loading" — letting
+        // outline data flip them to "ready" here hides the overlay while the AI
+        // call is still running, flashing stale data on screen for several seconds.
+        if (!handoffFiredRef.current) {
+          if (garments.length) setGarments(garments);
+          if (outfits.length) setOutfits(outfits);
+          if (cosmetics.length) setCosmetics(cosmetics);
+          void useMapStore.getState().loadOutlineStops();
+        }
+        if (skinAnalysis) setSkinAnalysis(skinAnalysis);
+      } catch {
+        /* hydration is best-effort; live updates still populate the tiles */
+      } finally {
+        if (!cancelled) setHydrating(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
 
   // ── face detection → greet (fires once) ──
   const onFaceDetected = useCallback(() => {
@@ -156,12 +189,9 @@ export default function OverviewPage() {
     // greet. (Greeting belongs to /ai-assistant.)
   }, [setFaceDetected]);
 
-  const {
-    videoRef,
-    status: trackerStatus,
-    isPresent,
-    captureFrame,
-  } = useProximitySensor({
+  const router = useRouter();
+
+  const { videoRef, isPresent, captureFrame } = useProximitySensor({
     intervalMs: 1000,
     missesUntilExit: 3,
   });
@@ -176,6 +206,43 @@ export default function OverviewPage() {
       }
     }
   }, [isPresent, captureFrame, onFaceDetected]);
+
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+
+    if (overviewFashionSnapshot?.garments.length) {
+      setGarments(overviewFashionSnapshot.garments);
+    }
+    if (overviewFashionSnapshot?.outfits.length) {
+      setOutfits(overviewFashionSnapshot.outfits);
+    }
+    const cosmetics =
+      overviewCosmeticsSnapshot?.length
+        ? overviewCosmeticsSnapshot
+        : adaptCosmeticsData(
+            pendingCosmeticsData ??
+              chatCosmeticsData ??
+              skinAnalysisResult?.recommendations ??
+              [],
+          );
+    if (cosmetics.length) {
+      setCosmetics(cosmetics);
+      useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
+    }
+
+    const skinTile = adaptSkinAnalysisData(skinAnalysisResult);
+    if (skinTile) setSkinAnalysis(skinTile);
+  }, [
+    overviewFashionSnapshot,
+    overviewCosmeticsSnapshot,
+    pendingCosmeticsData,
+    chatCosmeticsData,
+    skinAnalysisResult,
+    setGarments,
+    setOutfits,
+    setCosmetics,
+    setSkinAnalysis,
+  ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
   const pageContext = useMemo(
@@ -285,12 +352,12 @@ export default function OverviewPage() {
           : response.maps_data;
         const m = adaptMapsData(mapPayload);
         if (m) setMap(m);
-        else emptyMap();
+        else if (!destination) emptyMap();
       } catch {
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
-        emptyMap();
+        if (!destination) emptyMap();
       }
     },
     [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics],
@@ -324,17 +391,8 @@ export default function OverviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const trackerLabel =
-    trackerStatus === "detected"
-      ? "Recognized"
-      : trackerStatus === "searching"
-        ? "Looking for you…"
-        : trackerStatus === "starting"
-          ? "Waking the mirror…"
-          : "Camera unavailable";
-
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <video
         ref={videoRef}
         autoPlay
@@ -351,72 +409,22 @@ export default function OverviewPage() {
           paddingLeft: "16px",
           paddingRight: "16px",
         }}
-        right={
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.10)",
-            }}
-          >
-            {trackerStatus === "detected" ? (
-              <ScanFace className="w-4 h-4 text-emerald-400" />
-            ) : trackerStatus === "unavailable" ? (
-              <CameraOff className="w-4 h-4 text-white/40" />
-            ) : (
-              <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
-            )}
-            <span className="text-white/55 text-xs">{trackerLabel}</span>
-          </div>
-        }
+        onBack={() => router.back()}
       />
-
-      {/* Greeting + identity */}
-      <div className="text-center mb-4 shrink-0 min-h-[40px] flex flex-col justify-center">
-        <AnimatePresence mode="wait">
-          {greeting ? (
-            <motion.h1
-              key="greeting"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-white font-bold text-3xl tracking-tight glow-text-white"
-            >
-              {greeting}
-            </motion.h1>
-          ) : (
-            <motion.h1
-              key="welcome"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-white/80 font-bold text-3xl tracking-tight"
-            >
-              {user?.displayName ?? "Welcome"}
-            </motion.h1>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Disclaimer */}
-      <div className="mb-4 shrink-0">
+      <div className="m-4 shrink-0">
         <CameraDisclaimer />
       </div>
-
-      {/* Quick Response Chips — domain-specific shortcuts across fashion, cosmetics, and map */}
-      <QuickResponseChips
-        className="shrink-0 pb-2"
-        prompts={[
-          `Style me head to toe for today, ${getToday()}`,
-          `Plan my complete look for ${nextWeekday(5)}`,
-          "Recommend makeup and skincare for my skin type",
-          "Find somewhere great to go and style me for it",
-          "Show my best outfit, beauty picks, and a destination",
-        ]}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        aria-hidden
+        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
       />
 
       {/* Grid */}
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="m-5 flex-1 min-h-0 flex flex-col">
         <OverviewGrid />
       </div>
 
@@ -430,7 +438,7 @@ export default function OverviewPage() {
               opacity: 0,
               transition: { duration: 0.5, ease: "easeInOut" },
             }}
-            className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden"
+            className="absolute inset-0 z-50 bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
@@ -439,13 +447,6 @@ export default function OverviewPage() {
               loop
               className="absolute inset-0 w-full h-full object-cover opacity-60"
             />
-            {/* Fallback spinner — always visible if video fails to load */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <Loader2 className="w-8 h-8 text-white/30 animate-spin mb-4 relative z-10" />
-              <p className="text-white/40 text-sm tracking-wide relative z-10">
-                Personalizing your session…
-              </p>
-            </div>
             {greeting && (
               <motion.h1
                 key="greeting"

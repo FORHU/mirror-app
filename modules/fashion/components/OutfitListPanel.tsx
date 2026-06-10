@@ -75,7 +75,16 @@ export function OutfitListPanel({
                     return (
                       <div
                         key={outfit.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Outfit ${globalIdx + 1}`}
                         onClick={() => onSelect(globalIdx)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.currentTarget.click();
+                          }
+                        }}
                         style={{
                           position: "relative",
                           borderRadius: "10px",

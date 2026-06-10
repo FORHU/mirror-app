@@ -39,6 +39,9 @@ export interface GarmentAdaptResult {
 /** ChatWonderGarmentData → flattened garment cards + per-set outfit cards. */
 export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
   const data = asRecord(raw);
+  // New format: { query, reason } — outfits fetched by the consumer, nothing to adapt here
+  if (data && typeof data.query === "string")
+    return { garments: [], outfits: [] };
   const sets = data && Array.isArray(data.sets) ? data.sets : [];
 
   const garments: GarmentTileItem[] = [];
@@ -110,15 +113,26 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
     for (const rawRec of recs) {
       const rec = asRecord(rawRec);
       if (!rec) continue;
-      const id = str(rec.id) || str(rec.name); // fallback to name if no id
-      const imageUrl = str(rec.imageUrl);
+      const product = asRecord(rec.cosmeticProduct);
+      const productFile = asRecord(product?.fileUrl);
+      const id =
+        str(rec.id) ||
+        str(rec.productId) ||
+        str(rec.cosmeticProductId) ||
+        str(product?.id) ||
+        str(rec.name);
+      const imageUrl =
+        str(rec.imageUrl) ||
+        str(rec.image_url) ||
+        str(productFile?.fileUrl) ||
+        str(productFile?.thumbnailUrl);
       if (!id || !imageUrl || seen.has(id)) continue;
       seen.add(id);
       items.push({
         id,
-        name: str(rec.name) || "Cosmetic Product",
+        name: str(product?.name) || str(rec.name) || "Cosmetic Product",
         imageUrl,
-        brand: str(rec.brand) || undefined,
+        brand: str(product?.brand) || str(rec.brand) || undefined,
       });
     }
   };
@@ -166,6 +180,75 @@ export function adaptMapsData(raw: unknown): MapTileData | null {
     lng,
     stops: stops.length ? stops : undefined,
   };
+}
+
+/** SkinAnalysis payloads from the shared mirror store -> skin profile tile. */
+export function adaptSkinAnalysisData(raw: unknown): SkinAnalysisTileItem | null {
+  const data = asRecord(raw);
+  if (!data) return null;
+
+  return {
+    skinType: str(data.skinType) || "Unknown",
+    skinTone: str(data.skinTone) || null,
+    hydrationPct: num(data.hydrationPct) ?? 50,
+    oilinessPct: num(data.oilinessPct) ?? 50,
+    concerns: Array.isArray(data.concerns) ? data.concerns.map(str) : [],
+    imageUrl: fileUrlOf(data.file) || null,
+  };
+}
+
+/** RemoteOutfit[] from the fashion page -> overview wardrobe tiles. */
+export function adaptRemoteOutfitsToTiles(raw: unknown): GarmentAdaptResult {
+  const outfitsRaw = Array.isArray(raw) ? raw : [];
+  const garments: GarmentTileItem[] = [];
+  const outfits: OutfitTileItem[] = [];
+  const seenGarment = new Set<string>();
+
+  for (const rawOutfit of outfitsRaw) {
+    const outfit = asRecord(rawOutfit);
+    if (!outfit) continue;
+
+    const outfitId = str(outfit.id) || `outfit-${outfits.length}`;
+    const outfitGarments: GarmentTileItem[] = [];
+    const seenInOutfit = new Set<string>();
+    const items = Array.isArray(outfit.items) ? outfit.items : [];
+
+    for (const rawItem of items) {
+      const item = asRecord(rawItem);
+      const garment = item && asRecord(item.garment);
+      if (!garment) continue;
+      const id = str(garment.id);
+      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
+      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      seenInOutfit.add(id);
+      const category = Array.isArray(garment.category)
+        ? str(garment.category[0])
+        : str(garment.category);
+      const tile: GarmentTileItem = {
+        id,
+        name: str(garment.name) || "Garment",
+        imageUrl,
+        category: category || undefined,
+      };
+      outfitGarments.push(tile);
+      if (!seenGarment.has(id)) {
+        seenGarment.add(id);
+        garments.push(tile);
+      }
+    }
+
+    const outfitImage = fileUrlOf(outfit.file) || str(outfit.imageUrl);
+    if (!outfitImage && !outfitGarments.length) continue;
+    outfits.push({
+      id: outfitId,
+      name: str(outfit.name) || `Look ${outfits.length + 1}`,
+      imageUrl: outfitImage,
+      reason: str(outfit.description) || undefined,
+      garments: outfitGarments,
+    });
+  }
+
+  return { garments, outfits };
 }
 
 export interface OutlineTiles {

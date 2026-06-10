@@ -12,6 +12,7 @@ import {
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
+import AssistantNavBar from "@/components/AssistantNavBar";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
@@ -52,7 +53,7 @@ const ASSISTANT_GREETINGS = [
   "Hi! Let's find something that suits your style.",
   "Hello there! Looking for fashion, cosmetics, or nearby trends?",
   "Hey! What kind of look are you going for today?",
-  "Welcome back! Ready for a style refresh?",
+  "Welcome! Ready for a style refresh?",
   "Hi there! What would you like help with: outfits, beauty, or places?",
   "Hello! Let's create a look you'll love.",
   "Hey there! Looking for the perfect outfit today?",
@@ -63,7 +64,7 @@ const ASSISTANT_GREETINGS = [
   "Hi there! Looking for beauty products that match your needs?",
   "Hello! Need inspiration for your next outfit?",
   "Hey! Let's find styles that work for you.",
-  "Welcome back! Want help building a complete look?",
+  "Welcome! Want help building a complete look?",
   "Hi! Curious about the latest fashion trends?",
   "Hello there! Searching for beauty essentials?",
   "Hey! Need outfit recommendations for an event?",
@@ -74,7 +75,7 @@ const ASSISTANT_GREETINGS = [
   "Good to see you! Need help completing your outfit?",
   "Hi! Looking for cosmetics that complement your features?",
   "Hello! Ready to elevate your style?",
-  "Welcome back! Let's discover new beauty favorites.",
+  "Welcome! Let's discover new beauty favorites.",
   "Hey! Need recommendations for your next shopping trip?",
   "Hi there! What fashion goal can I help with today?",
   "Hello! Let's put together a look you'll feel confident in.",
@@ -88,8 +89,21 @@ const ASSISTANT_GREETINGS = [
 
 const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
+    label: "Lifestyle",
+    icon: "🌟",
+    prompts: [
+      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
+      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
+      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
+      `Give me a weekend-ready outfit and a place I should visit.`,
+      `What should I wear and how should I care for my skin in hot weather?`,
+      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
+    ],
+  },
+  {
     label: "Fashion",
     icon: "👗",
+    route: ROUTES.AI_RECOMMENDATION_FASHION,
     prompts: [
       `What should I wear today? It's ${getToday()} and I want something stylish but comfortable.`,
       `I have an event this ${nextWeekday(5)} — build me a full outfit from head to toe.`,
@@ -102,6 +116,7 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
     label: "Skincare",
     icon: "✨",
+    route: ROUTES.AI_RECOMMENDATION_COSMETIC,
     prompts: [
       `My skin feels dull lately — what skincare routine should I follow?`,
       `Recommend a simple morning and night skincare routine for normal skin.`,
@@ -114,6 +129,7 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
     label: "Places",
     icon: "📍",
+    route: ROUTES.MAP,
     prompts: [
       `What are some good cafes or restaurants near me worth visiting?`,
       `I want to go somewhere relaxing today — any nice spots nearby?`,
@@ -121,18 +137,6 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
       `Give me a hidden gem spot I can visit that isn't too crowded.`,
       `What's a great place to go today for a quick escape?`,
       `Find me somewhere nearby that's good for photos.`,
-    ],
-  },
-  {
-    label: "Lifestyle",
-    icon: "🌟",
-    prompts: [
-      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
-      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
-      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
-      `Give me a weekend-ready outfit and a place I should visit.`,
-      `What should I wear and how should I care for my skin in hot weather?`,
-      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
     ],
   },
 ];
@@ -147,9 +151,35 @@ export default function AIAssistantPage() {
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
   const setMap = useOverviewStore((s) => s.setMap);
+  const overviewHasData = useOverviewStore(
+    (s) =>
+      s.garments.status === "ready" ||
+      s.outfits.status === "ready" ||
+      s.map.status === "ready" ||
+      s.cosmetics.status === "ready",
+  );
   const setSkinAnalysisResult = useMirrorStore((s) => s.setSkinAnalysisResult);
   const setSkinCaptureUrl = useMirrorStore((s) => s.setSkinCaptureUrl);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+
+  const chipCategories = useMemo<PromptCategory[]>(() => {
+    if (!overviewHasData) return ASSISTANT_CHIP_CATEGORIES;
+    return [
+      ...ASSISTANT_CHIP_CATEGORIES,
+      {
+        label: "Overview",
+        icon: "📋",
+        route: ROUTES.OVERVIEW,
+        prompts: [
+          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
+          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
+          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
+          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
+          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
+        ],
+      },
+    ];
+  }, [overviewHasData]);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -378,7 +408,7 @@ export default function AIAssistantPage() {
   const displayReply = error || reply || latest?.assistant || activeGreeting;
 
   return (
-    <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <MirrorHeader />
 
       <AnimatePresence mode="wait">
@@ -461,7 +491,7 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 min-h-0 flex flex-col px-10 py-8"
+            className="flex-1 min-h-0 flex flex-col px-10 pt-8 pb-28"
           >
             {/* conversation — top half */}
             <div className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl mx-auto w-full">
@@ -517,8 +547,11 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Quick Response Chips — categorised */}
-            <QuickResponseChips categories={ASSISTANT_CHIP_CATEGORIES} />
+            <QuickResponseChips categories={chipCategories} />
 
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
+            <AssistantNavBar />
             <div ref={bottomRef} />
           </motion.main>
         )}

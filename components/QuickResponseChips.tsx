@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 // ── Date helpers — computed at render time so prompts always carry today's date ──
@@ -35,6 +36,8 @@ export interface PromptCategory {
   /** Optional emoji / single-char icon shown before the label */
   icon?: string;
   prompts: string[];
+  /** If set, navigates to this route when a chip in this category is tapped */
+  route?: string;
 }
 
 interface QuickResponseChipsProps {
@@ -43,6 +46,9 @@ interface QuickResponseChipsProps {
   /** Categorised mode — renders tab selectors above the chips */
   categories?: PromptCategory[];
   className?: string;
+  onPromptSelect?: () => void;
+  /** Override default submitText — when provided, skips ChatWonder entirely */
+  onSelect?: (prompt: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -51,21 +57,32 @@ export function QuickResponseChips({
   prompts,
   categories,
   className,
+  onPromptSelect,
+  onSelect,
 }: QuickResponseChipsProps) {
   const { isListening, isProcessing, isSpeaking, submitText } =
     useVoiceContext();
   const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);
 
-  const handleTap = (prompt: string) => {
-    void submitText(prompt);
-  };
-
+  // Resolve which prompts to show
   const hasTabs = categories && categories.length > 0;
-  const visiblePrompts = hasTabs
-    ? (categories[activeTab]?.prompts ?? [])
+  const activeCategory = hasTabs ? categories[activeTab] : null;
+  const visiblePrompts = activeCategory
+    ? activeCategory.prompts
     : (prompts ?? []);
+
+  const handleTap = (prompt: string) => {
+    onPromptSelect?.();
+    if (onSelect) {
+      onSelect(prompt);
+    } else {
+      void submitText(prompt);
+    }
+    if (activeCategory?.route) router.push(activeCategory.route);
+  };
 
   return (
     <AnimatePresence>
@@ -89,7 +106,7 @@ export function QuickResponseChips({
                     onClick={() => setActiveTab(i)}
                     onTouchStart={() => setActiveTab(i)}
                     whileTap={{ scale: 0.94 }}
-                    className="relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 select-none"
+                    className="relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 select-none"
                     style={{
                       background: active
                         ? "rgba(255,255,255,0.10)"
@@ -98,8 +115,8 @@ export function QuickResponseChips({
                         ? "1px solid rgba(255,255,255,0.22)"
                         : "1px solid rgba(255,255,255,0.07)",
                       color: active
-                        ? "rgba(255,255,255,0.90)"
-                        : "rgba(255,255,255,0.38)",
+                        ? "rgba(255,255,255,0.92)"
+                        : "rgba(255,255,255,0.58)",
                       backdropFilter: "blur(10px)",
                       WebkitBackdropFilter: "blur(10px)",
                     }}
@@ -111,6 +128,7 @@ export function QuickResponseChips({
                     )}
                     {cat.label}
 
+                    {/* active dot */}
                     {active && (
                       <motion.span
                         layoutId="tab-dot"
@@ -147,7 +165,7 @@ export function QuickResponseChips({
                   whileTap={{ scale: 0.96, opacity: 0.8 }}
                   onTouchStart={() => handleTap(prompt)}
                   onClick={() => handleTap(prompt)}
-                  className="px-4 py-3 rounded-full text-left text-xs leading-snug font-light text-white/60 border border-white/10 transition-colors active:bg-white/10 hover:text-white/85 hover:border-white/20"
+                  className="px-4 py-2 rounded-full text-left text-[12px] leading-snug font-light text-white/70 border border-white/10 transition-colors active:bg-white/10 hover:text-white/90 hover:border-white/20"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     backdropFilter: "blur(12px)",

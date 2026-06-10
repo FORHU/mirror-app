@@ -6,6 +6,14 @@ import { stopColor } from "../constants/stopColors";
 import type { NearbyPOI } from "../services/map.service";
 import Image from "next/image";
 
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+function poiPhotoSrc(poi: NearbyPOI): string | null {
+  if (poi.photo) return poi.photo;
+  if (!MAPBOX_TOKEN) return null;
+  return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${poi.lng},${poi.lat},15/300x90?access_token=${MAPBOX_TOKEN}`;
+}
+
 const ItineraryPOIPanel: React.FC = () => {
   const itineraryStopPOIs = useMapStore((s) => s.itineraryStopPOIs);
   const itineraryStops = useMapStore((s) => s.itineraryStops);
@@ -112,122 +120,125 @@ const ItineraryPOIPanel: React.FC = () => {
           </div>
 
           {/* POI rows — top 3 only */}
-          {pois.map((poi, i) => (
-            <button
-              key={poi.placeId ?? poi.name}
-              onClick={() => handleNavigate(poi, stopIndex)}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 0,
-                padding: "0 8px 8px",
-                width: "100%",
-                textAlign: "left",
-                background: "transparent",
-                border: "none",
-                borderBottom:
-                  i < pois.length - 1
-                    ? "1px solid rgba(255,255,255,0.06)"
-                    : "none",
-                cursor: "pointer",
-              }}
-            >
-              {/* Full-width photo above text */}
-              <div
+          {pois.map((poi, i) => {
+            const photoSrc = poiPhotoSrc(poi);
+            return (
+              <button
+                key={poi.placeId ?? poi.name}
+                onClick={() => handleNavigate(poi, stopIndex)}
                 style={{
                   display: "flex",
-                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 0,
+                  padding: "0 8px 8px",
                   width: "100%",
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom:
+                    i < pois.length - 1
+                      ? "1px solid rgba(255,255,255,0.06)"
+                      : "none",
+                  cursor: "pointer",
                 }}
               >
-                {poi.photo ? (
-                  <Image
-                    src={poi.photo}
-                    alt=""
-                    width={300}
-                    height={90}
-                    unoptimized
-                    style={{
-                      width: "100%",
-                      height: 90,
-                      objectFit: "cover",
-                      display: "block",
-                      borderRadius: "6px 6px 0 0",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: "100%",
-                      height: 90,
-                      borderRadius: "6px 6px 0 0",
-                      background: `${color}18`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 28,
-                    }}
-                  >
-                    📍
-                  </div>
-                )}
-
-                {/* Name row below photo */}
+                {/* Full-width photo above text */}
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                    padding: "6px 2px 2px",
+                    flexDirection: "column",
+                    width: "100%",
                   }}
                 >
-                  {/* Ordinal badge */}
-                  <span
+                  {photoSrc ? (
+                    <Image
+                      src={photoSrc}
+                      alt=""
+                      width={300}
+                      height={90}
+                      unoptimized
+                      style={{
+                        width: "100%",
+                        height: 90,
+                        objectFit: "cover",
+                        display: "block",
+                        borderRadius: "6px 6px 0 0",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: 90,
+                        borderRadius: "6px 6px 0 0",
+                        background: `${color}18`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 28,
+                      }}
+                    >
+                      📍
+                    </div>
+                  )}
+
+                  {/* Name row below photo */}
+                  <div
                     style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: color,
-                      color: "#000",
-                      fontSize: 10,
-                      fontWeight: 800,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      gap: 7,
+                      padding: "6px 2px 2px",
                     }}
                   >
-                    {i + 1}
-                  </span>
-                  <span
-                    style={{
-                      color: "rgba(255,255,255,0.9)",
-                      fontSize: 12,
-                      flex: 1,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {poi.name}
-                  </span>
-                  {poi.rating != null && (
+                    {/* Ordinal badge */}
                     <span
                       style={{
-                        color: "#FBBF24",
-                        fontSize: 11,
-                        fontWeight: 700,
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        background: color,
+                        color: "#000",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         flexShrink: 0,
                       }}
                     >
-                      ★{poi.rating.toFixed(1)}
+                      {i + 1}
                     </span>
-                  )}
+                    <span
+                      style={{
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: 12,
+                        flex: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {poi.name}
+                    </span>
+                    {poi.rating != null && (
+                      <span
+                        style={{
+                          color: "#FBBF24",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        ★{poi.rating.toFixed(1)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       ))}
     </div>

@@ -131,8 +131,17 @@ export function GarmentGrid({
             pagedItems.map((g) => (
               <div
                 key={g.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedId === g.id}
                 onClick={() => onSelect(g)}
-                className="rounded-md overflow-hidden flex items-center justify-center"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.currentTarget.click();
+                  }
+                }}
+                className="rounded-md overflow-hidden flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 style={{
                   aspectRatio: "1/1",
                   borderRadius: "4px",
