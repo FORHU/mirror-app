@@ -76,11 +76,11 @@ async function requestGarmentsWithFreshSession(
     pageMode: "overview" as const,
     ...(location
       ? {
-          location: {
-            lat: location.lat.toString(),
-            lng: location.lng.toString(),
-          },
-        }
+        location: {
+          lat: location.lat.toString(),
+          lng: location.lng.toString(),
+        },
+      }
       : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
   };
@@ -159,11 +159,16 @@ export default function OverviewPage() {
         if (cancelled || !outline) return;
         const { garments, outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
-        setGarments(garments);
-        setOutfits(outfits);
-        setCosmetics(cosmetics);
+        // Skip overwriting tiles the handoff already set to "loading" — letting
+        // outline data flip them to "ready" here hides the overlay while the AI
+        // call is still running, flashing stale data on screen for several seconds.
+        if (!handoffFiredRef.current) {
+          setGarments(garments);
+          setOutfits(outfits);
+          setCosmetics(cosmetics);
+          void useMapStore.getState().loadOutlineStops();
+        }
         setSkinAnalysis(skinAnalysis);
-        void useMapStore.getState().loadOutlineStops();
       } catch {
         /* hydration is best-effort; live updates still populate the tiles */
       } finally {
@@ -184,11 +189,7 @@ export default function OverviewPage() {
 
   const router = useRouter();
 
-  const {
-    videoRef,
-    isPresent,
-    captureFrame,
-  } = useProximitySensor({
+  const { videoRef, isPresent, captureFrame } = useProximitySensor({
     intervalMs: 1000,
     missesUntilExit: 3,
   });
@@ -312,10 +313,12 @@ export default function OverviewPage() {
           : response.maps_data;
         const m = adaptMapsData(mapPayload);
         if (m) setMap(m);
+        else if (!destination) emptyMap();
       } catch {
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
+        if (!destination) emptyMap();
       }
     },
     [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics],
@@ -369,59 +372,23 @@ export default function OverviewPage() {
         }}
         onBack={() => router.back()}
       />
-
-      {/* Greeting + identity */}
-      <div className="text-center mb-4 shrink-0 min-h-[64px] flex flex-col justify-center">
-        <AnimatePresence mode="wait">
-          {greeting ? (
-            <motion.h1
-              key="greeting"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-white font-bold text-3xl tracking-tight glow-text-white"
-            >
-              {greeting}
-            </motion.h1>
-          ) : (
-            <motion.h1
-              key="welcome"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-white/80 font-bold text-3xl tracking-tight"
-            >
-              {user?.displayName ?? "Welcome"}
-            </motion.h1>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Disclaimer */}
-      <div className="mb-4 shrink-0">
+      <div className="m-4 shrink-0">
         <CameraDisclaimer />
       </div>
-
-      {/* Quick Response Chips — inline below greeting, voice idle only */}
-      <QuickResponseChips
-        className="shrink-0 pb-2"
-        prompts={[
-          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
-          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
-          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
-          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
-          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
-        ]}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        aria-hidden
+        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
       />
 
-      {/* Grid */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <OverviewGrid />
-      </div>
 
-      {/* Footer (Manual buttons removed for full-voice experience) */}
-      <div className="flex justify-between items-center mt-4 shrink-0">
-        {/* Buttons previously here were removed */}
+
+      {/* Grid */}
+      <div className="m-5 flex-1 min-h-0 flex flex-col">
+        <OverviewGrid />
       </div>
 
       {/* Full-screen video loader overlay when resolving data */}

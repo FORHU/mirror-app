@@ -338,7 +338,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   // Holds the activity destination (e.g. "hiking trail") detected in the user's last
   // non-map transcript. Cleared when the user responds yes/no to the map offer.
-  const pendingActivityDestRef = useRef<{ query: string; label: string } | null>(null);
+  const pendingActivityDestRef = useRef<{
+    query: string;
+    label: string;
+  } | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const curatedPOIsRef = useRef<NearbyPOI[]>([]);
   const itineraryStopsRef = useRef<
@@ -510,9 +513,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // Stop any in-flight reply audio when the route changes, so a previous page's
   // spoken reply (e.g. the /ai-assistant answer that triggered navigation) does
   // not keep playing — or overlap new audio — once you land on the next page.
+  // Also pause the VAD and reset voiceState so the mic is always usable on the
+  // new page, even if navigation interrupted a processing/speaking cycle.
   useEffect(() => {
     stopPlayback();
     stopAllAudioQueues();
+    vadRef.current?.pause();
+    setVoiceState("idle");
   }, [pathname, stopPlayback]);
 
   const handleAIAssistantText = useCallback(
@@ -921,8 +928,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // Fall back to data-type-implied route if the server omitted target_url.
           const stylistTarget =
             aiResponse.stylist_data?.target_url ??
-            (aiResponse.garment_data ? ROUTES.AI_RECOMMENDATION_FASHION : undefined) ??
-            (aiResponse.cosmetics_data ? ROUTES.AI_RECOMMENDATION_COSMETIC : undefined);
+            (aiResponse.garment_data
+              ? ROUTES.AI_RECOMMENDATION_FASHION
+              : undefined) ??
+            (aiResponse.cosmetics_data
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : undefined);
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -2107,18 +2118,24 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           let mapLoc = mapState.userLocation ?? mapState.homeLocation;
           // GPS fallback — if the store has no location yet (home never configured or
           // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
-          if (!mapLoc && typeof window !== "undefined" && "geolocation" in navigator) {
-            mapLoc = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
-              navigator.geolocation.getCurrentPosition(
-                ({ coords }) => {
-                  const loc = { lat: coords.latitude, lng: coords.longitude };
-                  useMapStore.getState().setUserLocation(loc);
-                  resolve(loc);
-                },
-                () => resolve(null),
-                { timeout: 3000, maximumAge: 10000 },
-              );
-            });
+          if (
+            !mapLoc &&
+            typeof window !== "undefined" &&
+            "geolocation" in navigator
+          ) {
+            mapLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  ({ coords }) => {
+                    const loc = { lat: coords.latitude, lng: coords.longitude };
+                    useMapStore.getState().setUserLocation(loc);
+                    resolve(loc);
+                  },
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 10000 },
+                );
+              },
+            );
           }
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
@@ -2410,6 +2427,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const curated = curatePOIs(poolToUse);
             curatedPOIsRef.current = curated;
             useMapStore.getState().setSuggestedPOIs(curated, label);
+
+            // Enrich with real venue photos in background (ChatWonder doesn't return photo_url)
+            const needsPhoto = curated.filter((p) => !p.photo && p.placeId);
+            if (needsPhoto.length > 0) {
+              Promise.all(
+                needsPhoto.map((poi) =>
+                  mapService
+                    .venuePhotos(poi.placeId!)
+                    .then(({ photos }) => ({ placeId: poi.placeId!, photo: photos[0] ?? null }))
+                    .catch(() => ({ placeId: poi.placeId!, photo: null })),
+                ),
+              ).then((results) => {
+                const photoMap = new Map(results.map((r) => [r.placeId, r.photo]));
+                const enriched = curated.map((p) => ({
+                  ...p,
+                  photo: photoMap.get(p.placeId!) ?? p.photo,
+                }));
+                curatedPOIsRef.current = enriched;
+                useMapStore.getState().setSuggestedPOIs(enriched, label);
+              });
+            }
           }
 
           // Multi-event itinerary: classify events from the response
@@ -2953,7 +2991,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       // Capture raw 16 kHz PCM using ScriptProcessorNode while VAD is active
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       const source = audioCtx.createMediaStreamSource(stream);
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
+
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
         if (isVadSpeakingRef.current) {
@@ -3067,8 +3105,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const toggle = useCallback(() => {
     if (voiceState === "idle") return startListening();
     if (voiceState === "recording") return stopListening();
-    if (voiceState === "speaking") {
+    if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
+      vadRef.current?.pause();
       setTranscript("");
       setReply("");
       setError(null);

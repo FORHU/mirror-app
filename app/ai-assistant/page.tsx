@@ -89,8 +89,21 @@ const ASSISTANT_GREETINGS = [
 
 const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
+    label: "Lifestyle",
+    icon: "🌟",
+    prompts: [
+      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
+      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
+      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
+      `Give me a weekend-ready outfit and a place I should visit.`,
+      `What should I wear and how should I care for my skin in hot weather?`,
+      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
+    ],
+  },
+  {
     label: "Fashion",
     icon: "👗",
+    route: ROUTES.AI_RECOMMENDATION_FASHION,
     prompts: [
       `What should I wear today? It's ${getToday()} and I want something stylish but comfortable.`,
       `I have an event this ${nextWeekday(5)} — build me a full outfit from head to toe.`,
@@ -103,6 +116,7 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
     label: "Skincare",
     icon: "✨",
+    route: ROUTES.AI_RECOMMENDATION_COSMETIC,
     prompts: [
       `My skin feels dull lately — what skincare routine should I follow?`,
       `Recommend a simple morning and night skincare routine for normal skin.`,
@@ -115,6 +129,7 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
   {
     label: "Places",
     icon: "📍",
+    route: ROUTES.MAP,
     prompts: [
       `What are some good cafes or restaurants near me worth visiting?`,
       `I want to go somewhere relaxing today — any nice spots nearby?`,
@@ -124,33 +139,47 @@ const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
       `Find me somewhere nearby that's good for photos.`,
     ],
   },
-  {
-    label: "Lifestyle",
-    icon: "🌟",
-    prompts: [
-      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
-      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
-      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
-      `Give me a weekend-ready outfit and a place I should visit.`,
-      `What should I wear and how should I care for my skin in hot weather?`,
-      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
-    ],
-  },
 ];
 
 export default function AIAssistantPage() {
   const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
-  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => { });
-  const startListeningRef = useRef<() => void>(() => { });
+  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => void>(() => {});
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
   const setMap = useOverviewStore((s) => s.setMap);
+  const overviewHasData = useOverviewStore(
+    (s) =>
+      s.garments.status === "ready" ||
+      s.outfits.status === "ready" ||
+      s.map.status === "ready" ||
+      s.cosmetics.status === "ready",
+  );
   const setSkinAnalysisResult = useMirrorStore((s) => s.setSkinAnalysisResult);
   const setSkinCaptureUrl = useMirrorStore((s) => s.setSkinCaptureUrl);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+
+  const chipCategories = useMemo<PromptCategory[]>(() => {
+    if (!overviewHasData) return ASSISTANT_CHIP_CATEGORIES;
+    return [
+      ...ASSISTANT_CHIP_CATEGORIES,
+      {
+        label: "Overview",
+        icon: "📋",
+        route: ROUTES.OVERVIEW,
+        prompts: [
+          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
+          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
+          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
+          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
+          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
+        ],
+      },
+    ];
+  }, [overviewHasData]);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -282,7 +311,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
-        m.chatWonderService.restart().catch(() => { });
+        m.chatWonderService.restart().catch(() => {});
       });
     }
   }, []);
@@ -490,8 +519,9 @@ export default function AIAssistantPage() {
                       Mirror
                     </p>
                     <p
-                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${error ? "text-red-300/75" : "text-white/90"
-                        }`}
+                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
+                        error ? "text-red-300/75" : "text-white/90"
+                      }`}
                       style={{
                         fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
                         maxHeight: "45vh",
@@ -517,7 +547,7 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Quick Response Chips — categorised */}
-            <QuickResponseChips categories={ASSISTANT_CHIP_CATEGORIES} />
+            <QuickResponseChips categories={chipCategories} />
 
             {/* Bottom nav — flanks the shared center-bottom mic */}
             <AssistantNavBar />

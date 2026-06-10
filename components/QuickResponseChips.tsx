@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 
 // ── Date helpers — computed at render time so prompts always carry today's date ──
@@ -35,6 +36,8 @@ export interface PromptCategory {
   /** Optional emoji / single-char icon shown before the label */
   icon?: string;
   prompts: string[];
+  /** If set, navigates to this route when a chip in this category is tapped */
+  route?: string;
 }
 
 interface QuickResponseChipsProps {
@@ -55,18 +58,21 @@ export function QuickResponseChips({
   const { isListening, isProcessing, isSpeaking, submitText } =
     useVoiceContext();
   const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);
 
-  const handleTap = (prompt: string) => {
-    void submitText(prompt);
-  };
-
   // Resolve which prompts to show
   const hasTabs = categories && categories.length > 0;
-  const visiblePrompts = hasTabs
-    ? (categories[activeTab]?.prompts ?? [])
+  const activeCategory = hasTabs ? categories[activeTab] : null;
+  const visiblePrompts = activeCategory
+    ? activeCategory.prompts
     : (prompts ?? []);
+
+  const handleTap = (prompt: string) => {
+    void submitText(prompt);
+    if (activeCategory?.route) router.push(activeCategory.route);
+  };
 
   return (
     <AnimatePresence>

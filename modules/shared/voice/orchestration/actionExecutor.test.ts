@@ -81,7 +81,11 @@ describe("executeAction — maps_suggest_places", () => {
 
     const { executeAction } = await import("./actionExecutor");
     await executeAction(
-      { type: "maps_suggest_places", category: "coffee", label: "Coffee shops" },
+      {
+        type: "maps_suggest_places",
+        category: "coffee",
+        label: "Coffee shops",
+      },
       fakeRouter,
       "/map",
     );
@@ -148,7 +152,11 @@ describe("executeAction — maps_suggest_places", () => {
   // ── selectedDestination takes priority over userLocation ───────────────
 
   it("uses selectedDestination location when available", async () => {
-    mockMapState.selectedDestination = { lat: 14.59, lng: 120.98, name: "Manila" } as never;
+    mockMapState.selectedDestination = {
+      lat: 14.59,
+      lng: 120.98,
+      name: "Manila",
+    } as never;
     mockNearbyPOIs.mockResolvedValueOnce({ pois: [] });
 
     const { executeAction } = await import("./actionExecutor");
@@ -159,7 +167,12 @@ describe("executeAction — maps_suggest_places", () => {
     );
 
     await vi.waitFor(() => expect(mockNearbyPOIs).toHaveBeenCalled());
-    expect(mockNearbyPOIs).toHaveBeenCalledWith(14.59, 120.98, expect.any(Number), expect.any(String));
+    expect(mockNearbyPOIs).toHaveBeenCalledWith(
+      14.59,
+      120.98,
+      expect.any(Number),
+      expect.any(String),
+    );
   });
 
   // ── TTS narration is spoken after POIs load ────────────────────────────
@@ -175,7 +188,11 @@ describe("executeAction — maps_suggest_places", () => {
 
     const { executeAction } = await import("./actionExecutor");
     await executeAction(
-      { type: "maps_suggest_places", category: "coffee", label: "Coffee shops" },
+      {
+        type: "maps_suggest_places",
+        category: "coffee",
+        label: "Coffee shops",
+      },
       fakeRouter,
       "/map",
       undefined,

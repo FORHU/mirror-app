@@ -59,10 +59,11 @@ function VoiceUI() {
                 }`}
             >
             <div
-              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${isCosmeticsPage
-                ? "gap-2 p-3 max-h-[34vh]"
-                : "gap-3 p-4 max-h-[60vh]"
-                }`}
+              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
+                isCosmeticsPage
+                  ? "gap-2 p-3 max-h-[34vh]"
+                  : "gap-3 p-4 max-h-[60vh]"
+              }`}
               style={{
                 background: "rgba(10,10,18,0.92)",
                 backdropFilter: "blur(20px)",
@@ -75,10 +76,11 @@ function VoiceUI() {
                     {item.user}
                   </p>
                   <p
-                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${isCosmeticsPage
-                      ? "text-xs leading-relaxed p-2"
-                      : "text-sm leading-snug p-2.5"
-                      }`}
+                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
+                      isCosmeticsPage
+                        ? "text-xs leading-relaxed p-2"
+                        : "text-sm leading-snug p-2.5"
+                    }`}
                   >
                     {item.assistant}
                   </p>
