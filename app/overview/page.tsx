@@ -21,7 +21,6 @@ import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -43,11 +42,6 @@ import {
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -96,8 +90,6 @@ async function requestGarmentsWithFreshSession(
 }
 
 export default function OverviewPage() {
-  const user = useAuthStore((s) => s.user);
-
   // ── store actions (stable refs) ──
   const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
