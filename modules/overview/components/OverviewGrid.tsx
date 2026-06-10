@@ -3,19 +3,18 @@
 import { useState } from "react";
 import {
   AlertCircle,
-  Droplets,
   MapPin,
+  ShoppingBag,
   Sparkles,
   WandSparkles,
-  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
   CosmeticTileItem,
+  GarmentTileItem,
   MapTileData,
   OutfitTileItem,
-  SkinAnalysisTileItem,
   TileState,
 } from "../types";
 
@@ -68,6 +67,16 @@ function TileError({ text }: { text: string }) {
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 text-center">
       <AlertCircle className="w-5 h-5 text-white/50" />
       <p className="text-white/55 text-sm max-w-[80%]">{text}</p>
+    </div>
+  );
+}
+
+function EmptyTile({ text }: { text: string }) {
+  return (
+    <div className="h-full min-h-[120px] flex items-center justify-center text-center">
+      <p className="text-white/35 text-sm max-w-[220px] leading-relaxed">
+        {text}
+      </p>
     </div>
   );
 }
@@ -215,113 +224,6 @@ function WardrobeContent({
   );
 }
 
-function SkinContent({
-  item,
-  wide,
-}: {
-  item: SkinAnalysisTileItem;
-  wide?: boolean;
-}) {
-  const bars = (
-    <div className="space-y-3">
-      {[
-        { label: "Hydration", value: item.hydrationPct, icon: Droplets },
-        { label: "Oiliness", value: item.oilinessPct, icon: Zap },
-      ].map(({ label, value, icon: Icon }) => (
-        <div key={label}>
-          <div className="flex items-center justify-between text-xs mb-2">
-            <span className="flex items-center gap-1.5 text-white/45">
-              <Icon className="w-3.5 h-3.5" /> {label}
-            </span>
-            <span className="text-white/60 font-mono">{value}%</span>
-          </div>
-          <div className="h-1.5 w-full bg-white/6 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full rounded-full bg-blue-400/70"
-              initial={{ width: 0 }}
-              animate={{ width: `${value}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const concerns = item.concerns.length > 0 && (
-    <div className="flex flex-wrap gap-1.5">
-      {item.concerns.slice(0, wide ? 8 : 4).map((c) => (
-        <span
-          key={c}
-          className="text-xs text-white/50 bg-white/4 border border-white/10 px-2.5 py-1 rounded-lg"
-        >
-          {c}
-        </span>
-      ))}
-    </div>
-  );
-
-  if (wide) {
-    return (
-      <div className="flex gap-6 h-full">
-        <div className="flex flex-col items-center gap-3 shrink-0 justify-center">
-          {item.skinTone && (
-            <div
-              className="w-20 h-20 rounded-3xl border-2 border-white/15 shadow-xl"
-              style={{
-                backgroundColor: item.skinTone.startsWith("#")
-                  ? item.skinTone
-                  : `#${item.skinTone}`,
-              }}
-            />
-          )}
-          <p className="text-white text-base font-semibold text-center leading-tight">
-            {item.skinType}
-          </p>
-          {item.skinTone && (
-            <p className="text-white/30 text-[10px] font-mono uppercase tracking-widest text-center">
-              {item.skinTone}
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-4 flex-1 min-w-0 justify-center">
-          {bars}
-          {concerns}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-4 h-full">
-      <div className="flex items-center gap-3 shrink-0">
-        {item.skinTone && (
-          <div
-            className="w-12 h-12 rounded-2xl shrink-0 border border-white/15 shadow-md"
-            style={{
-              backgroundColor: item.skinTone.startsWith("#")
-                ? item.skinTone
-                : `#${item.skinTone}`,
-            }}
-          />
-        )}
-        <div className="min-w-0">
-          <p className="text-white text-base font-semibold truncate">
-            {item.skinType}
-          </p>
-          {item.skinTone && (
-            <p className="text-white/30 text-[11px] font-mono uppercase tracking-widest mt-0.5">
-              {item.skinTone}
-            </p>
-          )}
-        </div>
-      </div>
-      {bars}
-      {concerns && <div className="mt-auto">{concerns}</div>}
-    </div>
-  );
-}
-
 function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
   const pin = (size: number) => (
     <div
@@ -407,6 +309,30 @@ function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
   );
 }
 
+function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
+  if (!items.length) return <EmptyTile text="No fashion pieces yet." />;
+
+  return (
+    <div className="grid grid-cols-4 gap-2.5 overflow-hidden">
+      {items.slice(0, 8).map((item) => (
+        <div
+          key={item.id}
+          className="min-w-0 rounded-2xl overflow-hidden bg-white/3 border border-white/10"
+        >
+          <div className="bg-white/2" style={{ aspectRatio: "3/4" }}>
+            <CardImage src={item.imageUrl} alt={item.name} />
+          </div>
+          <div className="px-2 py-1.5">
+            <p className="text-white/75 text-[11px] font-medium truncate">
+              {item.name}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CosmeticsStrip({ items }: { items: CosmeticTileItem[] }) {
   return (
     <div className="flex gap-3 overflow-x-auto h-full scrollbar-hidden">
@@ -473,9 +399,9 @@ function Tile({
 }
 
 export function OverviewGrid() {
+  const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
   const cosmetics = useOverviewStore((s) => s.cosmetics);
-  const skinAnalysis = useOverviewStore((s) => s.skinAnalysis);
   const map = useOverviewStore((s) => s.map);
 
   const wardrobeState: TileState<boolean> = {
@@ -483,85 +409,71 @@ export function OverviewGrid() {
     data: outfits.data?.length ? true : null,
     error: outfits.error,
   };
-
+  const garmentItems =
+    garments.data?.length
+      ? garments.data
+      : (outfits.data ?? []).flatMap((outfit) => outfit.garments);
+  const garmentsState: TileState<boolean> = {
+    status: garments.status === "idle" ? outfits.status : garments.status,
+    data: garmentItems.length ? true : null,
+    error: garments.error,
+  };
   const showWardrobe = isActive(wardrobeState.status);
-  const showSkin = isActive(skinAnalysis.status);
   const showMap = isActive(map.status);
   const showCosmetics = isActive(cosmetics.status);
-  const showSideRow = showSkin || showMap;
-  const wardrobeWide =
-    showWardrobe && !showSideRow && outfits.data && outfits.data.length > 1;
-  const skinWide = showSkin && !showMap;
-  const mapWide = showMap && !showSkin;
+  const showGarments = isActive(garmentsState.status);
 
   return (
     <div className="flex-1 min-h-0 flex flex-col gap-3">
-      {showWardrobe && (
+      <div className="grid grid-cols-2 grid-rows-2 gap-3 flex-1 min-h-0">
+        <Tile
+          icon={ShoppingBag}
+          label="Fashion"
+          state={garmentsState}
+          className={showGarments ? "" : "opacity-80"}
+        >
+          <GarmentsContent items={garmentItems} />
+        </Tile>
+
+        <Tile
+          icon={MapPin}
+          label="Map"
+          state={map}
+          className={showMap ? "" : "opacity-80"}
+        >
+          {map.data ? (
+            <MapContent data={map.data} />
+          ) : (
+            <EmptyTile text="No mapped destination yet." />
+          )}
+        </Tile>
+
+        <Tile
+          icon={Sparkles}
+          label="Cosmetics"
+          state={cosmetics}
+          className={showCosmetics ? "" : "opacity-80"}
+        >
+          {cosmetics.data?.length ? (
+            <CosmeticsStrip items={cosmetics.data} />
+          ) : (
+            <EmptyTile text="No cosmetics yet." />
+          )}
+        </Tile>
+
         <Tile
           icon={WandSparkles}
-          label="Wardrobe"
+          label="Outfits"
           state={wardrobeState}
-          className={showSideRow ? "flex-2" : "flex-1"}
+          className={showWardrobe ? "" : "opacity-80"}
         >
           {outfits.data?.length ? (
-            <WardrobeContent
-              outfits={outfits.data}
-              wide={wardrobeWide ?? false}
-            />
-          ) : null}
+            <WardrobeContent outfits={outfits.data} />
+          ) : (
+            <EmptyTile text="No outfits yet." />
+          )}
         </Tile>
-      )}
-
-      {showSideRow && (
-        <div
-          className={`flex gap-3 min-h-0 ${showWardrobe ? "flex-1" : "flex-2"}`}
-        >
-          {showSkin && (
-            <Tile
-              icon={Sparkles}
-              label="Skin Profile"
-              state={skinAnalysis}
-              className="flex-1"
-            >
-              {skinAnalysis.data ? (
-                <SkinContent item={skinAnalysis.data} wide={skinWide} />
-              ) : null}
-            </Tile>
-          )}
-
-          {showMap && (
-            <Tile icon={MapPin} label="Map" state={map} className="flex-1">
-              {map.data ? <MapContent data={map.data} wide={mapWide} /> : null}
-            </Tile>
-          )}
-        </div>
-      )}
-
-      {showCosmetics && (
-        <div
-          className="glass-card-strong neon-border-white rounded-3xl shrink-0 px-5 pt-4 pb-4 flex flex-col"
-          style={{ height: 184 }}
-        >
-          <TileHeader icon={Sparkles} label="Cosmetics" />
-          <div className="flex-1 min-h-0">
-            {cosmetics.status === "loading" ? (
-              <div className="flex gap-3 h-full animate-pulse">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="shrink-0 rounded-2xl bg-white/4"
-                    style={{ width: 100, aspectRatio: "1" }}
-                  />
-                ))}
-              </div>
-            ) : cosmetics.status === "error" ? (
-              <TileError text={cosmetics.error ?? "Something went wrong"} />
-            ) : cosmetics.data?.length ? (
-              <CosmeticsStrip items={cosmetics.data} />
-            ) : null}
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

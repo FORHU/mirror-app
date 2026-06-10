@@ -36,6 +36,7 @@ import {
   adaptGarmentData,
   adaptCosmeticsData,
   adaptMapsData,
+  adaptSkinAnalysisData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
@@ -106,6 +107,15 @@ export default function OverviewPage() {
   const failMap = useOverviewStore((s) => s.failMap);
 
   const greeting = useOverviewStore((s) => s.greeting);
+  const overviewFashionSnapshot = useMirrorStore(
+    (s) => s.overviewFashionSnapshot,
+  );
+  const overviewCosmeticsSnapshot = useMirrorStore(
+    (s) => s.overviewCosmeticsSnapshot,
+  );
+  const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
+  const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   // Explicit gate for the full-screen loader: true while the initial Outline
   // hydration is in flight (so we don't flash empty tiles before data arrives),
@@ -155,12 +165,12 @@ export default function OverviewPage() {
         // outline data flip them to "ready" here hides the overlay while the AI
         // call is still running, flashing stale data on screen for several seconds.
         if (!handoffFiredRef.current) {
-          setGarments(garments);
-          setOutfits(outfits);
-          setCosmetics(cosmetics);
+          if (garments.length) setGarments(garments);
+          if (outfits.length) setOutfits(outfits);
+          if (cosmetics.length) setCosmetics(cosmetics);
           void useMapStore.getState().loadOutlineStops();
         }
-        setSkinAnalysis(skinAnalysis);
+        if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {
         /* hydration is best-effort; live updates still populate the tiles */
       } finally {
@@ -196,6 +206,43 @@ export default function OverviewPage() {
       }
     }
   }, [isPresent, captureFrame, onFaceDetected]);
+
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+
+    if (overviewFashionSnapshot?.garments.length) {
+      setGarments(overviewFashionSnapshot.garments);
+    }
+    if (overviewFashionSnapshot?.outfits.length) {
+      setOutfits(overviewFashionSnapshot.outfits);
+    }
+    const cosmetics =
+      overviewCosmeticsSnapshot?.length
+        ? overviewCosmeticsSnapshot
+        : adaptCosmeticsData(
+            pendingCosmeticsData ??
+              chatCosmeticsData ??
+              skinAnalysisResult?.recommendations ??
+              [],
+          );
+    if (cosmetics.length) {
+      setCosmetics(cosmetics);
+      useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
+    }
+
+    const skinTile = adaptSkinAnalysisData(skinAnalysisResult);
+    if (skinTile) setSkinAnalysis(skinTile);
+  }, [
+    overviewFashionSnapshot,
+    overviewCosmeticsSnapshot,
+    pendingCosmeticsData,
+    chatCosmeticsData,
+    skinAnalysisResult,
+    setGarments,
+    setOutfits,
+    setCosmetics,
+    setSkinAnalysis,
+  ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
   const pageContext = useMemo(
