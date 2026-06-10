@@ -9,6 +9,7 @@ import {
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 
 interface ItineraryMap {
   destination?: string;
@@ -88,6 +89,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   // Keep track of the AbortController so we can cancel streams if needed
   const abortControllerRef = useRef<AbortController | null>(null);
+  const audioQueueRef = useRef<AudioQueue | null>(null);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
@@ -143,6 +145,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         if (audioQueueRef.current) {
           audioQueueRef.current.stop();
         }
+        audioQueueRef.current = new AudioQueue();
 
         const payload: Record<string, unknown> = {
           input: finalInput,
