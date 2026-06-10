@@ -261,17 +261,6 @@ export default function VirtualMirrorV2() {
       const rawData = response.garment_data as Record<string, unknown> | null;
       const query = typeof rawData?.query === "string" ? rawData.query : null;
 
-      // Fallback: no garment data at all → fetch default outfits so the page isn't empty
-      if (!rawData) {
-        outfitService.getByQuery("limit=10&systemOnly=true").then((fetchedOutfits) => {
-          if (fetchedOutfits.length) {
-            setOutfits(fetchedOutfits);
-            setOutfitPage(0);
-          }
-        }).catch(console.error);
-        return;
-      }
-
       if (query) {
         // New format: ChatWonder sends query params, we fetch real DB outfits
         outfitService.getByQuery(query).then((fetchedOutfits) => {
@@ -289,7 +278,7 @@ export default function VirtualMirrorV2() {
               if (seen.has(g.id)) continue;
               seen.add(g.id);
 
-              const toGarment = (slot: string): RemoteGarment => ({
+              const mapped: RemoteGarment = {
                 id: g.id,
                 name: g.name,
                 description: g.description ?? "",
@@ -300,18 +289,21 @@ export default function VirtualMirrorV2() {
                 tags: [],
                 gender: null,
                 silhouette: null,
-                layerLevel: null,
+                layerLevel: g.layerLevel ?? null,
                 file: null,
-              });
+              };
 
               if (g.fittingSlot.includes("UpperGarment")) {
-                newTopsBase.push(toGarment("UpperGarment"));
+                const layer = g.layerLevel ?? "BASE";
+                if (layer === "OUTER") newTopsOuter.push(mapped);
+                else if (layer === "MID") newTopsMid.push(mapped);
+                else newTopsBase.push(mapped);
               } else if (g.fittingSlot.includes("LowerGarment")) {
-                newBottoms.push(toGarment("LowerGarment"));
+                newBottoms.push(mapped);
               } else if (g.fittingSlot.includes("FootGarment")) {
-                newShoes.push(toGarment("FootGarment"));
+                newShoes.push(mapped);
               } else if (g.garmentType.includes("Bag")) {
-                newBags.push(toGarment("RightHandAccessory"));
+                newBags.push(mapped);
               }
             }
           }
@@ -348,7 +340,7 @@ export default function VirtualMirrorV2() {
         layerLevel?: string;
       };
 
-      const sets = (rawData?.sets as AiItem[][] | undefined) ?? [];
+      const sets = Array.isArray(rawData?.sets) ? rawData.sets as Record<string, unknown>[] : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -380,7 +372,7 @@ export default function VirtualMirrorV2() {
       }
 
       for (const s of sets) {
-        for (const r of ((s as unknown as Record<string, unknown>)?.recommendations ?? []) as AiItem[]) {
+        for (const r of (Array.isArray(s.recommendations) ? s.recommendations : []) as AiItem[]) {
           if (r.fittingSlot?.includes("UpperGarment")) {
             const layer = r.layerLevel ?? "BASE";
             if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
@@ -406,8 +398,7 @@ export default function VirtualMirrorV2() {
       setBags(newBags);
       setBagsPage(0);
 
-      const rawSets = Array.isArray(rawData?.sets) ? rawData.sets as Record<string, unknown>[] : [];
-      const newAiOutfits: RemoteOutfit[] = rawSets
+      const newAiOutfits: RemoteOutfit[] = sets
         .filter((s) => s.outfit_imageUrl)
         .map((s) => ({
           id: String(s.outfit_id ?? crypto.randomUUID()),

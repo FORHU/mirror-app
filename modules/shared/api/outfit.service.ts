@@ -13,6 +13,7 @@ export interface RemoteOutfitGarment {
   imageUrl: string;
   garmentType: string[];
   fittingSlot: string[];
+  layerLevel?: string | null;
 }
 
 export interface RemoteOutfitItem {
