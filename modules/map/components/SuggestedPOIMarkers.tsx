@@ -16,6 +16,7 @@ const POPUP_CSS = `
     border-radius: 0 !important;
   }
   .spm-popup .mapboxgl-popup-tip { display: none !important; }
+  .spm-popup { z-index: 25 !important; }
 `;
 
 // ─── Category colours ─────────────────────────────────────────────────────────
