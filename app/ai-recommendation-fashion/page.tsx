@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
-import { outfitService, type RemoteOutfit } from "@/modules/shared/api/outfit.service";
+import {
+  outfitService,
+  type RemoteOutfit,
+} from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -24,42 +27,11 @@ import {
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
-import { FASHION_QUOTES, FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import {
+  FASHION_QUOTES,
+  FASHION_PROMPT_KEY,
+} from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
-
-function CreateOutfitFloaterButton({
-  hasSelection,
-  label,
-  onPress,
-}: {
-  hasSelection: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 z-40">
-      <button
-        type="button"
-        onClick={onPress}
-        className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-        style={{
-          background: hasSelection
-            ? "rgba(79,195,247,0.18)"
-            : "rgba(20,20,30,0.85)",
-          border: hasSelection
-            ? "1.5px solid rgba(79,195,247,0.6)"
-            : "1.5px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          {label}
-        </span>
-      </button>
-    </div>
-  );
-}
 
 export default function VirtualMirrorV2() {
   const router = useRouter();
@@ -130,13 +102,16 @@ export default function VirtualMirrorV2() {
     setSelectedShoe(null);
   }, []);
 
-  const selectOutfit = useCallback((idx: number) => {
-    setSelectedOutfitIdx(idx);
-    clearSlots();
-    setOutfitOverrides({});
-    setSwapSlot(null);
-    setSwapItemId(null);
-  }, [clearSlots]);
+  const selectOutfit = useCallback(
+    (idx: number) => {
+      setSelectedOutfitIdx(idx);
+      clearSlots();
+      setOutfitOverrides({});
+      setSwapSlot(null);
+      setSwapItemId(null);
+    },
+    [clearSlots],
+  );
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -263,66 +238,69 @@ export default function VirtualMirrorV2() {
 
       if (query) {
         // New format: ChatWonder sends query params, we fetch real DB outfits
-        outfitService.getByQuery(query).then((fetchedOutfits) => {
-          const newTopsBase: RemoteGarment[] = [];
-          const newTopsMid: RemoteGarment[] = [];
-          const newTopsOuter: RemoteGarment[] = [];
-          const newBottoms: RemoteGarment[] = [];
-          const newShoes: RemoteGarment[] = [];
-          const newBags: RemoteGarment[] = [];
-          const seen = new Set<string>();
+        outfitService
+          .getByQuery(query)
+          .then((fetchedOutfits) => {
+            const newTopsBase: RemoteGarment[] = [];
+            const newTopsMid: RemoteGarment[] = [];
+            const newTopsOuter: RemoteGarment[] = [];
+            const newBottoms: RemoteGarment[] = [];
+            const newShoes: RemoteGarment[] = [];
+            const newBags: RemoteGarment[] = [];
+            const seen = new Set<string>();
 
-          for (const outfit of fetchedOutfits) {
-            for (const item of outfit.items) {
-              const g = item.garment;
-              if (seen.has(g.id)) continue;
-              seen.add(g.id);
+            for (const outfit of fetchedOutfits) {
+              for (const item of outfit.items) {
+                const g = item.garment;
+                if (seen.has(g.id)) continue;
+                seen.add(g.id);
 
-              const mapped: RemoteGarment = {
-                id: g.id,
-                name: g.name,
-                description: g.description ?? "",
-                imageUrl: g.imageUrl,
-                fittingSlot: g.fittingSlot,
-                garmentType: g.garmentType,
-                category: [],
-                tags: [],
-                gender: null,
-                silhouette: null,
-                layerLevel: g.layerLevel ?? null,
-                file: null,
-              };
+                const mapped: RemoteGarment = {
+                  id: g.id,
+                  name: g.name,
+                  description: g.description ?? "",
+                  imageUrl: g.imageUrl,
+                  fittingSlot: g.fittingSlot,
+                  garmentType: g.garmentType,
+                  category: [],
+                  tags: [],
+                  gender: null,
+                  silhouette: null,
+                  layerLevel: g.layerLevel ?? null,
+                  file: null,
+                };
 
-              if (g.fittingSlot.includes("UpperGarment")) {
-                const layer = g.layerLevel ?? "BASE";
-                if (layer === "OUTER") newTopsOuter.push(mapped);
-                else if (layer === "MID") newTopsMid.push(mapped);
-                else newTopsBase.push(mapped);
-              } else if (g.fittingSlot.includes("LowerGarment")) {
-                newBottoms.push(mapped);
-              } else if (g.fittingSlot.includes("FootGarment")) {
-                newShoes.push(mapped);
-              } else if (g.garmentType.includes("Bag")) {
-                newBags.push(mapped);
+                if (g.fittingSlot.includes("UpperGarment")) {
+                  const layer = g.layerLevel ?? "BASE";
+                  if (layer === "OUTER") newTopsOuter.push(mapped);
+                  else if (layer === "MID") newTopsMid.push(mapped);
+                  else newTopsBase.push(mapped);
+                } else if (g.fittingSlot.includes("LowerGarment")) {
+                  newBottoms.push(mapped);
+                } else if (g.fittingSlot.includes("FootGarment")) {
+                  newShoes.push(mapped);
+                } else if (g.garmentType.includes("Bag")) {
+                  newBags.push(mapped);
+                }
               }
             }
-          }
 
-          setTopsBase(newTopsBase);
-          setTopsBasePage(0);
-          setTopsMid(newTopsMid);
-          setTopsMidPage(0);
-          setTopsOuter(newTopsOuter);
-          setTopsOuterPage(0);
-          setBottoms(newBottoms);
-          setBottomsPage(0);
-          setShoes(newShoes);
-          setShoesPage(0);
-          setBags(newBags);
-          setBagsPage(0);
-          setOutfits(fetchedOutfits);
-          setOutfitPage(0);
-        }).catch(console.error);
+            setTopsBase(newTopsBase);
+            setTopsBasePage(0);
+            setTopsMid(newTopsMid);
+            setTopsMidPage(0);
+            setTopsOuter(newTopsOuter);
+            setTopsOuterPage(0);
+            setBottoms(newBottoms);
+            setBottomsPage(0);
+            setShoes(newShoes);
+            setShoesPage(0);
+            setBags(newBags);
+            setBagsPage(0);
+            setOutfits(fetchedOutfits);
+            setOutfitPage(0);
+          })
+          .catch(console.error);
         return;
       }
 
@@ -340,7 +318,9 @@ export default function VirtualMirrorV2() {
         layerLevel?: string;
       };
 
-      const sets = Array.isArray(rawData?.sets) ? rawData.sets as Record<string, unknown>[] : [];
+      const sets = Array.isArray(rawData?.sets)
+        ? (rawData.sets as Record<string, unknown>[])
+        : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -356,7 +336,11 @@ export default function VirtualMirrorV2() {
         imageUrl: item.imageUrl ?? "",
         fittingSlot: [slot],
         garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-        category: Array.isArray(item.category) ? item.category : item.category ? [item.category] : [],
+        category: Array.isArray(item.category)
+          ? item.category
+          : item.category
+            ? [item.category]
+            : [],
         tags: [],
         gender: null,
         silhouette: null,
@@ -364,7 +348,11 @@ export default function VirtualMirrorV2() {
         file: null,
       });
 
-      function push(item: AiItem | undefined, bucket: RemoteGarment[], slot: string) {
+      function push(
+        item: AiItem | undefined,
+        bucket: RemoteGarment[],
+        slot: string,
+      ) {
         if (!item?.id) return;
         if (seen.has(item.id)) return;
         seen.add(item.id);
@@ -372,16 +360,21 @@ export default function VirtualMirrorV2() {
       }
 
       for (const s of sets) {
-        for (const r of (Array.isArray(s.recommendations) ? s.recommendations : []) as AiItem[]) {
+        for (const r of (Array.isArray(s.recommendations)
+          ? s.recommendations
+          : []) as AiItem[]) {
           if (r.fittingSlot?.includes("UpperGarment")) {
             const layer = r.layerLevel ?? "BASE";
             if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
             else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
             else push(r, newTopsBase, "UpperGarment");
           }
-          if (r.fittingSlot?.includes("LowerGarment")) push(r, newBottoms, "LowerGarment");
-          if (r.fittingSlot?.includes("FootGarment")) push(r, newShoes, "FootGarment");
-          if (r.garmentType?.includes("Bag")) push(r, newBags, "RightHandAccessory");
+          if (r.fittingSlot?.includes("LowerGarment"))
+            push(r, newBottoms, "LowerGarment");
+          if (r.fittingSlot?.includes("FootGarment"))
+            push(r, newShoes, "FootGarment");
+          if (r.garmentType?.includes("Bag"))
+            push(r, newBags, "RightHandAccessory");
         }
       }
 
@@ -410,18 +403,22 @@ export default function VirtualMirrorV2() {
             name: String(s.outfit_name ?? "Outfit"),
             description: String(s.reason ?? ""),
             file: { fileUrl: String(s.outfit_imageUrl ?? "") },
-            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map((r) => ({
-              id: String(r.id ?? crypto.randomUUID()),
-              slot: String((r.fittingSlot as string[])?.[0] ?? "UpperGarment"),
-              garment: {
-                id: String(r.id ?? ""),
-                name: String(r.name ?? ""),
-                description: String(r.description ?? ""),
-                imageUrl: String(r.imageUrl ?? ""),
-                garmentType: (r.garmentType as string[]) ?? [],
-                fittingSlot: (r.fittingSlot as string[]) ?? [],
-              },
-            })),
+            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map(
+              (r) => ({
+                id: String(r.id ?? crypto.randomUUID()),
+                slot: String(
+                  (r.fittingSlot as string[])?.[0] ?? "UpperGarment",
+                ),
+                garment: {
+                  id: String(r.id ?? ""),
+                  name: String(r.name ?? ""),
+                  description: String(r.description ?? ""),
+                  imageUrl: String(r.imageUrl ?? ""),
+                  garmentType: (r.garmentType as string[]) ?? [],
+                  fittingSlot: (r.fittingSlot as string[]) ?? [],
+                },
+              }),
+            ),
             metaData: null,
           };
         });
@@ -676,6 +673,62 @@ export default function VirtualMirrorV2() {
 
       <MirrorHeader onBack={() => router.back()} />
 
+      {/* Action row — Create a Wardrobe + Suggestions, between header and outfit panels */}
+      {!isProcessing && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 12,
+            padding: "6px 16px",
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => router.push("/wardrobe/create")}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
+            style={{
+              background: "rgba(20,20,30,0.85)",
+              border: "1.5px solid rgba(255,255,255,0.15)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
+              Create a Wardrobe
+            </span>
+          </button>
+          <PromptFloater
+            prompts={[
+              "Formal outfit — top, bottom, shoes, and bag.",
+              "Business look that feels confident and professional.",
+              "Casual outfit for an everyday relaxed day.",
+              `SmartCasual layered outfit for today, ${getToday()}.`,
+              "Streetwear look with a bold statement vibe.",
+              "Athleisure outfit that blends comfort and style.",
+              "Activewear outfit for performance and movement.",
+              "Sportswear outfit suitable for training or activity.",
+              "Winterwear outfit with warm layers and structure.",
+              "Summerwear outfit that stays light and breathable.",
+              "Springwear outfit for transitional weather.",
+              "Autumnwear outfit with cozy layering.",
+              "Rainwear outfit that stays practical and stylish.",
+              "Minimalist outfit with clean lines and neutral tones.",
+              "Luxury-inspired outfit with a refined aesthetic.",
+              "AvantGarde outfit with an experimental fashion edge.",
+              "Vintage-inspired outfit with retro influence.",
+              "Traditional outfit with cultural inspiration.",
+              "Cultural outfit with heritage influence.",
+              "Uniform-inspired structured outfit style.",
+            ]}
+            className="relative z-40"
+            direction="below"
+          />
+        </div>
+      )}
+
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
@@ -684,7 +737,7 @@ export default function VirtualMirrorV2() {
       {showShowcase && (
         <div
           className="absolute inset-x-0 z-0 px-6"
-          style={{ top: 80, bottom: 170 }}
+          style={{ top: 80, bottom: 100, pointerEvents: "none" }}
         >
           <OutfitImageCarousel />
         </div>
@@ -1147,45 +1200,6 @@ export default function VirtualMirrorV2() {
           onClose={() => setShowConfirm(false)}
         />
       )}
-
-      {/* Create a Wardrobe — navigates to the garment selection/creation page */}
-      {!isProcessing && (
-        <CreateOutfitFloaterButton
-          hasSelection={false}
-          label="Create a Wardrobe"
-          onPress={() => router.push("/wardrobe/create")}
-        />
-      )}
-
-      {/* Suggested prompts — collapsible floater centered above the mic */}
-      <PromptFloater
-        prompts={[
-          "Formal outfit — top, bottom, shoes, and bag.",
-          "Business look that feels confident and professional.",
-          "Casual outfit for an everyday relaxed day.",
-          `SmartCasual layered outfit for today, ${getToday()}.`,
-          "Streetwear look with a bold statement vibe.",
-
-          "Athleisure outfit that blends comfort and style.",
-          "Activewear outfit for performance and movement.",
-          "Sportswear outfit suitable for training or activity.",
-
-          "Winterwear outfit with warm layers and structure.",
-          "Summerwear outfit that stays light and breathable.",
-          "Springwear outfit for transitional weather.",
-          "Autumnwear outfit with cozy layering.",
-          "Rainwear outfit that stays practical and stylish.",
-
-          "Minimalist outfit with clean lines and neutral tones.",
-          "Luxury-inspired outfit with a refined aesthetic.",
-          "AvantGarde outfit with an experimental fashion edge.",
-          "Vintage-inspired outfit with retro influence.",
-
-          "Traditional outfit with cultural inspiration.",
-          "Cultural outfit with heritage influence.",
-          "Uniform-inspired structured outfit style.",
-        ]}
-      />
     </div>
   );
 }

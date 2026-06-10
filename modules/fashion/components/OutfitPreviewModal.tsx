@@ -216,7 +216,9 @@ export function OutfitPreviewModal({
         >
           {(view === "result" || view === "save-form") && (
             <button
-              onClick={() => setView(view === "save-form" ? "result" : "canvas")}
+              onClick={() =>
+                setView(view === "save-form" ? "result" : "canvas")
+              }
               style={{
                 background: "none",
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -345,10 +347,22 @@ export function OutfitPreviewModal({
         {/* Save form view */}
         {view === "save-form" && (
           <>
-            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
                 >
                   Name
                 </label>
@@ -373,7 +387,12 @@ export function OutfitPreviewModal({
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <label
-                  style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em" }}
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
                 >
                   Description (optional)
                 </label>
@@ -399,7 +418,14 @@ export function OutfitPreviewModal({
               </div>
 
               {saveError && (
-                <p style={{ color: "#f87171", fontSize: 12, margin: 0, textAlign: "center" }}>
+                <p
+                  style={{
+                    color: "#f87171",
+                    fontSize: 12,
+                    margin: 0,
+                    textAlign: "center",
+                  }}
+                >
                   {saveError}
                 </p>
               )}

@@ -11,6 +11,8 @@ interface PromptFloaterProps {
   categories?: PromptCategory[];
   /** Positioning classes for the floating button container. */
   className?: string;
+  /** Which direction the dropdown expands. Default: "above". */
+  direction?: "above" | "below";
 }
 
 /**
@@ -23,6 +25,7 @@ export function PromptFloater({
   prompts,
   categories,
   className,
+  direction = "above",
 }: PromptFloaterProps) {
   const { isListening, isProcessing, isSpeaking } = useVoiceContext();
   const isIdle = !isListening && !isProcessing && !isSpeaking;
@@ -36,6 +39,8 @@ export function PromptFloater({
 
   if (!isIdle) return null;
 
+  const isBelow = direction === "below";
+
   return (
     <div
       className={
@@ -45,24 +50,44 @@ export function PromptFloater({
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.96, x: "-50%" }}
-            animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, y: 12, scale: 0.96, x: "-50%" }}
+            initial={{
+              opacity: 0,
+              y: isBelow ? -8 : 12,
+              scale: 0.96,
+              ...(isBelow ? {} : { x: "-50%" }),
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              ...(isBelow ? {} : { x: "-50%" }),
+            }}
+            exit={{
+              opacity: 0,
+              y: isBelow ? -8 : 12,
+              scale: 0.96,
+              ...(isBelow ? {} : { x: "-50%" }),
+            }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="absolute bottom-full left-1/2 mb-3 w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl overflow-hidden"
+            className={`absolute w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl ${isBelow ? "top-full mt-3 right-0" : "bottom-full mb-3 left-1/2"}`}
             style={{
               background: "rgba(10,10,18,0.92)",
               backdropFilter: "blur(18px)",
               WebkitBackdropFilter: "blur(18px)",
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 12px 48px rgba(0,0,0,0.5)",
+              maxHeight: "60vh",
+              overflowY: "auto",
+              scrollbarWidth: "none",
             }}
           >
-            <QuickResponseChips
-              prompts={prompts}
-              categories={categories}
-              onPromptSelect={() => setOpen(false)}
-            />
+            <div style={{ overflow: "hidden" }}>
+              <QuickResponseChips
+                prompts={prompts}
+                categories={categories}
+                onPromptSelect={() => setOpen(false)}
+              />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -88,7 +113,7 @@ export function PromptFloater({
           <Sparkles className="w-4 h-4 text-white/80" />
         )}
         <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          {open ? "Close" : "Suggestions"}
+          Suggestions
         </span>
       </motion.button>
     </div>

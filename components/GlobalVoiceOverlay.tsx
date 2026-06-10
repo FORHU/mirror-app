@@ -48,8 +48,9 @@ function VoiceUI() {
     <>
       {/* Chat History Overlay — centered above the mic, matching the bubble */}
       <div
-        className={`fixed z-9999 inset-x-0 flex justify-center pointer-events-none ${isCosmeticsPage ? "bottom-[132px]" : "bottom-[160px]"
-          }`}
+        className={`fixed z-9999 inset-x-0 flex justify-center pointer-events-none ${
+          isCosmeticsPage ? "bottom-[132px]" : "bottom-[160px]"
+        }`}
       >
         <AnimatePresence>
           {isChatOpen && visibleHistory.length > 0 && (
@@ -57,40 +58,39 @@ function VoiceUI() {
               initial={{ opacity: 0, y: 16, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.95 }}
-              className={`pointer-events-auto ${isCosmeticsPage
-                ? "w-[min(20rem,calc(100vw-2.5rem))]"
-                : "w-80"
-                }`}
-            >
-            <div
-              className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
-                isCosmeticsPage
-                  ? "gap-2 p-3 max-h-[34vh]"
-                  : "gap-3 p-4 max-h-[60vh]"
+              className={`pointer-events-auto ${
+                isCosmeticsPage ? "w-[min(20rem,calc(100vw-2.5rem))]" : "w-80"
               }`}
-              style={{
-                background: "rgba(10,10,18,0.92)",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(255,255,255,0.12)",
-              }}
             >
-              {visibleHistory.map((item, idx) => (
-                <div key={idx} className="flex flex-col gap-1">
-                  <p className="text-xs text-white/60 leading-tight bg-white/5 p-2 rounded-lg rounded-tr-none self-end max-w-[85%]">
-                    {item.user}
-                  </p>
-                  <p
-                    className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
-                      isCosmeticsPage
-                        ? "text-xs leading-relaxed p-2"
-                        : "text-sm leading-snug p-2.5"
-                    }`}
-                  >
-                    {item.assistant}
-                  </p>
-                </div>
-              ))}
-            </div>
+              <div
+                className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
+                  isCosmeticsPage
+                    ? "gap-2 p-3 max-h-[34vh]"
+                    : "gap-3 p-4 max-h-[60vh]"
+                }`}
+                style={{
+                  background: "rgba(10,10,18,0.92)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                {visibleHistory.map((item, idx) => (
+                  <div key={idx} className="flex flex-col gap-1">
+                    <p className="text-xs text-white/60 leading-tight bg-white/5 p-2 rounded-lg rounded-tr-none self-end max-w-[85%]">
+                      {item.user}
+                    </p>
+                    <p
+                      className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
+                        isCosmeticsPage
+                          ? "text-xs leading-relaxed p-2"
+                          : "text-sm leading-snug p-2.5"
+                      }`}
+                    >
+                      {item.assistant}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -70,11 +70,11 @@ async function requestGarmentsWithFreshSession(
     pageMode: "overview" as const,
     ...(location
       ? {
-        location: {
-          lat: location.lat.toString(),
-          lng: location.lng.toString(),
-        },
-      }
+          location: {
+            lat: location.lat.toString(),
+            lng: location.lng.toString(),
+          },
+        }
       : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
   };
@@ -375,8 +375,6 @@ export default function OverviewPage() {
         aria-hidden
         className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
       />
-
-
 
       {/* Grid */}
       <div className="m-5 flex-1 min-h-0 flex flex-col">

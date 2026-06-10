@@ -1100,9 +1100,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               /* best-effort */
             }
             router.push(ROUTES.AI_RECOMMENDATION_FASHION);
-            const fashionReply = "Opening fashion recommendations for your outfit.";
+            const fashionReply =
+              "Opening fashion recommendations for your outfit.";
             setReply(fashionReply);
-            historyRef.current = [...historyRef.current, { user: t, assistant: fashionReply }];
+            historyRef.current = [
+              ...historyRef.current,
+              { user: t, assistant: fashionReply },
+            ];
             setChatHistory(historyRef.current);
             setVoiceState("idle");
             return;
@@ -2537,11 +2541,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 needsPhoto.map((poi) =>
                   mapService
                     .venuePhotos(poi.placeId!)
-                    .then(({ photos }) => ({ placeId: poi.placeId!, photo: photos[0] ?? null }))
+                    .then(({ photos }) => ({
+                      placeId: poi.placeId!,
+                      photo: photos[0] ?? null,
+                    }))
                     .catch(() => ({ placeId: poi.placeId!, photo: null })),
                 ),
               ).then((results) => {
-                const photoMap = new Map(results.map((r) => [r.placeId, r.photo]));
+                const photoMap = new Map(
+                  results.map((r) => [r.placeId, r.photo]),
+                );
                 const enriched = curated.map((p) => ({
                   ...p,
                   photo: photoMap.get(p.placeId!) ?? p.photo,

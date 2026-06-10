@@ -40,7 +40,8 @@ export interface GarmentAdaptResult {
 export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
   const data = asRecord(raw);
   // New format: { query, reason } — outfits fetched by the consumer, nothing to adapt here
-  if (data && typeof data.query === "string") return { garments: [], outfits: [] };
+  if (data && typeof data.query === "string")
+    return { garments: [], outfits: [] };
   const sets = data && Array.isArray(data.sets) ? data.sets : [];
 
   const garments: GarmentTileItem[] = [];
