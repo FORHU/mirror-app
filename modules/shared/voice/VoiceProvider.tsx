@@ -2158,9 +2158,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── End itinerary intercept ────────────────────────────────────────────
 
           const mapState = useMapStore.getState();
-          let mapLoc = mapState.userLocation ?? mapState.homeLocation;
-          // GPS fallback — if the store has no location yet (home never configured or
-          // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
+          // Prefer live GPS over IP-based homeLocation — IP geolocation can be
+          // hundreds of km off for fixed kiosk devices where the ISP's registered
+          // address differs from the actual device location.
+          let mapLoc = mapState.userLocation;
           if (
             !mapLoc &&
             typeof window !== "undefined" &&
@@ -2180,6 +2181,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               },
             );
           }
+          if (!mapLoc) mapLoc = mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
@@ -2333,6 +2335,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 }
                 return;
               }
+              // No results found at this location — give a clear error instead of
+              // silently falling through to ChatWonder (which always fails for POI queries).
+              const noResultReply = `I couldn't find a nearby ${nearbyQuery} in this area. You can try asking for a different type of place.`;
+              const noResultAudio = await mapService
+                .tts(noResultReply)
+                .catch(() => null);
+              setReply(noResultReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: noResultReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (noResultAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  noResultAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
             } catch {
               /* fall through to ChatWonder */
             }
