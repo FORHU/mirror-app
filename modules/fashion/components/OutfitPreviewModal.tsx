@@ -6,6 +6,7 @@ import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
 import { generateOutfit } from "@/modules/shared/api/tailor.service";
+import { outfitService } from "@/modules/shared/api/outfit.service";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useChatWonderContext } from "@/modules/shared/ai/ChatWonderProvider";
@@ -57,6 +58,9 @@ export function OutfitPreviewModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const gender = useAuthStore((s) => s.user?.gender ?? null);
   const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
@@ -123,13 +127,47 @@ export function OutfitPreviewModal({
     try {
       const blob = await canvasRef.current?.getBlob();
       if (!blob) throw new Error("Could not capture canvas");
-      const result = await generateOutfit(blob, gender as "MALE" | "FEMALE");
+      const tailorGender: "MALE" | "FEMALE" =
+        gender === "MALE" ? "MALE" : "FEMALE";
+      const result = await generateOutfit(blob, tailorGender);
       setResultUrl(result.image_url);
       setView("result");
     } catch (e) {
       setGenError((e as Error).message ?? "Generation failed");
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!resultUrl || isSaved || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(
+        `/api/proxy-image?url=${encodeURIComponent(resultUrl)}`,
+      );
+      const pngBlob = res.ok ? await res.blob() : null;
+
+      const items = [
+        cBase && { garmentId: cBase.id, slot: "UpperGarment" },
+        cMid && { garmentId: cMid.id, slot: "UpperGarment" },
+        cOuter && { garmentId: cOuter.id, slot: "UpperGarment" },
+        cBottom && { garmentId: cBottom.id, slot: "LowerGarment" },
+        cShoe && { garmentId: cShoe.id, slot: "FootGarment" },
+        cBag && { garmentId: cBag.id, slot: "RightHandAccessory" },
+      ].filter(Boolean) as { garmentId: string; slot: string }[];
+
+      const name = activeOutfit?.name
+        ? `${activeOutfit.name} — Custom`
+        : `My Look — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+
+      await outfitService.create({ name, items, pngBlob });
+      setIsSaved(true);
+    } catch (e) {
+      setSaveError((e as Error).message ?? "Failed to save outfit");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -317,16 +355,48 @@ export function OutfitPreviewModal({
               />
             </div>
 
+            {saveError && (
+              <p
+                style={{
+                  color: "#f87171",
+                  fontSize: 12,
+                  margin: 0,
+                  textAlign: "center",
+                }}
+              >
+                {saveError}
+              </p>
+            )}
+
+            <button
+              disabled={isSaving || isSaved}
+              onClick={handleSave}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: isSaved ? "rgba(255,255,255,0.15)" : "#ffffff",
+                border: isSaved ? "1px solid rgba(255,255,255,0.2)" : "none",
+                borderRadius: "12px",
+                color: isSaved ? "rgba(255,255,255,0.7)" : "#000",
+                fontSize: "15px",
+                fontWeight: "700",
+                cursor: isSaving || isSaved ? "default" : "pointer",
+                opacity: isSaving ? 0.7 : 1,
+              }}
+            >
+              {isSaving ? "Saving…" : isSaved ? "Saved ✓" : "Save Outfit"}
+            </button>
+
             <button
               style={{
                 width: "100%",
                 padding: "12px",
-                background: "#ffffff",
-                border: "none",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.2)",
                 borderRadius: "12px",
-                color: "#000",
+                color: "rgba(255,255,255,0.7)",
                 fontSize: "15px",
-                fontWeight: "700",
+                fontWeight: "600",
                 cursor: "pointer",
               }}
               onClick={onClose}

@@ -21,12 +21,45 @@ import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
 } from "@/modules/fashion/components/GarmentSelectionPanel";
-import { CreateOutfitBar } from "@/modules/fashion/components/CreateOutfitBar";
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import { FASHION_QUOTES } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
+
+function CreateOutfitFloaterButton({
+  hasSelection,
+  label,
+  onPress,
+}: {
+  hasSelection: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 z-40">
+      <button
+        type="button"
+        onClick={onPress}
+        className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
+        style={{
+          background: hasSelection
+            ? "rgba(79,195,247,0.18)"
+            : "rgba(20,20,30,0.85)",
+          border: hasSelection
+            ? "1.5px solid rgba(79,195,247,0.6)"
+            : "1.5px solid rgba(255,255,255,0.15)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
+          {label}
+        </span>
+      </button>
+    </div>
+  );
+}
 
 export default function VirtualMirrorV2() {
   const router = useRouter();
@@ -434,7 +467,7 @@ export default function VirtualMirrorV2() {
     const pending = useMirrorStore.getState().pendingGarmentData;
     if (!pending) return;
     useMirrorStore.getState().setPendingGarmentData(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -443,7 +476,7 @@ export default function VirtualMirrorV2() {
   useEffect(() => {
     if (!chatGarmentData) return;
     useMirrorStore.getState().setChatGarmentData(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     handleAiComplete({
       garment_data: chatGarmentData,
     } as ChatWonderMessageResponse);
@@ -562,22 +595,6 @@ export default function VirtualMirrorV2() {
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
-
-      {/* Create Outfit — just below the header; hidden when an outfit is selected (unless modified) */}
-      <CreateOutfitBar
-        visible={selectedOutfitIdx === null || outfitModified}
-        disabled={
-          selectedOutfitIdx === null &&
-          !outfitModified &&
-          !(
-            (selectedTopBase || selectedTopMid || selectedTopOuter) &&
-            !!selectedBottom &&
-            !!selectedShoe
-          )
-        }
-        label={outfitModified ? "Customize Outfit" : "Create Outfit"}
-        onCreate={() => setShowConfirm(true)}
-      />
 
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
@@ -1042,6 +1059,29 @@ export default function VirtualMirrorV2() {
         />
       )}
 
+      {/* Create Outfit — fixed above the Suggestions floater, hidden during voice */}
+      {!isProcessing && (
+        <CreateOutfitFloaterButton
+          hasSelection={
+            selectedOutfitIdx !== null ||
+            outfitModified ||
+            !!(
+              (selectedTopBase || selectedTopMid || selectedTopOuter) &&
+              selectedBottom &&
+              selectedShoe
+            )
+          }
+          label={
+            outfitModified
+              ? "Customize Outfit"
+              : selectedOutfitIdx !== null
+                ? "Generate Look"
+                : "Create Outfit"
+          }
+          onPress={() => setShowConfirm(true)}
+        />
+      )}
+
       {/* Suggested prompts — collapsible floater centered above the mic */}
       <PromptFloater
         prompts={[
@@ -1069,12 +1109,6 @@ export default function VirtualMirrorV2() {
           "Traditional outfit with cultural inspiration.",
           "Cultural outfit with heritage influence.",
           "Uniform-inspired structured outfit style.",
-
-          "SmartCasual outfit that balances comfort and polish.",
-          "Casual outfit that still looks elevated.",
-          "Streetwear outfit with oversized silhouettes.",
-          "Minimalist outfit with everyday versatility.",
-          "Luxury outfit with understated styling.",
         ]}
       />
     </div>

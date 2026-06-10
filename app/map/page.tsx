@@ -9,7 +9,10 @@ import { mapService } from "@/modules/map/services/map.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
-import { QuickResponseChips, nextWeekday } from "@/components/QuickResponseChips";
+import {
+  QuickResponseChips,
+  nextWeekday,
+} from "@/components/QuickResponseChips";
 
 async function consumePendingLocation() {
   try {
@@ -32,7 +35,7 @@ async function consumePendingLocation() {
       isSearching: false,
       searchResults: [],
     });
-  } catch { }
+  } catch {}
 }
 
 async function consumePendingDirections() {
@@ -48,7 +51,7 @@ async function consumePendingDirections() {
     if (!results.length) return;
 
     await useMapStore.getState().setDestination(results[0]);
-  } catch { }
+  } catch {}
 }
 
 export default function MapPage() {
@@ -59,7 +62,7 @@ export default function MapPage() {
     loadOutlineStops,
   } = useMapStore();
   const router = useRouter();
-  const onAction = useCallback(() => { }, []);
+  const onAction = useCallback(() => {}, []);
 
   useVoice(
     {
@@ -130,10 +133,10 @@ export default function MapPage() {
           <QuickResponseChips
             prompts={[
               "Show me restaurants and cafes near me.",
-              `I have a meeting at SM City at 10am and lunch at La Trinidad at noon on ${nextWeekday(1)} — plan my full route.`,
+              `I have a back-to-back schedule on ${nextWeekday(1)} — plan my full route for the day.`,
               "Show me the fastest route from my current location to the nearest mall.",
               "Show me a pharmacy near me.",
-              "Take me to SM City.",
+              "Show me the nearest grocery or convenience store.",
             ]}
           />
         </div>

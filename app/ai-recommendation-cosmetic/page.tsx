@@ -11,11 +11,8 @@ import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-} from "@/components/QuickResponseChips";
+import { getToday, nextWeekday } from "@/components/QuickResponseChips";
+import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 
@@ -448,16 +445,6 @@ export default function CosmeticRecommendationPage() {
                   className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
                 />
               )}
-              <QuickResponseChips
-                className="mt-3"
-                prompts={[
-                  `Recommend a morning skincare routine for today, ${getToday()}, based on my skin analysis.`,
-                  `I have an important event on ${nextWeekday(1)} — what products should I use for a fresh, polished look?`,
-                  "What are the top products I should use right now to address my main skin concerns?",
-                  "Suggest a calming evening routine I can follow tonight to repair and hydrate my skin.",
-                  "I want to visibly improve my skin's texture and glow over the next 30 days — build me a product plan.",
-                ]}
-              />
             </div>
 
             {/* AI Voice Bubble */}
@@ -523,6 +510,16 @@ export default function CosmeticRecommendationPage() {
           />
         </div>
       </div>
+
+      <PromptFloater
+        prompts={[
+          `Recommend a morning skincare routine for today, ${getToday()}, based on my skin analysis.`,
+          `I have an important event on ${nextWeekday(1)} — what products should I use for a fresh, polished look?`,
+          "What are the top products I should use right now to address my main skin concerns?",
+          "Suggest a calming evening routine I can follow tonight to repair and hydrate my skin.",
+          "I want to visibly improve my skin's texture and glow over the next 30 days — build me a product plan.",
+        ]}
+      />
     </div>
   );
 }
