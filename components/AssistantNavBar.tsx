@@ -71,7 +71,7 @@ export default function AssistantNavBar() {
             "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
-        <div className="flex-1 flex items-center justify-around">
+        <div className="flex-1 min-w-0 flex items-center justify-around pr-2">
           <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
           <NavButton
             label="Cosmetics"
@@ -79,11 +79,13 @@ export default function AssistantNavBar() {
           />
         </div>
 
-        {/* center gap — the global mic floats here (viewport center) */}
-        <div className="w-20 shrink-0" aria-hidden />
+        {/* center gap — the global 64px mic floats here (viewport center);
+            kept wide enough that the inner buttons never slide under it */}
+        <div className="w-24 shrink-0" aria-hidden />
 
-        {/* right group */}
-        <div className="flex-1 flex items-center justify-between pl-2">
+        {/* right group — mirrors the left so Map keeps the same clearance from
+            the mic that Cosmetics does */}
+        <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
           <NavButton label="Map" route={ROUTES.MAP} />
           <NavButton
             label="Overview"

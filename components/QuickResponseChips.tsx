@@ -46,6 +46,7 @@ interface QuickResponseChipsProps {
   /** Categorised mode — renders tab selectors above the chips */
   categories?: PromptCategory[];
   className?: string;
+  onPromptSelect?: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ export function QuickResponseChips({
   prompts,
   categories,
   className,
+  onPromptSelect,
 }: QuickResponseChipsProps) {
   const { isListening, isProcessing, isSpeaking, submitText } =
     useVoiceContext();
@@ -70,6 +72,7 @@ export function QuickResponseChips({
     : (prompts ?? []);
 
   const handleTap = (prompt: string) => {
+    onPromptSelect?.();
     void submitText(prompt);
     if (activeCategory?.route) router.push(activeCategory.route);
   };

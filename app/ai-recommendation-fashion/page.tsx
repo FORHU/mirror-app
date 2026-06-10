@@ -121,21 +121,22 @@ export default function VirtualMirrorV2() {
     setSwapItemId(null);
   }
 
-  const clearSlots = () => {
+  const clearSlots = useCallback(() => {
     setSelectedBag(null);
     setSelectedTopBase(null);
     setSelectedTopMid(null);
     setSelectedTopOuter(null);
     setSelectedBottom(null);
     setSelectedShoe(null);
-  };
-  const selectOutfit = (idx: number) => {
+  }, []);
+
+  const selectOutfit = useCallback((idx: number) => {
     setSelectedOutfitIdx(idx);
     clearSlots();
     setOutfitOverrides({});
     setSwapSlot(null);
     setSwapItemId(null);
-  };
+  }, [clearSlots]);
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
