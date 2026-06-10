@@ -464,6 +464,13 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
+      if (action.type === "GARMENT_RECOMMENDATION") {
+        const res = action.response as { garment_data?: unknown } | null;
+        if (res?.garment_data) {
+          handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse);
+        }
+        return;
+      }
       if (action.type === "fashion_select_outfit") {
         const idx = action.index;
         if (idx < 0 || idx >= outfits.length) return;
@@ -500,6 +507,7 @@ export default function VirtualMirrorV2() {
       }
     },
     [
+      handleAiComplete,
       outfits,
       outfitPageSize,
       selectOutfit,
