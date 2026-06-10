@@ -3075,6 +3075,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Transcription failed.");
+        vadRef.current?.pause();
         setVoiceState("idle");
       }
     },
