@@ -34,8 +34,7 @@ import {
 import { stopAllAudioQueues } from "./audioQueue";
 
 // ── Amazon Polly TTS ──────────────────────────────────────────────────────────
-// Drop-in replacement for mapService.tts() — calls /api/mirror/voice/tts which
-// synthesises speech directly via AWS Polly.
+// Calls /api/mirror/voice/tts which synthesises speech directly via AWS Polly.
 async function pollyTts(text: string): Promise<ArrayBuffer> {
   const lang = useMirrorStore.getState().voiceLanguage ?? "en-US";
   const res = await fetch("/api/mirror/voice/tts", {
@@ -1069,8 +1068,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             src.onended = async () => {
               if (offerText) {
                 // Chain the map offer after the main fashion response.
-                const offerAudio = await mapService
-                  .tts(offerText)
+                const offerAudio = await pollyTts(offerText)
                   .catch(() => null);
                 if (offerAudio) {
                   const offerCtx = new AudioContext();
@@ -1251,8 +1249,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               const addrReply = addrPOI.address
                 ? `The address of ${addrPOI.name} is ${addrPOI.address}.`
                 : `I don't have a specific address for ${addrPOI.name}.`;
-              const addrAudio = await mapService
-                .tts(addrReply)
+              const addrAudio = await pollyTts(addrReply)
                 .catch(() => null);
               setReply(addrReply);
               historyRef.current = [
@@ -1293,8 +1290,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 ratedPOI.rating != null
                   ? `${ratedPOI.name} is rated ${ratedPOI.rating} out of 5${ratedPOI.userRatingsTotal ? `, based on ${ratedPOI.userRatingsTotal} reviews` : ""}.`
                   : `I don't have a rating for ${ratedPOI.name}.`;
-              const ratingAudio = await mapService
-                .tts(ratingReply)
+              const ratingAudio = await pollyTts(ratingReply)
                 .catch(() => null);
               setReply(ratingReply);
               historyRef.current = [
@@ -1409,8 +1405,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 names.length === 1
                   ? `Did you mean ${names[0]}?`
                   : `Did you mean ${names[0]}, or ${names[names.length - 1]}?`;
-              const reAskAudio = await mapService
-                .tts(reAskReply)
+              const reAskAudio = await pollyTts(reAskReply)
                 .catch(() => null);
               setReply(reAskReply);
               historyRef.current = [
@@ -1487,8 +1482,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   nextAmbiguous.name,
                   nextAmbiguous.allResults.slice(0, 3),
                 );
-                const nextAudio = await mapService
-                  .tts(nextClarify)
+                const nextAudio = await pollyTts(nextClarify)
                   .catch(() => null);
                 setReply(nextClarify);
                 historyRef.current = [
@@ -1564,8 +1558,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                       hasPOIs,
                       disambigRouteSummary,
                     );
-              const disambigAudio = await mapService
-                .tts(disambigReply)
+              const disambigAudio = await pollyTts(disambigReply)
                 .catch(() => null);
               setReply(disambigReply);
               historyRef.current = [
@@ -1700,8 +1693,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     ambiguous.name,
                     ambiguous.allResults.slice(0, 3),
                   );
-                  const clarifyAudio = await mapService
-                    .tts(clarifyReply)
+                  const clarifyAudio = await pollyTts(clarifyReply)
                     .catch(() => null);
                   setReply(clarifyReply);
                   historyRef.current = [
@@ -1765,8 +1757,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     : "";
                 const names = merged.map((s) => s.name).join(", ");
                 const multiReply = `Got it! Added ${merged.length} stops: ${names}.${poiLine}${etaNarration} Any more stops?`;
-                const multiAudio = await mapService
-                  .tts(multiReply)
+                const multiAudio = await pollyTts(multiReply)
                   .catch(() => null);
                 setReply(multiReply);
                 historyRef.current = [
@@ -1812,8 +1803,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             pendingAmbiguousQueueRef.current = [];
             await useMapStore.getState().clearItinerary();
             const clearReply = "Route cleared. What's your first stop?";
-            const clearAudio = await mapService
-              .tts(clearReply)
+            const clearAudio = await pollyTts(clearReply)
               .catch(() => null);
             setReply(clearReply);
             historyRef.current = [
@@ -1959,8 +1949,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                       )
                     ];
                   const poiReply = `Here are the recommended places near ${stop?.name ?? "that stop"}: ${poiLines}. ${closer}`;
-                  const poiAudio = await mapService
-                    .tts(poiReply)
+                  const poiAudio = await pollyTts(poiReply)
                     .catch(() => null);
                   setReply(poiReply);
                   historyRef.current = [
@@ -2040,8 +2029,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     displayName,
                     results.slice(0, 3),
                   );
-                  const clarifyAudio = await mapService
-                    .tts(clarifyReply)
+                  const clarifyAudio = await pollyTts(clarifyReply)
                     .catch(() => null);
                   setReply(clarifyReply);
                   historyRef.current = [
@@ -2162,8 +2150,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     hasPOIs,
                     routeSummary,
                   );
-                  const stopAudio = await mapService
-                    .tts(stopReply)
+                  const stopAudio = await pollyTts(stopReply)
                     .catch(() => null);
                   setReply(stopReply);
                   historyRef.current = [
@@ -2248,8 +2235,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   placeId: stop.placeId,
                 });
                 const ordinalReply = `Taking you to ${stop.name}.`;
-                const ordinalAudio = await mapService
-                  .tts(ordinalReply)
+                const ordinalAudio = await pollyTts(ordinalReply)
                   .catch(() => null);
                 setReply(ordinalReply);
                 historyRef.current = [
@@ -2314,8 +2300,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     placeId: nearest.placeId,
                   });
                   const routeReply = `Taking you to ${nearest.name}${nearest.address ? `, at ${nearest.address}` : ""}.`;
-                  const routeAudio = await mapService
-                    .tts(routeReply)
+                  const routeAudio = await pollyTts(routeReply)
                     .catch(() => null);
                   setReply(routeReply);
                   historyRef.current = [
@@ -2382,8 +2367,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               // No results found at this location — give a clear error instead of
               // silently falling through to ChatWonder (which always fails for POI queries).
               const noResultReply = `I couldn't find a nearby ${nearbyQuery} in this area. You can try asking for a different type of place.`;
-              const noResultAudio = await mapService
-                .tts(noResultReply)
+              const noResultAudio = await pollyTts(noResultReply)
                 .catch(() => null);
               setReply(noResultReply);
               historyRef.current = [
