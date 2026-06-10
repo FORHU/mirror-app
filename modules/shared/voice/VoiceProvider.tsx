@@ -37,7 +37,6 @@ import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import { MAP_PROMPT_KEY } from "@/modules/map/constants";
 import {
   buildMapInput,
-  buildLangDirective,
   isNavigationPhrase,
   isItineraryPhrase,
   isFinishPhrase,
@@ -2901,7 +2900,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   | "map"
                   | "overview"
                   | null);
-          const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
@@ -3064,7 +3062,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [processTranscript, resolveAccessToken],
+    [processTranscript],
   );
 
   // Keep a stable ref so VAD callbacks (created once) always call the latest version
