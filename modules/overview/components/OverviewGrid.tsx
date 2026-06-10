@@ -335,17 +335,13 @@ function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
 
 function CosmeticsStrip({ items }: { items: CosmeticTileItem[] }) {
   return (
-    <div className="flex gap-3 overflow-x-auto h-full scrollbar-hidden">
-      {items.slice(0, 10).map((c) => (
+    <div className="grid grid-cols-3 gap-3 overflow-hidden content-start">
+      {items.slice(0, 6).map((c) => (
         <div
           key={c.id}
-          className="shrink-0 flex flex-col rounded-2xl overflow-hidden bg-white/3 border border-white/10"
-          style={{ width: 100 }}
+          className="min-w-0 flex flex-col rounded-2xl overflow-hidden bg-white/3 border border-white/10"
         >
-          <div
-            className="flex-1 min-h-0 bg-white/2"
-            style={{ aspectRatio: "1" }}
-          >
+          <div className="h-[112px] bg-white/2">
             <CardImage src={c.imageUrl} alt={c.name} />
           </div>
           <div className="px-2.5 py-2 shrink-0">
