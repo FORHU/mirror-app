@@ -925,15 +925,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               .setPendingCosmeticsData(aiResponse.cosmetics_data);
           }
 
-          // Fall back to data-type-implied route if the server omitted target_url.
-          const stylistTarget =
-            aiResponse.stylist_data?.target_url ??
-            (aiResponse.garment_data
-              ? ROUTES.AI_RECOMMENDATION_FASHION
-              : undefined) ??
-            (aiResponse.cosmetics_data
-              ? ROUTES.AI_RECOMMENDATION_COSMETIC
-              : undefined);
+          const stylistTarget = aiResponse.stylist_data?.target_url;
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
