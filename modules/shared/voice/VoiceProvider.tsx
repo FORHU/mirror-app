@@ -338,7 +338,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   // Holds the activity destination (e.g. "hiking trail") detected in the user's last
   // non-map transcript. Cleared when the user responds yes/no to the map offer.
-  const pendingActivityDestRef = useRef<{ query: string; label: string } | null>(null);
+  const pendingActivityDestRef = useRef<{
+    query: string;
+    label: string;
+  } | null>(null);
   const historyRef = useRef<Array<{ user: string; assistant: string }>>([]);
   const curatedPOIsRef = useRef<NearbyPOI[]>([]);
   const itineraryStopsRef = useRef<
@@ -925,8 +928,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // Fall back to data-type-implied route if the server omitted target_url.
           const stylistTarget =
             aiResponse.stylist_data?.target_url ??
-            (aiResponse.garment_data ? ROUTES.AI_RECOMMENDATION_FASHION : undefined) ??
-            (aiResponse.cosmetics_data ? ROUTES.AI_RECOMMENDATION_COSMETIC : undefined);
+            (aiResponse.garment_data
+              ? ROUTES.AI_RECOMMENDATION_FASHION
+              : undefined) ??
+            (aiResponse.cosmetics_data
+              ? ROUTES.AI_RECOMMENDATION_COSMETIC
+              : undefined);
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
           if (needsNavigation) {
@@ -2111,18 +2118,24 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           let mapLoc = mapState.userLocation ?? mapState.homeLocation;
           // GPS fallback — if the store has no location yet (home never configured or
           // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
-          if (!mapLoc && typeof window !== "undefined" && "geolocation" in navigator) {
-            mapLoc = await new Promise<{ lat: number; lng: number } | null>((resolve) => {
-              navigator.geolocation.getCurrentPosition(
-                ({ coords }) => {
-                  const loc = { lat: coords.latitude, lng: coords.longitude };
-                  useMapStore.getState().setUserLocation(loc);
-                  resolve(loc);
-                },
-                () => resolve(null),
-                { timeout: 3000, maximumAge: 10000 },
-              );
-            });
+          if (
+            !mapLoc &&
+            typeof window !== "undefined" &&
+            "geolocation" in navigator
+          ) {
+            mapLoc = await new Promise<{ lat: number; lng: number } | null>(
+              (resolve) => {
+                navigator.geolocation.getCurrentPosition(
+                  ({ coords }) => {
+                    const loc = { lat: coords.latitude, lng: coords.longitude };
+                    useMapStore.getState().setUserLocation(loc);
+                    resolve(loc);
+                  },
+                  () => resolve(null),
+                  { timeout: 3000, maximumAge: 10000 },
+                );
+              },
+            );
           }
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
@@ -2978,7 +2991,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       // Capture raw 16 kHz PCM using ScriptProcessorNode while VAD is active
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       const source = audioCtx.createMediaStreamSource(stream);
-      // eslint-disable-next-line @typescript-eslint/no-deprecated
+
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
         if (isVadSpeakingRef.current) {
