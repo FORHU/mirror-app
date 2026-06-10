@@ -340,27 +340,33 @@ export default function VirtualMirrorV2() {
       setBags(newBags);
       setBagsPage(0);
 
+      const seenOutfitIds = new Set<string>();
       const newAiOutfits: RemoteOutfit[] = sets
         .filter((s) => s.outfit_imageUrl)
-        .map((s) => ({
-          id: s.outfit_id,
-          name: s.outfit_name,
-          description: s.reason,
-          file: { fileUrl: s.outfit_imageUrl },
-          items: s.recommendations.map((r) => ({
-            id: r.id,
-            slot: r.fittingSlot[0] ?? "UpperGarment",
-            garment: {
+        .map((s, i) => {
+          const baseId = s.outfit_id || `outfit-${i}`;
+          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
+          seenOutfitIds.add(id);
+          return {
+            id,
+            name: s.outfit_name,
+            description: s.reason,
+            file: { fileUrl: s.outfit_imageUrl },
+            items: s.recommendations.map((r) => ({
               id: r.id,
-              name: r.name,
-              description: r.description,
-              imageUrl: r.imageUrl,
-              garmentType: r.garmentType,
-              fittingSlot: r.fittingSlot,
-            },
-          })),
-          metaData: null,
-        }));
+              slot: r.fittingSlot[0] ?? "UpperGarment",
+              garment: {
+                id: r.id,
+                name: r.name,
+                description: r.description,
+                imageUrl: r.imageUrl,
+                garmentType: r.garmentType,
+                fittingSlot: r.fittingSlot,
+              },
+            })),
+            metaData: null,
+          };
+        });
       setOutfits(newAiOutfits);
       setOutfitPage(0);
     },
