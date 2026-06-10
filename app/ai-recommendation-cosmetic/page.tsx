@@ -276,26 +276,24 @@ export default function CosmeticRecommendationPage() {
 
         {/* Center Column - Evaluation/Details */}
         <div className="flex-1 h-full flex flex-col items-center justify-center p-4 relative">
-          <div className="w-full h-full max-w-none flex flex-col items-center">
+          <div className="w-full h-full max-w-none flex flex-col items-center justify-center">
             <div className="flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
-                <div className="relative flex flex-col items-center text-center px-6 py-2 transition-all duration-300">
-                  <div
-                    className="relative flex shrink-0 items-center justify-center"
-                    style={{
-                      width: "min(38vw, 460px)",
-                      height: "min(42vh, 500px)",
-                      maxWidth: "none",
-                    }}
-                  >
+                <div className="relative flex flex-col items-center text-center gap-6 px-6 py-2 transition-all duration-300">
+                  <div className="relative flex shrink-0 items-center justify-center">
                     {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
                         alt={selectedRec.cosmeticProduct?.name || "Product"}
                         decoding="async"
-                        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.62)]"
-                        style={{ filter: "none", opacity: 1 }}
+                        className="relative z-10 object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.62)]"
+                        style={{
+                          filter: "none",
+                          opacity: 1,
+                          maxWidth: "min(34vw, 420px)",
+                          maxHeight: "min(40vh, 460px)",
+                        }}
                       />
                     ) : (
                       <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
