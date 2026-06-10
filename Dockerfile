@@ -3,8 +3,8 @@ RUN corepack enable
 
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
@@ -45,7 +45,7 @@ ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL \
     NEXT_PUBLIC_MODEL_MALE_URL=$NEXT_PUBLIC_MODEL_MALE_URL \
     NEXT_PUBLIC_MODEL_FEMALE_URL=$NEXT_PUBLIC_MODEL_FEMALE_URL
 
-RUN npm run build
+RUN pnpm build
 
 FROM base AS runner
 WORKDIR /app

@@ -391,7 +391,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const pageCtxRef = useRef<PageContext | null>(null);
   const onActionRef = useRef<((action: ChatWonderAction) => void) | null>(null);
   const sessionIdRef = useRef<string | undefined>(undefined);
-  const mapSessionInitRef = useRef(false);
 
   const { weather } = useWeather();
   const weatherRef = useRef(weather);
@@ -464,7 +463,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     curatedPOIsRef.current = [];
     itineraryStopsRef.current = [];
     isCollectingItineraryRef.current = false;
-    if (!pathname.startsWith("/map")) mapSessionInitRef.current = false;
 
     // On arrival at the Attract screen, kill any in-flight audio and start a
     // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
@@ -2280,13 +2278,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             }
           }
           // ── End nearby POI intercept ──────────────────────────────────────────
-
-          // Session init deferred — only pays the round-trip cost for queries
-          // that actually reach ChatWonder (not local POI or itinerary intercepts).
-          if (!mapSessionInitRef.current) {
-            await chatWonderService.getSessionId();
-            mapSessionInitRef.current = true;
-          }
 
           const voiceLang = useMirrorStore.getState().voiceLanguage || "en-US";
           const enrichedInput = buildMapInput(
