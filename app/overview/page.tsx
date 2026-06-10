@@ -27,7 +27,6 @@ import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import { mapService } from "@/modules/map/services/map.service";
 import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
-import { useMapStore } from "@/modules/map/store/useMapStore";
 
 import {
   OverviewGrid,
@@ -113,6 +112,10 @@ export default function OverviewPage() {
   const overviewCosmeticsSnapshot = useMirrorStore(
     (s) => s.overviewCosmeticsSnapshot,
   );
+  const overviewMapSnapshot = useMirrorStore((s) => s.overviewMapSnapshot);
+  const setOverviewMapSnapshot = useMirrorStore(
+    (s) => s.setOverviewMapSnapshot,
+  );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
@@ -150,9 +153,9 @@ export default function OverviewPage() {
 
   // ── hybrid hydration: reflect the persisted Outline on arrival ──
   // Overview is a downstream dashboard, so on mount we fill the tiles from the
-  // user's saved Outline. Live ChatWonder updates overwrite these afterward. The
-  // Map tile fills via the map-store effect once loadOutlineStops geocodes the
-  // events' destinations.
+  // user's saved Outline. Live ChatWonder updates overwrite these afterward.
+  // Map stays user-driven; do not hydrate route destinations from the outline
+  // because that can surface stale trips before the user opens Maps.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -168,7 +171,6 @@ export default function OverviewPage() {
           if (garments.length) setGarments(garments);
           if (outfits.length) setOutfits(outfits);
           if (cosmetics.length) setCosmetics(cosmetics);
-          void useMapStore.getState().loadOutlineStops();
         }
         if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {
@@ -207,6 +209,14 @@ export default function OverviewPage() {
     }
   }, [isPresent, captureFrame, onFaceDetected]);
 
+  const commitMap = useCallback(
+    (data: Parameters<typeof setMap>[0]) => {
+      setMap(data);
+      setOverviewMapSnapshot(data);
+    },
+    [setMap, setOverviewMapSnapshot],
+  );
+
   useEffect(() => {
     if (handoffFiredRef.current) return;
 
@@ -232,9 +242,13 @@ export default function OverviewPage() {
 
     const skinTile = adaptSkinAnalysisData(skinAnalysisResult);
     if (skinTile) setSkinAnalysis(skinTile);
+
+    if (overviewMapSnapshot) setMap(overviewMapSnapshot);
+    else emptyMap();
   }, [
     overviewFashionSnapshot,
     overviewCosmeticsSnapshot,
+    overviewMapSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
     skinAnalysisResult,
@@ -242,6 +256,8 @@ export default function OverviewPage() {
     setOutfits,
     setCosmetics,
     setSkinAnalysis,
+    setMap,
+    emptyMap,
   ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
@@ -266,40 +282,12 @@ export default function OverviewPage() {
       if (cosmetics.length) setCosmetics(cosmetics);
 
       const m = adaptMapsData(response?.maps_data?.[0]);
-      if (m) setMap(m);
+      if (m) commitMap(m);
     },
-    [setGarments, setOutfits, setCosmetics, setMap],
+    [setGarments, setOutfits, setCosmetics, commitMap],
   );
 
   useVoice(pageContext, handleVoiceAction);
-
-  // ── map store → Map tile (the cognitive pipeline sets destinations here) ──
-  const selectedDestination = useMapStore((s) => s.selectedDestination);
-  const itineraryStops = useMapStore((s) => s.itineraryStops);
-
-  useEffect(() => {
-    if (itineraryStops.length > 0) {
-      const first = itineraryStops[0];
-      setMap({
-        name: first.name,
-        lat: first.lat,
-        lng: first.lng,
-        address: first.address,
-        stops: itineraryStops.map((s) => ({
-          name: s.name,
-          lat: s.lat,
-          lng: s.lng,
-        })),
-      });
-    } else if (selectedDestination) {
-      setMap({
-        name: selectedDestination.name,
-        lat: selectedDestination.lat,
-        lng: selectedDestination.lng,
-        address: selectedDestination.address,
-      });
-    }
-  }, [selectedDestination, itineraryStops, setMap]);
 
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
@@ -313,7 +301,7 @@ export default function OverviewPage() {
           const { results } = await mapService.geocode(destination);
           const place = results[0];
           if (place) {
-            setMap({
+            commitMap({
               name: place.name || destination,
               address: place.address,
               lat: place.lat,
@@ -351,7 +339,7 @@ export default function OverviewPage() {
           ? response.maps_data[0]
           : response.maps_data;
         const m = adaptMapsData(mapPayload);
-        if (m) setMap(m);
+        if (m) commitMap(m);
         else if (!destination) emptyMap();
       } catch {
         setGarments([]);
@@ -360,7 +348,7 @@ export default function OverviewPage() {
         if (!destination) emptyMap();
       }
     },
-    [emptyMap, failMap, setGarments, setMap, setOutfits, setCosmetics],
+    [emptyMap, failMap, setGarments, commitMap, setOutfits, setCosmetics],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──

@@ -21,10 +21,6 @@ import type {
 const proxied = (url: string) =>
   `/api/proxy-image?url=${encodeURIComponent(url)}`;
 
-function isActive(status: TileState<unknown>["status"]) {
-  return status === "loading" || status === "ready" || status === "error";
-}
-
 function TileHeader({
   icon: Icon,
   label,
@@ -400,76 +396,51 @@ export function OverviewGrid() {
   const cosmetics = useOverviewStore((s) => s.cosmetics);
   const map = useOverviewStore((s) => s.map);
 
+  const garmentItems =
+    garments.data?.length
+      ? garments.data
+      : (outfits.data ?? []).flatMap((outfit) => outfit.garments);
+
   const wardrobeState: TileState<boolean> = {
     status: outfits.status,
     data: outfits.data?.length ? true : null,
     error: outfits.error,
   };
-  const garmentItems =
-    garments.data?.length
-      ? garments.data
-      : (outfits.data ?? []).flatMap((outfit) => outfit.garments);
   const garmentsState: TileState<boolean> = {
     status: garments.status === "idle" ? outfits.status : garments.status,
     data: garmentItems.length ? true : null,
     error: garments.error,
   };
-  const showWardrobe = isActive(wardrobeState.status);
-  const showMap = isActive(map.status);
-  const showCosmetics = isActive(cosmetics.status);
-  const showGarments = isActive(garmentsState.status);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col gap-3">
-      <div className="grid grid-cols-2 grid-rows-2 gap-3 flex-1 min-h-0">
-        <Tile
-          icon={ShoppingBag}
-          label="Fashion"
-          state={garmentsState}
-          className={showGarments ? "" : "opacity-80"}
-        >
-          <GarmentsContent items={garmentItems} />
-        </Tile>
+    <div className="grid grid-cols-2 grid-rows-2 gap-3 flex-1 min-h-0">
+      <Tile icon={ShoppingBag} label="Fashion" state={garmentsState}>
+        <GarmentsContent items={garmentItems} />
+      </Tile>
 
-        <Tile
-          icon={MapPin}
-          label="Map"
-          state={map}
-          className={showMap ? "" : "opacity-80"}
-        >
-          {map.data ? (
-            <MapContent data={map.data} />
-          ) : (
-            <EmptyTile text="No mapped destination yet." />
-          )}
-        </Tile>
+      <Tile icon={MapPin} label="Map" state={map}>
+        {map.data ? (
+          <MapContent data={map.data} />
+        ) : (
+          <EmptyTile text="No map destination yet." />
+        )}
+      </Tile>
 
-        <Tile
-          icon={Sparkles}
-          label="Cosmetics"
-          state={cosmetics}
-          className={showCosmetics ? "" : "opacity-80"}
-        >
-          {cosmetics.data?.length ? (
-            <CosmeticsStrip items={cosmetics.data} />
-          ) : (
-            <EmptyTile text="No cosmetics yet." />
-          )}
-        </Tile>
+      <Tile icon={Sparkles} label="Cosmetics" state={cosmetics}>
+        {cosmetics.data?.length ? (
+          <CosmeticsStrip items={cosmetics.data} />
+        ) : (
+          <EmptyTile text="No cosmetic picks yet." />
+        )}
+      </Tile>
 
-        <Tile
-          icon={WandSparkles}
-          label="Outfits"
-          state={wardrobeState}
-          className={showWardrobe ? "" : "opacity-80"}
-        >
-          {outfits.data?.length ? (
-            <WardrobeContent outfits={outfits.data} />
-          ) : (
-            <EmptyTile text="No outfits yet." />
-          )}
-        </Tile>
-      </div>
+      <Tile icon={WandSparkles} label="Outfits" state={wardrobeState}>
+        {outfits.data?.length ? (
+          <WardrobeContent outfits={outfits.data} />
+        ) : (
+          <EmptyTile text="No outfits yet." />
+        )}
+      </Tile>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
 import { outfitService } from "@/modules/shared/api/outfit.service";
+import { addCreatedOutfitToOverviewSnapshot } from "@/modules/fashion/utils/overviewFashionSnapshot";
 
 interface WardrobeFormModalProps {
   selectedTopBase: RemoteGarment | null;
@@ -87,11 +88,24 @@ export function WardrobeFormModal({
         },
       ].filter(Boolean) as { garmentId: string; slot: string }[];
 
-      await outfitService.create({
+      const saved = await outfitService.create({
         name: name.trim(),
         description: description.trim() || undefined,
         items,
         pngBlob: blob ?? null,
+      });
+      addCreatedOutfitToOverviewSnapshot({
+        created: saved,
+        fallbackName: name.trim(),
+        fallbackDescription: description.trim() || undefined,
+        garments: [
+          selectedTopBase,
+          selectedTopMid,
+          selectedTopOuter,
+          selectedBottom,
+          selectedShoe,
+          selectedBag,
+        ],
       });
       setIsSaved(true);
       onSaved?.();

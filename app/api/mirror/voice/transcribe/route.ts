@@ -52,6 +52,7 @@ const SILENCE_PADDING = new Uint8Array(16000);
 
 export async function POST(req: NextRequest) {
   const lang = req.nextUrl.searchParams.get("lang") ?? "en-US";
+  const provider = req.nextUrl.searchParams.get("provider") ?? "aws";
 
   let audioBytes: Uint8Array;
   try {

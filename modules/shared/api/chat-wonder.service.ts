@@ -161,18 +161,39 @@ export const chatWonderService = {
   /**
    * Send a message to the chat-wonder endpoint and return the full response.
    * Pass an AbortSignal to cancel the request mid-flight.
+   *
+   * Retries once on session_expired: the backend clears its stale ChatWonder
+   * session before emitting that error, so an immediate resend gets a fresh
+   * session (otherwise the first utterance after a long idle always fails).
    */
   async message(
     request: ChatWonderMessageRequest,
-    options?: {
-      onChunk?: (text: string) => void;
-      onAudioChunk?: () => void;
-      signal?: AbortSignal;
-      /** Skip the internal AudioQueue playback. Use when the caller speaks its
-       *  own (curated) reply via TTS — otherwise both play at once (dual voice). */
-      silent?: boolean;
-    },
+    options?: ChatWonderMessageOptions,
   ): Promise<ChatWonderMessageResponse> {
+    try {
+      return await sendMessageOnce(request, options);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("Session expired")) {
+        return sendMessageOnce(request, options);
+      }
+      throw err;
+    }
+  },
+};
+
+export interface ChatWonderMessageOptions {
+  onChunk?: (text: string) => void;
+  onAudioChunk?: () => void;
+  signal?: AbortSignal;
+  /** Skip the internal AudioQueue playback. Use when the caller speaks its
+   *  own (curated) reply via TTS — otherwise both play at once (dual voice). */
+  silent?: boolean;
+}
+
+async function sendMessageOnce(
+  request: ChatWonderMessageRequest,
+  options?: ChatWonderMessageOptions,
+): Promise<ChatWonderMessageResponse> {
     const token = await resolveAccessToken();
 
     const headers: Record<string, string> = {
@@ -227,38 +248,46 @@ export const chatWonderService = {
             const dataStr = line.slice(6);
             if (dataStr === "[DONE]") continue;
 
+            // Parse in its own try/catch — error events below must throw to
+            // the caller, not be swallowed by the partial-JSON guard.
+            let parsed: {
+              type?: string;
+              audioBase64?: string;
+              content?: string;
+              code?: string;
+              message?: string;
+            };
             try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.type === "audio_chunk" && parsed.audioBase64) {
-                if (!audioNotified) {
-                  audioNotified = true;
-                  try {
-                    options?.onAudioChunk?.();
-                  } catch {}
-                }
-                audioQueue?.enqueue(parsed.audioBase64);
-              } else if (parsed.type === "chunk") {
-                // Stream textual chunks to the caller if provided
-                try {
-                  options?.onChunk?.(parsed.content ?? "");
-                } catch {}
-              } else if (parsed.type === "raw_chunk") {
-                try {
-                  options?.onChunk?.(parsed.content ?? "");
-                } catch {}
-              } else if (parsed.type === "complete") {
-                finalData = parsed as ChatWonderMessageResponse;
-              } else if (parsed.type === "error") {
-                audioQueue?.stop();
-                if (parsed.code === "session_expired") {
-                  throw new Error(
-                    "Session expired. Please resend your message.",
-                  );
-                }
-                throw new Error(parsed.message || "Stream error");
-              }
+              parsed = JSON.parse(dataStr);
             } catch {
-              // ignore partial json
+              continue; // partial json
+            }
+
+            if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+              if (!audioNotified) {
+                audioNotified = true;
+                try {
+                  options?.onAudioChunk?.();
+                } catch {}
+              }
+              audioQueue?.enqueue(parsed.audioBase64);
+            } else if (parsed.type === "chunk") {
+              // Stream textual chunks to the caller if provided
+              try {
+                options?.onChunk?.(parsed.content ?? "");
+              } catch {}
+            } else if (parsed.type === "raw_chunk") {
+              try {
+                options?.onChunk?.(parsed.content ?? "");
+              } catch {}
+            } else if (parsed.type === "complete") {
+              finalData = parsed as unknown as ChatWonderMessageResponse;
+            } else if (parsed.type === "error") {
+              audioQueue?.stop();
+              if (parsed.code === "session_expired") {
+                throw new Error("Session expired. Please resend your message.");
+              }
+              throw new Error(parsed.message || "Stream error");
             }
           }
         }
@@ -274,5 +303,4 @@ export const chatWonderService = {
     }
 
     return finalData;
-  },
-};
+}
