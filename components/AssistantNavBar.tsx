@@ -3,15 +3,29 @@
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useOverviewStore } from "@/modules/overview";
 
-function NavButton({ label, route }: { label: string; route: string }) {
+function NavButton({
+  label,
+  route,
+  disabled,
+}: {
+  label: string;
+  route: string;
+  disabled?: boolean;
+}) {
   const router = useRouter();
   return (
     <button
       type="button"
-      onTouchStart={() => router.push(route)}
-      onClick={() => router.push(route)}
-      className="pointer-events-auto px-4 py-2 rounded-2xl text-[11px] font-medium text-white/50 uppercase tracking-[0.18em] transition-colors hover:text-white/85 hover:bg-white/5 active:bg-white/10"
+      disabled={disabled}
+      onTouchStart={() => !disabled && router.push(route)}
+      onClick={() => !disabled && router.push(route)}
+      className={`pointer-events-auto px-4 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.18em] transition-colors ${
+        disabled
+          ? "text-white/20 cursor-not-allowed"
+          : "text-white/50 hover:text-white/85 hover:bg-white/5 active:bg-white/10"
+      }`}
     >
       {label}
     </button>
@@ -31,7 +45,17 @@ function NavButton({ label, route }: { label: string; route: string }) {
  * two never collide.
  */
 export default function AssistantNavBar() {
-  const { isListening, isProcessing, isSpeaking } = useVoiceContext();
+  const { isProcessing, isSpeaking } = useVoiceContext();
+
+  // Overview is disabled until at least one tile has been populated with data.
+  const overviewHasData = useOverviewStore(
+    (s) =>
+      s.outfits.status === "ready" ||
+      s.cosmetics.status === "ready" ||
+      s.map.status === "ready" ||
+      s.skinAnalysis.status === "ready",
+  );
+
   if (isProcessing || isSpeaking) return null;
 
   return (
@@ -61,7 +85,11 @@ export default function AssistantNavBar() {
         {/* right group */}
         <div className="flex-1 flex items-center justify-between pl-2">
           <NavButton label="Map" route={ROUTES.MAP} />
-          <NavButton label="Overview" route={ROUTES.OVERVIEW} />
+          <NavButton
+            label="Overview"
+            route={ROUTES.OVERVIEW}
+            disabled={!overviewHasData}
+          />
         </div>
       </div>
     </div>
