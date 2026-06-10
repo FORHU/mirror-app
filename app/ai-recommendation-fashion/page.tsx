@@ -474,7 +474,9 @@ export default function VirtualMirrorV2() {
     if (!pending) return;
     useMirrorStore.getState().setPendingGarmentData(null);
 
-    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    setTimeout(() => {
+      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -483,9 +485,11 @@ export default function VirtualMirrorV2() {
     if (!chatGarmentData) return;
     useMirrorStore.getState().setChatGarmentData(null);
 
-    handleAiComplete({
-      garment_data: chatGarmentData,
-    } as ChatWonderMessageResponse);
+    setTimeout(() => {
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse);
+    }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatGarmentData]);
 
@@ -1065,26 +1069,12 @@ export default function VirtualMirrorV2() {
         />
       )}
 
-      {/* Create Outfit — fixed above the Suggestions floater, hidden during voice */}
+      {/* Create a Wardrobe — navigates to the garment selection/creation page */}
       {!isProcessing && (
         <CreateOutfitFloaterButton
-          hasSelection={
-            selectedOutfitIdx !== null ||
-            outfitModified ||
-            !!(
-              (selectedTopBase || selectedTopMid || selectedTopOuter) &&
-              selectedBottom &&
-              selectedShoe
-            )
-          }
-          label={
-            outfitModified
-              ? "Customize Outfit"
-              : selectedOutfitIdx !== null
-                ? "Generate Look"
-                : "Create Outfit"
-          }
-          onPress={() => setShowConfirm(true)}
+          hasSelection={false}
+          label="Create a Wardrobe"
+          onPress={() => router.push("/wardrobe/create")}
         />
       )}
 
