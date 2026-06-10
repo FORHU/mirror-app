@@ -3,7 +3,10 @@ import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { mapService } from "@/modules/map/services/map.service";
-import { buildPOITTS, curatePOIs } from "@/modules/map/utils/chatWonderMapUtils";
+import {
+  buildPOITTS,
+  curatePOIs,
+} from "@/modules/map/utils/chatWonderMapUtils";
 import { ROUTES } from "@/navigation";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 

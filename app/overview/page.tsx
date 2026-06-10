@@ -184,11 +184,7 @@ export default function OverviewPage() {
 
   const router = useRouter();
 
-  const {
-    videoRef,
-    isPresent,
-    captureFrame,
-  } = useProximitySensor({
+  const { videoRef, isPresent, captureFrame } = useProximitySensor({
     intervalMs: 1000,
     missesUntilExit: 3,
   });
