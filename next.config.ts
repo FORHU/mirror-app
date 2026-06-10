@@ -8,6 +8,12 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  // Prevent webpack from bundling AWS SDK packages — they must run as native
+  // Node.js requires in the API routes (HTTP/2 streaming, crypto, etc.)
+  serverExternalPackages: [
+    "@aws-sdk/client-transcribe-streaming",
+    "@aws-sdk/client-polly",
+  ],
   allowedDevOrigins: [
     "localhost:3000",
     "192.168.100.9:3000",

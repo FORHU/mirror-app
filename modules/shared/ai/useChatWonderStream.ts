@@ -8,7 +8,6 @@ import {
 } from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
-import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 interface ItineraryMap {
@@ -88,19 +87,6 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
 
   // Keep track of the AbortController so we can cancel streams if needed
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const audioQueueRef = useRef<AudioQueue | null>(null);
-
-  useEffect(() => {
-    // Initialize AudioQueue on mount
-    audioQueueRef.current = new AudioQueue();
-    return () => {
-      // Stop and clean up on unmount
-      if (audioQueueRef.current) {
-        audioQueueRef.current.stop();
-      }
-    };
-  }, []);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

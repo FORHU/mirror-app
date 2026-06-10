@@ -32,6 +32,20 @@ import {
   resolveAccessToken,
 } from "@/modules/shared/api/chat-wonder.service";
 import { stopAllAudioQueues } from "./audioQueue";
+
+// ── Amazon Polly TTS ──────────────────────────────────────────────────────────
+// Drop-in replacement for mapService.tts() — calls /api/mirror/voice/tts which
+// synthesises speech directly via AWS Polly.
+async function pollyTts(text: string): Promise<ArrayBuffer> {
+  const lang = useMirrorStore.getState().voiceLanguage ?? "en-US";
+  const res = await fetch("/api/mirror/voice/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, lang }),
+  });
+  if (!res.ok) throw new Error(`Polly TTS failed: ${res.status}`);
+  return res.arrayBuffer();
+}
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import {
   buildMapInput,
@@ -336,6 +350,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
+
+  // Streaming AWS Transcribe WebSocket session
+  const transcribeWsRef = useRef<WebSocket | null>(null);
+  const partialTranscriptRef = useRef<string>("");
+  const wsResolveRef = useRef<((t: string) => void) | null>(null);
+  const wsRejectRef = useRef<((e: Error) => void) | null>(null);
   // Holds the activity destination (e.g. "hiking trail") detected in the user's last
   // non-map transcript. Cleared when the user responds yes/no to the map offer.
   const pendingActivityDestRef = useRef<{
@@ -431,7 +451,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       itineraryStopsRef.current = [];
       const closing = "Alright, your route is all set! Enjoy your trip.";
       setReply(closing);
-      const audio = await mapService.tts(closing).catch(() => null);
+      const audio = await pollyTts(closing).catch(() => null);
       if (audio) {
         setVoiceState("speaking");
         const playCtx = new AudioContext();
@@ -485,7 +505,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const t = text?.trim();
       if (!t) return;
       stopPlayback();
-      const audio = await mapService.tts(t).catch(() => null);
+      const audio = await pollyTts(t).catch(() => null);
       if (!audio) {
         setVoiceState("idle");
         return;
@@ -605,7 +625,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       };
 
-      const audio = await mapService.tts(assistantReply).catch(() => null);
+      const audio = await pollyTts(assistantReply).catch(() => null);
       if (!audio) {
         finish();
         return;
@@ -640,7 +660,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const submitAudioRef = useRef<
-    ((frames: Float32Array[]) => Promise<void>) | null
+    ((frames: Float32Array[], preTranscript?: string) => Promise<void>) | null
   >(null);
   const processTranscript = useCallback(
     async (t: string) => {
@@ -981,7 +1001,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setChatHistory(newHistory);
 
           const snippet = firstNSentences(displayMessage, 3);
-          const ttsAudio = await mapService.tts(snippet).catch(() => null);
+          const ttsAudio = await pollyTts(snippet).catch(() => null);
           if (ttsAudio) {
             setVoiceState("speaking");
             const playCtx = new AudioContext();
@@ -1113,7 +1133,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 },
               });
               const confirmReply = `Here's info on ${matchedPOI.name}.`;
-              const confirmAudio = await mapService.tts(confirmReply);
+              const confirmAudio = await pollyTts(confirmReply);
               setReply(confirmReply);
               const confirmHistory = [
                 ...historyRef.current,
@@ -1245,7 +1265,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               });
               useMapStore.getState().clearSuggestions();
               const confirmReply = `Taking you to ${matched.name}.`;
-              const confirmAudio = await mapService.tts(confirmReply);
+              const confirmAudio = await pollyTts(confirmReply);
               setReply(confirmReply);
               const confirmHistory = [
                 ...historyRef.current,
@@ -1502,7 +1522,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             } else {
               const top = disambiguationCandidatesRef.current.slice(0, 2);
               const reAsk = `Sorry, I didn't catch that. Option 1: ${top[0].address}, or option 2: ${top[1]?.address ?? "the other one"}?`;
-              const reAskAudio = await mapService.tts(reAsk).catch(() => null);
+              const reAskAudio = await pollyTts(reAsk).catch(() => null);
               setReply(reAsk);
               setVoiceState("speaking");
               if (reAskAudio) {
@@ -1756,7 +1776,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               stops.length > 1
                 ? `Here's your full route with ${stops.length} stops!`
                 : "Here's your route!";
-            const finishAudio = await mapService.tts(finishReply);
+            const finishAudio = await pollyTts(finishReply);
             setReply(finishReply);
             const fh = [
               ...historyRef.current,
@@ -2254,7 +2274,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 curatedPOIsRef.current = curated;
                 useMapStore.getState().setSuggestedPOIs(curated, nearbyQuery);
                 const poiTTS = buildPOITTS(curated);
-                const poiAudio = await mapService.tts(poiTTS).catch(() => null);
+                const poiAudio = await pollyTts(poiTTS).catch(() => null);
                 setReply(poiTTS);
                 historyRef.current = [
                   ...historyRef.current,
@@ -2596,7 +2616,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           if (curatedPOIsRef.current.length > 1) {
             mapReply = buildPOITTS(curatedPOIsRef.current);
             [mapAudio] = await Promise.all([
-              mapService.tts(mapReply),
+              pollyTts(mapReply),
               waitForMapSettle(),
             ]);
           } else {
@@ -2617,7 +2637,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               rawAudio = bytes.buffer;
             }
             [mapAudio] = await Promise.all([
-              rawAudio ? Promise.resolve(rawAudio) : mapService.tts(mapReply),
+              rawAudio ? Promise.resolve(rawAudio) : pollyTts(mapReply),
               waitForMapSettle(),
             ]);
           }
@@ -2695,12 +2715,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               } else {
                 r = guard.reply ?? SYSTEM_RESPONSES.cancelled;
               }
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
               bypassMainExecution = true;
             } else if (isNo) {
               confirmationRef.current = createIdleConfirmation();
               r = SYSTEM_RESPONSES.cancelled;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
               bypassMainExecution = true;
             } else {
               // UNCERTAIN — pass mode flag so AI knows to ask for clarification
@@ -2794,7 +2814,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
-            voice: true,
             ...(locCtx &&
             (directNavigationRequest ||
               pageCtxRef.current?.mode === "garment" ||
@@ -2811,13 +2830,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
           r = res.message;
           events = res.events ?? [];
-          if (res.audioBase64) {
-            const buf = Buffer.from(res.audioBase64, "base64");
-            audioBuffer = buf.buffer.slice(
-              buf.byteOffset,
-              buf.byteOffset + buf.byteLength,
-            ) as ArrayBuffer;
-          }
 
           let chatAction: ChatWonderAction | null = null;
           const resolvedTarget = res.stylist_data?.target_url;
@@ -2869,12 +2881,17 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 result.reply || r,
               );
               r = result.reply || r;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
             } else if (result.reply) {
               // If the kernel intercepted with a custom reply (e.g. Gender Guard)
               r = result.reply;
-              audioBuffer = await mapService.tts(r);
+              audioBuffer = await pollyTts(r);
             }
+          }
+
+          // Polly generates audio for any reply not already handled by the kernel
+          if (!audioBuffer && r) {
+            audioBuffer = await pollyTts(r).catch(() => null);
           }
         }
 
@@ -2931,15 +2948,25 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitAudio = useCallback(
-    async (frames: Float32Array[]) => {
-      if (frames.length === 0) {
-        setVoiceState("idle");
-        return;
-      }
-
-      const int16 = float32ToInt16(concatFrames(frames));
-
+    async (frames: Float32Array[], preTranscript?: string) => {
       try {
+        // Fast path: WebSocket already delivered the transcript
+        if (preTranscript !== undefined) {
+          if (preTranscript.trim()) {
+            await processTranscript(preTranscript.trim());
+          } else {
+            setVoiceState("idle");
+          }
+          return;
+        }
+
+        // HTTP fallback: send full audio buffer to AWS Transcribe
+        if (frames.length === 0) {
+          setVoiceState("idle");
+          return;
+        }
+
+        const int16 = float32ToInt16(concatFrames(frames));
         const lang = useMirrorStore.getState().voiceLanguage || "en-US";
         const token = await resolveAccessToken();
         const transcript = await transcribeAudio({ int16, lang, token });
@@ -2987,9 +3014,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
         if (isVadSpeakingRef.current) {
-          speechFramesRef.current.push(
-            new Float32Array(e.inputBuffer.getChannelData(0)),
-          );
+          const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+          speechFramesRef.current.push(chunk);
+          // Stream each chunk in real-time to the AWS Transcribe WebSocket
+          const ws = transcribeWsRef.current;
+          if (ws?.readyState === WebSocket.OPEN) {
+            ws.send(float32ToInt16(chunk).buffer as ArrayBuffer);
+          }
         }
       };
       source.connect(processor);
@@ -3012,7 +3043,53 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         onSpeechStart: () => {
           isVadSpeakingRef.current = true;
           speechFramesRef.current = [];
+          partialTranscriptRef.current = "";
           setVoiceState("recording");
+
+          // Open a streaming AWS Transcribe WebSocket immediately so audio
+          // chunks can be forwarded in real-time as the user speaks.
+          const lang = useMirrorStore.getState().voiceLanguage || "en-US";
+          const proto =
+            window.location.protocol === "https:" ? "wss" : "ws";
+          const ws = new WebSocket(
+            `${proto}://${window.location.host}/api/mirror/voice/transcribe-ws?lang=${encodeURIComponent(lang)}`,
+          );
+          ws.onmessage = (ev: MessageEvent<string>) => {
+            try {
+              const msg = JSON.parse(ev.data) as {
+                type: string;
+                transcript?: string;
+                message?: string;
+              };
+              if (
+                (msg.type === "partial" || msg.type === "final") &&
+                msg.transcript
+              ) {
+                partialTranscriptRef.current = msg.transcript;
+                // Show live partial text while the user speaks
+                if (msg.type === "partial") setTranscript(msg.transcript);
+              } else if (msg.type === "done") {
+                wsResolveRef.current?.(partialTranscriptRef.current);
+                wsResolveRef.current = null;
+              } else if (msg.type === "error") {
+                wsRejectRef.current?.(
+                  new Error(msg.message ?? "Transcription error"),
+                );
+                wsRejectRef.current = null;
+              }
+            } catch {
+              /* ignore parse errors */
+            }
+          };
+          ws.onclose = () => {
+            wsResolveRef.current?.(partialTranscriptRef.current);
+            wsResolveRef.current = null;
+          };
+          ws.onerror = () => {
+            wsRejectRef.current?.(new Error("WebSocket transcription failed"));
+            wsRejectRef.current = null;
+          };
+          transcribeWsRef.current = ws;
         },
         onSpeechEnd: async () => {
           // Guard: stopListening force-submit already cleared this
@@ -3021,7 +3098,31 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const frames = speechFramesRef.current;
           speechFramesRef.current = [];
           setVoiceState("processing");
-          await submitAudioRef.current?.(frames);
+
+          const ws = transcribeWsRef.current;
+          transcribeWsRef.current = null;
+
+          if (ws?.readyState === WebSocket.OPEN) {
+            // Signal end of audio and wait up to 10s for the final transcript
+            const transcript = await Promise.race([
+              new Promise<string>((resolve, reject) => {
+                wsResolveRef.current = resolve;
+                wsRejectRef.current = reject;
+                ws.send(JSON.stringify({ type: "end" }));
+              }),
+              new Promise<string>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("Transcription timeout")),
+                  10000,
+                ),
+              ),
+            ]).catch(() => "");
+
+            await submitAudioRef.current?.([], transcript);
+          } else {
+            // WebSocket unavailable — fall back to HTTP AWS Transcribe
+            await submitAudioRef.current?.(frames);
+          }
         },
         onVADMisfire: () => {
           isVadSpeakingRef.current = false;
@@ -3055,8 +3156,31 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       speechFramesRef.current = [];
       vadRef.current?.pause();
       setVoiceState("processing");
-      await submitAudioRef.current?.(frames);
+
+      const ws = transcribeWsRef.current;
+      transcribeWsRef.current = null;
+
+      if (ws?.readyState === WebSocket.OPEN) {
+        const transcript = await Promise.race([
+          new Promise<string>((resolve) => {
+            wsResolveRef.current = resolve;
+            wsRejectRef.current = () => resolve("");
+            ws.send(JSON.stringify({ type: "end" }));
+          }),
+          new Promise<string>((resolve) =>
+            setTimeout(() => resolve(""), 10000),
+          ),
+        ]).catch(() => "");
+
+        await submitAudioRef.current?.([], transcript);
+      } else {
+        await submitAudioRef.current?.(frames);
+      }
     } else {
+      // Abort any in-flight WebSocket without waiting for transcription
+      const ws = transcribeWsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) ws.close();
+      transcribeWsRef.current = null;
       vadRef.current?.pause();
       setVoiceState("idle");
     }
@@ -3100,6 +3224,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
       vadRef.current?.pause();
+      // Abort any in-flight streaming transcription
+      const ws = transcribeWsRef.current;
+      if (ws?.readyState === WebSocket.OPEN) ws.close();
+      transcribeWsRef.current = null;
+      wsResolveRef.current = null;
+      wsRejectRef.current = null;
       setTranscript("");
       setReply("");
       setError(null);

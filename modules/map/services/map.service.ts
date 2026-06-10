@@ -138,30 +138,6 @@ export const mapService = {
     return res.data!;
   },
 
-  tts: async (text: string): Promise<ArrayBuffer> => {
-    const res = await api.axiosInstance.post(
-      "/api/mirror/voice/tts",
-      { text },
-      { responseType: "arraybuffer", timeout: 60000 },
-    );
-    return res.data as ArrayBuffer;
-  },
-
-  transcribe: async (
-    pcmBuffer: ArrayBuffer,
-    language: string = "en-US",
-  ): Promise<string> => {
-    const res = await api.axiosInstance.post(
-      `/api/mirror/voice/transcribe?lang=${language}&provider=openai`,
-      pcmBuffer,
-      {
-        headers: { "Content-Type": "application/octet-stream" },
-        timeout: 60000,
-      },
-    );
-    return res.data.transcript;
-  },
-
   ask: async (
     transcript: string,
     ctx: Record<string, unknown>,
