@@ -2189,15 +2189,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── End itinerary intercept ────────────────────────────────────────────
 
           const mapState = useMapStore.getState();
-          // Prefer live GPS over IP-based homeLocation — IP geolocation can be
-          // hundreds of km off for fixed kiosk devices where the ISP's registered
-          // address differs from the actual device location.
-          let mapLoc = mapState.userLocation;
-          if (
-            !mapLoc &&
-            typeof window !== "undefined" &&
-            "geolocation" in navigator
-          ) {
+          // Always prefer live GPS — homeLocation (loaded from the server) can be
+          // hundreds of km from where the user actually is, making POI distances wrong.
+          // maximumAge:10000 lets us reuse MapDashboard's watchPosition cache so this
+          // resolves instantly when GPS has already been obtained.
+          let mapLoc: { lat: number; lng: number } | null = null;
+          if (typeof window !== "undefined" && "geolocation" in navigator) {
             mapLoc = await new Promise<{ lat: number; lng: number } | null>(
               (resolve) => {
                 navigator.geolocation.getCurrentPosition(
@@ -2212,7 +2209,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               },
             );
           }
-          if (!mapLoc) mapLoc = mapState.homeLocation;
+          if (!mapLoc) mapLoc = mapState.userLocation ?? mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
