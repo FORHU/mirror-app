@@ -125,29 +125,6 @@ const COSMETIC_QUOTES = [
   },
 ];
 
-const COSMETIC_QUICK_CHATS = [
-  {
-    label: "Oily skin",
-    prompt: "Show products for oily skin",
-    tone: "from-emerald-300/15 to-cyan-300/10",
-  },
-  {
-    label: "Dry skin",
-    prompt: "Show products for dry skin",
-    tone: "from-amber-200/15 to-pink-200/10",
-  },
-  {
-    label: "Acne-prone",
-    prompt: "Show products for acne-prone skin",
-    tone: "from-rose-300/15 to-red-300/10",
-  },
-  {
-    label: "Sensitive",
-    prompt: "Show products for sensitive skin",
-    tone: "from-violet-200/15 to-sky-200/10",
-  },
-] as const;
-
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
@@ -160,7 +137,6 @@ export default function CosmeticRecommendationPage() {
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
       : false,
   );
-  const [activeQuickChat, setActiveQuickChat] = useState<string | null>(null);
 
   const pageContext = useMemo(
     () => ({
@@ -238,29 +214,6 @@ export default function CosmeticRecommendationPage() {
   useVoice(pageContext, handleVoiceAction);
   const { submitText, isProcessing } = useVoiceContext();
 
-  const runQuickChat = useCallback(
-    async (prompt: string) => {
-      if (isProcessing || isHandoffLoading) return;
-
-      setActiveQuickChat(prompt);
-      setSelectedId(null);
-      setIsHandoffLoading(true);
-      const mirrorStore = useMirrorStore.getState();
-      mirrorStore.setPendingCosmeticsData(null);
-      mirrorStore.setChatCosmeticsData(null);
-      mirrorStore.clearAiSuggestion();
-
-      try {
-        await submitText(prompt);
-      } catch (err) {
-        console.error("[cosmetics-quick-chat]", err);
-      } finally {
-        setIsHandoffLoading(false);
-      }
-    },
-    [isHandoffLoading, isProcessing, submitText],
-  );
-
   useEffect(() => {
     if (handoffStartedRef.current) return;
 
@@ -283,18 +236,20 @@ export default function CosmeticRecommendationPage() {
   const isLoadingRecommendations =
     isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
   const showRecommendationSkeletons = isLoadingRecommendations || isProcessing;
-  const quickChatBusy = isProcessing || isHandoffLoading;
-
   // Show the cycling quotes whenever the AI is talking (overrides the product /
   // skin-profile view) or while nothing has loaded yet.
   const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
 
   return (
     <div
-      className="w-full h-full relative overflow-hidden bg-canvas text-white flex flex-col"
-      style={{ fontFamily: "sans-serif", touchAction: "none" }}
+      className="w-full h-full relative overflow-hidden text-white flex flex-col"
+      style={{
+        fontFamily: "sans-serif",
+        touchAction: "none",
+        background: "oklch(0.035 0.004 260)",
+      }}
     >
-      <ChatNavLoader spinnerColor="pink" />
+      <ChatNavLoader spinnerColor="white" />
 
       <MirrorHeader
         className="w-full relative z-10"
@@ -303,9 +258,9 @@ export default function CosmeticRecommendationPage() {
       />
 
       {/* Main 3 Column Layout */}
-      <div className="flex-1 min-h-0 flex w-full h-full p-4 gap-6 pt-2">
+      <div className="flex-1 min-h-0 flex w-full h-full p-4 gap-7 pt-2">
         {/* Left Column - Recommendations 1-5 */}
-        <div className="flex min-h-0 flex-col w-[28%] h-full overflow-hidden">
+        <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
             label="Daily Essentials"
             pagedItems={leftColRecs}
@@ -319,97 +274,52 @@ export default function CosmeticRecommendationPage() {
         </div>
 
         {/* Center Column - Evaluation/Details */}
-        <div className="flex-1 h-full flex flex-col items-center justify-center p-6 relative">
-          <div className="w-full h-full max-w-lg flex flex-col">
+        <div className="flex-1 h-full flex flex-col items-center justify-center p-4 relative">
+          <div className="w-full h-full max-w-none flex flex-col items-center">
             <div className="flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
-                <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl transition-all duration-300 bg-gradient-to-b from-[#0b0b1c] via-[#150a26] to-[#1d0e35]">
-                  {/* Header — sparkle + RECOMMENDED PRODUCT */}
-                  <div className="relative z-10 flex items-center justify-center gap-2 pt-5">
-                    <Sparkles className="w-3.5 h-3.5 text-violet-300/80" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-violet-200/70">
-                      Recommended Product
-                    </span>
+                <div className="relative flex flex-col items-center text-center px-6 py-2 transition-all duration-300">
+                  <div
+                    className="relative flex shrink-0 items-center justify-center"
+                    style={{
+                      width: "min(38vw, 460px)",
+                      height: "min(42vh, 500px)",
+                      maxWidth: "none",
+                    }}
+                  >
+                    {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
+                        alt={selectedRec.cosmeticProduct?.name || "Product"}
+                        decoding="async"
+                        className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.62)]"
+                        style={{ filter: "none", opacity: 1 }}
+                      />
+                    ) : (
+                      <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
+                        No Image
+                      </span>
+                    )}
                   </div>
 
-                  {/* Product floating over a glowing pedestal */}
-                  <div className="relative z-10 flex items-center justify-center px-8 pt-5 pb-4">
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 h-36 w-56 rounded-full blur-3xl"
-                      style={{
-                        background:
-                          "radial-gradient(ellipse at center, rgba(139,92,246,0.55), rgba(139,92,246,0.14) 45%, transparent 72%)",
-                      }}
-                    />
-                    <div className="relative flex w-full max-h-[300px] aspect-square items-center justify-center">
-                      {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
-                          alt={selectedRec.cosmeticProduct?.name || "Product"}
-                          decoding="async"
-                          className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.65)]"
-                          style={{ filter: "none", opacity: 1 }}
-                        />
-                      ) : (
-                        <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
-                          No Image
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="relative z-10 px-7 pb-7 text-center">
-                    <div className="text-[12px] text-violet-200/70 uppercase tracking-widest mb-1.5 font-semibold">
+                  <div className="max-w-md">
+                    <div className="text-[11px] text-white/45 uppercase tracking-[0.24em] mb-1.5 font-semibold">
                       {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
                     </div>
                     <h2 className="text-2xl font-light leading-tight mb-3 text-white/90">
                       {selectedRec.cosmeticProduct?.name || "Unknown Product"}
                     </h2>
-                    <p className="text-[14px] text-white/55 leading-relaxed mb-5 font-light">
+                    <p className="text-[14px] text-white/52 leading-relaxed font-light">
                       {selectedRec.reason}
                     </p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {(selectedRec.cosmeticProduct?.tags ?? [])
-                        .slice(0, 4)
-                        .map((t) => (
-                          <span
-                            key={t}
-                            className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                    </div>
                   </div>
                 </div>
               ) : !showQuotes && skinAnalysisResult ? (
-                <div className="p-8 bg-gradient-to-br from-pink-500/10 to-purple-600/10 backdrop-blur-md rounded-3xl border border-pink-500/20 shadow-2xl shadow-pink-500/5 transition-all duration-500">
-                  <div className="w-16 h-16 bg-pink-500/20 rounded-full flex items-center justify-center mb-6 border border-pink-500/30">
-                    <svg
-                      width="32"
-                      height="32"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-pink-300"
-                    >
-                      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z" />
-                      <path d="M12 16v-4" />
-                      <path d="M12 8h.01" />
-                    </svg>
-                  </div>
-                  <h2 className="text-4xl font-light mb-2 text-white">
+                <div className="px-8 py-4 transition-all duration-500">
+                  <h2 className="text-3xl font-light mb-2 text-white/88">
                     Skin Profile
                   </h2>
-                  <div className="text-sm text-pink-200/60 uppercase tracking-widest mb-8">
-                    Evaluation Details
-                  </div>
 
                   <div className="space-y-6">
                     <div>
@@ -430,7 +340,7 @@ export default function CosmeticRecommendationPage() {
                           {skinAnalysisResult.concerns.map((c) => (
                             <span
                               key={c}
-                              className="px-3 py-1.5 bg-red-500/10 text-red-200 border border-red-500/20 rounded-lg text-xs uppercase font-medium tracking-wider"
+                              className="px-2.5 py-1 text-white/55 text-xs uppercase font-medium tracking-wider"
                             >
                               {c}
                             </span>
@@ -440,8 +350,8 @@ export default function CosmeticRecommendationPage() {
                     )}
 
                     {skinAnalysisResult.routineTip && (
-                      <div className="mt-8 pt-6 border-t border-white/10">
-                        <div className="text-xs text-pink-300/80 uppercase tracking-widest mb-3 font-semibold">
+                      <div className="mt-8 pt-6">
+                        <div className="text-xs text-white/40 uppercase tracking-widest mb-3 font-semibold">
                           AI Routine Tip
                         </div>
                         <p className="text-base text-white/60 leading-relaxed italic font-light">
@@ -455,54 +365,15 @@ export default function CosmeticRecommendationPage() {
                 <QuoteCarousel
                   quotes={COSMETIC_QUOTES}
                   label="Skin Tip"
-                  labelClassName="text-pink-300/40"
-                  className="flex flex-col items-center justify-center p-12 text-center border border-white/5 rounded-3xl bg-white/[0.02]"
+                  labelClassName="text-white/30"
+                  className="flex flex-col items-center justify-center p-12 text-center"
                 />
               )}
             </div>
 
-            {/* AI Voice Bubble */}
-            <div className="mt-5 shrink-0">
-              <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-[11px] uppercase tracking-[0.32em] text-pink-200/65">
-                  Skin focus
-                </span>
-                <span className="text-[11px] text-white/45">Tap a concern</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {COSMETIC_QUICK_CHATS.map((item) => {
-                  const active =
-                    activeQuickChat === item.prompt && quickChatBusy;
-                  return (
-                    <button
-                      key={item.prompt}
-                      type="button"
-                      disabled={quickChatBusy}
-                      onClick={() => void runQuickChat(item.prompt)}
-                      className={`group min-h-[44px] rounded-lg border px-3 text-left transition-all duration-200 ${
-                        active
-                          ? "border-pink-300/50 bg-pink-300/15 text-white"
-                          : "border-white/10 bg-white/[0.035] text-white/70 hover:border-pink-200/35 hover:bg-white/[0.07]"
-                      } disabled:cursor-wait disabled:opacity-70`}
-                    >
-                      <span
-                        className={`block h-1 w-9 rounded-full bg-gradient-to-r ${item.tone} mb-2 opacity-90`}
-                      />
-                      <span className="block text-[12px] font-medium leading-none">
-                        {item.label}
-                      </span>
-                      <span className="mt-1 block text-[11px] uppercase tracking-[0.22em] text-white/50 group-hover:text-pink-100/65">
-                        Products
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {aiSuggestion && (
-              <div className="mt-6 p-5 bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/20 rounded-2xl backdrop-blur-md shrink-0 shadow-lg">
-                <p className="text-[14px] text-pink-100/90 italic leading-relaxed font-light">
+              <div className="mt-6 px-5 shrink-0">
+                <p className="text-[14px] text-white/58 italic leading-relaxed font-light">
                   &quot;{aiSuggestion}&quot;
                 </p>
               </div>
@@ -511,7 +382,7 @@ export default function CosmeticRecommendationPage() {
         </div>
 
         {/* Right Column - Recommendations 6-10 */}
-        <div className="flex min-h-0 flex-col w-[28%] h-full overflow-hidden">
+        <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
             label="Targeted Treatments"
             pagedItems={rightColRecs}

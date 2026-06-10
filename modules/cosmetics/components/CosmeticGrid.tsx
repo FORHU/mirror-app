@@ -4,12 +4,10 @@ import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service"
 
 function SectionTitle({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-1 py-1">
-      <div className="flex-1 h-px bg-white/20" />
-      <span className="text-white text-xs font-bold tracking-widest uppercase">
+    <div className="px-1 py-1">
+      <span className="text-white/55 text-[11px] font-semibold tracking-[0.28em] uppercase">
         {label}
       </span>
-      <div className="flex-1 h-px bg-white/20" />
     </div>
   );
 }
@@ -17,7 +15,7 @@ function SectionTitle({ label }: { label: string }) {
 function SkeletonCell({ fitRow = false }: { fitRow?: boolean }) {
   return (
     <div
-      className={`relative animate-pulse rounded-md overflow-hidden flex flex-col items-center bg-white/[0.035] border border-white/10 ${
+      className={`relative animate-pulse rounded-md overflow-hidden flex flex-col items-center bg-white/[0.025] ${
         fitRow ? "p-1.5" : "p-2"
       }`}
       style={{
@@ -27,7 +25,7 @@ function SkeletonCell({ fitRow = false }: { fitRow?: boolean }) {
         borderRadius: "4px",
       }}
     >
-      <div className="absolute top-1 right-1 h-4 w-6 rounded bg-pink-400/20" />
+      <div className="absolute top-1 right-1 h-4 w-6 rounded bg-white/10" />
       <div
         className={`w-full flex-1 min-h-0 flex items-center justify-center ${
           fitRow ? "pb-1" : "pb-2"
@@ -82,7 +80,7 @@ export function CosmeticGrid({
           gridTemplateRows: fitRows
             ? `repeat(${pageSize}, minmax(0, 1fr))`
             : undefined,
-          gap: fitRows ? "6px" : "8px",
+          gap: fitRows ? "10px" : "8px",
           alignContent: fitRows ? "stretch" : "start",
           overflowY: fitRows ? "hidden" : "auto",
         }}
@@ -99,10 +97,8 @@ export function CosmeticGrid({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "rgba(255,255,255,0.3)",
+              color: "rgba(255,255,255,0.24)",
               fontSize: "12px",
-              border: "1px dashed rgba(255,255,255,0.1)",
-              borderRadius: "6px",
             }}
           >
             {emptyMessage}
@@ -124,41 +120,21 @@ export function CosmeticGrid({
                   onSelect(r);
                 }
               }}
-              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/5 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
-                fitRows ? "p-1.5" : "p-2"
+              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/[0.015] hover:bg-white/[0.035] transition-colors focus:outline-none focus-visible:ring-0 ${
+                fitRows ? "p-1" : "p-2"
               }`}
               style={{
                 height: fitRows ? "100%" : "168px",
                 minHeight: 0,
-                borderRadius: "4px",
+                borderRadius: "6px",
                 cursor: "pointer",
-                border:
-                  selectedId === r.id
-                    ? "1.5px solid rgba(255,255,255,0.6)"
-                    : "1.5px solid transparent",
                 position: "relative",
               }}
             >
-              {/* Product Rank Badge — circular numbered */}
-              <div
-                className="absolute top-1 right-1 z-10 grid place-items-center rounded-full text-[10px] font-semibold leading-none"
-                style={{
-                  width: 22,
-                  height: 22,
-                  color: "rgba(237,233,254,0.95)",
-                  border: "1.5px solid rgba(167,139,250,0.6)",
-                  background: "rgba(139,92,246,0.18)",
-                  backdropFilter: "blur(4px)",
-                }}
-              >
-                {r.rank}
-              </div>
-
-              {/* Since we might not have reliable product images yet, we render a nice fallback box */}
               {r.cosmeticProduct?.fileUrl?.fileUrl ? (
                 <div
                   className={`w-full flex-1 min-h-0 flex items-center justify-center ${
-                    fitRows ? "pb-1" : "pb-2"
+                    fitRows ? "pb-0.5" : "pb-2"
                   }`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,7 +149,7 @@ export function CosmeticGrid({
                   />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 w-full bg-white/5 rounded flex items-center justify-center mb-2">
+                <div className="flex-1 min-h-0 w-full bg-white/[0.025] rounded flex items-center justify-center mb-2">
                   <span className="text-white/20 text-[10px] uppercase">
                     Product
                   </span>
@@ -182,23 +158,19 @@ export function CosmeticGrid({
 
               <div
                 className={`w-full shrink-0 text-center ${
-                  fitRows ? "min-h-[42px]" : "min-h-[52px]"
+                  fitRows ? "min-h-[30px]" : "min-h-[52px]"
                 }`}
               >
-                <div
-                  className={`text-white/60 uppercase truncate px-1 ${
-                    fitRows ? "text-[11px]" : "text-[11px]"
-                  }`}
-                >
+                <div className="text-white/40 uppercase truncate px-1 text-[10px] tracking-[0.12em]">
                   {r.cosmeticProduct?.brand || "Brand"}
                 </div>
                 <div
-                  className={`text-white/90 font-medium leading-tight px-1 overflow-hidden ${
+                  className={`text-white/75 font-medium leading-tight px-1 overflow-hidden ${
                     fitRows ? "text-[12px]" : "text-[13px]"
                   }`}
                   style={{
                     display: "-webkit-box",
-                    WebkitLineClamp: 2,
+                    WebkitLineClamp: fitRows ? 1 : 2,
                     WebkitBoxOrient: "vertical",
                   }}
                 >

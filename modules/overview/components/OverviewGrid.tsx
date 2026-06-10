@@ -2,21 +2,19 @@
 
 import { useState } from "react";
 import {
-  WandSparkles,
-  MapPin,
   AlertCircle,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
   Droplets,
+  MapPin,
+  Sparkles,
+  WandSparkles,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
+  CosmeticTileItem,
   MapTileData,
   OutfitTileItem,
-  CosmeticTileItem,
   SkinAnalysisTileItem,
   TileState,
 } from "../types";
@@ -24,15 +22,11 @@ import type {
 const proxied = (url: string) =>
   `/api/proxy-image?url=${encodeURIComponent(url)}`;
 
-// A tile is shown only when it has something meaningful to display.
-// idle / empty → hidden; loading / ready / error → shown.
 function isActive(status: TileState<unknown>["status"]) {
   return status === "loading" || status === "ready" || status === "error";
 }
 
-// ── Shared atoms ─────────────────────────────────────────────────────────────
-
-function TileLabel({
+function TileHeader({
   icon: Icon,
   label,
 }: {
@@ -40,19 +34,11 @@ function TileLabel({
   label: string;
 }) {
   return (
-    <div className="glass-card-strong neon-border-white rounded-3xl flex h-full flex-col min-h-0 overflow-hidden">
-      <div className="flex items-center gap-3 px-5 pt-5 pb-3 shrink-0">
-        <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl">
-          <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
-        </div>
-        <div className="min-w-0">
-          <h3 className="text-white font-semibold text-lg leading-tight truncate">
-            {title}
-          </h3>
-          <p className="text-white/55 text-xs truncate">{subtitle}</p>
-        </div>
+    <div className="flex items-center gap-3 pb-3 shrink-0">
+      <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl">
+        <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
       </div>
-      <span className="text-white/35 text-[11px] font-semibold uppercase tracking-widest">
+      <span className="text-white/45 text-[11px] font-semibold uppercase tracking-widest">
         {label}
       </span>
     </div>
@@ -68,21 +54,10 @@ function TileSkeleton({ rows = 3 }: { rows?: number }) {
       />
       {Array.from({ length: rows }).map((_, i) => (
         <div
-          key={key}
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/60"
-        >
-          <Icon className="h-3.5 w-3.5 text-white/60" strokeWidth={1.5} />
-          <span className="font-medium text-white/60">{title}</span>
-          <span>
-            {status === "loading"
-              ? "loading"
-              : status === "error"
-                ? "needs attention"
-                : status === "empty"
-                  ? "no result"
-                  : "waiting"}
-          </span>
-        </div>
+          key={i}
+          className="h-3 rounded-full bg-white/6"
+          style={{ width: `${78 - i * 12}%` }}
+        />
       ))}
     </div>
   );
@@ -91,37 +66,11 @@ function TileSkeleton({ rows = 3 }: { rows?: number }) {
 function TileError({ text }: { text: string }) {
   return (
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 text-center">
-      {Icon && <Icon className="w-5 h-5 text-white/50" />}
+      <AlertCircle className="w-5 h-5 text-white/50" />
       <p className="text-white/55 text-sm max-w-[80%]">{text}</p>
     </div>
   );
 }
-
-// ── Skeleton (the "waiting for the endpoint" state) ──────────────────────────
-
-function TileSkeleton() {
-  return (
-    <div className="animate-pulse space-y-3 pt-1">
-      <div className="grid grid-cols-2 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="rounded-2xl"
-            style={{
-              aspectRatio: "3 / 4",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.05)",
-            }}
-          />
-        ))}
-      </div>
-      <div className="h-3 w-2/3 rounded-full bg-white/8" />
-      <div className="h-3 w-1/2 rounded-full bg-white/6" />
-    </div>
-  );
-}
-
-// ── Card image with its own shimmer until loaded ─────────────────────────────
 
 function CardImage({ src, alt }: { src: string; alt: string }) {
   return (
@@ -138,55 +87,62 @@ function CardImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-// ── Cosmetics tile ──────────────────────────────────────────────────────────────────────────────────
+function WardrobeContent({
+  outfits,
+  wide,
+}: {
+  outfits: OutfitTileItem[];
+  wide?: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const outfit = outfits[index] ?? outfits[0];
 
-function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {items.slice(0, 6).map((c) => (
-        <div
-          key={c.id}
-          className="rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10"
-        >
-          <div style={{ aspectRatio: "1" }} className="bg-white/[0.02]">
-            <CardImage src={c.imageUrl} alt={c.name} />
-          </div>
-          <div className="px-2.5 py-2">
-            <p className="text-white text-xs font-medium truncate">{c.name}</p>
-            {c.brand && (
-              <p className="text-white/60 text-[11px] truncate capitalize">
-                {c.brand}
+  if (!outfit) return null;
+
+  if (wide && outfits.length > 1) {
+    return (
+      <div className="flex gap-4 h-full min-h-0">
+        <div className="relative flex-[1.45] min-w-0 rounded-2xl overflow-hidden bg-white/3">
+          <CardImage src={outfit.imageUrl} alt={outfit.name} />
+          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-5">
+            <p className="text-white font-semibold text-xl leading-snug truncate">
+              {outfit.name}
+            </p>
+            {outfit.vibe && (
+              <p className="text-white/50 text-sm mt-0.5 truncate">
+                {outfit.vibe}
               </p>
             )}
           </div>
         </div>
 
-        {/* Sibling looks column */}
         <div className="flex flex-col gap-2 flex-1 min-w-0 overflow-y-auto">
           {outfits.slice(0, 5).map((o, i) => (
             <button
               key={o.id}
               onClick={() => setIndex(i)}
-              className={`relative shrink-0 rounded-xl overflow-hidden border transition-all ${
+              className={`grid grid-cols-[64px_1fr] gap-3 shrink-0 rounded-xl overflow-hidden border transition-all text-left ${
                 i === index
                   ? "border-white/30 ring-1 ring-white/20"
                   : "border-white/10 opacity-60 hover:opacity-80"
               }`}
-              style={{ aspectRatio: "3/4" }}
             >
-              <CardImage src={o.imageUrl} alt={o.name} />
-            </div>
-            <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
-              <p className="text-white text-sm font-medium truncate">
-                {o.name}
-              </p>
-              {o.vibe && (
-                <p className="text-white/60 text-xs truncate">{o.vibe}</p>
-              )}
-              {o.reason && (
-                <p className="text-white/55 text-[11px] line-clamp-2 mt-0.5">
-                  {o.reason}
+              <div className="bg-white/3" style={{ aspectRatio: "3/4" }}>
+                <CardImage src={o.imageUrl} alt={o.name} />
+              </div>
+              <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
+                <p className="text-white text-sm font-medium truncate">
+                  {o.name}
                 </p>
+                {o.vibe && (
+                  <p className="text-white/60 text-xs truncate">{o.vibe}</p>
+                )}
+                {o.reason && (
+                  <p className="text-white/55 text-[11px] line-clamp-2 mt-0.5">
+                    {o.reason}
+                  </p>
+                )}
               </div>
             </button>
           ))}
@@ -195,19 +151,11 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
     );
   }
 
-  // Default: single outfit with carousel
   return (
     <div className="flex flex-col h-full gap-3">
       <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden bg-white/3">
         {outfit.imageUrl ? (
-          <img
-            src={proxied(outfit.imageUrl)}
-            alt={outfit.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.opacity = "0.1";
-            }}
-          />
+          <CardImage src={outfit.imageUrl} alt={outfit.name} />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <WandSparkles className="w-12 h-12 text-white/10" />
@@ -224,20 +172,10 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
             </p>
           )}
         </div>
-        <span className="absolute bottom-2 right-3 text-[11px] text-white/60 font-mono">
-          {data.lat.toFixed(3)}, {data.lng.toFixed(3)}
-        </span>
-      </div>
-
-      <div>
-        <p className="text-white text-sm font-medium truncate">{data.name}</p>
-        {data.address && (
-          <p className="text-white/60 text-xs truncate">{data.address}</p>
-        )}
       </div>
 
       {outfit.reason && (
-        <p className="text-white/30 text-xs line-clamp-2 px-0.5 shrink-0">
+        <p className="text-white/35 text-xs line-clamp-2 px-0.5 shrink-0">
           {outfit.reason}
         </p>
       )}
@@ -251,11 +189,7 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
               className="shrink-0 w-14 rounded-xl overflow-hidden bg-white/3 border border-white/10"
               style={{ aspectRatio: "3/4" }}
             >
-              <img
-                src={proxied(g.imageUrl)}
-                alt={g.name}
-                className="w-full h-full object-cover"
-              />
+              <CardImage src={g.imageUrl} alt={g.name} />
             </div>
           ))}
         </div>
@@ -267,6 +201,7 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
             <button
               key={i}
               onClick={() => setIndex(i)}
+              aria-label={`Show outfit ${i + 1}`}
               className={`rounded-full transition-all duration-200 ${
                 i === index
                   ? "w-5 h-1.5 bg-white/60"
@@ -280,8 +215,6 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
   );
 }
 
-// ── Skin Analysis ─────────────────────────────────────────────────────────────
-
 function SkinContent({
   item,
   wide,
@@ -291,33 +224,27 @@ function SkinContent({
 }) {
   const bars = (
     <div className="space-y-3">
-      <div>
-        <div className="flex items-center justify-between text-xs mb-2">
-          <span className="flex items-center gap-1.5 text-white/45">
-            <Droplets className="w-3.5 h-3.5" /> Hydration
-          </span>
-          <span className="text-white/60 font-mono">{item.hydrationPct}%</span>
+      {[
+        { label: "Hydration", value: item.hydrationPct, icon: Droplets },
+        { label: "Oiliness", value: item.oilinessPct, icon: Zap },
+      ].map(({ label, value, icon: Icon }) => (
+        <div key={label}>
+          <div className="flex items-center justify-between text-xs mb-2">
+            <span className="flex items-center gap-1.5 text-white/45">
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </span>
+            <span className="text-white/60 font-mono">{value}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-white/6 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-blue-400/70"
+              initial={{ width: 0 }}
+              animate={{ width: `${value}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            />
+          </div>
         </div>
-        <div className="h-1.5 w-full bg-white/6 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full rounded-full bg-blue-400/70"
-            initial={{ width: 0 }}
-            animate={{ width: `${item.hydrationPct}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-2 z-10">
-        <div>
-          <h4 className="text-white font-semibold text-sm tracking-wide">
-            {item.skinType}
-          </h4>
-          <p className="text-white/50 text-[11px] uppercase tracking-widest mt-0.5">
-            Profile
-          </p>
-        </div>
-      </div>
+      ))}
     </div>
   );
 
@@ -334,7 +261,6 @@ function SkinContent({
     </div>
   );
 
-  // Wide: swatch + name left, bars + concerns right
   if (wide) {
     return (
       <div className="flex gap-6 h-full">
@@ -396,14 +322,13 @@ function SkinContent({
   );
 }
 
-// ── Map ───────────────────────────────────────────────────────────────────────
-
 function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
   const pin = (size: number) => (
     <div
       className="relative rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
       style={{
         height: size,
+        width: size,
         background:
           "radial-gradient(ellipse at 35% 45%, rgba(96,140,255,0.14), transparent 70%)",
         border: "1px solid rgba(255,255,255,0.05)",
@@ -445,11 +370,10 @@ function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
     </div>
   );
 
-  // Wide: pin left, destination + stops right
   if (wide) {
     return (
       <div className="flex gap-5 h-full">
-        <div className="shrink-0">{pin(180)}</div>
+        {pin(180)}
         <div className="flex flex-col gap-3 flex-1 min-w-0 justify-start pt-1">
           <div>
             <p className="text-white text-xl font-bold truncate">{data.name}</p>
@@ -483,8 +407,6 @@ function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
   );
 }
 
-// ── Cosmetics strip ───────────────────────────────────────────────────────────
-
 function CosmeticsStrip({ items }: { items: CosmeticTileItem[] }) {
   return (
     <div className="flex gap-3 overflow-x-auto h-full scrollbar-hidden">
@@ -498,40 +420,21 @@ function CosmeticsStrip({ items }: { items: CosmeticTileItem[] }) {
             className="flex-1 min-h-0 bg-white/2"
             style={{ aspectRatio: "1" }}
           >
-            <img
-              src={proxied(c.imageUrl)}
-              alt={c.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.opacity = "0.1";
-              }}
-            />
+            <CardImage src={c.imageUrl} alt={c.name} />
           </div>
-        </div>
-      </div>
-
-      {item.concerns.length > 0 && (
-        <div className="mt-auto z-10">
-          <h5 className="text-white/50 text-[11px] uppercase tracking-widest mb-2 font-semibold">
-            Active Concerns
-          </h5>
-          <div className="flex flex-wrap gap-1.5">
-            {item.concerns.map((c) => (
-              <span
-                key={c}
-                className="text-[11px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md"
-              >
-                {c}
-              </span>
-            ))}
+          <div className="px-2.5 py-2 shrink-0">
+            <p className="text-white text-xs font-medium truncate">{c.name}</p>
+            {c.brand && (
+              <p className="text-white/50 text-[11px] truncate capitalize">
+                {c.brand}
+              </p>
+            )}
           </div>
         </div>
       ))}
     </div>
   );
 }
-
-// ── Tile shell ────────────────────────────────────────────────────────────────
 
 function Tile({
   icon,
@@ -557,7 +460,7 @@ function Tile({
         .filter(Boolean)
         .join(" ")}
     >
-      <TileLabel icon={icon} label={label} />
+      <TileHeader icon={icon} label={label} />
       <div className="flex-1 min-h-0 flex flex-col">
         {state.status === "loading" ? (
           <TileSkeleton rows={skeletonRows} />
@@ -570,8 +473,6 @@ function Tile({
     </div>
   );
 }
-
-// ── Grid ─────────────────────────────────────────────────────────────────────
 
 export function OverviewGrid() {
   const outfits = useOverviewStore((s) => s.outfits);
@@ -590,10 +491,8 @@ export function OverviewGrid() {
   const showMap = isActive(map.status);
   const showCosmetics = isActive(cosmetics.status);
   const showSideRow = showSkin || showMap;
-
-  // Wardrobe gets wide layout when no side panel competes for height
-  const wardrobeWide = showWardrobe && !showSideRow && outfits.data && outfits.data.length > 1;
-  // Side tiles go full-width when their partner is hidden
+  const wardrobeWide =
+    showWardrobe && !showSideRow && outfits.data && outfits.data.length > 1;
   const skinWide = showSkin && !showMap;
   const mapWide = showMap && !showSkin;
 
@@ -608,13 +507,18 @@ export function OverviewGrid() {
           className={showSideRow ? "flex-2" : "flex-1"}
         >
           {outfits.data?.length ? (
-            <WardrobeContent outfits={outfits.data} wide={wardrobeWide ?? false} />
+            <WardrobeContent
+              outfits={outfits.data}
+              wide={wardrobeWide ?? false}
+            />
           ) : null}
         </Tile>
       )}
 
       {showSideRow && (
-        <div className={`flex gap-3 min-h-0 ${showWardrobe ? "flex-1" : "flex-2"}`}>
+        <div
+          className={`flex gap-3 min-h-0 ${showWardrobe ? "flex-1" : "flex-2"}`}
+        >
           {showSkin && (
             <Tile
               icon={Sparkles}
@@ -648,7 +552,7 @@ export function OverviewGrid() {
           className="glass-card-strong neon-border-white rounded-3xl shrink-0 px-5 pt-4 pb-4 flex flex-col"
           style={{ height: 184 }}
         >
-          <TileLabel icon={Sparkles} label="Cosmetics" />
+          <TileHeader icon={Sparkles} label="Cosmetics" />
           <div className="flex-1 min-h-0">
             {cosmetics.status === "loading" ? (
               <div className="flex gap-3 h-full animate-pulse">
