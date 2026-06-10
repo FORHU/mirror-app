@@ -167,9 +167,7 @@ function WardrobeContent({
             {outfit.name}
           </p>
           {outfit.vibe && (
-            <p className="text-white/50 text-sm mt-0.5 truncate">
-              {outfit.vibe}
-            </p>
+            <p className="text-white/50 text-sm mt-0.5 truncate">{outfit.vibe}</p>
           )}
         </div>
       </div>
@@ -393,13 +391,9 @@ function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
     <div className="flex flex-col gap-3 h-full">
       {pin(100)}
       <div className="shrink-0">
-        <p className="text-white text-base font-semibold truncate">
-          {data.name}
-        </p>
+        <p className="text-white text-base font-semibold truncate">{data.name}</p>
         {data.address && (
-          <p className="text-white/35 text-sm truncate mt-0.5">
-            {data.address}
-          </p>
+          <p className="text-white/35 text-sm truncate mt-0.5">{data.address}</p>
         )}
       </div>
       {stopList}
@@ -440,14 +434,12 @@ function Tile({
   icon,
   label,
   state,
-  skeletonRows,
   children,
   className,
 }: {
   icon: React.ElementType;
   label: string;
   state: TileState<unknown>;
-  skeletonRows?: number;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -463,7 +455,7 @@ function Tile({
       <TileHeader icon={icon} label={label} />
       <div className="flex-1 min-h-0 flex flex-col">
         {state.status === "loading" ? (
-          <TileSkeleton rows={skeletonRows} />
+          <TileSkeleton />
         ) : state.status === "error" ? (
           <TileError text={state.error ?? "Something went wrong"} />
         ) : (
@@ -503,7 +495,6 @@ export function OverviewGrid() {
           icon={WandSparkles}
           label="Wardrobe"
           state={wardrobeState}
-          skeletonRows={2}
           className={showSideRow ? "flex-2" : "flex-1"}
         >
           {outfits.data?.length ? (
@@ -524,7 +515,6 @@ export function OverviewGrid() {
               icon={Sparkles}
               label="Skin Profile"
               state={skinAnalysis}
-              skeletonRows={3}
               className="flex-1"
             >
               {skinAnalysis.data ? (
@@ -538,7 +528,6 @@ export function OverviewGrid() {
               icon={MapPin}
               label="Map"
               state={map}
-              skeletonRows={2}
               className="flex-1"
             >
               {map.data ? <MapContent data={map.data} wide={mapWide} /> : null}

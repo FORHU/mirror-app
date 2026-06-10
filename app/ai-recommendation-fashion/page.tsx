@@ -24,7 +24,7 @@ import {
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
-import { FASHION_QUOTES } from "@/modules/fashion/constants";
+import { FASHION_QUOTES, FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 function CreateOutfitFloaterButton({
@@ -64,7 +64,7 @@ function CreateOutfitFloaterButton({
 export default function VirtualMirrorV2() {
   const router = useRouter();
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const { isProcessing } = useVoiceContext();
+  const { isProcessing, submitText } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -462,6 +462,18 @@ export default function VirtualMirrorV2() {
   );
 
   useVoice(fashionPageContext, handleVoiceAction);
+
+  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
+  const handoffFiredRef = useRef(false);
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
   useEffect(() => {

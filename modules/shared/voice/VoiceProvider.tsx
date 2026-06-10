@@ -33,6 +33,7 @@ import {
 } from "@/modules/shared/api/chat-wonder.service";
 import { stopAllAudioQueues } from "./audioQueue";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import {
   buildMapInput,
   isNavigationPhrase,
@@ -284,6 +285,12 @@ function isCosmeticHandoffPrompt(text: string): boolean {
   );
 }
 
+function isFashionHandoffPrompt(text: string): boolean {
+  return /\b(outfit|what to wear|what should i wear|suggest.*outfit|recommend.*outfit|full look|complete look|full.*outfit|dress.*for|style.*for my|outfit.*for my|outfit.*for the|wardrobe)\b/i.test(
+    text,
+  );
+}
+
 export interface VoiceContextValue {
   voiceState: VoiceState;
   transcript: string;
@@ -526,6 +533,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (AI_ASSISTANT_WAKE_ONLY.test(t.trim())) {
         setTranscript("");
         setReply("");
+        setVoiceState("idle");
+        return;
+      }
+
+      if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
+        const assistantReply =
+          "Opening fashion recommendations for your outfit.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        try {
+          sessionStorage.setItem(FASHION_PROMPT_KEY, t);
+        } catch {
+          /* prompt handoff is best-effort */
+        }
+        router.push(ROUTES.AI_RECOMMENDATION_FASHION);
         setVoiceState("idle");
         return;
       }
@@ -1039,6 +1066,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         // Maps mode: use chat-wonder/message for both directions and recommendations
         if (pathname.startsWith("/map")) {
+          // ── Fashion handoff: outfit requests on the map page navigate to fashion ─
+          if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
+            try {
+              sessionStorage.setItem(FASHION_PROMPT_KEY, t);
+            } catch {
+              /* best-effort */
+            }
+            router.push(ROUTES.AI_RECOMMENDATION_FASHION);
+            const fashionReply = "Opening fashion recommendations for your outfit.";
+            setReply(fashionReply);
+            historyRef.current = [...historyRef.current, { user: t, assistant: fashionReply }];
+            setChatHistory(historyRef.current);
+            setVoiceState("idle");
+            return;
+          }
+
           // Cancel any pending idle timer the moment a new utterance arrives —
           // prevents "Enjoy your trip" firing while a new stop's TTS is still playing.
           clearItineraryIdleTimer();
@@ -2114,9 +2157,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── End itinerary intercept ────────────────────────────────────────────
 
           const mapState = useMapStore.getState();
-          let mapLoc = mapState.userLocation ?? mapState.homeLocation;
-          // GPS fallback — if the store has no location yet (home never configured or
-          // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
+          // Prefer live GPS over IP-based homeLocation — IP geolocation can be
+          // hundreds of km off for fixed kiosk devices where the ISP's registered
+          // address differs from the actual device location.
+          let mapLoc = mapState.userLocation;
           if (
             !mapLoc &&
             typeof window !== "undefined" &&
@@ -2136,6 +2180,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               },
             );
           }
+          if (!mapLoc) mapLoc = mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
@@ -2289,6 +2334,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 }
                 return;
               }
+              // No results found at this location — give a clear error instead of
+              // silently falling through to ChatWonder (which always fails for POI queries).
+              const noResultReply = `I couldn't find a nearby ${nearbyQuery} in this area. You can try asking for a different type of place.`;
+              const noResultAudio = await mapService
+                .tts(noResultReply)
+                .catch(() => null);
+              setReply(noResultReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: noResultReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (noResultAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  noResultAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
             } catch {
               /* fall through to ChatWonder */
             }
