@@ -546,14 +546,11 @@ export default function AIAssistantPage() {
               )}
             </div>
 
-            {/* Bottom nav — flanks the shared center-bottom mic:
-                Fashion · Cosmetics · [mic] · Map · Overview */}
-            <AssistantNavBar />
-
             {/* Quick Response Chips — categorised */}
             <QuickResponseChips categories={chipCategories} />
 
-            {/* Bottom nav — flanks the shared center-bottom mic */}
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
             <AssistantNavBar />
             <div ref={bottomRef} />
           </motion.main>
