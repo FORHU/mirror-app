@@ -11,6 +11,7 @@ import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import MirrorHeader from "@/components/MirrorHeader";
+import { Sparkles } from "lucide-react";
 import {
   QuickResponseChips,
   getToday,
@@ -294,7 +295,7 @@ export default function CosmeticRecommendationPage() {
 
   return (
     <div
-      className="w-full h-full relative overflow-hidden bg-black text-white flex flex-col"
+      className="w-full h-full relative overflow-hidden bg-canvas text-white flex flex-col"
       style={{ fontFamily: "sans-serif", touchAction: "none" }}
     >
       <ChatNavLoader spinnerColor="pink" />
@@ -326,52 +327,66 @@ export default function CosmeticRecommendationPage() {
           <div className="w-full h-full max-w-lg flex flex-col">
             <div className="flex flex-col justify-center">
               {!showQuotes && selectedRec ? (
-                <div className="p-6 bg-[#050505]/85 rounded-2xl border border-white/10 transition-all duration-300 shadow-xl">
-                  <div className="flex items-start mb-6">
-                    <span className="text-pink-300 text-[11px] font-bold uppercase tracking-widest px-3 py-1 bg-pink-500/10 rounded-full border border-pink-500/20">
-                      #{selectedRec.rank} Recommended
+                <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl transition-all duration-300 bg-gradient-to-b from-[#0b0b1c] via-[#150a26] to-[#1d0e35]">
+                  {/* Header — sparkle + RECOMMENDED PRODUCT */}
+                  <div className="relative z-10 flex items-center justify-center gap-2 pt-5">
+                    <Sparkles className="w-3.5 h-3.5 text-violet-300/80" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.35em] text-violet-200/70">
+                      Recommended Product
                     </span>
                   </div>
 
-                  {/* Product Image Box */}
-                  <div className="w-full aspect-square bg-black rounded-xl mb-5 overflow-hidden flex items-center justify-center p-4 border border-white/10">
-                    {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
-                        alt={selectedRec.cosmeticProduct?.name || "Product"}
-                        className="w-full h-full object-contain"
-                        style={{ filter: "none", opacity: 1 }}
-                      />
-                    ) : (
-                      <span className="text-white/20 text-xs uppercase tracking-widest">
-                        No Image
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-[12px] text-pink-300/80 uppercase tracking-widest mb-2 font-semibold">
-                    {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
-                  </div>
-                  <h2 className="text-3xl font-light leading-tight mb-5 text-white/90">
-                    {selectedRec.cosmeticProduct?.name || "Unknown Product"}
-                  </h2>
-
-                  <p className="text-[15px] text-white/60 leading-relaxed mb-6 font-light">
-                    {selectedRec.reason}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedRec.cosmeticProduct?.tags ?? [])
-                      .slice(0, 4)
-                      .map((t) => (
-                        <span
-                          key={t}
-                          className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
-                        >
-                          {t}
+                  {/* Product floating over a glowing pedestal */}
+                  <div className="relative z-10 flex items-center justify-center px-8 pt-5 pb-4">
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 h-36 w-56 rounded-full blur-3xl"
+                      style={{
+                        background:
+                          "radial-gradient(ellipse at center, rgba(139,92,246,0.55), rgba(139,92,246,0.14) 45%, transparent 72%)",
+                      }}
+                    />
+                    <div className="relative flex w-full max-h-[300px] aspect-square items-center justify-center">
+                      {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
+                          alt={selectedRec.cosmeticProduct?.name || "Product"}
+                          decoding="async"
+                          className="relative z-10 max-h-full max-w-full object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.65)]"
+                          style={{ filter: "none", opacity: 1 }}
+                        />
+                      ) : (
+                        <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
+                          No Image
                         </span>
-                      ))}
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Details */}
+                  <div className="relative z-10 px-7 pb-7 text-center">
+                    <div className="text-[12px] text-violet-200/70 uppercase tracking-widest mb-1.5 font-semibold">
+                      {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
+                    </div>
+                    <h2 className="text-2xl font-light leading-tight mb-3 text-white/90">
+                      {selectedRec.cosmeticProduct?.name || "Unknown Product"}
+                    </h2>
+                    <p className="text-[14px] text-white/55 leading-relaxed mb-5 font-light">
+                      {selectedRec.reason}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {(selectedRec.cosmeticProduct?.tags ?? [])
+                        .slice(0, 4)
+                        .map((t) => (
+                          <span
+                            key={t}
+                            className="px-3 py-1.5 bg-white/10 rounded-lg text-[10px] uppercase tracking-widest text-white/70 border border-white/5"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                    </div>
                   </div>
                 </div>
               ) : !showQuotes && skinAnalysisResult ? (
@@ -463,10 +478,10 @@ export default function CosmeticRecommendationPage() {
             {/* AI Voice Bubble */}
             <div className="mt-5 shrink-0">
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-[9px] uppercase tracking-[0.38em] text-pink-200/45">
+                <span className="text-[11px] uppercase tracking-[0.32em] text-pink-200/65">
                   Skin focus
                 </span>
-                <span className="text-[10px] text-white/25">Tap a concern</span>
+                <span className="text-[11px] text-white/45">Tap a concern</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {COSMETIC_QUICK_CHATS.map((item) => {
@@ -490,7 +505,7 @@ export default function CosmeticRecommendationPage() {
                       <span className="block text-[12px] font-medium leading-none">
                         {item.label}
                       </span>
-                      <span className="mt-1 block text-[9px] uppercase tracking-[0.22em] text-white/30 group-hover:text-pink-100/45">
+                      <span className="mt-1 block text-[11px] uppercase tracking-[0.22em] text-white/50 group-hover:text-pink-100/65">
                         Products
                       </span>
                     </button>

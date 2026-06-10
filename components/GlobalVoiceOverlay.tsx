@@ -122,10 +122,10 @@ function VoiceUI() {
                 : "2px solid rgba(255,255,255,0.15)",
             backdropFilter: "blur(12px)",
             boxShadow: isListening
-              ? "0 0 28px rgba(34,197,94,0.55), 0 0 8px rgba(34,197,94,0.3)"
+              ? "0 0 18px rgba(34,197,94,0.32)"
               : isActive
-                ? "0 0 30px rgba(90,150,255,0.4)"
-                : "0 4px 24px rgba(0,0,0,0.5)",
+                ? "0 0 18px rgba(120,150,210,0.26)"
+                : "0 4px 20px rgba(0,0,0,0.45)",
             overflow: "hidden",
             padding: 0,
           }}

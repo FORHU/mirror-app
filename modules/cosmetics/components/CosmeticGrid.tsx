@@ -111,8 +111,20 @@ export function CosmeticGrid({
           pagedItems.map((r) => (
             <div
               key={r.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selectedId === r.id}
+              aria-label={`${r.cosmeticProduct?.name || "Product"}${
+                r.cosmeticProduct?.brand ? `, ${r.cosmeticProduct.brand}` : ""
+              } — rank ${r.rank}`}
               onClick={() => onSelect(r)}
-              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/5 hover:bg-white/10 transition-colors ${
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(r);
+                }
+              }}
+              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/5 hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
                 fitRows ? "p-1.5" : "p-2"
               }`}
               style={{
@@ -127,9 +139,19 @@ export function CosmeticGrid({
                 position: "relative",
               }}
             >
-              {/* Product Rank Badge */}
-              <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-pink-500/80 rounded text-[9px] font-bold">
-                #{r.rank}
+              {/* Product Rank Badge — circular numbered */}
+              <div
+                className="absolute top-1 right-1 z-10 grid place-items-center rounded-full text-[10px] font-semibold leading-none"
+                style={{
+                  width: 22,
+                  height: 22,
+                  color: "rgba(237,233,254,0.95)",
+                  border: "1.5px solid rgba(167,139,250,0.6)",
+                  background: "rgba(139,92,246,0.18)",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                {r.rank}
               </div>
 
               {/* Since we might not have reliable product images yet, we render a nice fallback box */}
@@ -144,6 +166,8 @@ export function CosmeticGrid({
                     src={r.cosmeticProduct.fileUrl.fileUrl}
                     alt={r.cosmeticProduct?.name || "Product"}
                     draggable={false}
+                    loading="lazy"
+                    decoding="async"
                     className="max-w-full max-h-full object-contain pointer-events-none"
                     style={{ filter: "none", opacity: 1 }}
                   />
@@ -158,19 +182,19 @@ export function CosmeticGrid({
 
               <div
                 className={`w-full shrink-0 text-center ${
-                  fitRows ? "min-h-[34px]" : "min-h-[46px]"
+                  fitRows ? "min-h-[42px]" : "min-h-[52px]"
                 }`}
               >
                 <div
-                  className={`text-white/50 uppercase truncate px-1 ${
-                    fitRows ? "text-[8px]" : "text-[9px]"
+                  className={`text-white/60 uppercase truncate px-1 ${
+                    fitRows ? "text-[11px]" : "text-[11px]"
                   }`}
                 >
                   {r.cosmeticProduct?.brand || "Brand"}
                 </div>
                 <div
                   className={`text-white/90 font-medium leading-tight px-1 overflow-hidden ${
-                    fitRows ? "text-[9px]" : "text-[10px]"
+                    fitRows ? "text-[12px]" : "text-[13px]"
                   }`}
                   style={{
                     display: "-webkit-box",

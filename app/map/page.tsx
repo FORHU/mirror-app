@@ -84,7 +84,7 @@ export default function MapPage() {
 
   if (homeLocationStatus === "idle" || homeLocationStatus === "loading") {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center">
+      <div className="fixed inset-0 bg-canvas flex flex-col items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin mb-6" />
         <p className="text-white/50 text-sm font-light tracking-wide">
           Setting up your map…
@@ -112,7 +112,7 @@ export default function MapPage() {
   // }
 
   return (
-    <main className="w-screen h-dvh bg-black relative overflow-hidden">
+    <main className="w-screen h-dvh bg-canvas relative overflow-hidden">
       <ChatNavLoader />
 
       {/* Header — weather left, time center, back right */}

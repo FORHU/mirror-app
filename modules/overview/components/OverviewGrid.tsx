@@ -51,7 +51,7 @@ function TileShell({
           <h3 className="text-white font-semibold text-lg leading-tight truncate">
             {title}
           </h3>
-          <p className="text-white/35 text-xs truncate">{subtitle}</p>
+          <p className="text-white/55 text-xs truncate">{subtitle}</p>
         </div>
       </div>
 
@@ -118,9 +118,9 @@ function PendingStrip({
       {tiles.map(({ key, title, icon: Icon, status }) => (
         <div
           key={key}
-          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45"
+          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/60"
         >
-          <Icon className="h-3.5 w-3.5 text-white/45" strokeWidth={1.5} />
+          <Icon className="h-3.5 w-3.5 text-white/60" strokeWidth={1.5} />
           <span className="font-medium text-white/60">{title}</span>
           <span>
             {status === "loading"
@@ -146,8 +146,8 @@ function TileMessage({
 }) {
   return (
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 text-center">
-      {Icon && <Icon className="w-5 h-5 text-white/25" />}
-      <p className="text-white/35 text-sm max-w-[80%]">{text}</p>
+      {Icon && <Icon className="w-5 h-5 text-white/50" />}
+      <p className="text-white/55 text-sm max-w-[80%]">{text}</p>
     </div>
   );
 }
@@ -209,7 +209,7 @@ function CosmeticsContent({ items }: { items: CosmeticTileItem[] }) {
           <div className="px-2.5 py-2">
             <p className="text-white text-xs font-medium truncate">{c.name}</p>
             {c.brand && (
-              <p className="text-white/40 text-[11px] truncate capitalize">
+              <p className="text-white/60 text-[11px] truncate capitalize">
                 {c.brand}
               </p>
             )}
@@ -242,10 +242,10 @@ function WardrobeContent({ outfits }: { outfits: OutfitTileItem[] }) {
                 {o.name}
               </p>
               {o.vibe && (
-                <p className="text-white/45 text-xs truncate">{o.vibe}</p>
+                <p className="text-white/60 text-xs truncate">{o.vibe}</p>
               )}
               {o.reason && (
-                <p className="text-white/35 text-[11px] line-clamp-2 mt-0.5">
+                <p className="text-white/55 text-[11px] line-clamp-2 mt-0.5">
                   {o.reason}
                 </p>
               )}
@@ -293,7 +293,7 @@ function MapContent({ data }: { data: MapTileData }) {
             <MapPin className="w-8 h-8 text-blue-300" />
           </motion.div>
         </div>
-        <span className="absolute bottom-2 right-3 text-[10px] text-white/40 font-mono">
+        <span className="absolute bottom-2 right-3 text-[11px] text-white/60 font-mono">
           {data.lat.toFixed(3)}, {data.lng.toFixed(3)}
         </span>
       </div>
@@ -301,7 +301,7 @@ function MapContent({ data }: { data: MapTileData }) {
       <div>
         <p className="text-white text-sm font-medium truncate">{data.name}</p>
         {data.address && (
-          <p className="text-white/40 text-xs truncate">{data.address}</p>
+          <p className="text-white/60 text-xs truncate">{data.address}</p>
         )}
       </div>
 
@@ -343,7 +343,7 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
           <h4 className="text-white font-semibold text-sm tracking-wide">
             {item.skinType}
           </h4>
-          <p className="text-white/50 text-[10px] uppercase tracking-widest mt-0.5">
+          <p className="text-white/50 text-[11px] uppercase tracking-widest mt-0.5">
             Profile
           </p>
         </div>
@@ -396,14 +396,14 @@ function SkinAnalysisContent({ item }: { item: SkinAnalysisTileItem }) {
 
       {item.concerns.length > 0 && (
         <div className="mt-auto z-10">
-          <h5 className="text-white/50 text-[10px] uppercase tracking-widest mb-2 font-semibold">
+          <h5 className="text-white/50 text-[11px] uppercase tracking-widest mb-2 font-semibold">
             Active Concerns
           </h5>
           <div className="flex flex-wrap gap-1.5">
             {item.concerns.map((c) => (
               <span
                 key={c}
-                className="text-[10px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md"
+                className="text-[11px] text-white/80 bg-white/5 border border-white/10 px-2 py-1 rounded-md"
               >
                 {c}
               </span>
