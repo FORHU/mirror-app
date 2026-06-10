@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ScanFace, Loader2, CameraOff } from "lucide-react";
+import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
@@ -182,9 +182,10 @@ export default function OverviewPage() {
     // greet. (Greeting belongs to /ai-assistant.)
   }, [setFaceDetected]);
 
+  const router = useRouter();
+
   const {
     videoRef,
-    status: trackerStatus,
     isPresent,
     captureFrame,
   } = useProximitySensor({
@@ -348,15 +349,6 @@ export default function OverviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const trackerLabel =
-    trackerStatus === "detected"
-      ? "Recognized"
-      : trackerStatus === "searching"
-        ? "Looking for you…"
-        : trackerStatus === "starting"
-          ? "Waking the mirror…"
-          : "Camera unavailable";
-
   return (
     <div className="w-screen h-screen bg-black flex flex-col overflow-hidden">
       <video
@@ -375,24 +367,7 @@ export default function OverviewPage() {
           paddingLeft: "16px",
           paddingRight: "16px",
         }}
-        right={
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.10)",
-            }}
-          >
-            {trackerStatus === "detected" ? (
-              <ScanFace className="w-4 h-4 text-emerald-400" />
-            ) : trackerStatus === "unavailable" ? (
-              <CameraOff className="w-4 h-4 text-white/40" />
-            ) : (
-              <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
-            )}
-            <span className="text-white/55 text-xs">{trackerLabel}</span>
-          </div>
-        }
+        onBack={() => router.back()}
       />
 
       {/* Greeting + identity */}

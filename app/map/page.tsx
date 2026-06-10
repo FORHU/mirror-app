@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { MapDashboard } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
@@ -57,6 +58,7 @@ export default function MapPage() {
     loadHomeLocation,
     loadOutlineStops,
   } = useMapStore();
+  const router = useRouter();
   const onAction = useCallback(() => { }, []);
 
   useVoice(
@@ -114,7 +116,10 @@ export default function MapPage() {
       <ChatNavLoader />
 
       {/* Header — weather left, time center, back right */}
-      <MirrorHeader className="absolute top-0 inset-x-0 z-50" />
+      <MirrorHeader
+        className="absolute top-0 inset-x-0 z-50"
+        onBack={() => router.back()}
+      />
 
       <MapDashboard />
 

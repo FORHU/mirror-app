@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
@@ -28,6 +29,7 @@ import { FASHION_QUOTES } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 export default function VirtualMirrorV2() {
+  const router = useRouter();
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   const { isProcessing } = useVoiceContext();
 
@@ -559,7 +561,7 @@ export default function VirtualMirrorV2() {
     <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
       <ChatNavLoader />
 
-      <MirrorHeader />
+      <MirrorHeader onBack={() => router.back()} />
 
       {/* Create Outfit — just below the header; hidden when an outfit is selected (unless modified) */}
       <CreateOutfitBar
