@@ -21,7 +21,7 @@ function NavButton({
       disabled={disabled}
       onTouchStart={() => !disabled && router.push(route)}
       onClick={() => !disabled && router.push(route)}
-      className={`pointer-events-auto px-4 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.18em] transition-colors ${
+      className={`pointer-events-auto whitespace-nowrap px-3 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
         disabled
           ? "text-white/20 cursor-not-allowed"
           : "text-white/50 hover:text-white/85 hover:bg-white/5 active:bg-white/10"
@@ -61,7 +61,7 @@ export default function AssistantNavBar() {
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
       <div
-        className="pointer-events-auto relative flex items-center w-[480px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
+        className="pointer-events-auto relative flex items-center w-[540px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
         style={{
           background: "rgba(16,18,24,0.88)",
           border: "1px solid rgba(255,255,255,0.07)",
