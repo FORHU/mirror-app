@@ -116,6 +116,11 @@ function setPinSelected(
     transform: selected ? "scale(1.15)" : "scale(1)",
     zIndex: selected ? "20" : "10",
   });
+  // Raise the Mapbox-generated .mapboxgl-marker container above the popup
+  // (.mapboxgl-popup default z-index is 3; markers default to 0 and hide behind it).
+  if (wrapper.parentElement) {
+    wrapper.parentElement.style.zIndex = selected ? "20" : "5";
+  }
 }
 
 // ─── Popup content (React component) ─────────────────────────────────────────
@@ -472,6 +477,16 @@ export default function SuggestedPOIMarkers() {
       );
 
       // Offset popup above the full pin height (head 28px + tail 8px) + a gap
+
+      // Save camera state BEFORE addTo triggers Mapbox's auto-pan.
+      // Mapbox schedules the easeTo on the NEXT requestAnimationFrame, not
+      // synchronously, so map.stop() called here would fire before the animation
+      // has started and cancel nothing.  We restore in the RAF callback instead.
+      const savedCenter = map.getCenter();
+      const savedZoom = map.getZoom();
+      const savedBearing = map.getBearing();
+      const savedPitch = map.getPitch();
+
       const popup = new mapboxgl.Popup({
         offset: [0, -44],
         closeButton: false,
@@ -482,6 +497,18 @@ export default function SuggestedPOIMarkers() {
         .setLngLat([poi.lng, poi.lat])
         .setDOMContent(container)
         .addTo(map);
+
+      // On the next frame the auto-pan easeTo has started — cancel it and
+      // jump back to the original position so other pins stay in view.
+      requestAnimationFrame(() => {
+        map.stop();
+        map.jumpTo({
+          center: savedCenter,
+          zoom: savedZoom,
+          bearing: savedBearing,
+          pitch: savedPitch,
+        });
+      });
 
       openRef.current = { popup, root, markerEl: el, color };
     };
@@ -496,6 +523,13 @@ export default function SuggestedPOIMarkers() {
         .setLngLat([poi.lng, poi.lat])
         .addTo(map);
 
+      // Raise the .mapboxgl-marker container above the popup overlay
+      // (.mapboxgl-popup z-index: 3, markers default to 0).
+      if (el.parentElement) el.parentElement.style.zIndex = "5";
+
+      // Stop pointerdown so Mapbox GL JS v3 never synthesizes a map click
+      // from this interaction (it listens on the container for pointerdown).
+      el.addEventListener("pointerdown", (e) => e.stopPropagation());
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         openPopup(poi, el);
