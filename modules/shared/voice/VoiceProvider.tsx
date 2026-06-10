@@ -34,6 +34,7 @@ import {
 import { stopAllAudioQueues } from "./audioQueue";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { MAP_PROMPT_KEY } from "@/modules/map/constants";
 import {
   buildMapInput,
   isNavigationPhrase,
@@ -287,6 +288,12 @@ function isCosmeticHandoffPrompt(text: string): boolean {
 
 function isFashionHandoffPrompt(text: string): boolean {
   return /\b(outfit|what to wear|what should i wear|suggest.*outfit|recommend.*outfit|full look|complete look|full.*outfit|dress.*for|style.*for my|outfit.*for my|outfit.*for the|wardrobe)\b/i.test(
+    text,
+  );
+}
+
+function isMapDiscoveryPrompt(text: string): boolean {
+  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?)\b/i.test(
     text,
   );
 }
@@ -553,6 +560,25 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           /* prompt handoff is best-effort */
         }
         router.push(ROUTES.AI_RECOMMENDATION_FASHION);
+        setVoiceState("idle");
+        return;
+      }
+
+      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t)) {
+        const assistantReply = "Opening the map to find places near you.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        try {
+          sessionStorage.setItem(MAP_PROMPT_KEY, t);
+        } catch {
+          /* best-effort */
+        }
+        router.push(ROUTES.MAP);
         setVoiceState("idle");
         return;
       }
