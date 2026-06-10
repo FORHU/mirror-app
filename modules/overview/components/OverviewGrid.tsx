@@ -434,58 +434,46 @@ export function OverviewGrid() {
         >
           <GarmentsContent items={garmentItems} />
         </Tile>
-      )}
 
-      {showSideRow && (
-        <div
-          className={`flex gap-3 min-h-0 ${showWardrobe ? "flex-1" : "flex-2"}`}
+        <Tile
+          icon={MapPin}
+          label="Map"
+          state={map}
+          className={showMap ? "" : "opacity-80"}
         >
-          {showSkin && (
-            <Tile
-              icon={Sparkles}
-              label="Skin Profile"
-              state={skinAnalysis}
-              className="flex-1"
-            >
-              {skinAnalysis.data ? (
-                <SkinContent item={skinAnalysis.data} wide={skinWide} />
-              ) : null}
-            </Tile>
+          {map.data ? (
+            <MapContent data={map.data} />
+          ) : (
+            <EmptyTile text="No mapped destination yet." />
           )}
+        </Tile>
 
-          {showMap && (
-            <Tile icon={MapPin} label="Map" state={map} className="flex-1">
-              {map.data ? <MapContent data={map.data} wide={mapWide} /> : null}
-            </Tile>
-          )}
-        </div>
-      )}
-
-      {showCosmetics && (
-        <div
-          className="glass-card-strong neon-border-white rounded-3xl shrink-0 px-5 pt-4 pb-4 flex flex-col"
-          style={{ height: 184 }}
+        <Tile
+          icon={Sparkles}
+          label="Cosmetics"
+          state={cosmetics}
+          className={showCosmetics ? "" : "opacity-80"}
         >
-          <TileHeader icon={Sparkles} label="Cosmetics" />
-          <div className="flex-1 min-h-0">
-            {cosmetics.status === "loading" ? (
-              <div className="flex gap-3 h-full animate-pulse">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="shrink-0 rounded-2xl bg-white/4"
-                    style={{ width: 100, aspectRatio: "1" }}
-                  />
-                ))}
-              </div>
-            ) : cosmetics.status === "error" ? (
-              <TileError text={cosmetics.error ?? "Something went wrong"} />
-            ) : cosmetics.data?.length ? (
-              <CosmeticsStrip items={cosmetics.data} />
-            ) : null}
-          </div>
-        </div>
-      )}
+          {cosmetics.data?.length ? (
+            <CosmeticsStrip items={cosmetics.data} />
+          ) : (
+            <EmptyTile text="No cosmetics yet." />
+          )}
+        </Tile>
+
+        <Tile
+          icon={WandSparkles}
+          label="Outfits"
+          state={wardrobeState}
+          className={showWardrobe ? "" : "opacity-80"}
+        >
+          {outfits.data?.length ? (
+            <WardrobeContent outfits={outfits.data} />
+          ) : (
+            <EmptyTile text="No outfits yet." />
+          )}
+        </Tile>
+      </div>
     </div>
   );
 }
