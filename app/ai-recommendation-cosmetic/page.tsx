@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
