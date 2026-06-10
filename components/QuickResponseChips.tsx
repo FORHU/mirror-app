@@ -104,7 +104,6 @@ export function QuickResponseChips({
                     key={cat.label}
                     type="button"
                     onClick={() => setActiveTab(i)}
-                    onTouchStart={() => setActiveTab(i)}
                     whileTap={{ scale: 0.94 }}
                     className="relative flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 select-none"
                     style={{
@@ -119,6 +118,7 @@ export function QuickResponseChips({
                         : "rgba(255,255,255,0.58)",
                       backdropFilter: "blur(10px)",
                       WebkitBackdropFilter: "blur(10px)",
+                      touchAction: "manipulation",
                     }}
                   >
                     {cat.icon && (
@@ -163,7 +163,6 @@ export function QuickResponseChips({
                     ease: "easeOut",
                   }}
                   whileTap={{ scale: 0.96, opacity: 0.8 }}
-                  onTouchStart={() => handleTap(prompt)}
                   onClick={() => handleTap(prompt)}
                   className="px-4 py-2 rounded-full text-left text-[12px] leading-snug font-light text-white/70 border border-white/10 transition-colors active:bg-white/10 hover:text-white/90 hover:border-white/20"
                   style={{
@@ -171,6 +170,7 @@ export function QuickResponseChips({
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
                     maxWidth: "320px",
+                    touchAction: "manipulation",
                   }}
                 >
                   {prompt}

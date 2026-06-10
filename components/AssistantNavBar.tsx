@@ -19,8 +19,8 @@ function NavButton({
     <button
       type="button"
       disabled={disabled}
-      onTouchStart={() => !disabled && router.push(route)}
       onClick={() => !disabled && router.push(route)}
+      style={{ touchAction: "manipulation" }}
       className={`pointer-events-auto whitespace-nowrap px-3 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
         disabled
           ? "text-white/20 cursor-not-allowed"

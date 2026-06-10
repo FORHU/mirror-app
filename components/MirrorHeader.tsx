@@ -64,6 +64,7 @@ export default function MirrorHeader({
         onClick={onBack}
         aria-label="Back"
         className="p-4 transition-all hover:scale-105 active:scale-95"
+        style={{ touchAction: "manipulation" }}
       >
         <ArrowLeft className="w-6 h-6 text-white" />
       </button>
