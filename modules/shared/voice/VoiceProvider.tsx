@@ -293,7 +293,7 @@ function isFashionHandoffPrompt(text: string): boolean {
 }
 
 function isMapDiscoveryPrompt(text: string): boolean {
-  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?)\b/i.test(
+  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?|plan (?:my |the |a )?(?:full |)route|back-to-back schedule|route for the day|plan my (?:full |)day|fastest route|show me (?:the )?(?:fastest|quickest|shortest) route)\b/i.test(
     text,
   );
 }
@@ -564,8 +564,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t)) {
-        const assistantReply = "Opening the map to find places near you.";
+      const alreadyOnMap = pageCtxRef.current?.route === ROUTES.MAP;
+      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t) && !alreadyOnMap) {
+        const assistantReply = /route|schedule/i.test(t)
+          ? "Opening the map to plan your route."
+          : "Opening the map to find places near you.";
         setReply(assistantReply);
         const newHistory = [
           ...historyRef.current,
@@ -2424,10 +2427,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           );
 
           if (res.stylist_data?.target_url) {
-            if (res.stylist_data.target_url === "back") {
+            const targetUrl = res.stylist_data.target_url;
+            if (targetUrl === "back") {
               router.back();
-            } else {
-              router.push(res.stylist_data.target_url);
+            } else if (targetUrl !== ROUTES.OVERVIEW) {
+              // Never let ChatWonder redirect away to /overview from the map page —
+              // route/schedule queries should always be resolved on the map.
+              router.push(targetUrl);
             }
           }
 
