@@ -13,6 +13,7 @@ export interface RemoteOutfitGarment {
   imageUrl: string;
   garmentType: string[];
   fittingSlot: string[];
+  layerLevel?: string | null;
 }
 
 export interface RemoteOutfitItem {
@@ -32,6 +33,7 @@ export interface RemoteOutfit {
 
 export interface CreateOutfitParams {
   name: string;
+  description?: string;
   items: OutfitItem[];
   pngBlob?: Blob | null;
   isPublic?: boolean;
@@ -60,14 +62,28 @@ export const outfitService = {
     throw new Error("Unexpected response shape");
   },
 
+  getByQuery: async (queryString: string): Promise<RemoteOutfit[]> => {
+    const response = await api.get<StandardResponse<{ items: RemoteOutfit[] }>>(
+      `/api/mirror/outfits?${queryString}`,
+    );
+    if (!response.ok) {
+      throw new Error(response.problem ?? "Failed to fetch outfits");
+    }
+    const items = response.data?.data?.items;
+    if (Array.isArray(items)) return items;
+    throw new Error("Unexpected response shape");
+  },
+
   create: async ({
     name,
+    description,
     items,
     pngBlob,
     isPublic = false,
   }: CreateOutfitParams): Promise<CreatedOutfit> => {
     const form = new FormData();
     form.append("name", name);
+    if (description) form.append("description", description);
     form.append("items", JSON.stringify(items));
     form.append("isPublic", String(isPublic));
     if (pngBlob) {

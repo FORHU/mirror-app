@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { MapDashboard } from "@/modules/map";
+import { MapDashboard, MAP_PROMPT_KEY } from "@/modules/map";
 import { useMapStore } from "@/modules/map/store/useMapStore";
 import { mapService } from "@/modules/map/services/map.service";
 // import HomeLocationSetup from "@/modules/map/components/HomeLocationSetup";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import {
@@ -63,6 +64,7 @@ export default function MapPage() {
   } = useMapStore();
   const router = useRouter();
   const onAction = useCallback(() => {}, []);
+  const { submitText } = useVoiceContext();
 
   useVoice(
     {
@@ -73,6 +75,17 @@ export default function MapPage() {
     },
     onAction,
   );
+
+  const handoffFiredRef = useRef(false);
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(MAP_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(MAP_PROMPT_KEY);
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadHomeLocation();

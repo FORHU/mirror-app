@@ -4,7 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
-import type { RemoteOutfit } from "@/modules/shared/api/outfit.service";
+import {
+  outfitService,
+  type RemoteOutfit,
+} from "@/modules/shared/api/outfit.service";
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -24,47 +27,16 @@ import {
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
-import { FASHION_QUOTES } from "@/modules/fashion/constants";
+import {
+  FASHION_QUOTES,
+  FASHION_PROMPT_KEY,
+} from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
-
-function CreateOutfitFloaterButton({
-  hasSelection,
-  label,
-  onPress,
-}: {
-  hasSelection: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <div className="fixed bottom-[160px] left-1/2 -translate-x-1/2 z-40">
-      <button
-        type="button"
-        onClick={onPress}
-        className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-        style={{
-          background: hasSelection
-            ? "rgba(79,195,247,0.18)"
-            : "rgba(20,20,30,0.85)",
-          border: hasSelection
-            ? "1.5px solid rgba(79,195,247,0.6)"
-            : "1.5px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          {label}
-        </span>
-      </button>
-    </div>
-  );
-}
 
 export default function VirtualMirrorV2() {
   const router = useRouter();
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const { isProcessing } = useVoiceContext();
+  const { isProcessing, submitText } = useVoiceContext();
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -121,21 +93,25 @@ export default function VirtualMirrorV2() {
     setSwapItemId(null);
   }
 
-  const clearSlots = () => {
+  const clearSlots = useCallback(() => {
     setSelectedBag(null);
     setSelectedTopBase(null);
     setSelectedTopMid(null);
     setSelectedTopOuter(null);
     setSelectedBottom(null);
     setSelectedShoe(null);
-  };
-  const selectOutfit = (idx: number) => {
-    setSelectedOutfitIdx(idx);
-    clearSlots();
-    setOutfitOverrides({});
-    setSwapSlot(null);
-    setSwapItemId(null);
-  };
+  }, []);
+
+  const selectOutfit = useCallback(
+    (idx: number) => {
+      setSelectedOutfitIdx(idx);
+      clearSlots();
+      setOutfitOverrides({});
+      setSwapSlot(null);
+      setSwapItemId(null);
+    },
+    [clearSlots],
+  );
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -257,6 +233,78 @@ export default function VirtualMirrorV2() {
       setSelectedShoe(null);
       setSelectedOutfitIdx(null);
 
+      const rawData = response.garment_data as Record<string, unknown> | null;
+      const query = typeof rawData?.query === "string" ? rawData.query : null;
+
+      if (query) {
+        // New format: ChatWonder sends query params, we fetch real DB outfits
+        outfitService
+          .getByQuery(query)
+          .then((fetchedOutfits) => {
+            const newTopsBase: RemoteGarment[] = [];
+            const newTopsMid: RemoteGarment[] = [];
+            const newTopsOuter: RemoteGarment[] = [];
+            const newBottoms: RemoteGarment[] = [];
+            const newShoes: RemoteGarment[] = [];
+            const newBags: RemoteGarment[] = [];
+            const seen = new Set<string>();
+
+            for (const outfit of fetchedOutfits) {
+              for (const item of outfit.items) {
+                const g = item.garment;
+                if (seen.has(g.id)) continue;
+                seen.add(g.id);
+
+                const mapped: RemoteGarment = {
+                  id: g.id,
+                  name: g.name,
+                  description: g.description ?? "",
+                  imageUrl: g.imageUrl,
+                  fittingSlot: g.fittingSlot,
+                  garmentType: g.garmentType,
+                  category: [],
+                  tags: [],
+                  gender: null,
+                  silhouette: null,
+                  layerLevel: g.layerLevel ?? null,
+                  file: null,
+                };
+
+                if (g.fittingSlot.includes("UpperGarment")) {
+                  const layer = g.layerLevel ?? "BASE";
+                  if (layer === "OUTER") newTopsOuter.push(mapped);
+                  else if (layer === "MID") newTopsMid.push(mapped);
+                  else newTopsBase.push(mapped);
+                } else if (g.fittingSlot.includes("LowerGarment")) {
+                  newBottoms.push(mapped);
+                } else if (g.fittingSlot.includes("FootGarment")) {
+                  newShoes.push(mapped);
+                } else if (g.garmentType.includes("Bag")) {
+                  newBags.push(mapped);
+                }
+              }
+            }
+
+            setTopsBase(newTopsBase);
+            setTopsBasePage(0);
+            setTopsMid(newTopsMid);
+            setTopsMidPage(0);
+            setTopsOuter(newTopsOuter);
+            setTopsOuterPage(0);
+            setBottoms(newBottoms);
+            setBottomsPage(0);
+            setShoes(newShoes);
+            setShoesPage(0);
+            setBags(newBags);
+            setBagsPage(0);
+            setOutfits(fetchedOutfits);
+            setOutfitPage(0);
+          })
+          .catch(console.error);
+        return;
+      }
+
+      // Legacy format: ChatWonder sends sets[] with inline recommendations
       type AiItem = {
         id?: string;
         name: string;
@@ -270,6 +318,9 @@ export default function VirtualMirrorV2() {
         layerLevel?: string;
       };
 
+      const sets = Array.isArray(rawData?.sets)
+        ? (rawData.sets as Record<string, unknown>[])
+        : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -308,10 +359,10 @@ export default function VirtualMirrorV2() {
         bucket.push(toGarment(item, slot));
       }
 
-      // ── /message format: response.garment_data.sets[].recommendations[] ────────
-      const sets = response.garment_data?.sets ?? [];
       for (const s of sets) {
-        for (const r of (s.recommendations ?? []) as AiItem[]) {
+        for (const r of (Array.isArray(s.recommendations)
+          ? s.recommendations
+          : []) as AiItem[]) {
           if (r.fittingSlot?.includes("UpperGarment")) {
             const layer = r.layerLevel ?? "BASE";
             if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
@@ -326,41 +377,45 @@ export default function VirtualMirrorV2() {
             push(r, newBags, "RightHandAccessory");
         }
       }
-
       setTopsBase(newTopsBase);
-      setTopsBasePage(0);
       setTopsMid(newTopsMid);
-      setTopsMidPage(0);
       setTopsOuter(newTopsOuter);
-      setTopsOuterPage(0);
       setBottoms(newBottoms);
-      setBottomsPage(0);
       setShoes(newShoes);
-      setShoesPage(0);
       setBags(newBags);
       setBagsPage(0);
 
+      const seenOutfitIds = new Set<string>();
       const newAiOutfits: RemoteOutfit[] = sets
         .filter((s) => s.outfit_imageUrl)
-        .map((s) => ({
-          id: s.outfit_id,
-          name: s.outfit_name,
-          description: s.reason,
-          file: { fileUrl: s.outfit_imageUrl },
-          items: s.recommendations.map((r) => ({
-            id: r.id,
-            slot: r.fittingSlot[0] ?? "UpperGarment",
-            garment: {
-              id: r.id,
-              name: r.name,
-              description: r.description,
-              imageUrl: r.imageUrl,
-              garmentType: r.garmentType,
-              fittingSlot: r.fittingSlot,
-            },
-          })),
-          metaData: null,
-        }));
+        .map((s, i) => {
+          const baseId = String(s.outfit_id ?? `outfit-${i}`);
+          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
+          seenOutfitIds.add(id);
+          return {
+            id,
+            name: String(s.outfit_name ?? "Outfit"),
+            description: String(s.reason ?? ""),
+            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
+            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map(
+              (r) => ({
+                id: String(r.id ?? crypto.randomUUID()),
+                slot: String(
+                  (r.fittingSlot as string[])?.[0] ?? "UpperGarment",
+                ),
+                garment: {
+                  id: String(r.id ?? ""),
+                  name: String(r.name ?? ""),
+                  description: String(r.description ?? ""),
+                  imageUrl: String(r.imageUrl ?? ""),
+                  garmentType: (r.garmentType as string[]) ?? [],
+                  fittingSlot: (r.fittingSlot as string[]) ?? [],
+                },
+              }),
+            ),
+            metaData: null,
+          };
+        });
       setOutfits(newAiOutfits);
       setOutfitPage(0);
     },
@@ -389,6 +444,13 @@ export default function VirtualMirrorV2() {
     ],
   );
 
+  // DEMO BYPASS: skip ChatWonder, fetch hardcoded outfits directly when suggestion chip is tapped
+  // TODO: remove once ChatWonder sends [GARMENT_DATA] query-param format and GARMENT_RECOMMENDATION is restored
+  const HARDCODED_QUERY = "limit=4";
+  const fetchHardcodedOutfits = useCallback(() => {
+    handleAiComplete({ garment_data: { query: HARDCODED_QUERY } } as ChatWonderMessageResponse);
+  }, [handleAiComplete]);
+
   const fashionPageContext = useMemo(
     () => ({
       route: "/ai-recommendation-fashion",
@@ -400,6 +462,12 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
+      // TODO: restore once ChatWonder query-param flow is confirmed
+      // if (action.type === "GARMENT_RECOMMENDATION") {
+      //   const res = action.response as { garment_data?: unknown } | null;
+      //   if (res?.garment_data) { handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse); }
+      //   return;
+      // }
       if (action.type === "fashion_select_outfit") {
         const idx = action.index;
         if (idx < 0 || idx >= outfits.length) return;
@@ -436,6 +504,7 @@ export default function VirtualMirrorV2() {
       }
     },
     [
+      handleAiComplete,
       outfits,
       outfitPageSize,
       selectOutfit,
@@ -462,26 +531,33 @@ export default function VirtualMirrorV2() {
 
   useVoice(fashionPageContext, handleVoiceAction);
 
-  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
+  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
+  const handoffFiredRef = useRef(false);
   useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-
-    handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    void submitText(prompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
-  useEffect(() => {
-    if (!chatGarmentData) return;
-    useMirrorStore.getState().setChatGarmentData(null);
+  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
+  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
+  // useEffect(() => {
+  //   const pending = useMirrorStore.getState().pendingGarmentData;
+  //   if (!pending) return;
+  //   useMirrorStore.getState().setPendingGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
+  // }, []);
 
-    handleAiComplete({
-      garment_data: chatGarmentData,
-    } as ChatWonderMessageResponse);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatGarmentData]);
+  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
+  // useEffect(() => {
+  //   if (!chatGarmentData) return;
+  //   useMirrorStore.getState().setChatGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
+  // }, [chatGarmentData]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
@@ -596,6 +672,63 @@ export default function VirtualMirrorV2() {
 
       <MirrorHeader onBack={() => router.back()} />
 
+      {/* Action row — Create a Wardrobe + Suggestions, between header and outfit panels */}
+      {!isProcessing && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 12,
+            padding: "6px 16px",
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => router.push("/wardrobe/create")}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
+            style={{
+              background: "rgba(20,20,30,0.85)",
+              border: "1.5px solid rgba(255,255,255,0.15)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
+            <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
+              Create a Wardrobe
+            </span>
+          </button>
+          <PromptFloater
+            onSelect={fetchHardcodedOutfits}
+            prompts={[
+              "Formal outfit — top, bottom, shoes, and bag.",
+              "Business look that feels confident and professional.",
+              "Casual outfit for an everyday relaxed day.",
+              `SmartCasual layered outfit for today, ${getToday()}.`,
+              "Streetwear look with a bold statement vibe.",
+              "Athleisure outfit that blends comfort and style.",
+              "Activewear outfit for performance and movement.",
+              "Sportswear outfit suitable for training or activity.",
+              "Winterwear outfit with warm layers and structure.",
+              "Summerwear outfit that stays light and breathable.",
+              "Springwear outfit for transitional weather.",
+              "Autumnwear outfit with cozy layering.",
+              "Rainwear outfit that stays practical and stylish.",
+              "Minimalist outfit with clean lines and neutral tones.",
+              "Luxury-inspired outfit with a refined aesthetic.",
+              "AvantGarde outfit with an experimental fashion edge.",
+              "Vintage-inspired outfit with retro influence.",
+              "Traditional outfit with cultural inspiration.",
+              "Cultural outfit with heritage influence.",
+              "Uniform-inspired structured outfit style.",
+            ]}
+            className="relative z-40"
+            direction="below"
+          />
+        </div>
+      )}
+
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
@@ -604,7 +737,7 @@ export default function VirtualMirrorV2() {
       {showShowcase && (
         <div
           className="absolute inset-x-0 z-0 px-6"
-          style={{ top: 80, bottom: 170 }}
+          style={{ top: 80, bottom: 100, pointerEvents: "none" }}
         >
           <OutfitImageCarousel />
         </div>
@@ -1067,59 +1200,6 @@ export default function VirtualMirrorV2() {
           onClose={() => setShowConfirm(false)}
         />
       )}
-
-      {/* Create Outfit — fixed above the Suggestions floater, hidden during voice */}
-      {!isProcessing && (
-        <CreateOutfitFloaterButton
-          hasSelection={
-            selectedOutfitIdx !== null ||
-            outfitModified ||
-            !!(
-              (selectedTopBase || selectedTopMid || selectedTopOuter) &&
-              selectedBottom &&
-              selectedShoe
-            )
-          }
-          label={
-            outfitModified
-              ? "Customize Outfit"
-              : selectedOutfitIdx !== null
-                ? "Generate Look"
-                : "Create Outfit"
-          }
-          onPress={() => setShowConfirm(true)}
-        />
-      )}
-
-      {/* Suggested prompts — collapsible floater centered above the mic */}
-      <PromptFloater
-        prompts={[
-          "Formal outfit — top, bottom, shoes, and bag.",
-          "Business look that feels confident and professional.",
-          "Casual outfit for an everyday relaxed day.",
-          `SmartCasual layered outfit for today, ${getToday()}.`,
-          "Streetwear look with a bold statement vibe.",
-
-          "Athleisure outfit that blends comfort and style.",
-          "Activewear outfit for performance and movement.",
-          "Sportswear outfit suitable for training or activity.",
-
-          "Winterwear outfit with warm layers and structure.",
-          "Summerwear outfit that stays light and breathable.",
-          "Springwear outfit for transitional weather.",
-          "Autumnwear outfit with cozy layering.",
-          "Rainwear outfit that stays practical and stylish.",
-
-          "Minimalist outfit with clean lines and neutral tones.",
-          "Luxury-inspired outfit with a refined aesthetic.",
-          "AvantGarde outfit with an experimental fashion edge.",
-          "Vintage-inspired outfit with retro influence.",
-
-          "Traditional outfit with cultural inspiration.",
-          "Cultural outfit with heritage influence.",
-          "Uniform-inspired structured outfit style.",
-        ]}
-      />
     </div>
   );
 }

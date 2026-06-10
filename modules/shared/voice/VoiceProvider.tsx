@@ -47,9 +47,10 @@ async function pollyTts(text: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { MAP_PROMPT_KEY } from "@/modules/map/constants";
 import {
   buildMapInput,
-  buildLangDirective,
   isNavigationPhrase,
   isItineraryPhrase,
   isFinishPhrase,
@@ -295,6 +296,18 @@ function extractFashionGarmentSelection(
 
 function isCosmeticHandoffPrompt(text: string): boolean {
   return /(cosmetic|makeup|make-up|skincare|skin care|foundation|moisturi|lipstick|sunscreen|serum|cleanser|toner|blush|concealer|spf|lotion|facial|eyeshadow|eye shadow|eyeliner|eye liner|lip gloss|lipgloss|lip balm|retinol|hyaluronic|niacinamide|exfoliat|acne|primer|essence|bb cream|cc cream|eye cream|face wash|face mask|face cream|sheet mask|clay mask|cream|mask|face oil|facial oil|skin oil|hair oil|body oil)\b/i.test(
+    text,
+  );
+}
+
+function isFashionHandoffPrompt(text: string): boolean {
+  return /\b(outfit|what to wear|what should i wear|suggest.*outfit|recommend.*outfit|full look|complete look|full.*outfit|dress.*for|style.*for my|outfit.*for my|outfit.*for the|wardrobe)\b/i.test(
+    text,
+  );
+}
+
+function isMapDiscoveryPrompt(text: string): boolean {
+  return /\b(things? to do|places? to (?:visit|go|see|explore|check out)|(?:suggest|recommend|find me?)\s+(?:a |some |me )?(?:fun|nice|good|cool|great|interesting|nearby)?\s*(?:place|spot|somewhere|destination)|where (?:can|should) i (?:go|visit|explore|hang out)|fun places?|good places?|nice places?)\b/i.test(
     text,
   );
 }
@@ -547,6 +560,45 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (AI_ASSISTANT_WAKE_ONLY.test(t.trim())) {
         setTranscript("");
         setReply("");
+        setVoiceState("idle");
+        return;
+      }
+
+      if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
+        const assistantReply =
+          "Opening fashion recommendations for your outfit.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        try {
+          sessionStorage.setItem(FASHION_PROMPT_KEY, t);
+        } catch {
+          /* prompt handoff is best-effort */
+        }
+        router.push(ROUTES.AI_RECOMMENDATION_FASHION);
+        setVoiceState("idle");
+        return;
+      }
+
+      if (isMapDiscoveryPrompt(t) && !isNavigationPhrase(t)) {
+        const assistantReply = "Opening the map to find places near you.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        try {
+          sessionStorage.setItem(MAP_PROMPT_KEY, t);
+        } catch {
+          /* best-effort */
+        }
+        router.push(ROUTES.MAP);
         setVoiceState("idle");
         return;
       }
@@ -1052,6 +1104,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         // Maps mode: use chat-wonder/message for both directions and recommendations
         if (pathname.startsWith("/map")) {
+          // ── Fashion handoff: outfit requests on the map page navigate to fashion ─
+          if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
+            try {
+              sessionStorage.setItem(FASHION_PROMPT_KEY, t);
+            } catch {
+              /* best-effort */
+            }
+            router.push(ROUTES.AI_RECOMMENDATION_FASHION);
+            const fashionReply =
+              "Opening fashion recommendations for your outfit.";
+            setReply(fashionReply);
+            historyRef.current = [
+              ...historyRef.current,
+              { user: t, assistant: fashionReply },
+            ];
+            setChatHistory(historyRef.current);
+            setVoiceState("idle");
+            return;
+          }
+
           // Cancel any pending idle timer the moment a new utterance arrives —
           // prevents "Enjoy your trip" firing while a new stop's TTS is still playing.
           clearItineraryIdleTimer();
@@ -2127,9 +2199,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // ── End itinerary intercept ────────────────────────────────────────────
 
           const mapState = useMapStore.getState();
-          let mapLoc = mapState.userLocation ?? mapState.homeLocation;
-          // GPS fallback — if the store has no location yet (home never configured or
-          // watchPosition hasn't resolved its first fix), try a one-shot getCurrentPosition.
+          // Prefer live GPS over IP-based homeLocation — IP geolocation can be
+          // hundreds of km off for fixed kiosk devices where the ISP's registered
+          // address differs from the actual device location.
+          let mapLoc = mapState.userLocation;
           if (
             !mapLoc &&
             typeof window !== "undefined" &&
@@ -2149,6 +2222,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               },
             );
           }
+          if (!mapLoc) mapLoc = mapState.homeLocation;
           const mapDest = mapState.selectedDestination;
           const pending = mapState.pendingEvents;
 
@@ -2302,6 +2376,38 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 }
                 return;
               }
+              // No results found at this location — give a clear error instead of
+              // silently falling through to ChatWonder (which always fails for POI queries).
+              const noResultReply = `I couldn't find a nearby ${nearbyQuery} in this area. You can try asking for a different type of place.`;
+              const noResultAudio = await mapService
+                .tts(noResultReply)
+                .catch(() => null);
+              setReply(noResultReply);
+              historyRef.current = [
+                ...historyRef.current,
+                { user: t, assistant: noResultReply },
+              ];
+              setChatHistory(historyRef.current);
+              setVoiceState("speaking");
+              if (noResultAudio) {
+                const playCtx = new AudioContext();
+                playbackCtxRef.current = playCtx;
+                const decoded = await playCtx.decodeAudioData(
+                  noResultAudio.slice(0),
+                );
+                const src = playCtx.createBufferSource();
+                src.buffer = decoded;
+                src.connect(playCtx.destination);
+                playbackRef.current = src;
+                src.onended = () => {
+                  stopPlayback();
+                  setVoiceState("idle");
+                };
+                src.start(0);
+              } else {
+                setVoiceState("idle");
+              }
+              return;
             } catch {
               /* fall through to ChatWonder */
             }
@@ -2447,11 +2553,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 needsPhoto.map((poi) =>
                   mapService
                     .venuePhotos(poi.placeId!)
-                    .then(({ photos }) => ({ placeId: poi.placeId!, photo: photos[0] ?? null }))
+                    .then(({ photos }) => ({
+                      placeId: poi.placeId!,
+                      photo: photos[0] ?? null,
+                    }))
                     .catch(() => ({ placeId: poi.placeId!, photo: null })),
                 ),
               ).then((results) => {
-                const photoMap = new Map(results.map((r) => [r.placeId, r.photo]));
+                const photoMap = new Map(
+                  results.map((r) => [r.placeId, r.photo]),
+                );
                 const enriched = curated.map((p) => ({
                   ...p,
                   photo: photoMap.get(p.placeId!) ?? p.photo,
@@ -2810,7 +2921,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                   | "map"
                   | "overview"
                   | null);
-          const langDir = buildLangDirective(language || "en-US");
           const res = await chatWonderService.message({
             input: `[stylist] ${t}`,
             lang: language,
@@ -2980,7 +3090,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [processTranscript, resolveAccessToken],
+    [processTranscript],
   );
 
   // Keep a stable ref so VAD callbacks (created once) always call the latest version

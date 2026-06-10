@@ -54,13 +54,15 @@ export function OutfitPreviewModal({
   canvasRef,
   onClose,
 }: OutfitPreviewModalProps) {
-  const [view, setView] = useState<"canvas" | "result">("canvas");
+  const [view, setView] = useState<"canvas" | "result" | "save-form">("canvas");
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saveDesc, setSaveDesc] = useState("");
 
   const gender = useAuthStore((s) => s.user?.gender ?? null);
   const setIsChatOpen = useMirrorStore((s) => s.setIsChatOpen);
@@ -158,12 +160,15 @@ export function OutfitPreviewModal({
         cBag && { garmentId: cBag.id, slot: "RightHandAccessory" },
       ].filter(Boolean) as { garmentId: string; slot: string }[];
 
-      const name = activeOutfit?.name
+      const defaultName = activeOutfit?.name
         ? `${activeOutfit.name} — Custom`
         : `My Look — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+      const name = saveName.trim() || defaultName;
+      const description = saveDesc.trim() || undefined;
 
-      await outfitService.create({ name, items, pngBlob });
+      await outfitService.create({ name, description, items, pngBlob });
       setIsSaved(true);
+      setView("result");
     } catch (e) {
       setSaveError((e as Error).message ?? "Failed to save outfit");
     } finally {
@@ -209,9 +214,11 @@ export function OutfitPreviewModal({
             gap: 8,
           }}
         >
-          {view === "result" && (
+          {(view === "result" || view === "save-form") && (
             <button
-              onClick={() => setView("canvas")}
+              onClick={() =>
+                setView(view === "save-form" ? "result" : "canvas")
+              }
               style={{
                 background: "none",
                 border: "1px solid rgba(255,255,255,0.2)",
@@ -223,7 +230,7 @@ export function OutfitPreviewModal({
                 flexShrink: 0,
               }}
             >
-              ← Edit
+              ← {view === "save-form" ? "Back" : "Edit"}
             </button>
           )}
           <p
@@ -238,9 +245,11 @@ export function OutfitPreviewModal({
           >
             {view === "result"
               ? "Generated Outfit"
-              : outfitModified
-                ? "Customized Look"
-                : "Your Look"}
+              : view === "save-form"
+                ? "Save Wardrobe"
+                : outfitModified
+                  ? "Customized Look"
+                  : "Your Look"}
           </p>
         </div>
 
@@ -335,6 +344,131 @@ export function OutfitPreviewModal({
           </>
         )}
 
+        {/* Save form view */}
+        {view === "save-form" && (
+          <>
+            <div
+              style={{
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  placeholder="e.g. Summer Casual"
+                  maxLength={80}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 10,
+                    color: "white",
+                    fontSize: 14,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{
+                    color: "rgba(255,255,255,0.5)",
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  Description (optional)
+                </label>
+                <textarea
+                  value={saveDesc}
+                  onChange={(e) => setSaveDesc(e.target.value)}
+                  placeholder="Brief description of this wardrobe…"
+                  rows={3}
+                  maxLength={200}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 10,
+                    color: "white",
+                    fontSize: 14,
+                    outline: "none",
+                    resize: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              {saveError && (
+                <p
+                  style={{
+                    color: "#f87171",
+                    fontSize: 12,
+                    margin: 0,
+                    textAlign: "center",
+                  }}
+                >
+                  {saveError}
+                </p>
+              )}
+            </div>
+
+            <button
+              disabled={isSaving}
+              onClick={handleSave}
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: isSaving ? "rgba(255,255,255,0.15)" : "#ffffff",
+                border: "none",
+                borderRadius: "12px",
+                color: isSaving ? "rgba(255,255,255,0.5)" : "#000",
+                fontSize: "15px",
+                fontWeight: "700",
+                cursor: isSaving ? "not-allowed" : "pointer",
+                opacity: isSaving ? 0.7 : 1,
+              }}
+            >
+              {isSaving ? "Saving…" : "Save Wardrobe"}
+            </button>
+
+            <button
+              style={{
+                width: "100%",
+                padding: "12px",
+                background: "transparent",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "12px",
+                color: "rgba(255,255,255,0.7)",
+                fontSize: "15px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </>
+        )}
+
         {/* Result view */}
         {view === "result" && resultUrl && (
           <>
@@ -369,8 +503,15 @@ export function OutfitPreviewModal({
             )}
 
             <button
-              disabled={isSaving || isSaved}
-              onClick={handleSave}
+              disabled={isSaved}
+              onClick={() => {
+                if (!isSaved) {
+                  setSaveName("");
+                  setSaveDesc("");
+                  setSaveError(null);
+                  setView("save-form");
+                }
+              }}
               style={{
                 width: "100%",
                 padding: "12px",
@@ -380,11 +521,10 @@ export function OutfitPreviewModal({
                 color: isSaved ? "rgba(255,255,255,0.7)" : "#000",
                 fontSize: "15px",
                 fontWeight: "700",
-                cursor: isSaving || isSaved ? "default" : "pointer",
-                opacity: isSaving ? 0.7 : 1,
+                cursor: isSaved ? "default" : "pointer",
               }}
             >
-              {isSaving ? "Saving…" : isSaved ? "Saved ✓" : "Save Outfit"}
+              {isSaved ? "Saved ✓" : "Save Outfit"}
             </button>
 
             <button

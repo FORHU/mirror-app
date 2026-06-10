@@ -112,7 +112,12 @@ export default function POICurationStack({
                 >
                   {/* Photo with number badge */}
                   <div className="relative flex-shrink-0">
-                    <POIPhoto src={poi.photo} name={poi.name} lat={poi.lat} lng={poi.lng} />
+                    <POIPhoto
+                      src={poi.photo}
+                      name={poi.name}
+                      lat={poi.lat}
+                      lng={poi.lng}
+                    />
                     <span
                       className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full
                                  bg-blue-500 border border-black flex items-center

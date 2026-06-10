@@ -46,6 +46,9 @@ interface QuickResponseChipsProps {
   /** Categorised mode — renders tab selectors above the chips */
   categories?: PromptCategory[];
   className?: string;
+  onPromptSelect?: () => void;
+  /** Override default submitText — when provided, skips ChatWonder entirely */
+  onSelect?: (prompt: string) => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -54,6 +57,8 @@ export function QuickResponseChips({
   prompts,
   categories,
   className,
+  onPromptSelect,
+  onSelect,
 }: QuickResponseChipsProps) {
   const { isListening, isProcessing, isSpeaking, submitText } =
     useVoiceContext();
@@ -70,7 +75,12 @@ export function QuickResponseChips({
     : (prompts ?? []);
 
   const handleTap = (prompt: string) => {
-    void submitText(prompt);
+    onPromptSelect?.();
+    if (onSelect) {
+      onSelect(prompt);
+    } else {
+      void submitText(prompt);
+    }
     if (activeCategory?.route) router.push(activeCategory.route);
   };
 

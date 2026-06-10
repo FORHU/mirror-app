@@ -4,6 +4,8 @@ export { useOverviewStore } from "./store/useOverviewStore";
 export {
   adaptGarmentData,
   adaptCosmeticsData,
+  adaptRemoteOutfitsToTiles,
+  adaptSkinAnalysisData,
   adaptMapsData,
   adaptOutlineToTiles,
 } from "./adapters";
@@ -14,5 +16,6 @@ export type {
   GarmentTileItem,
   OutfitTileItem,
   CosmeticTileItem,
+  SkinAnalysisTileItem,
   MapTileData,
 } from "./types";

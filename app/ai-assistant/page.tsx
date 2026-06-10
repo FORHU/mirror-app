@@ -53,7 +53,7 @@ const ASSISTANT_GREETINGS = [
   "Hi! Let's find something that suits your style.",
   "Hello there! Looking for fashion, cosmetics, or nearby trends?",
   "Hey! What kind of look are you going for today?",
-  "Welcome back! Ready for a style refresh?",
+  "Welcome! Ready for a style refresh?",
   "Hi there! What would you like help with: outfits, beauty, or places?",
   "Hello! Let's create a look you'll love.",
   "Hey there! Looking for the perfect outfit today?",
@@ -64,7 +64,7 @@ const ASSISTANT_GREETINGS = [
   "Hi there! Looking for beauty products that match your needs?",
   "Hello! Need inspiration for your next outfit?",
   "Hey! Let's find styles that work for you.",
-  "Welcome back! Want help building a complete look?",
+  "Welcome! Want help building a complete look?",
   "Hi! Curious about the latest fashion trends?",
   "Hello there! Searching for beauty essentials?",
   "Hey! Need outfit recommendations for an event?",
@@ -75,7 +75,7 @@ const ASSISTANT_GREETINGS = [
   "Good to see you! Need help completing your outfit?",
   "Hi! Looking for cosmetics that complement your features?",
   "Hello! Ready to elevate your style?",
-  "Welcome back! Let's discover new beauty favorites.",
+  "Welcome! Let's discover new beauty favorites.",
   "Hey! Need recommendations for your next shopping trip?",
   "Hi there! What fashion goal can I help with today?",
   "Hello! Let's put together a look you'll feel confident in.",
@@ -549,7 +549,8 @@ export default function AIAssistantPage() {
             {/* Quick Response Chips — categorised */}
             <QuickResponseChips categories={chipCategories} />
 
-            {/* Bottom nav — flanks the shared center-bottom mic */}
+            {/* Bottom nav — flanks the shared center-bottom mic:
+                Fashion · Cosmetics · [mic] · Map · Overview */}
             <AssistantNavBar />
             <div ref={bottomRef} />
           </motion.main>
