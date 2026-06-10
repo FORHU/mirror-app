@@ -13,6 +13,8 @@ interface PromptFloaterProps {
   className?: string;
   /** Which direction the dropdown expands. Default: "above". */
   direction?: "above" | "below";
+  /** Override default submitText — when provided, skips ChatWonder entirely */
+  onSelect?: (prompt: string) => void;
 }
 
 /**
@@ -26,6 +28,7 @@ export function PromptFloater({
   categories,
   className,
   direction = "above",
+  onSelect,
 }: PromptFloaterProps) {
   const { isListening, isProcessing, isSpeaking } = useVoiceContext();
   const isIdle = !isListening && !isProcessing && !isSpeaking;
@@ -86,6 +89,7 @@ export function PromptFloater({
                 prompts={prompts}
                 categories={categories}
                 onPromptSelect={() => setOpen(false)}
+                onSelect={onSelect}
               />
             </div>
           </motion.div>

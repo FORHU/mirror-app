@@ -377,17 +377,11 @@ export default function VirtualMirrorV2() {
             push(r, newBags, "RightHandAccessory");
         }
       }
-
       setTopsBase(newTopsBase);
-      setTopsBasePage(0);
       setTopsMid(newTopsMid);
-      setTopsMidPage(0);
       setTopsOuter(newTopsOuter);
-      setTopsOuterPage(0);
       setBottoms(newBottoms);
-      setBottomsPage(0);
       setShoes(newShoes);
-      setShoesPage(0);
       setBags(newBags);
       setBagsPage(0);
 
@@ -461,6 +455,12 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
+      // TODO: restore once ChatWonder query-param flow is confirmed
+      // if (action.type === "GARMENT_RECOMMENDATION") {
+      //   const res = action.response as { garment_data?: unknown } | null;
+      //   if (res?.garment_data) { handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse); }
+      //   return;
+      // }
       if (action.type === "fashion_select_outfit") {
         const idx = action.index;
         if (idx < 0 || idx >= outfits.length) return;
@@ -497,6 +497,7 @@ export default function VirtualMirrorV2() {
       }
     },
     [
+      handleAiComplete,
       outfits,
       outfitPageSize,
       selectOutfit,
@@ -535,30 +536,21 @@ export default function VirtualMirrorV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
   // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-
-    setTimeout(() => {
-      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // useEffect(() => {
+  //   const pending = useMirrorStore.getState().pendingGarmentData;
+  //   if (!pending) return;
+  //   useMirrorStore.getState().setPendingGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
+  // }, []);
 
   // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
-  useEffect(() => {
-    if (!chatGarmentData) return;
-    useMirrorStore.getState().setChatGarmentData(null);
-
-    setTimeout(() => {
-      handleAiComplete({
-        garment_data: chatGarmentData,
-      } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatGarmentData]);
+  // useEffect(() => {
+  //   if (!chatGarmentData) return;
+  //   useMirrorStore.getState().setChatGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
+  // }, [chatGarmentData]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
