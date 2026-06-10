@@ -4,7 +4,11 @@ import type { NearbyPOI } from "@/modules/map/services/map.service";
 // ── Mocks ──────────────────────────────────────────────────────────────────
 
 const setSuggestedPOIs = vi.fn();
-const mockMapState = {
+const mockMapState: {
+  userLocation: { lat: number; lng: number } | null;
+  homeLocation: { lat: number; lng: number } | null;
+  selectedDestination: { lat: number; lng: number; name: string } | null;
+} = {
   userLocation: { lat: 16.41, lng: 120.59 },
   homeLocation: null,
   selectedDestination: null,
@@ -51,6 +55,7 @@ const makePOI = (name: string): NearbyPOI => ({
   lat: 16.41,
   lng: 120.59,
   address: "Session Road, Baguio",
+  photo: null,
   rating: 4.5,
   userRatingsTotal: 100,
   distance: 200,
