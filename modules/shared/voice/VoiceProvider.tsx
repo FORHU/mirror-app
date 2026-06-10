@@ -1377,7 +1377,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               isItineraryPhrase(t) ||
               isNavigationPhrase(t) ||
               isClearRoutePhrase(t) ||
-              isMultiEventUtterance(t)
+              isMultiEventUtterance(t) ||
+              extractNearbyPOIQuery(t) !== null
             ) {
               curatedPOIsRef.current = [];
               useMapStore.getState().clearSuggestions();
