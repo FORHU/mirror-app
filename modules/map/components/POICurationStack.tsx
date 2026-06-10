@@ -12,24 +12,43 @@ interface Props {
   onSelect: (poi: NearbyPOI) => void;
 }
 
-function POIPhoto({ src, name }: { src: string | null; name: string }) {
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+function mapboxStaticUrl(lat: number, lng: number, w: number, h: number) {
+  if (!MAPBOX_TOKEN) return null;
+  return `https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/${lng},${lat},15/${w}x${h}?access_token=${MAPBOX_TOKEN}`;
+}
+
+function POIPhoto({
+  src,
+  name,
+  lat,
+  lng,
+}: {
+  src: string | null;
+  name: string;
+  lat: number;
+  lng: number;
+}) {
   const [failed, setFailed] = useState(false);
 
-  if (src && !failed) {
+  const fallback = mapboxStaticUrl(lat, lng, 64, 64);
+  const displaySrc = src && !failed ? src : fallback;
+
+  if (displaySrc) {
     return (
       <Image
-        src={src}
+        src={displaySrc}
         alt={name}
         width={64}
         height={64}
         unoptimized
-        onError={() => setFailed(true)}
+        onError={!failed ? () => setFailed(true) : undefined}
         className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
       />
     );
   }
 
-  // Placeholder — initials on a gradient
   const initials = name
     .split(" ")
     .slice(0, 2)
@@ -93,7 +112,7 @@ export default function POICurationStack({
                 >
                   {/* Photo with number badge */}
                   <div className="relative flex-shrink-0">
-                    <POIPhoto src={poi.photo} name={poi.name} />
+                    <POIPhoto src={poi.photo} name={poi.name} lat={poi.lat} lng={poi.lng} />
                     <span
                       className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full
                                  bg-blue-500 border border-black flex items-center

@@ -510,9 +510,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // Stop any in-flight reply audio when the route changes, so a previous page's
   // spoken reply (e.g. the /ai-assistant answer that triggered navigation) does
   // not keep playing — or overlap new audio — once you land on the next page.
+  // Also pause the VAD and reset voiceState so the mic is always usable on the
+  // new page, even if navigation interrupted a processing/speaking cycle.
   useEffect(() => {
     stopPlayback();
     stopAllAudioQueues();
+    vadRef.current?.pause();
+    setVoiceState("idle");
   }, [pathname, stopPlayback]);
 
   const handleAIAssistantText = useCallback(
@@ -2410,6 +2414,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const curated = curatePOIs(poolToUse);
             curatedPOIsRef.current = curated;
             useMapStore.getState().setSuggestedPOIs(curated, label);
+
+            // Enrich with real venue photos in background (ChatWonder doesn't return photo_url)
+            const needsPhoto = curated.filter((p) => !p.photo && p.placeId);
+            if (needsPhoto.length > 0) {
+              Promise.all(
+                needsPhoto.map((poi) =>
+                  mapService
+                    .venuePhotos(poi.placeId!)
+                    .then(({ photos }) => ({ placeId: poi.placeId!, photo: photos[0] ?? null }))
+                    .catch(() => ({ placeId: poi.placeId!, photo: null })),
+                ),
+              ).then((results) => {
+                const photoMap = new Map(results.map((r) => [r.placeId, r.photo]));
+                const enriched = curated.map((p) => ({
+                  ...p,
+                  photo: photoMap.get(p.placeId!) ?? p.photo,
+                }));
+                curatedPOIsRef.current = enriched;
+                useMapStore.getState().setSuggestedPOIs(enriched, label);
+              });
+            }
           }
 
           // Multi-event itinerary: classify events from the response
@@ -3067,8 +3092,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const toggle = useCallback(() => {
     if (voiceState === "idle") return startListening();
     if (voiceState === "recording") return stopListening();
-    if (voiceState === "speaking") {
+    if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
+      vadRef.current?.pause();
       setTranscript("");
       setReply("");
       setError(null);
