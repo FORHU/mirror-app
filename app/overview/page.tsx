@@ -320,10 +320,17 @@ export default function OverviewPage() {
           setOutfits(outfits);
         }
 
-        const rawCosmeticsData = response.cosmetics_data as Record<string, unknown> | null;
-        const cosmeticsQuery = typeof rawCosmeticsData?.query === "string" ? rawCosmeticsData.query : null;
+        const rawCosmeticsData = response.cosmetics_data as Record<
+          string,
+          unknown
+        > | null;
+        const cosmeticsQuery =
+          typeof rawCosmeticsData?.query === "string"
+            ? rawCosmeticsData.query
+            : null;
         if (cosmeticsQuery) {
-          const fetchedProducts = await cosmeticsService.getByQuery(cosmeticsQuery);
+          const fetchedProducts =
+            await cosmeticsService.getByQuery(cosmeticsQuery);
           setCosmetics(adaptCosmeticsData(fetchedProducts));
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));

@@ -13,6 +13,8 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -61,8 +63,7 @@ function normalizeGender(value: unknown): GenderFilter | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (["MALE", "MAN", "MEN", "M"].includes(normalized)) return "MALE";
-  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized))
-    return "FEMALE";
+  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized)) return "FEMALE";
   return null;
 }
 
@@ -83,7 +84,9 @@ function filterOutfitsByGender(
       ...collectGenderValues(meta?.gender),
       ...collectGenderValues(meta?.targetGender),
       ...collectGenderValues(meta?.genders),
-      ...outfit.items.flatMap((item) => collectGenderValues(item.garment.gender)),
+      ...outfit.items.flatMap((item) =>
+        collectGenderValues(item.garment.gender),
+      ),
     ];
     return genders.length === 0 || genders.includes(gender);
   });
@@ -92,10 +95,19 @@ function filterOutfitsByGender(
 export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { speakText } = useVoiceContext();
+  const setMicBusy = useMirrorStore((s) => s.setMicBusy);
   const userGender = useAuthStore((state) => state.user?.gender);
   const genderFilter = useMemo(() => normalizeGender(userGender), [userGender]);
   const [isChipLoading, setIsChipLoading] = useState(false);
   const isLoading = isChipLoading;
+
+  // Disable the shared mic while this page is fetching, and always release the
+  // flag on unmount so the mic isn't left stuck-disabled after navigating away.
+  useEffect(() => {
+    setMicBusy(isLoading);
+    return () => setMicBusy(false);
+  }, [isLoading, setMicBusy]);
 
   const [activeMainCategory, setActiveMainCategory] = useState<string>("All");
 
@@ -564,11 +576,23 @@ export default function FashionCatalog() {
         const params = new URLSearchParams(query);
         if (!params.has("limit")) params.set("limit", "4");
 
-        outfitService.getByQuery(params.toString()).then((fetched) => {
-          if (fetched && fetched.length > 0) {
-            router.push(`/ai-recommendation-fashion?${params.toString()}`);
-          }
-        });
+        outfitService
+          .getByQuery(params.toString())
+          .then((fetched) => {
+            if (fetched && fetched.length > 0) {
+              router.push(`/ai-recommendation-fashion?${params.toString()}`);
+            } else {
+              // No matches — don't leave the user staring at an unchanged page.
+              void speakText(
+                "I couldn't find outfits for that. Want to try another style?",
+              );
+            }
+          })
+          .catch(() => {
+            void speakText(
+              "Sorry, I ran into a problem finding outfits. Please try again.",
+            );
+          });
         return;
       }
       if (action.type === "fashion_select_outfit") {
@@ -608,6 +632,7 @@ export default function FashionCatalog() {
       outfits,
       outfitPageSize,
       router,
+      speakText,
       selectOutfit,
       pagedTopsBase,
       pagedTopsMid,
@@ -671,7 +696,6 @@ export default function FashionCatalog() {
     handoffFiredRef.current = true;
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
     // SubmitText is gone; we ignore voice prompts on the catalog page.
-     
   }, []);
 
   // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
@@ -719,9 +743,19 @@ export default function FashionCatalog() {
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
+      {/* Loading state — cycling fashion quotes. Hoisted so it shows for every
+          category, including "All" (which otherwise renders nothing while loading). */}
+      {isLoading && (
+        <QuoteCarousel
+          quotes={FASHION_QUOTES}
+          label="Style tip"
+          className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
+        />
+      )}
+
       {activeMainCategory === "All" && !isLoading && <OutfitImageCarousel />}
 
-      {activeMainCategory !== "All" && (
+      {activeMainCategory !== "All" && !isLoading && (
         <div className="flex flex-1 min-h-0 w-full">
           {/* Left panel — outfits 1-4 */}
           <div
@@ -738,15 +772,6 @@ export default function FashionCatalog() {
             className="h-full flex flex-col items-center overflow-hidden"
             style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
           >
-            {/* Loading state — cycling fashion quotes */}
-            {isLoading && (
-              <QuoteCarousel
-                quotes={FASHION_QUOTES}
-                label="Style tip"
-                className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
-              />
-            )}
-
             {/* Idle Reel removed based on sketch layout */}
 
             {/* Large selected outfit preview */}

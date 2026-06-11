@@ -3,10 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { isNavigationPhrase } from "@/modules/map/utils/chatWonderMapUtils";
 
-const src = readFileSync(
-  join(__dirname, "VoiceProvider.tsx"),
-  "utf-8",
-);
+const src = readFileSync(join(__dirname, "VoiceProvider.tsx"), "utf-8");
 
 // The new fast-path block sits before the 4 existing semantic fast-paths.
 // Slice it out so assertions don't bleed into unrelated code.
@@ -69,7 +66,9 @@ describe("voice latency fix: new navigation fast-path block exists in handleAIAs
   });
 
   it("unknown destination falls through to AI API (no early return)", () => {
-    expect(fastPathBlock).toContain("// Unknown destination — fall through to the AI API");
+    expect(fastPathBlock).toContain(
+      "// Unknown destination — fall through to the AI API",
+    );
   });
 
   it("does NOT write to sessionStorage — navigation phrases are not meaningful queries for target pages", () => {
@@ -86,7 +85,10 @@ describe("voice latency fix: all 4 existing semantic fast-paths speak before nav
     const pushIdx = pathSrc.indexOf("router.push(");
     expect(speakIdx, `${label}: speakText not found`).toBeGreaterThan(-1);
     expect(pushIdx, `${label}: router.push not found`).toBeGreaterThan(-1);
-    expect(speakIdx, `${label}: speakText must come before router.push`).toBeLessThan(pushIdx);
+    expect(
+      speakIdx,
+      `${label}: speakText must come before router.push`,
+    ).toBeLessThan(pushIdx);
   }
 
   it("lifestyle fast-path speaks before navigating", () => {

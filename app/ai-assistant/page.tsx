@@ -79,7 +79,6 @@ const ASSISTANT_GREETINGS = [
   "Good to see you! What's your style mood today?",
 ];
 
-
 export default function AIAssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
@@ -166,7 +165,6 @@ export default function AIAssistantPage() {
     speakText,
   } = useVoiceContext();
 
-
   useEffect(() => {
     voiceStateRef.current = voiceState;
   }, [voiceState]);
@@ -248,7 +246,6 @@ export default function AIAssistantPage() {
     },
     [chooseGreeting, playGreeting, showIdle],
   );
-
 
   const status = isListening
     ? "Listening"
@@ -334,7 +331,6 @@ export default function AIAssistantPage() {
                 Tap to start
               </p>
             </motion.div>
-
           </motion.div>
         ) : (
           <motion.main
@@ -403,7 +399,6 @@ export default function AIAssistantPage() {
           </motion.main>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
