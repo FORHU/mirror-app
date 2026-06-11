@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "motion/react";
 
 const TRANSPORT = [
   { profile: "car" as const, Icon: Car },
-  { profile: "motorcycle" as const, Icon: Car },
   { profile: "bicycle" as const, Icon: Bike },
   { profile: "walking" as const, Icon: PersonStanding },
 ];

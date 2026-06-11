@@ -101,7 +101,7 @@ export const mapService = {
   directions: async (
     origin: [number, number],
     destination: [number, number],
-    profile: "car" | "motorcycle" | "bicycle" | "walking" = "car",
+    profile: "car" | "bicycle" | "walking" = "car",
   ): Promise<DirectionsFormatted> => {
     const res = await api.post<DirectionsFormatted>(
       "/api/mirror/map/directions",
