@@ -427,8 +427,9 @@ export default function SuggestedPOIMarkers() {
     markersRef.current = [];
     if (openRef.current) {
       openRef.current.popup.remove();
-      openRef.current.root.unmount();
+      const staleRoot = openRef.current.root;
       openRef.current = null;
+      setTimeout(() => staleRoot.unmount(), 0);
     }
 
     if (!map || !suggestedPOIs.length) return;
@@ -436,9 +437,10 @@ export default function SuggestedPOIMarkers() {
     const openPopup = (poi: NearbyPOI, el: HTMLDivElement) => {
       if (openRef.current) {
         openRef.current.popup.remove();
-        openRef.current.root.unmount();
+        const staleRoot = openRef.current.root;
         setPinSelected(openRef.current.markerEl, openRef.current.color, false);
         openRef.current = null;
+        setTimeout(() => staleRoot.unmount(), 0);
       }
 
       const color = poiColor(poi.category);
@@ -450,13 +452,14 @@ export default function SuggestedPOIMarkers() {
       const closePopup = () => {
         if (openRef.current) {
           openRef.current.popup.remove();
-          openRef.current.root.unmount();
+          const staleRoot = openRef.current.root;
           setPinSelected(
             openRef.current.markerEl,
             openRef.current.color,
             false,
           );
           openRef.current = null;
+          setTimeout(() => staleRoot.unmount(), 0);
         }
       };
 
@@ -544,8 +547,9 @@ export default function SuggestedPOIMarkers() {
       markersRef.current = [];
       if (openRef.current) {
         openRef.current.popup.remove();
-        openRef.current.root.unmount();
+        const staleRoot = openRef.current.root;
         openRef.current = null;
+        setTimeout(() => staleRoot.unmount(), 0);
       }
     };
   }, [map, suggestedPOIs, setDestination, clearSuggestions]);
