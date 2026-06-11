@@ -30,19 +30,16 @@ import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMap
 
 import {
   OverviewGrid,
-  CameraDisclaimer,
   useOverviewStore,
   adaptGarmentData,
   adaptRemoteOutfitsToTiles,
   adaptCosmeticsData,
   adaptMapsData,
-  adaptSkinAnalysisData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outfitService } from "@/modules/shared/api/outfit.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
-import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
 
 // The voice pipeline emits this extended action (not part of the base union)
@@ -63,10 +60,6 @@ async function requestGarmentsWithFreshSession(
   input: string,
   location?: OverviewLocationContext | null,
 ) {
-  // Overview produces a cosmetics tile, which ChatWonder can only fill when it
-  // receives the skin analysis (ADR 0002). Pass it on both the initial call and
-  // the post-409 retry. Weather is resolved server-side from the location.
-  const skinAnalysis = useMirrorStore.getState().skinAnalysisResult;
   const payload = {
     input,
     pageMode: "overview" as const,
@@ -78,7 +71,6 @@ async function requestGarmentsWithFreshSession(
           },
         }
       : {}),
-    ...(skinAnalysis ? { skinAnalysis } : {}),
   };
   try {
     return await chatWonderService.message(payload);
@@ -120,7 +112,6 @@ export default function OverviewPage() {
   );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
-  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   // Explicit gate for the full-screen loader: true while the initial Outline
   // hydration is in flight (so we don't flash empty tiles before data arrives),
@@ -186,30 +177,7 @@ export default function OverviewPage() {
     };
   }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
 
-  // ── face detection → greet (fires once) ──
-  const onFaceDetected = useCallback(() => {
-    setFaceDetected(true);
-    // Overview is a downstream dashboard, not an entry screen — it does not
-    // greet. (Greeting belongs to /ai-assistant.)
-  }, [setFaceDetected]);
-
   const router = useRouter();
-
-  const { videoRef, isPresent, captureFrame } = useProximitySensor({
-    intervalMs: 1000,
-    missesUntilExit: 3,
-  });
-
-  const hasCapturedRef = useRef(false);
-  useEffect(() => {
-    if (isPresent && !hasCapturedRef.current) {
-      hasCapturedRef.current = true;
-      const frame = captureFrame();
-      if (frame) {
-        onFaceDetected();
-      }
-    }
-  }, [isPresent, captureFrame, onFaceDetected]);
 
   const commitMap = useCallback(
     (data: Parameters<typeof setMap>[0]) => {
@@ -231,19 +199,11 @@ export default function OverviewPage() {
     const cosmetics =
       overviewCosmeticsSnapshot?.length
         ? overviewCosmeticsSnapshot
-        : adaptCosmeticsData(
-            pendingCosmeticsData ??
-              chatCosmeticsData ??
-              skinAnalysisResult?.recommendations ??
-              [],
-          );
+        : adaptCosmeticsData(pendingCosmeticsData ?? chatCosmeticsData ?? []);
     if (cosmetics.length) {
       setCosmetics(cosmetics);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
     }
-
-    const skinTile = adaptSkinAnalysisData(skinAnalysisResult);
-    if (skinTile) setSkinAnalysis(skinTile);
 
     if (overviewMapSnapshot) setMap(overviewMapSnapshot);
     else emptyMap();
@@ -253,7 +213,6 @@ export default function OverviewPage() {
     overviewMapSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
-    skinAnalysisResult,
     setGarments,
     setOutfits,
     setCosmetics,
@@ -393,15 +352,6 @@ export default function OverviewPage() {
 
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        aria-hidden
-        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
-      />
-
       <MirrorHeader
         className="w-full"
         style={{
@@ -410,17 +360,6 @@ export default function OverviewPage() {
           paddingRight: "16px",
         }}
         onBack={() => router.back()}
-      />
-      <div className="m-4 shrink-0">
-        <CameraDisclaimer />
-      </div>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        aria-hidden
-        className="absolute w-px h-px opacity-0 pointer-events-none -z-10"
       />
 
       {/* Grid */}
