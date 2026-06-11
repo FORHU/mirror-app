@@ -810,6 +810,25 @@ export default function FashionCatalog() {
 
             <MirrorHeader onBack={() => router.back()} />
 
+            {/* Top filter row */}
+            {!isLoading && (
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        padding: "6px 16px",
+                        flexShrink: 0,
+                    }}
+                >
+                    <QuickResponseChips
+                        onSelect={handleChipSelect}
+                        prompts={MAIN_CATEGORIES}
+                        className="relative z-40"
+                    />
+                </div>
+            )}
+
             {/* AI Suggestion Banner */}
             <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />            <div className="flex flex-1 w-full" style={{ height: "546px" }}>
                 {/* Left panel — outfits 1-4 */}
@@ -1209,11 +1228,6 @@ export default function FashionCatalog() {
                         ]}
                         className="relative z-40 w-full"
                         direction="top"
-                    />
-                    <QuickResponseChips
-                        onSelect={handleChipSelect}
-                        prompts={MAIN_CATEGORIES}
-                        className="relative z-40"
                     />
                 </div>
             )}
