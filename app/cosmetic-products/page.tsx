@@ -367,7 +367,7 @@ export default function CosmeticProductsPage() {
                   </div>
                 )}
                 {selectedProductExplanation && (
-                  <div className="mt-4 max-w-[560px] text-white/55 text-sm leading-relaxed">
+                  <div className="mt-4 max-w-[560px] text-white text-sm leading-relaxed">
                     {selectedProductExplanation}
                   </div>
                 )}
