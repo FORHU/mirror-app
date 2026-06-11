@@ -6,6 +6,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import {
   cosmeticsService,
   type CosmeticProduct,
+  type SkinAnalysis,
 } from "@/modules/shared/api/cosmetics.service";
 import {
   SKIN_TYPE_FILTERS,
@@ -13,6 +14,8 @@ import {
   type SkinTypeKey,
 } from "@/modules/cosmetics/constants";
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
@@ -77,6 +80,32 @@ function getProductExplanation(product: CosmeticProduct) {
   }
   if (category) return null;
   return null;
+}
+
+function recommendationPool(items: CosmeticProduct[]) {
+  const buckets = new Map<string, CosmeticProduct[]>();
+  for (const item of items) {
+    const key = item.type ?? item.category ?? "OTHER";
+    buckets.set(key, [...(buckets.get(key) ?? []), item]);
+  }
+
+  const mixed: CosmeticProduct[] = [];
+  const bucketItems = Array.from(buckets.values());
+  let offset = 1;
+  while (mixed.length < items.length) {
+    let added = false;
+    for (const bucket of bucketItems) {
+      const item = bucket[offset % bucket.length];
+      if (item && !mixed.some((candidate) => candidate.id === item.id)) {
+        mixed.push(item);
+        added = true;
+      }
+    }
+    if (!added) break;
+    offset += 1;
+  }
+
+  return mixed.length ? mixed : items;
 }
 
 function ProductCard({
@@ -228,6 +257,44 @@ export default function CosmeticProductsPage() {
     return [left, right];
   }, [filtered]);
 
+  const handleEvaluateSkin = () => {
+    const evaluation = {
+      success: true,
+      skin_type: skinType,
+    };
+    const recommendations = recommendationPool(filtered)
+      .slice(0, 10)
+      .map((product, index) => ({
+      id: `catalog-${skinType.toLowerCase()}-${product.id}`,
+      rank: index + 1,
+      score: Math.max(0.7, 1 - index * 0.03),
+      reason:
+        getProductExplanation(product) ??
+        `Recommended for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
+      cosmeticProduct: product,
+      }));
+    const result: SkinAnalysis = {
+      id: `catalog-evaluation-${skinType.toLowerCase()}`,
+      skinType: evaluation.skin_type,
+      skinTone: null,
+      hydrationPct: skinType === "DRY" ? 32 : skinType === "OILY" ? 68 : 52,
+      oilinessPct: skinType === "OILY" ? 78 : skinType === "DRY" ? 24 : 48,
+      concerns: [SKIN_TYPE_FILTERS[skinType].label],
+      routineTip: `Showing recommendations for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
+      recommendations,
+    };
+
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    useMirrorStore.getState().setChatCosmeticsData(null);
+    useMirrorStore.getState().setSkinAnalysisResult(result);
+    useMirrorStore
+      .getState()
+      .setAiSuggestion(
+        `Skin evaluation complete: ${SKIN_TYPE_FILTERS[skinType].label} skin.`,
+      );
+    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+  };
+
   return (
     <div
       className="w-full h-full relative overflow-hidden text-white flex flex-col"
@@ -292,6 +359,25 @@ export default function CosmeticProductsPage() {
             );
           })}
         </div>
+
+        <button
+          type="button"
+          onClick={handleEvaluateSkin}
+          disabled={loading || filtered.length === 0}
+          className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{
+            WebkitTapHighlightColor: "transparent",
+            padding: "clamp(10px, 1.5vh, 18px) clamp(22px, 3vw, 44px)",
+            background: "transparent",
+            border: "1.5px solid rgba(255,255,255,0.5)",
+            color: "#ffffff",
+            cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+          }}
+        >
+          <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
+            Evaluate Your Skin
+          </span>
+        </button>
 
         <div className="text-white/45 text-[11px] tracking-[0.24em] uppercase text-center">
           {loading

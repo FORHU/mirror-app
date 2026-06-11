@@ -19,6 +19,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -267,34 +268,57 @@ export default function CosmeticRecommendationPage() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      if (action.type !== "cosmetic_select_recommendation") return;
-      const selected =
-        sortedRecs.find((rec) => rec.rank === action.rank) ??
-        sortedRecs[action.rank - 1];
-      if (selected) setSelectedId(selected.id);
+      if (action.type === "cosmetic_select_recommendation") {
+        const selected =
+          sortedRecs.find((rec) => rec.rank === action.rank) ??
+          sortedRecs[action.rank - 1];
+        if (selected) setSelectedId(selected.id);
+        return;
+      }
+
+      if (action.type === "GARMENT_RECOMMENDATION") {
+        const response = action.response as {
+          cosmetics_data?: { query?: string; recommendations?: unknown[] } | null;
+        } | null;
+        if (response?.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      }
     },
-    [sortedRecs],
+    [handleAiComplete, sortedRecs],
   );
 
   useVoice(pageContext, handleVoiceAction);
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
-      void submitText(prompt)
-        .catch((err) => {
-          console.error("[cosmetics-suggestion]", err);
-        })
-        .finally(() => {
-          setIsHandoffLoading(false);
+      useMirrorStore.getState().clearAiSuggestion();
+      try {
+        const response = await chatWonderService.message({
+          input: `[cosmetics] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
         });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [submitText],
+    [handleAiComplete, skinAnalysisResult],
   );
 
   useEffect(() => {
