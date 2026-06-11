@@ -569,8 +569,9 @@ export default function FashionCatalog() {
         const res = action.response as {
           garment_data?: Record<string, unknown>;
         } | null;
+        if (!res?.garment_data) return;
         const query =
-          typeof res?.garment_data?.query === "string"
+          typeof res.garment_data.query === "string"
             ? res.garment_data.query
             : "";
         const params = new URLSearchParams(query);
