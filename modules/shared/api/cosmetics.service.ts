@@ -33,12 +33,17 @@ export interface SkinAnalysis {
 
 export const cosmeticsService = {
   getByQuery: async (queryString: string): Promise<CosmeticProduct[]> => {
-    const res = await api.get<StandardResponse<{ items: CosmeticProduct[] } | CosmeticProduct[]>>(
-      `/api/mirror/cosmetic-products?${queryString}`,
-    );
-    if (!res.ok) throw new Error(res.problem ?? "Failed to fetch cosmetic products");
+    const res = await api.get<
+      StandardResponse<{ items: CosmeticProduct[] } | CosmeticProduct[]>
+    >(`/api/mirror/cosmetic-products?${queryString}`);
+    if (!res.ok)
+      throw new Error(res.problem ?? "Failed to fetch cosmetic products");
     const data = res.data?.data;
-    const items = Array.isArray(data) ? data : Array.isArray((data as { items?: CosmeticProduct[] })?.items) ? (data as { items: CosmeticProduct[] }).items : null;
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray((data as { items?: CosmeticProduct[] })?.items)
+        ? (data as { items: CosmeticProduct[] }).items
+        : null;
     if (!items) throw new Error("Unexpected response shape");
     return items;
   },

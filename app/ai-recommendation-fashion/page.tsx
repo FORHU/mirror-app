@@ -627,7 +627,7 @@ export default function VirtualMirrorV2() {
     queueMicrotask(() =>
       handleAiComplete({
         garment_data: { query: params.toString() },
-      } as ChatWonderMessageResponse)
+      } as ChatWonderMessageResponse),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);

@@ -1,4 +1,8 @@
-import { getToday, nextWeekday, type PromptCategory } from "@/components/QuickResponseChips";
+import {
+  getToday,
+  nextWeekday,
+  type PromptCategory,
+} from "@/components/QuickResponseChips";
 import { ROUTES } from "@/navigation";
 
 export const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [

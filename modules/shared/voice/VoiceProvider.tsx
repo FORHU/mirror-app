@@ -88,6 +88,9 @@ import {
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 const CHAT_SESSION_KEY = "mirror_chat_session";
+// Safety cap: without VAD the mic only stops on a tap, so auto-stop & submit a
+// runaway recording (user walked away) instead of buffering audio forever.
+const MAX_RECORDING_MS = 45_000;
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
 
@@ -478,6 +481,27 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current = null;
   }, []);
 
+  // Tear down the mic stream/graph and stop collecting frames. Safe to call
+  // when nothing is recording. (Refs are stable, so no deps needed.)
+  const stopMicCapture = useCallback(() => {
+    isRecordingRef.current = false;
+    if (maxRecordingTimerRef.current) {
+      clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = null;
+    }
+    try {
+      processorRef.current?.disconnect();
+    } catch {
+      /* already disconnected */
+    }
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    void audioCtxRef.current?.close().catch(() => {});
+    processorRef.current = null;
+    mediaStreamRef.current = null;
+    audioCtxRef.current = null;
+    speechFramesRef.current = [];
+  }, []);
+
   // Reset pending state on route change
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
@@ -489,14 +513,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
     if (pathname === ROUTES.WELCOME) {
       stopPlayback();
-      vadRef.current?.pause();
+      stopMicCapture();
       queueMicrotask(() => setVoiceState("idle"));
       sessionIdRef.current = undefined;
       sessionStorage.removeItem(CHAT_SESSION_KEY);
       historyRef.current = [];
       queueMicrotask(() => setChatHistory([]));
     }
-  }, [pathname, stopPlayback]);
+  }, [pathname, stopPlayback, stopMicCapture]);
 
   const speakText = useCallback(
     async (text: string): Promise<void> => {
@@ -531,14 +555,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // Stop any in-flight reply audio when the route changes, so a previous page's
   // spoken reply (e.g. the /ai-assistant answer that triggered navigation) does
   // not keep playing — or overlap new audio — once you land on the next page.
-  // Also pause the VAD and reset voiceState so the mic is always usable on the
-  // new page, even if navigation interrupted a processing/speaking cycle.
+  // Also stop the mic and reset voiceState so the mic is always usable on the
+  // new page, even if navigation interrupted a recording/processing cycle.
   useEffect(() => {
     stopPlayback();
     stopAllAudioQueues();
-    vadRef.current?.pause();
+    stopMicCapture();
     queueMicrotask(() => setVoiceState("idle"));
-  }, [pathname, stopPlayback]);
+  }, [pathname, stopPlayback, stopMicCapture]);
 
   const handleAIAssistantText = useCallback(
     async (t: string) => {
@@ -775,14 +799,16 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback, speakText],
   );
 
-  // VAD-based mic capture (replaces Chrome Web Speech API)
-  const vadRef = useRef<{
-    start: () => Promise<void>;
-    pause: () => Promise<void>;
-  } | null>(null);
-  const vadInitializingRef = useRef(false);
+  // Tap-to-talk mic capture: tap to start recording, tap again to stop & submit.
+  const isRecordingRef = useRef(false);
+  const micInitializingRef = useRef(false);
   const speechFramesRef = useRef<Float32Array[]>([]);
-  const isVadSpeakingRef = useRef(false);
+  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  // Holds the latest stopListening so the max-recording timer can invoke it
+  // without a forward-reference (stopListening is defined further down).
+  const stopListeningRef = useRef<(() => void) | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -3233,93 +3259,52 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [processTranscript],
   );
 
-  // Keep a stable ref so VAD callbacks (created once) always call the latest version
+  // Keep a stable ref so the mic capture path always calls the latest version
   useEffect(() => {
     submitAudioRef.current = submitAudio;
   }, [submitAudio]);
 
   const startListening = useCallback(async () => {
     if (voiceState !== "idle") return;
+    if (micInitializingRef.current) return;
+    micInitializingRef.current = true;
     setError(null);
-
-    // Reuse existing VAD instance — just re-start it.
-    // start() is async; not awaiting it means a suspended AudioContext (common
-    // after page navigation) never resumes, sending garbage audio to Transcribe.
-    if (vadRef.current) {
-      try {
-        await vadRef.current.start();
-        return;
-      } catch {
-        // AudioContext couldn't resume — discard the stale instance and
-        // fall through to full re-initialisation below.
-        Object.assign(vadRef, { current: null });
-      }
-    }
-
-    // Prevent concurrent initialisation
-    if (vadInitializingRef.current) return;
-    vadInitializingRef.current = true;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { noiseSuppression: true, echoCancellation: true },
       });
 
-      // Capture raw 16 kHz PCM using ScriptProcessorNode while VAD is active
+      // Capture raw 16 kHz PCM straight from the mic. Frames are collected for
+      // as long as isRecordingRef is true — i.e. until the user taps to stop.
       const audioCtx = new AudioContext({ sampleRate: 16000 });
       const source = audioCtx.createMediaStreamSource(stream);
-
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
       processor.onaudioprocess = (e: AudioProcessingEvent) => {
-        if (isVadSpeakingRef.current) {
-          const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
-          speechFramesRef.current.push(chunk);
+        if (isRecordingRef.current) {
+          speechFramesRef.current.push(
+            new Float32Array(e.inputBuffer.getChannelData(0)),
+          );
         }
       };
       source.connect(processor);
       processor.connect(audioCtx.destination);
 
+      /* eslint-disable react-hooks/immutability */
       audioCtxRef.current = audioCtx;
       processorRef.current = processor;
       mediaStreamRef.current = stream;
-
-      const { MicVAD } = await import("@ricky0123/vad-web");
-      const vad = await MicVAD.new({
-        getStream: () => Promise.resolve(stream),
-        baseAssetPath: "/",
-        onnxWASMBasePath: "/",
-        model: "v5",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ortConfig(ort: any) {
-          ort.env.wasm.wasmPaths = "/";
-        },
-        onSpeechStart: () => {
-          isVadSpeakingRef.current = true;
-          speechFramesRef.current = [];
-          setVoiceState("recording");
-        },
-        onSpeechEnd: async () => {
-          // Guard: stopListening force-submit already cleared this
-          if (!isVadSpeakingRef.current) return;
-          isVadSpeakingRef.current = false;
-          const frames = speechFramesRef.current;
-          speechFramesRef.current = [];
-          setVoiceState("processing");
-          await submitAudioRef.current?.(frames);
-        },
-        onVADMisfire: () => {
-          isVadSpeakingRef.current = false;
-          speechFramesRef.current = [];
-          setVoiceState("idle");
-        },
-      });
-
-      // eslint-disable-next-line react-hooks/immutability
-      vadRef.current = vad;
-      vadInitializingRef.current = false;
-      vad.start();
+      speechFramesRef.current = [];
+      isRecordingRef.current = true;
+      micInitializingRef.current = false;
+      // Safety auto-stop: submit whatever was captured if the user never taps.
+      maxRecordingTimerRef.current = setTimeout(() => {
+        stopListeningRef.current?.();
+      }, MAX_RECORDING_MS);
+      /* eslint-enable react-hooks/immutability */
+      setVoiceState("recording");
     } catch (err) {
-      vadInitializingRef.current = false;
+      micInitializingRef.current = false;
       const msg =
         err instanceof DOMException && err.name === "NotAllowedError"
           ? "Microphone access denied."
@@ -3332,25 +3317,21 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
   const stopListening = useCallback(async () => {
     if (voiceState !== "recording") return;
+    // Grab the captured frames, tear down the mic, then transcribe.
+    const frames = speechFramesRef.current;
+    stopMicCapture();
+    setVoiceState("processing");
+    await submitAudioRef.current?.(frames);
+  }, [voiceState, stopMicCapture]);
 
-    if (isVadSpeakingRef.current && speechFramesRef.current.length > 0) {
-      // Force-submit: claim the frames before VAD's onSpeechEnd can fire
-      isVadSpeakingRef.current = false;
-      const frames = speechFramesRef.current;
-      speechFramesRef.current = [];
-      vadRef.current?.pause();
-      setVoiceState("processing");
-      await submitAudioRef.current?.(frames);
-    } else {
-      vadRef.current?.pause();
-      setVoiceState("idle");
-    }
-  }, [voiceState]);
+  // Keep the ref current so the max-recording timer always calls the latest one.
+  useEffect(() => {
+    stopListeningRef.current = stopListening;
+  }, [stopListening]);
 
-  // Touch-to-talk: the mic is no longer continuously armed. The user taps the
-  // mic control to start listening; the pipeline then auto-stops on silence
-  // (see startListening's VAD), processes, speaks, and returns to idle — where
-  // it stays until the next tap. Every page shares this same handling.
+  // Tap-to-talk: the mic is not continuously armed. The user taps the mic to
+  // start recording and taps again to stop; the captured audio is then
+  // transcribed, processed, spoken, and the mic returns to idle.
 
   const submitText = useCallback(
     async (text: string) => {
@@ -3384,13 +3365,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState === "recording") return stopListening();
     if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
-      vadRef.current?.pause();
+      stopMicCapture();
       setTranscript("");
       setReply("");
       setError(null);
       setVoiceState("idle");
     }
-  }, [voiceState, startListening, stopListening, stopPlayback]);
+  }, [voiceState, startListening, stopListening, stopPlayback, stopMicCapture]);
 
   const registerPage = useCallback(
     (ctx: PageContext, onAction: (action: ChatWonderAction) => void) => {
