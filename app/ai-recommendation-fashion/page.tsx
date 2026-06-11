@@ -785,26 +785,11 @@ export default function VirtualMirrorV2() {
           <PromptFloater
             onSelect={handleChipSelect}
             prompts={[
-              "Formal outfit — top, bottom, shoes, and bag.",
-              "Business look that feels confident and professional.",
-              "Casual outfit for an everyday relaxed day.",
-              `SmartCasual layered outfit for today, ${getToday()}.`,
-              "Streetwear look with a bold statement vibe.",
-              "Athleisure outfit that blends comfort and style.",
-              "Activewear outfit for performance and movement.",
-              "Sportswear outfit suitable for training or activity.",
-              "Winterwear outfit with warm layers and structure.",
-              "Summerwear outfit that stays light and breathable.",
-              "Springwear outfit for transitional weather.",
-              "Autumnwear outfit with cozy layering.",
-              "Rainwear outfit that stays practical and stylish.",
-              "Minimalist outfit with clean lines and neutral tones.",
-              "Luxury-inspired outfit with a refined aesthetic.",
-              "AvantGarde outfit with an experimental fashion edge.",
-              "Vintage-inspired outfit with retro influence.",
-              "Traditional outfit with cultural inspiration.",
-              "Cultural outfit with heritage influence.",
-              "Uniform-inspired structured outfit style.",
+              `Style me for today, ${getToday()}.`,
+              "Give me a casual everyday look.",
+              "Put together a formal or professional outfit.",
+              "Show me something trendy and stylish.",
+              "Suggest a comfortable outfit for the weekend.",
             ]}
             className="relative z-40"
             direction="below"
@@ -861,7 +846,7 @@ export default function VirtualMirrorV2() {
                   {/* Image — proportional flex share, no fixed height */}
                   <div
                     style={{
-                      flex: "5 1 0",
+                      flex: "7 1 0",
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",
@@ -926,10 +911,10 @@ export default function VirtualMirrorV2() {
                       <span
                         style={{
                           color: "rgba(255,255,255,0.5)",
-                          fontSize: "10px",
+                          fontSize: "9px",
                           lineHeight: 1.5,
                           overflow: "hidden",
-                          maxHeight: "3em",
+                          maxHeight: "2.5em",
                         }}
                       >
                         {selectedOutfit.description}

@@ -113,7 +113,7 @@ jobs:
       - name: Copy env file to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.FRONTEND_EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: mirror-app.env
@@ -122,7 +122,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.FRONTEND_EC2_HOST }}
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 20m
