@@ -549,6 +549,65 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Explicit "navigate / go / take me to <section>" — resolve the destination
+      // immediately without an API round-trip, then speak a short confirmation and
+      // navigate. This avoids the 10-20 s ChatWonder latency for unambiguous
+      // navigation intents like "Navigate me to Maps".
+      if (isNavigationPhrase(t)) {
+        const lc = t.toLowerCase();
+        const alreadyOn = (route: string) =>
+          pageCtxRef.current?.route === route;
+
+        let target: string | null = null;
+        let assistantReply: string | null = null;
+        let storageKey: string | null = null;
+
+        if (/\bmap(s)?\b/.test(lc) && !alreadyOn(ROUTES.MAP)) {
+          target = ROUTES.MAP;
+          assistantReply = "Taking you to the map.";
+          storageKey = MAP_PROMPT_KEY;
+        } else if (
+          /\b(fashion|outfit|outfits|style|clothing|wardrobe)\b/.test(lc)
+        ) {
+          target = ROUTES.AI_RECOMMENDATION_FASHION;
+          assistantReply = "Opening fashion recommendations.";
+          storageKey = FASHION_PROMPT_KEY;
+        } else if (
+          /\b(cosmetic|cosmetics|skincare|skin care|skin|product|products)\b/.test(
+            lc,
+          )
+        ) {
+          target = ROUTES.AI_RECOMMENDATION_COSMETIC;
+          assistantReply = "Opening cosmetic recommendations.";
+          storageKey = COSMETIC_PROMPT_KEY;
+        } else if (/\b(overview|home|dashboard)\b/.test(lc)) {
+          target = ROUTES.OVERVIEW;
+          assistantReply = "Taking you to the overview.";
+          storageKey = OVERVIEW_PROMPT_KEY;
+        }
+
+        if (target && assistantReply) {
+          setReply(assistantReply);
+          const newHistory = [
+            ...historyRef.current,
+            { user: t, assistant: assistantReply },
+          ];
+          historyRef.current = newHistory;
+          setChatHistory(newHistory);
+          if (storageKey) {
+            try {
+              sessionStorage.setItem(storageKey, t);
+            } catch {
+              /* best-effort */
+            }
+          }
+          await speakText(assistantReply);
+          router.push(target);
+          return;
+        }
+        // Unknown destination — fall through to the AI API
+      }
+
       if (isLifestylePrompt(t) && !isNavigationPhrase(t)) {
         const assistantReply =
           "Pulling together your outfit, skincare, and places to explore.";
@@ -564,8 +623,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* prompt handoff is best-effort */
         }
+        await speakText(assistantReply);
         router.push(ROUTES.OVERVIEW);
-        setVoiceState("idle");
         return;
       }
 
@@ -600,8 +659,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* prompt handoff is best-effort */
         }
+        await speakText(assistantReply);
         router.push(ROUTES.AI_RECOMMENDATION_FASHION);
-        setVoiceState("idle");
         return;
       }
 
@@ -622,8 +681,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* best-effort */
         }
+        await speakText(assistantReply);
         router.push(ROUTES.MAP);
-        setVoiceState("idle");
         return;
       }
 
@@ -644,8 +703,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         } catch {
           /* prompt handoff is best-effort */
         }
+        await speakText(assistantReply);
         router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
-        setVoiceState("idle");
         return;
       }
 
@@ -721,7 +780,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       };
       src.start(0);
     },
-    [router, stopPlayback],
+    [router, stopPlayback, speakText],
   );
 
   // VAD-based mic capture (replaces Chrome Web Speech API)
