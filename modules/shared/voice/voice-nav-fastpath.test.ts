@@ -71,6 +71,13 @@ describe("voice latency fix: new navigation fast-path block exists in handleAIAs
   it("unknown destination falls through to AI API (no early return)", () => {
     expect(fastPathBlock).toContain("// Unknown destination — fall through to the AI API");
   });
+
+  it("does NOT write to sessionStorage — navigation phrases are not meaningful queries for target pages", () => {
+    // The 4 semantic fast-paths DO write to session storage (transcript is a real query).
+    // The navigation fast-path must NOT — "Navigate me to Maps" would cause the
+    // map/fashion/cosmetics page to auto-run it as an AI query on mount.
+    expect(fastPathBlock).not.toContain("sessionStorage.setItem");
+  });
 });
 
 describe("voice latency fix: all 4 existing semantic fast-paths speak before navigating", () => {

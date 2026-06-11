@@ -560,18 +560,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
         let target: string | null = null;
         let assistantReply: string | null = null;
-        let storageKey: string | null = null;
 
         if (/\bmap(s)?\b/.test(lc) && !alreadyOn(ROUTES.MAP)) {
           target = ROUTES.MAP;
           assistantReply = "Taking you to the map.";
-          storageKey = MAP_PROMPT_KEY;
         } else if (
           /\b(fashion|outfit|outfits|style|clothing|wardrobe)\b/.test(lc)
         ) {
           target = ROUTES.AI_RECOMMENDATION_FASHION;
           assistantReply = "Opening fashion recommendations.";
-          storageKey = FASHION_PROMPT_KEY;
         } else if (
           /\b(cosmetic|cosmetics|skincare|skin care|skin|product|products)\b/.test(
             lc,
@@ -579,11 +576,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         ) {
           target = ROUTES.AI_RECOMMENDATION_COSMETIC;
           assistantReply = "Opening cosmetic recommendations.";
-          storageKey = COSMETIC_PROMPT_KEY;
         } else if (/\b(overview|home|dashboard)\b/.test(lc)) {
           target = ROUTES.OVERVIEW;
           assistantReply = "Taking you to the overview.";
-          storageKey = OVERVIEW_PROMPT_KEY;
         }
 
         if (target && assistantReply) {
@@ -594,13 +589,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           ];
           historyRef.current = newHistory;
           setChatHistory(newHistory);
-          if (storageKey) {
-            try {
-              sessionStorage.setItem(storageKey, t);
-            } catch {
-              /* best-effort */
-            }
-          }
+          // Intentionally no sessionStorage write here — the transcript is a
+          // navigation command ("Navigate me to X"), not a meaningful query for
+          // the target page. Writing it would cause pages to auto-run it as an
+          // AI query on mount.
           await speakText(assistantReply);
           router.push(target);
           return;
