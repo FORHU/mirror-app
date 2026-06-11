@@ -861,7 +861,7 @@ export default function VirtualMirrorV2() {
                   {/* Image — proportional flex share, no fixed height */}
                   <div
                     style={{
-                      flex: "5 1 0",
+                      flex: "7 1 0",
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",
@@ -926,10 +926,10 @@ export default function VirtualMirrorV2() {
                       <span
                         style={{
                           color: "rgba(255,255,255,0.5)",
-                          fontSize: "10px",
+                          fontSize: "9px",
                           lineHeight: 1.5,
                           overflow: "hidden",
-                          maxHeight: "3em",
+                          maxHeight: "2.5em",
                         }}
                       >
                         {selectedOutfit.description}

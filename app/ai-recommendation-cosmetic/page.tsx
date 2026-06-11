@@ -433,7 +433,7 @@ export default function CosmeticRecommendationPage() {
         type="button"
         onClick={() => router.push(ROUTES.COSMETIC_PRODUCTS)}
         aria-label="Browse products by skin type"
-        className="fixed bottom-[104px] right-8 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
+        className="fixed bottom-4 right-8 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
         style={{
           background: "rgba(20,20,30,0.85)",
           border: "1.5px solid rgba(255,255,255,0.15)",
