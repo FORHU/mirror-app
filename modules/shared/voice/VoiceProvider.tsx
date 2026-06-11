@@ -3192,51 +3192,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           speechFramesRef.current = [];
           partialTranscriptRef.current = "";
           setVoiceState("recording");
-
-          // Open a streaming AWS Transcribe WebSocket immediately so audio
-          // chunks can be forwarded in real-time as the user speaks.
-          const lang = useMirrorStore.getState().voiceLanguage || "en-US";
-          const proto =
-            window.location.protocol === "https:" ? "wss" : "ws";
-          const ws = new WebSocket(
-            `${proto}://${window.location.host}/api/mirror/voice/transcribe-ws?lang=${encodeURIComponent(lang)}`,
-          );
-          ws.onmessage = (ev: MessageEvent<string>) => {
-            try {
-              const msg = JSON.parse(ev.data) as {
-                type: string;
-                transcript?: string;
-                message?: string;
-              };
-              if (
-                (msg.type === "partial" || msg.type === "final") &&
-                msg.transcript
-              ) {
-                partialTranscriptRef.current = msg.transcript;
-                // Show live partial text while the user speaks
-                if (msg.type === "partial") setTranscript(msg.transcript);
-              } else if (msg.type === "done") {
-                wsResolveRef.current?.(partialTranscriptRef.current);
-                wsResolveRef.current = null;
-              } else if (msg.type === "error") {
-                wsRejectRef.current?.(
-                  new Error(msg.message ?? "Transcription error"),
-                );
-                wsRejectRef.current = null;
-              }
-            } catch {
-              /* ignore parse errors */
-            }
-          };
-          ws.onclose = () => {
-            wsResolveRef.current?.(partialTranscriptRef.current);
-            wsResolveRef.current = null;
-          };
-          ws.onerror = () => {
-            wsRejectRef.current?.(new Error("WebSocket transcription failed"));
-            wsRejectRef.current = null;
-          };
-          transcribeWsRef.current = ws;
         },
         onSpeechEnd: async () => {
           // Guard: stopListening force-submit already cleared this

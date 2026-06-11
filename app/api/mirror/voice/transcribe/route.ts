@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
   });
 
   async function* audioStream() {
-    yield { AudioEvent: { AudioChunk: padded } };
+    const CHUNK = 8192; // 4096 samples × 2 bytes — matches ScriptProcessorNode buffer size
+    for (let i = 0; i < padded.length; i += CHUNK) {
+      yield { AudioEvent: { AudioChunk: padded.slice(i, i + CHUNK) } };
+    }
   }
 
   try {
