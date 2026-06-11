@@ -175,7 +175,7 @@ export function QuickResponseChips({
                     }
                     handleTap(prompt);
                   }}
-                  className="px-4 py-2 rounded-full text-center text-[12px] leading-snug font-light text-white/70 border border-white/10 transition-colors active:bg-white/10 hover:text-white/90 hover:border-white/20"
+                  className="px-4 py-2 rounded-2xl text-center text-[12px] leading-snug font-light text-white/70 border border-white/10 transition-colors active:bg-white/10 hover:text-white/90 hover:border-white/20"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     backdropFilter: "blur(12px)",
