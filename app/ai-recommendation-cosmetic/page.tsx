@@ -176,23 +176,30 @@ export default function CosmeticRecommendationPage() {
     if (!current) return;
     const params = new URLSearchParams(current);
     if (!params.has("limit")) params.set("limit", "10");
-    setIsHandoffLoading(true);
-    cosmeticsService
-      .getByQuery(params.toString())
-      .then((products) => {
-        useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
-        setSelectedId(null);
-      })
-      .catch(console.error)
-      .finally(() => setIsHandoffLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    queueMicrotask(() => {
+      setIsHandoffLoading(true);
+      cosmeticsService
+        .getByQuery(params.toString())
+        .then((products) => {
+          useMirrorStore
+            .getState()
+            .setPendingCosmeticsData({ recommendations: products });
+          setSelectedId(null);
+        })
+        .catch(console.error)
+        .finally(() => setIsHandoffLoading(false));
+    });
   }, [searchParams]);
 
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
     useMirrorStore.getState().setChatCosmeticsData(null);
-    handleAiComplete(chatCosmeticsData as { query?: string; recommendations?: unknown[] });
+    queueMicrotask(() => {
+      handleAiComplete(
+        chatCosmeticsData as { query?: string; recommendations?: unknown[] },
+      );
+    });
   }, [chatCosmeticsData, handleAiComplete]);
 
   const rawRecs = useMemo(() => {

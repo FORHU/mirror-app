@@ -735,7 +735,7 @@ export default function FashionCatalog() {
 
           {/* Center panel */}
           <div
-            className="h-full flex flex-col items-center pt-8 gap-1 overflow-hidden"
+            className="h-full flex flex-col items-center overflow-hidden"
             style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
           >
             {/* Loading state — cycling fashion quotes */}
@@ -756,18 +756,19 @@ export default function FashionCatalog() {
                   flex: 1,
                   minHeight: 0,
                   width: "100%",
-                  padding: "0 8px 96px",
+                  padding: "10px 8px 180px",
                   display: "flex",
                   flexDirection: "column",
-                  gap: "12px",
+                  gap: "10px",
                   overflow: "auto",
+                  scrollPaddingBottom: "180px",
                   background: "transparent",
                 }}
               >
                 <div
                   style={{
-                    flex: "0 0 min(76vh, 760px)",
-                    minHeight: "460px",
+                    flex: "1 1 auto",
+                    minHeight: "min(58vh, 620px)",
                     borderRadius: "14px",
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.08)",
