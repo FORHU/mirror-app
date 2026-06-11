@@ -46,6 +46,10 @@ export default function VirtualMirrorV2() {
   const [isChipLoading, setIsChipLoading] = useState(false);
   const isLoading = isProcessing || isChipLoading;
 
+  const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  useEffect(() => { setAssistantIdle(isLoading); }, [isLoading, setAssistantIdle]);
+  useEffect(() => () => { setAssistantIdle(false); }, [setAssistantIdle]);
+
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
@@ -1242,7 +1246,7 @@ export default function VirtualMirrorV2() {
         })()}
 
         {/* Right panel — per-slot garment pickers */}
-        {hasRecommendations && (
+        {hasRecommendations && !isLoading && (
           <GarmentSelectionPanel
             slots={garmentSlots}
             swapSlot={swapSlot}
