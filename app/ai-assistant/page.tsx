@@ -13,7 +13,6 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import AssistantNavBar from "@/components/AssistantNavBar";
-import { useRouter } from "next/navigation";
 import {
   useOverviewStore,
   adaptGarmentData,
@@ -82,7 +81,6 @@ const ASSISTANT_GREETINGS = [
 
 
 export default function AIAssistantPage() {
-  const router = useRouter();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});

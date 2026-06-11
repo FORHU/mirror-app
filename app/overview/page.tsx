@@ -85,7 +85,6 @@ async function requestGarmentsWithFreshSession(
 
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
-  const setFaceDetected = useOverviewStore((s) => s.setFaceDetected);
   const setGreeting = useOverviewStore((s) => s.setGreeting);
   const emptyMap = useOverviewStore((s) => s.emptyMap);
   const startGarments = useOverviewStore((s) => s.startGarments);
@@ -112,6 +111,7 @@ export default function OverviewPage() {
   );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   // Explicit gate for the full-screen loader: true while the initial Outline
   // hydration is in flight (so we don't flash empty tiles before data arrives),
@@ -217,6 +217,7 @@ export default function OverviewPage() {
     overviewMapSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
+    skinAnalysisResult?.recommendations,
     setGarments,
     setOutfits,
     setCosmetics,

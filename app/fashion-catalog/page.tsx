@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
-import {
-  garmentService,
-  type RemoteGarment,
-} from "@/modules/shared/api/garment.service";
-import { FittingSlot } from "@/modules/garment/types";
+import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import {
   outfitService,
   type RemoteOutfit,
@@ -87,40 +83,13 @@ export default function FashionCatalog() {
   const canvasRef = useRef<OutfitPreviewCanvasHandle>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const [garmentPanelOpen, setGarmentPanelOpen] = useState(true);
 
-  const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
-  const [swapItemId, setSwapItemId] = useState<string | null>(null);
+  const [swapSlot] = useState<SwapSlot | null>(null);
+  const [swapItemId] = useState<string | null>(null);
   const [outfitOverrides, setOutfitOverrides] = useState<
     Record<string, RemoteGarment>
   >({});
   const outfitModified = Object.keys(outfitOverrides).length > 0;
-
-  function resolveSwapSlot(
-    garmentType: string[],
-    fittingSlot: string[],
-  ): SwapSlot {
-    if (garmentType.includes("Bag")) return "bags";
-    if (fittingSlot.includes("LowerGarment")) return "bottoms";
-    if (fittingSlot.includes("FootGarment")) return "shoes";
-    const t = garmentType[0] ?? "";
-    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t))
-      return "outer";
-    if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
-    return "base";
-  }
-
-  function applySwap(g: RemoteGarment) {
-    if (!swapItemId) return;
-    setOutfitOverrides((prev) => ({ ...prev, [swapItemId]: g }));
-    setSwapSlot(null);
-    setSwapItemId(null);
-  }
-
-  function cancelSwap() {
-    setSwapSlot(null);
-    setSwapItemId(null);
-  }
 
   const clearSlots = useCallback(() => {
     setSelectedBag(null);
@@ -133,24 +102,12 @@ export default function FashionCatalog() {
 
   const selectOutfit = useCallback(
     (idx: number | null) => {
-      setSelectedOutfitIdx(idx);
-      setGarmentPanelOpen(false);
+      setSelectedOutfitIdx(idx);
       clearSlots();
-      setOutfitOverrides({});
-      setSwapSlot(null);
-      setSwapItemId(null);
+      setOutfitOverrides({});
     },
     [clearSlots],
   );
-
-  const handleGarmentPanelOpenChange = useCallback((open: boolean) => {
-    setGarmentPanelOpen(open);
-    if (!open) return;
-    setSelectedOutfitIdx(null);
-    setOutfitOverrides({});
-    setSwapSlot(null);
-    setSwapItemId(null);
-  }, []);
 
   const outfitPageSize = 8;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -175,71 +132,34 @@ export default function FashionCatalog() {
   const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
   const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
   const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
-  const [catalogTopsBase, setCatalogTopsBase] = useState<RemoteGarment[]>([]);
-  const [catalogTopsMid, setCatalogTopsMid] = useState<RemoteGarment[]>([]);
-  const [catalogTopsOuter, setCatalogTopsOuter] = useState<RemoteGarment[]>([]);
-  const [catalogBottoms, setCatalogBottoms] = useState<RemoteGarment[]>([]);
-  const [catalogShoes, setCatalogShoes] = useState<RemoteGarment[]>([]);
-  const [catalogBags, setCatalogBags] = useState<RemoteGarment[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
 
   const [topsBasePage, setTopsBasePage] = useState(0);
   const [topsMidPage, setTopsMidPage] = useState(0);
   const [topsOuterPage, setTopsOuterPage] = useState(0);
 
-  const swappingGarmentId = (() => {
-    if (!swapItemId || selectedOutfitIdx === null) return null;
-    const outfit = outfits[selectedOutfitIdx];
-    if (!outfit) return null;
-    const item = outfit.items.find((i) => i.id === swapItemId);
-    if (!item) return null;
-    return (outfitOverrides[swapItemId] ?? item.garment).id;
-  })();
-
-  const filteredTopsBase =
-    swapSlot === "base" && swappingGarmentId
-      ? topsBase.filter((g) => g.id !== swappingGarmentId)
-      : topsBase;
-  const filteredTopsMid =
-    swapSlot === "mid" && swappingGarmentId
-      ? topsMid.filter((g) => g.id !== swappingGarmentId)
-      : topsMid;
-  const filteredTopsOuter =
-    swapSlot === "outer" && swappingGarmentId
-      ? topsOuter.filter((g) => g.id !== swappingGarmentId)
-      : topsOuter;
-
-  const pagedTopsBase = filteredTopsBase.slice(
+  const pagedTopsBase = topsBase.slice(
     topsBasePage * topsLayerPageSize,
     (topsBasePage + 1) * topsLayerPageSize,
   );
-  const pagedTopsMid = filteredTopsMid.slice(
+  const pagedTopsMid = topsMid.slice(
     topsMidPage * topsLayerPageSize,
     (topsMidPage + 1) * topsLayerPageSize,
   );
-  const pagedTopsOuter = filteredTopsOuter.slice(
+  const pagedTopsOuter = topsOuter.slice(
     topsOuterPage * topsLayerPageSize,
     (topsOuterPage + 1) * topsLayerPageSize,
   );
 
   const [shoes, setShoes] = useState<RemoteGarment[]>([]);
   const [shoesPage, setShoesPage] = useState(0);
-  const filteredShoes =
-    swapSlot === "shoes" && swappingGarmentId
-      ? shoes.filter((g) => g.id !== swappingGarmentId)
-      : shoes;
-  const pagedShoes = filteredShoes.slice(
+  const pagedShoes = shoes.slice(
     shoesPage * shoesPageSize,
     (shoesPage + 1) * shoesPageSize,
   );
 
   const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
   const [bottomsPage, setBottomsPage] = useState(0);
-  const filteredBottoms =
-    swapSlot === "bottoms" && swappingGarmentId
-      ? bottoms.filter((g) => g.id !== swappingGarmentId)
-      : bottoms;
-  const pagedBottoms = filteredBottoms.slice(
+  const pagedBottoms = bottoms.slice(
     bottomsPage * bottomsPageSize,
     (bottomsPage + 1) * bottomsPageSize,
   );
@@ -247,63 +167,10 @@ export default function FashionCatalog() {
   const [bags, setBags] = useState<RemoteGarment[]>([]);
 
   const [bagsPage, setBagsPage] = useState(0);
-  const filteredBags =
-    swapSlot === "bags" && swappingGarmentId
-      ? bags.filter((g) => g.id !== swappingGarmentId)
-      : bags;
-  const pagedBags = filteredBags.slice(
+  const pagedBags = bags.slice(
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    const OUTER_TYPES = new Set([
-      "Blazer",
-      "Jacket",
-      "Coat",
-      "Parka",
-      "Windbreaker",
-    ]);
-    const MID_TYPES = new Set(["Hoodie", "Sweater", "Cardigan", "Pullover"]);
-
-    Promise.all([
-      garmentService.getBySlot(FittingSlot.UpperGarment),
-      garmentService.getBySlot(FittingSlot.LowerGarment),
-      garmentService.getBySlot(FittingSlot.FootGarment),
-      garmentService.getBySlot(FittingSlot.RightHandAccessory),
-    ])
-      .then(([upperItems, lowerItems, footItems, bagItems]) => {
-        if (cancelled) return;
-        setCatalogTopsOuter(
-          upperItems.filter((g) =>
-            g.garmentType.some((t) => OUTER_TYPES.has(t)),
-          ),
-        );
-        setCatalogTopsMid(
-          upperItems.filter((g) => g.garmentType.some((t) => MID_TYPES.has(t))),
-        );
-        setCatalogTopsBase(
-          upperItems.filter(
-            (g) =>
-              !g.garmentType.some(
-                (t) => OUTER_TYPES.has(t) || MID_TYPES.has(t),
-              ),
-          ),
-        );
-        setCatalogBottoms(lowerItems);
-        setCatalogShoes(footItems);
-        setCatalogBags(bagItems);
-      })
-      .catch(console.error)
-      .finally(() => {
-        if (!cancelled) setCatalogLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const handleAiComplete = useCallback(
     (response: ChatWonderMessageResponse) => {
@@ -631,9 +498,7 @@ export default function FashionCatalog() {
         if (!garment) return;
         if (swapSlot === slot && swapItemId) {
           const id = swapItemId;
-          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
-          setSwapSlot(null);
-          setSwapItemId(null);
+          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
         } else {
           target.set(garment);
           setSelectedOutfitIdx(null);
@@ -643,6 +508,7 @@ export default function FashionCatalog() {
     [
       outfits,
       outfitPageSize,
+      router,
       selectOutfit,
       pagedTopsBase,
       pagedTopsMid,
@@ -660,8 +526,6 @@ export default function FashionCatalog() {
       setSelectedBag,
       setSelectedOutfitIdx,
       setOutfitOverrides,
-      setSwapSlot,
-      setSwapItemId,
     ],
   );
 
@@ -725,111 +589,6 @@ export default function FashionCatalog() {
   //   useMirrorStore.getState().setChatGarmentData(null);
   //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
   // }, [chatGarmentData]);
-
-  // Select a garment for a slot — applies a pending swap, or sets the slot and
-  // clears the active outfit selection (same behavior as the old inline grids).
-  const handleSlotSelect = (slot: SwapSlot, g: RemoteGarment) => {
-    if (swapSlot === slot && swapItemId) {
-      applySwap(g);
-      return;
-    }
-    const setters: Record<SwapSlot, (g: RemoteGarment) => void> = {
-      base: setSelectedTopBase,
-      mid: setSelectedTopMid,
-      outer: setSelectedTopOuter,
-      bottoms: setSelectedBottom,
-      shoes: setSelectedShoe,
-      bags: setSelectedBag,
-    };
-    setters[slot](g);
-    setSelectedOutfitIdx(null);
-  };
-
-  const garmentSlots: GarmentSlotConfig[] = [
-    {
-      key: "base",
-      label: "Base",
-      items: catalogTopsBase,
-      pagedItems: catalogTopsBase,
-      pageSize: catalogTopsBase.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedTopBase?.id,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Base" : "No Base garments",
-    },
-    {
-      key: "mid",
-      label: "Mid",
-      items: catalogTopsMid,
-      pagedItems: catalogTopsMid,
-      pageSize: catalogTopsMid.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedTopMid?.id,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Mid" : "No Mid garments",
-    },
-    {
-      key: "outer",
-      label: "Outer",
-      items: catalogTopsOuter,
-      pagedItems: catalogTopsOuter,
-      pageSize: catalogTopsOuter.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedTopOuter?.id,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Outer" : "No Outer garments",
-    },
-    {
-      key: "bottoms",
-      label: "Bottoms",
-      items: catalogBottoms,
-      pagedItems: catalogBottoms,
-      pageSize: catalogBottoms.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedBottom?.id,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Bottoms" : "No Bottom garments",
-    },
-    {
-      key: "shoes",
-      label: "Shoes",
-      items: catalogShoes,
-      pagedItems: catalogShoes,
-      pageSize: catalogShoes.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedShoe?.id,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Shoes" : "No Shoe garments",
-    },
-    {
-      key: "bags",
-      label: "Accessories",
-      items: catalogBags,
-      pagedItems: catalogBags,
-      pageSize: catalogBags.length,
-      currentPage: 0,
-      totalPages: 1,
-      onPageChange: () => undefined,
-      selectedId: selectedBag?.id,
-      columns: 3,
-      loading: catalogLoading,
-      emptyMessage: catalogLoading
-        ? "Loading Accessories"
-        : "No Accessory garments",
-    },
-  ];
-
-  const hasRecommendations = outfits.length > 0;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
@@ -943,6 +702,7 @@ export default function FashionCatalog() {
                         }}
                       >
                         {outfit.file?.fileUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={outfit.file.fileUrl}
                             alt={outfit.name}
@@ -1052,6 +812,7 @@ export default function FashionCatalog() {
                         }}
                       >
                         {g.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={g.imageUrl}
                             alt={g.name}
@@ -1203,6 +964,7 @@ export default function FashionCatalog() {
                         }}
                       >
                         {outfit.file?.fileUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={outfit.file.fileUrl}
                             alt={outfit.name}
@@ -1254,7 +1016,7 @@ export default function FashionCatalog() {
                 "Uniform-inspired structured outfit style.",
               ]}
               className="relative z-40 w-full"
-              direction="top"
+              direction="above"
             />
           </div>
         </div>

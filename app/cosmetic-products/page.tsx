@@ -186,8 +186,6 @@ export default function CosmeticProductsPage() {
   const [selected, setSelected] = useState<CosmeticProduct | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  // Autoplay holds off until this timestamp; any user interaction pushes it out.
-  const pausedUntilRef = useRef(0);
 
   // Close the enlarged view and restart the carousel when switching skin types.
   useEffect(() => {
@@ -228,11 +226,6 @@ export default function CosmeticProductsPage() {
     filtered.forEach((p, i) => (i % 2 === 0 ? left : right).push(p));
     return [left, right];
   }, [filtered]);
-
-  // Close the enlarged view when switching skin types.
-  useEffect(() => {
-    setSelected(null);
-  }, [skinType]);
 
   return (
     <div
