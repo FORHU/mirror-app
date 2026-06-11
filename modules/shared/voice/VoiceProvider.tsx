@@ -88,6 +88,9 @@ import {
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 const CHAT_SESSION_KEY = "mirror_chat_session";
+// Safety cap: without VAD the mic only stops on a tap, so auto-stop & submit a
+// runaway recording (user walked away) instead of buffering audio forever.
+const MAX_RECORDING_MS = 45_000;
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
 
@@ -482,6 +485,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   // when nothing is recording. (Refs are stable, so no deps needed.)
   const stopMicCapture = useCallback(() => {
     isRecordingRef.current = false;
+    if (maxRecordingTimerRef.current) {
+      clearTimeout(maxRecordingTimerRef.current);
+      maxRecordingTimerRef.current = null;
+    }
     try {
       processorRef.current?.disconnect();
     } catch {
@@ -796,6 +803,12 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const isRecordingRef = useRef(false);
   const micInitializingRef = useRef(false);
   const speechFramesRef = useRef<Float32Array[]>([]);
+  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  // Holds the latest stopListening so the max-recording timer can invoke it
+  // without a forward-reference (stopListening is defined further down).
+  const stopListeningRef = useRef<(() => void) | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -3284,6 +3297,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       speechFramesRef.current = [];
       isRecordingRef.current = true;
       micInitializingRef.current = false;
+      // Safety auto-stop: submit whatever was captured if the user never taps.
+      maxRecordingTimerRef.current = setTimeout(() => {
+        stopListeningRef.current?.();
+      }, MAX_RECORDING_MS);
       /* eslint-enable react-hooks/immutability */
       setVoiceState("recording");
     } catch (err) {
@@ -3306,6 +3323,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     setVoiceState("processing");
     await submitAudioRef.current?.(frames);
   }, [voiceState, stopMicCapture]);
+
+  // Keep the ref current so the max-recording timer always calls the latest one.
+  useEffect(() => {
+    stopListeningRef.current = stopListening;
+  }, [stopListening]);
 
   // Tap-to-talk: the mic is not continuously armed. The user taps the mic to
   // start recording and taps again to stop; the captured audio is then

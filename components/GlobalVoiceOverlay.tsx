@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Mic, Loader2, Volume2 } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -33,6 +34,20 @@ function VoiceUI() {
   // Disable the mic while a page is fetching (suggestion load) so a tap can't
   // kick off a competing voice request mid-request.
   const disabled = micBusy && !isActive;
+
+  // Elapsed recording time (mm:ss), shown in the mic while listening. Resets
+  // whenever recording starts/stops.
+  const [recordSecs, setRecordSecs] = useState(0);
+  useEffect(() => {
+    if (!isListening) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the clock when a recording begins; the interval below drives it after.
+    setRecordSecs(0);
+    const id = setInterval(() => setRecordSecs((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [isListening]);
+  const recordLabel = `${Math.floor(recordSecs / 60)}:${String(
+    recordSecs % 60,
+  ).padStart(2, "0")}`;
 
   const micIcon = isListening ? (
     <Mic className="w-7 h-7 text-emerald-400" />
@@ -107,11 +122,28 @@ function VoiceUI() {
         isCosmeticsPage={isCosmeticsPage}
       />
 
-      {/* Floating voice control — centered at the bottom. Compact circle while
-          listening (ring gives feedback), morphs into a flowing waveform pill
-          while processing/speaking. Centered via the wrapper so framer-motion's
+      {/* Floating voice control — centered at the bottom. While recording it
+          shows a live waveform + a "Tap to stop" cue (the mic no longer
+          auto-stops); it also morphs into the flowing pill while
+          processing/speaking. Centered via the wrapper so framer-motion's
           scale/width animations don't fight a translate transform. */}
-      <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
+      <div className="fixed z-9999 bottom-6 inset-x-0 flex flex-col items-center gap-2 pointer-events-none">
+        {isListening && (
+          <span
+            className="pointer-events-none flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-white/90"
+            style={{
+              background: "rgba(5,20,12,0.85)",
+              border: "1px solid rgba(34,197,94,0.5)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <span className="font-mono tabular-nums text-emerald-300">
+              {recordLabel}
+            </span>
+            <span className="text-white/40">·</span>
+            Tap to stop
+          </span>
+        )}
         <motion.button
           onClick={disabled ? undefined : toggle}
           disabled={disabled}
@@ -142,15 +174,15 @@ function VoiceUI() {
           }}
           whileTap={{ scale: 0.95 }}
           animate={{
-            width: isProcessing || isSpeaking ? 224 : 64,
+            width: isActive ? 224 : 64,
           }}
           transition={{ type: "spring", stiffness: 320, damping: 30 }}
-          aria-label="Voice assistant"
+          aria-label={isListening ? "Tap to stop recording" : "Voice assistant"}
         >
-          {isProcessing || isSpeaking ? (
+          {isActive ? (
             <VoiceWaveform
               active={isActive}
-              level={isProcessing ? 0.45 : 1}
+              level={isListening ? 1 : isProcessing ? 0.45 : 1}
               width={208}
               height={56}
             />

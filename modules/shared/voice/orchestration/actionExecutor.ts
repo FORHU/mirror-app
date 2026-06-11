@@ -121,9 +121,7 @@ export async function executeAction(
     case "set_profile":
       useMapStore
         .getState()
-        .setActiveProfile(
-          action.profile as "car" | "motorcycle" | "bicycle" | "walking",
-        );
+        .setActiveProfile(action.profile as "car" | "bicycle" | "walking");
       return;
 
     case "calendar_save_event":
