@@ -1,5 +1,6 @@
 "use client";
 
+import { PanelRightClose, PanelRightOpen, Shirt } from "lucide-react";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import { GarmentGrid } from "./GarmentGrid";
 import type { SwapSlot } from "../types";
@@ -7,7 +8,7 @@ import type { SwapSlot } from "../types";
 export interface GarmentSlotConfig {
   key: SwapSlot;
   label: string;
-  /** Full list — used to decide whether the grid renders at all. */
+  /** Full list - used for the expanded drawer. */
   items: RemoteGarment[];
   pagedItems: RemoteGarment[];
   pageSize: number;
@@ -23,34 +24,107 @@ interface GarmentSelectionPanelProps {
   slots: GarmentSlotConfig[];
   swapSlot: SwapSlot | null;
   isProcessing: boolean;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
   onCancelSwap: () => void;
   onSelect: (slot: SwapSlot, garment: RemoteGarment) => void;
 }
 
 /**
- * Right rail — the per-slot garment pickers (base/mid/outer/bottoms/shoes/bags).
- * While a swap is active only the matching slot's grid is shown. Each grid is
- * driven by a `GarmentSlotConfig`, collapsing six near-identical blocks into one.
+ * Right rail - per-slot garment pickers. When collapsed, it becomes a narrow
+ * handle so the outfit details can claim the freed space.
  */
 export function GarmentSelectionPanel({
   slots,
   swapSlot,
   isProcessing,
+  isOpen,
+  onOpenChange,
   onCancelSwap,
   onSelect,
 }: GarmentSelectionPanelProps) {
+  const visibleSlots = slots.filter(
+    (slot) =>
+      !isProcessing &&
+      slot.items.length > 0 &&
+      (!swapSlot || swapSlot === slot.key),
+  );
+  const ignorePaging = () => undefined;
+
   return (
     <div
-      className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-      style={{ flex: "0 0 25%", width: "25%" }}
+      className="h-full flex flex-col min-h-0 overflow-hidden"
+      style={{
+        flex: isOpen ? "0 0 25%" : "0 0 56px",
+        width: isOpen ? "25%" : "56px",
+        padding: isOpen ? "8px 8px 8px 4px" : "8px 6px",
+        borderLeft: "1px solid rgba(255,255,255,0.08)",
+        background: isOpen ? "rgba(7,7,12,0.28)" : "rgba(7,7,12,0.18)",
+      }}
     >
-      {swapSlot && (
+      <button
+        type="button"
+        onClick={() => onOpenChange(!isOpen)}
+        title={isOpen ? "Hide garments" : "Show garments"}
+        aria-label={isOpen ? "Hide garments" : "Show garments"}
+        aria-expanded={isOpen}
+        className="flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        style={{
+          width: isOpen ? "100%" : 44,
+          height: 44,
+          flexShrink: 0,
+          gap: 8,
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(20,20,30,0.72)",
+          color: "rgba(255,255,255,0.82)",
+          cursor: "pointer",
+        }}
+      >
+        {isOpen ? (
+          <PanelRightClose className="h-4 w-4" />
+        ) : (
+          <PanelRightOpen className="h-4 w-4" />
+        )}
+        {isOpen && (
+          <span className="text-[10px] font-bold uppercase tracking-[0.16em]">
+            Garments
+          </span>
+        )}
+      </button>
+
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => onOpenChange(true)}
+          title="Show garments"
+          aria-label="Show garments"
+          className="mt-3 flex flex-1 flex-col items-center justify-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          style={{
+            minHeight: 0,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.02)",
+            color: "rgba(255,255,255,0.55)",
+            cursor: "pointer",
+          }}
+        >
+          <Shirt className="h-4 w-4" />
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.16em]"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            Garments
+          </span>
+        </button>
+      )}
+
+      {isOpen && swapSlot && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            paddingBottom: "2px",
+            padding: "8px 2px 2px",
           }}
         >
           <span
@@ -64,6 +138,7 @@ export function GarmentSelectionPanel({
             Select replacement
           </span>
           <button
+            type="button"
             onClick={onCancelSwap}
             style={{
               color: "rgba(255,255,255,0.4)",
@@ -74,36 +149,41 @@ export function GarmentSelectionPanel({
               padding: "2px 4px",
             }}
           >
-            ✕
+            x
           </button>
         </div>
       )}
 
-      {slots.map((slot) =>
-        !isProcessing &&
-        slot.items.length > 0 &&
-        (!swapSlot || swapSlot === slot.key) ? (
-          <GarmentGrid
-            key={slot.key}
-            label={slot.label}
-            pagedItems={slot.pagedItems}
-            loading={false}
-            pageSize={slot.pageSize}
-            currentPage={slot.currentPage}
-            totalPages={slot.totalPages}
-            onNext={() =>
-              slot.onPageChange(
-                Math.min(slot.currentPage + 1, slot.totalPages - 1),
-              )
-            }
-            onPrev={() => slot.onPageChange(Math.max(slot.currentPage - 1, 0))}
-            onPageChange={slot.onPageChange}
-            selectedId={slot.selectedId}
-            columns={slot.columns}
-            onSelect={(g) => onSelect(slot.key, g)}
-            emptyMessage={slot.emptyMessage}
-          />
-        ) : null,
+      {isOpen && (
+        <div
+          className="flex flex-col gap-3 pt-2"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            paddingRight: 2,
+          }}
+        >
+          {visibleSlots.map((slot) => (
+            <GarmentGrid
+              key={slot.key}
+              label={slot.label}
+              pagedItems={slot.items}
+              loading={false}
+              pageSize={slot.items.length}
+              currentPage={0}
+              totalPages={1}
+              onNext={ignorePaging}
+              onPrev={ignorePaging}
+              onPageChange={ignorePaging}
+              selectedId={slot.selectedId}
+              columns={slot.columns}
+              onSelect={(g) => onSelect(slot.key, g)}
+              emptyMessage={slot.emptyMessage}
+            />
+          ))}
+        </div>
       )}
     </div>
   );

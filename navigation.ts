@@ -4,7 +4,6 @@ export const ROUTES = {
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   MAP: "/map",
   OVERVIEW: "/overview",
-  WARDROBE_CREATE: "/wardrobe/create",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
