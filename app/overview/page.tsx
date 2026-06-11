@@ -262,7 +262,7 @@ export default function OverviewPage() {
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
   const pageContext = useMemo(
-    () => ({ route: ROUTES.OVERVIEW, pageName: "Overview" }),
+    () => ({ route: ROUTES.OVERVIEW, pageName: "Overview", mode: "overview" as const }),
     [],
   );
 

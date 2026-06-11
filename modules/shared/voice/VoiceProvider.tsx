@@ -298,6 +298,7 @@ import {
   isFashionHandoffPrompt,
   isCosmeticHandoffPrompt,
   isMapDiscoveryPrompt,
+  isLifestylePrompt,
 } from "./voiceHandoff";
 
 export interface VoiceContextValue {
@@ -548,6 +549,26 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       if (AI_ASSISTANT_WAKE_ONLY.test(t.trim())) {
         setTranscript("");
         setReply("");
+        setVoiceState("idle");
+        return;
+      }
+
+      if (isLifestylePrompt(t) && !isNavigationPhrase(t)) {
+        const assistantReply =
+          "Pulling together your outfit, skincare, and places to explore.";
+        setReply(assistantReply);
+        const newHistory = [
+          ...historyRef.current,
+          { user: t, assistant: assistantReply },
+        ];
+        historyRef.current = newHistory;
+        setChatHistory(newHistory);
+        try {
+          sessionStorage.setItem(OVERVIEW_PROMPT_KEY, t);
+        } catch {
+          /* prompt handoff is best-effort */
+        }
+        router.push(ROUTES.OVERVIEW);
         setVoiceState("idle");
         return;
       }
@@ -814,6 +835,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           !wantsDirectNavigation &&
           (pageMode === "garment" ||
             pageMode === "cosmetics" ||
+            pageMode === "overview" ||
             pageCtxRef.current?.route?.includes("ai-recommendation-cosmetic"))
         ) {
           const isCosmeticsRequest =
@@ -973,7 +995,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                     }
                   : {}),
                 ...(weatherPayload ? { weather: weatherPayload } : {}),
-                ...(isCosmetics
+                ...((isCosmetics || effectiveMode === "overview")
                   ? {
                       skinAnalysis:
                         useMirrorStore.getState().skinAnalysisResult,

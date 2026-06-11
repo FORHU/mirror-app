@@ -20,3 +20,28 @@ export function isMapDiscoveryPrompt(text: string): boolean {
     text,
   );
 }
+
+/**
+ * Returns true when a prompt spans two or more intent domains (fashion + cosmetics
+ * + location). These "lifestyle" prompts should route to /overview so all three
+ * feature areas respond together rather than one winning the single-domain race.
+ */
+export function isLifestylePrompt(text: string): boolean {
+  // Fashion signal: existing handoff keywords OR look-based aesthetic phrases
+  const hasFashion =
+    isFashionHandoffPrompt(text) ||
+    /\b(?:lazy|clean girl|aesthetic|casual|everyday|day|night)\s+(?:day\s+)?look\b/i.test(text);
+
+  // Cosmetics/skincare signal: existing handoff keywords OR "glow-up", "care for skin"
+  const hasCosmetics =
+    isCosmeticHandoffPrompt(text) ||
+    /\bglow.?up\b|\bcare for (?:my |the )?skin\b/i.test(text);
+
+  // Place/location signal: going somewhere, place suggestions, or daily planning
+  const hasPlace =
+    /\bsomewhere[ \w]*to go\b|\bwhere to go\b|\bplace suggestions?\b|\bplaces? (?:to (?:visit|go|explore|see)|i should)\b|\bplan (?:a |my )?day\b/i.test(
+      text,
+    );
+
+  return [hasFashion, hasCosmetics, hasPlace].filter(Boolean).length >= 2;
+}
