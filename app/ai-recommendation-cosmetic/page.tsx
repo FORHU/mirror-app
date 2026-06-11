@@ -68,9 +68,9 @@ function normalizeRecommendation(
     str(rec.image_url) ||
     str(rec.image);
   const rawTags = Array.isArray(product?.tags)
-    ? product.tags
+    ? (product?.tags as unknown[])
     : Array.isArray(rec.tags)
-      ? rec.tags
+      ? (rec.tags as unknown[])
       : [];
 
   return {
@@ -89,9 +89,9 @@ function normalizeRecommendation(
       type: str(product?.type) || str(rec.type) || null,
       tags: rawTags.map(String),
       benefits: Array.isArray(product?.benefits)
-        ? product.benefits.map(String)
+        ? (product?.benefits as unknown[]).map(String)
         : Array.isArray(rec.benefits)
-          ? rec.benefits.map(String)
+          ? (rec.benefits as unknown[]).map(String)
           : [],
       fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
     },
