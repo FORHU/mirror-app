@@ -22,9 +22,8 @@ const BTN_ACTIVE = {
 
 const TRANSPORT = [
   { profile: "car" as const, Icon: Car },
-  { profile: "motorcycle" as const, Icon: Car },
-  { profile: "walking" as const, Icon: Footprints },
   { profile: "bicycle" as const, Icon: Bike },
+  { profile: "walking" as const, Icon: Footprints },
 ];
 
 export default function NavCard() {

@@ -68,11 +68,11 @@ export default function DevToolsOverlay() {
       });
       setRecReply(res.message);
 
-      const places = res.maps_data?.[0]?.places;
+      const places = res.maps_data?.places;
       if (places?.length) {
         const originLat = loc?.lat ?? 0;
         const originLng = loc?.lng ?? 0;
-        const label = res.maps_data![0].query ?? recInput.trim();
+        const label = res.maps_data!.query ?? recInput.trim();
         const pois: NearbyPOI[] = places.map((p) =>
           mapPlaceToNearbyPOI(p, originLat, originLng),
         );

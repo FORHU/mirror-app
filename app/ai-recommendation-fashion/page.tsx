@@ -838,7 +838,7 @@ export default function VirtualMirrorV2() {
                   style={{
                     width: "100%",
                     padding: "0 12px",
-                    paddingBottom: "90px",
+                    paddingBottom: "80px",
                     flex: 1,
                     minHeight: 0,
                     display: "flex",

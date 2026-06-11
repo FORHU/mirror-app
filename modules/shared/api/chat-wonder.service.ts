@@ -65,16 +65,17 @@ export interface ChatWonderMessageResponse {
   audioBase64: string | null;
   intent: string;
   garment_data: ChatWonderGarmentData | null;
-  cosmetics_data: unknown | null;
-  maps_data: ChatWonderMapsData[] | null;
+  cosmetics_data: ChatWonderCosmeticsData | null;
+  maps_data: ChatWonderMapsData | null;
   stylist_data: ChatWonderStylistData | null;
+  tailor_data: { image_url: string; gender: string } | null;
   gender_update?: { gender: string } | null;
   events?: ChatWonderEvent[];
   sets?: unknown[];
   metadata: {
     conversationId: string;
     userMessageId: string;
-    aiMessageId: string;
+    aiMessageId?: string;
   };
 }
 
@@ -101,9 +102,40 @@ export interface ChatWonderEvent {
   map?: ChatWonderEventMap | null;
 }
 
+export interface ChatWonderGarmentRecommendation {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  fittingSlot: string[];
+  garmentType: string[];
+  category: string[];
+  layerLevel: string;
+  silhouette: string;
+}
+
+export interface ChatWonderGarmentSet {
+  set_number: number;
+  outfit_id: string;
+  outfit_name: string;
+  outfit_description: string;
+  outfit_imageUrl: string;
+  vibe: string;
+  reason: string;
+  recommendations: ChatWonderGarmentRecommendation[];
+}
+
 export interface ChatWonderGarmentData {
   query: string;
   reason?: string;
+  /** Present when the backend has already resolved the query into outfit sets. */
+  success?: boolean;
+  sets?: ChatWonderGarmentSet[];
+}
+
+export interface ChatWonderCosmeticsData {
+  query?: string;
+  recommendations?: unknown[];
 }
 
 // ─── Token helper (mirrors api-client.ts interceptor logic) ──────────────────
