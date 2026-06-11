@@ -21,6 +21,7 @@ import { PromptFloater } from "@/components/PromptFloater";
 import { QuickResponseChips, getToday } from "@/components/QuickResponseChips";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
+import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
@@ -102,9 +103,9 @@ export default function FashionCatalog() {
 
   const selectOutfit = useCallback(
     (idx: number | null) => {
-      setSelectedOutfitIdx(idx);
+      setSelectedOutfitIdx(idx);
       clearSlots();
-      setOutfitOverrides({});
+      setOutfitOverrides({});
     },
     [clearSlots],
   );
@@ -122,6 +123,72 @@ export default function FashionCatalog() {
   const outfitSwipe = useSwipe(
     () => setOutfitPage((p) => Math.min(p + 1, totalOutfitPages - 1)),
     () => setOutfitPage((p) => Math.max(p - 1, 0)),
+  );
+
+  // All outfits split across the two auto-scrolling side columns
+  // (even index → left, odd → right). `idx` stays the global index into
+  // `outfits` so selection keeps working.
+  const [leftOutfits, rightOutfits] = useMemo(() => {
+    const left: { outfit: RemoteOutfit; idx: number }[] = [];
+    const right: { outfit: RemoteOutfit; idx: number }[] = [];
+    outfits.forEach((outfit, idx) =>
+      (idx % 2 === 0 ? left : right).push({ outfit, idx }),
+    );
+    return [left, right];
+  }, [outfits]);
+
+  // Card used by both marquee side columns; fixed height since the columns
+  // drift continuously instead of fitting a 4-row page.
+  const renderOutfitCard = ({
+    outfit,
+    idx,
+  }: {
+    outfit: RemoteOutfit;
+    idx: number;
+  }) => (
+    <div
+      key={outfit.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`Outfit ${idx + 1}`}
+      onClick={() =>
+        selectedOutfitIdx === idx ? selectOutfit(null) : selectOutfit(idx)
+      }
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.currentTarget.click();
+        }
+      }}
+      style={{
+        position: "relative",
+        height: "clamp(180px, 24vh, 420px)",
+        flex: "0 0 auto",
+        borderRadius: "10px",
+        overflow: "hidden",
+        background: "rgba(255,255,255,0.01)",
+        cursor: "pointer",
+        border:
+          selectedOutfitIdx === idx
+            ? "2px solid rgba(255,255,255,0.6)"
+            : "2px solid transparent",
+        transition: "border-color 0.2s",
+      }}
+    >
+      {outfit.file?.fileUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={outfit.file.fileUrl}
+          alt={outfit.name}
+          draggable={false}
+          className="w-full h-full object-cover pointer-events-none"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-[11px] text-white/20">{outfit.name}</span>
+        </div>
+      )}
+    </div>
   );
 
   const bottomsPageSize = 6;
@@ -498,7 +565,7 @@ export default function FashionCatalog() {
         if (!garment) return;
         if (swapSlot === slot && swapItemId) {
           const id = swapItemId;
-          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
+          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
         } else {
           target.set(garment);
           setSelectedOutfitIdx(null);
@@ -628,122 +695,9 @@ export default function FashionCatalog() {
             className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
             style={{ flex: "0 0 25%", width: "25%" }}
           >
-            <div
-              {...outfitSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                flex: 1,
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(1, 1fr)",
-                  gridTemplateRows: "repeat(4, 1fr)",
-                  gap: "6px",
-                  flex: 1,
-                  minHeight: 0,
-                  overflow: "hidden",
-                }}
-              >
-                {!isLoading &&
-                  Array.from({ length: 4 }).map((_, i) => {
-                    const outfit = pagedOutfits[i];
-                    const globalIdx = outfitPage * outfitPageSize + i;
-
-                    if (!outfit) {
-                      return (
-                        <div
-                          key={`empty-left-${i}`}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "10px",
-                            background: "rgba(255,255,255,0.01)",
-                          }}
-                        />
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={outfit.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Outfit ${globalIdx + 1}`}
-                        onClick={() =>
-                          selectedOutfitIdx === globalIdx
-                            ? selectOutfit(null)
-                            : selectOutfit(globalIdx)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            e.currentTarget.click();
-                          }
-                        }}
-                        style={{
-                          position: "relative",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.01)",
-                          cursor: "pointer",
-                          border:
-                            selectedOutfitIdx === globalIdx
-                              ? "2px solid rgba(255,255,255,0.6)"
-                              : "2px solid transparent",
-                          transition: "border-color 0.2s",
-                        }}
-                      >
-                        {outfit.file?.fileUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={outfit.file.fileUrl}
-                            alt={outfit.name}
-                            draggable={false}
-                            className="w-full h-full object-cover pointer-events-none"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[11px] text-white/20">
-                              {outfit.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {!isLoading && (
-                <div className="flex justify-center gap-1.5 pt-2">
-                  {Array.from({ length: totalOutfitPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setOutfitPage(i)}
-                      style={{
-                        width: i === outfitPage ? 12 : 4,
-                        height: 4,
-                        borderRadius: "9999px",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                        background:
-                          i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
-                        transition: "all 0.3s",
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <MarqueeColumn loop={leftOutfits.length > 0} gap={6}>
+              {!isLoading && leftOutfits.map(renderOutfitCard)}
+            </MarqueeColumn>
           </div>
 
           {/* Center panel */}
@@ -890,99 +844,9 @@ export default function FashionCatalog() {
             className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
             style={{ flex: "0 0 25%", width: "25%" }}
           >
-            <div
-              {...outfitSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                flex: 1,
-                minHeight: 0,
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(1, 1fr)",
-                  gridTemplateRows: "repeat(4, 1fr)",
-                  gap: "6px",
-                  flex: 1,
-                  minHeight: 0,
-                  overflow: "hidden",
-                }}
-              >
-                {!isLoading &&
-                  Array.from({ length: 4 }).map((_, i) => {
-                    const outfit = pagedOutfits[i + 4];
-                    const globalIdx = outfitPage * outfitPageSize + i + 4;
-
-                    if (!outfit) {
-                      return (
-                        <div
-                          key={`empty-right-${i}`}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "10px",
-                            background: "rgba(255,255,255,0.01)",
-                          }}
-                        />
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={outfit.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Outfit ${globalIdx + 1}`}
-                        onClick={() =>
-                          selectedOutfitIdx === globalIdx
-                            ? selectOutfit(null)
-                            : selectOutfit(globalIdx)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            e.currentTarget.click();
-                          }
-                        }}
-                        style={{
-                          position: "relative",
-                          borderRadius: "10px",
-                          overflow: "hidden",
-                          background: "rgba(255,255,255,0.01)",
-                          cursor: "pointer",
-                          border:
-                            selectedOutfitIdx === globalIdx
-                              ? "2px solid rgba(255,255,255,0.6)"
-                              : "2px solid transparent",
-                          transition: "border-color 0.2s",
-                        }}
-                      >
-                        {outfit.file?.fileUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={outfit.file.fileUrl}
-                            alt={outfit.name}
-                            draggable={false}
-                            className="w-full h-full object-cover pointer-events-none"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[11px] text-white/20">
-                              {outfit.name}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
+            <MarqueeColumn loop={rightOutfits.length > 0} gap={6}>
+              {!isLoading && rightOutfits.map(renderOutfitCard)}
+            </MarqueeColumn>
           </div>
         </div>
       )}

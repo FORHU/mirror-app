@@ -12,6 +12,7 @@ import {
   matchesSkinType,
   type SkinTypeKey,
 } from "@/modules/cosmetics/constants";
+import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
@@ -89,30 +90,6 @@ function SkeletonCard() {
         scrollSnapAlign: "start",
       }}
     />
-  );
-}
-
-/**
- * Vertical column that responds to touch swipe with scroll-snap so each card
- * clicks into place. No auto-drift — the user controls the pace.
- */
-function SwipeColumn({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="mirror-scroll h-full"
-      style={{
-        overflowY: "auto",
-        overflowX: "hidden",
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-        scrollSnapType: "y mandatory",
-        overscrollBehavior: "contain",
-      }}
-    >
-      <div className="flex flex-col" style={{ gap: 14, paddingBottom: 14 }}>
-        {children}
-      </div>
-    </div>
   );
 }
 
@@ -240,11 +217,11 @@ export default function CosmeticProductsPage() {
             ) : error ? (
               <div className="text-white/35 text-xs text-center pt-4">{error}</div>
             ) : (
-              <SwipeColumn key={`left-${skinType}`}>
+              <MarqueeColumn key={`left-${skinType}`} loop={leftItems.length > 0}>
                 {leftItems.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
-              </SwipeColumn>
+              </MarqueeColumn>
             )}
           </div>
 
@@ -262,11 +239,11 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : !error && rightItems.length === 0 ? null : (
-              <SwipeColumn key={`right-${skinType}`}>
+              <MarqueeColumn key={`right-${skinType}`} loop={rightItems.length > 0}>
                 {rightItems.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
-              </SwipeColumn>
+              </MarqueeColumn>
             )}
           </div>
         </div>
