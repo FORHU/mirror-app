@@ -22,6 +22,7 @@ function VoiceUI() {
     useVoiceContext();
   const pathname = usePathname();
   const isChatOpen = useMirrorStore((s) => s.isChatOpen);
+  const micBusy = useMirrorStore((s) => s.micBusy);
   const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
   const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
 
@@ -29,6 +30,9 @@ function VoiceUI() {
   const isProcessing = voiceState === "processing";
   const isSpeaking = voiceState === "speaking";
   const isActive = isListening || isProcessing || isSpeaking;
+  // Disable the mic while a page is fetching (suggestion load) so a tap can't
+  // kick off a competing voice request mid-request.
+  const disabled = micBusy && !isActive;
 
   const micIcon = isListening ? (
     <Mic className="w-7 h-7 text-emerald-400" />
@@ -36,6 +40,8 @@ function VoiceUI() {
     <Loader2 className="w-7 h-7 text-[#4fc3f7] animate-spin" />
   ) : isSpeaking ? (
     <Volume2 className="w-7 h-7 text-[#4fc3f7]" />
+  ) : disabled ? (
+    <Loader2 className="w-7 h-7 text-white/40 animate-spin" />
   ) : (
     <Mic className="w-7 h-7 text-white" />
   );
@@ -107,10 +113,13 @@ function VoiceUI() {
           scale/width animations don't fight a translate transform. */}
       <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
         <motion.button
-          onClick={toggle}
+          onClick={disabled ? undefined : toggle}
+          disabled={disabled}
           className="flex items-center justify-center shadow-2xl pointer-events-auto"
           style={{
             height: 64,
+            opacity: disabled ? 0.5 : 1,
+            cursor: disabled ? "not-allowed" : "pointer",
             borderRadius: 9999,
             background: isListening
               ? "rgba(5,20,12,0.92)"
