@@ -33,12 +33,14 @@ import {
   CameraDisclaimer,
   useOverviewStore,
   adaptGarmentData,
+  adaptRemoteOutfitsToTiles,
   adaptCosmeticsData,
   adaptMapsData,
   adaptSkinAnalysisData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
+import { outfitService } from "@/modules/shared/api/outfit.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -328,9 +330,19 @@ export default function OverviewPage() {
           locationCtx,
         );
 
-        const { garments, outfits } = adaptGarmentData(response.garment_data);
-        setGarments(garments);
-        setOutfits(outfits);
+        const rawGarmentData = response.garment_data as Record<string, unknown> | null;
+        const garmentQuery = typeof rawGarmentData?.query === "string" ? rawGarmentData.query : null;
+
+        if (garmentQuery) {
+          const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
+          const { garments, outfits } = adaptRemoteOutfitsToTiles(fetchedOutfits);
+          setGarments(garments);
+          setOutfits(outfits);
+        } else {
+          const { garments, outfits } = adaptGarmentData(response.garment_data);
+          setGarments(garments);
+          setOutfits(outfits);
+        }
 
         const cosmetics = adaptCosmeticsData(response.cosmetics_data);
         setCosmetics(cosmetics);
