@@ -1,6 +1,7 @@
 export const ROUTES = {
   WELCOME: "/ai-assistant",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
+  FASHION_CATALOG: "/fashion-catalog",
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   COSMETIC_PRODUCTS: "/cosmetic-products",
   MAP: "/map",

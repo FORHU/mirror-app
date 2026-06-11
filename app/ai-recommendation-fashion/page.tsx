@@ -22,11 +22,10 @@ import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
-import { getToday } from "@/components/QuickResponseChips";
 import { PromptFloater } from "@/components/PromptFloater";
+import { getToday } from "@/components/QuickResponseChips";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
-import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
@@ -1124,11 +1123,6 @@ export default function VirtualMirrorV2() {
                   label="Style tip"
                   className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
                 />
-              )}
-
-              {/* Idle Reel - Shown when no recommendations */}
-              {!hasRecommendations && !isLoading && (
-                <OutfitImageCarousel />
               )}
 
               {/* Garment slot cards */}

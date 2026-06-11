@@ -72,7 +72,7 @@ export default function AssistantNavBar() {
         }}
       >
         <div className="flex-1 min-w-0 flex items-center justify-around pr-2">
-          <NavButton label="Fashion" route={ROUTES.AI_RECOMMENDATION_FASHION} />
+          <NavButton label="Fashion" route={ROUTES.FASHION_CATALOG} />
           <NavButton label="Cosmetics" route={ROUTES.COSMETIC_PRODUCTS} />
         </div>
 
