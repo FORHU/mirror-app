@@ -53,14 +53,6 @@
     "ws": "^8.18.0",
     "zustand": "^5.0.11"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "core-js",
-      "protobufjs",
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",

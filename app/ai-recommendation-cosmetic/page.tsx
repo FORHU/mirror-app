@@ -12,7 +12,6 @@ import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service"
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { adaptCosmeticsData } from "@/modules/overview";
 import MirrorHeader from "@/components/MirrorHeader";
-import { getToday, nextWeekday } from "@/components/QuickResponseChips";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
@@ -293,11 +292,10 @@ export default function CosmeticRecommendationPage() {
       />
 
       {/* Main 3 Column Layout */}
-      <div className="flex-1 min-h-0 flex w-full h-full p-4 gap-7 pt-2">
+      <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-20 gap-7">
         {/* Left Column - Recommendations 1-5 */}
         <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
-            label="Daily Essentials"
             pagedItems={leftColRecs}
             loading={showRecommendationSkeletons}
             pageSize={5}
@@ -417,7 +415,6 @@ export default function CosmeticRecommendationPage() {
         {/* Right Column - Recommendations 6-10 */}
         <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
-            label="Targeted Treatments"
             pagedItems={rightColRecs}
             loading={showRecommendationSkeletons}
             pageSize={5}
@@ -448,11 +445,11 @@ export default function CosmeticRecommendationPage() {
 
       <PromptFloater
         prompts={[
-          `Recommend a morning skincare routine for today, ${getToday()}, based on my skin analysis.`,
-          `I have an important event on ${nextWeekday(1)} — what products should I use for a fresh, polished look?`,
-          "What are the top products I should use right now to address my main skin concerns?",
-          "Suggest a calming evening routine I can follow tonight to repair and hydrate my skin.",
-          "I want to visibly improve my skin's texture and glow over the next 30 days — build me a product plan.",
+          "Suggest a morning skincare routine for today.",
+          "What products give me a fresh, polished look?",
+          "What products address my main skin concerns?",
+          "Suggest a calming evening routine.",
+          "How do I improve my skin texture and glow?",
         ]}
         onSelect={handleSuggestionSelect}
       />
