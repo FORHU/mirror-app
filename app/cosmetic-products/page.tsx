@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
@@ -15,13 +15,36 @@ import {
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
-function ProductCard({ product }: { product: CosmeticProduct }) {
+/** ms between auto-advances; interaction pauses autoplay for RESUME_DELAY. */
+const AUTOPLAY_INTERVAL = 3200;
+const RESUME_DELAY = 5000;
+
+function ProductCard({
+  product,
+  onSelect,
+}: {
+  product: CosmeticProduct;
+  onSelect?: (p: CosmeticProduct) => void;
+}) {
   return (
     <div
-      className="flex flex-col items-center rounded-xl overflow-hidden bg-black border border-white/[0.06]"
+      data-card
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect?.(product)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.(product);
+        }
+      }}
+      className="flex flex-col items-center rounded-xl overflow-hidden bg-black border border-white/[0.06] tap-highlight-none focus:outline-none"
       style={{
         width: "var(--card)",
         flex: "0 0 auto",
+        scrollSnapAlign: "start",
+        cursor: "pointer",
+        WebkitTapHighlightColor: "transparent",
       }}
     >
       <div
@@ -95,6 +118,17 @@ export default function CosmeticProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
+  const [selected, setSelected] = useState<CosmeticProduct | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Autoplay holds off until this timestamp; any user interaction pushes it out.
+  const pausedUntilRef = useRef(0);
+
+  // Close the enlarged view and restart the carousel when switching skin types.
+  useEffect(() => {
+    setSelected(null);
+    scrollRef.current?.scrollTo({ left: 0 });
+  }, [skinType]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +155,25 @@ export default function CosmeticProductsPage() {
     () => products.filter((p) => matchesSkinType(p, skinType)),
     [products, skinType],
   );
+
+  // Auto-advance one card at a time; wraps to the start at the end.
+  useEffect(() => {
+    if (loading || filtered.length < 2 || selected) return;
+    const id = window.setInterval(() => {
+      const el = scrollRef.current;
+      if (!el || Date.now() < pausedUntilRef.current) return;
+      const card = el.querySelector<HTMLElement>("[data-card]");
+      const step = (card?.offsetWidth ?? 160) + 14;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - step / 2;
+      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
+      else el.scrollBy({ left: step, behavior: "smooth" });
+    }, AUTOPLAY_INTERVAL);
+    return () => window.clearInterval(id);
+  }, [loading, filtered.length, selected]);
+
+  const pauseAutoplay = () => {
+    pausedUntilRef.current = Date.now() + RESUME_DELAY;
+  };
 
   return (
     <div
@@ -186,7 +239,7 @@ export default function CosmeticProductsPage() {
           })}
         </div>
 
-        {/* All products for the selected skin type, wrapping grid */}
+        {/* Product carousel — auto-advances, swipe/drag to browse */}
         <div
           className="w-full flex-1 min-h-0 flex flex-col justify-center gap-3"
           style={{ maxWidth: "min(94vw, 1600px)" }}
@@ -197,25 +250,28 @@ export default function CosmeticProductsPage() {
               : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
           </div>
           <div
-            className="mirror-scroll flex-1 min-h-0"
+            ref={scrollRef}
+            className="mirror-scroll-x"
+            onPointerDown={pauseAutoplay}
+            onTouchStart={pauseAutoplay}
+            onWheel={pauseAutoplay}
             style={
               {
                 display: "flex",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                alignContent: "flex-start",
-                gap: "clamp(10px, 1.4vw, 22px)",
-                overflowY: "auto",
-                overflowX: "hidden",
+                gap: 14,
+                overflowX: "auto",
+                overflowY: "hidden",
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
+                scrollSnapType: "x mandatory",
+                touchAction: "pan-x",
                 padding: "6px 2px 14px",
                 "--card": "clamp(220px, min(28vw, 42vh), 560px)",
               } as React.CSSProperties
             }
           >
             {loading ? (
-              Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
+              Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
             ) : error ? (
               <div className="w-full py-10 text-center text-white/35 text-sm">
                 {error}
@@ -226,12 +282,94 @@ export default function CosmeticProductsPage() {
                 {SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin yet.
               </div>
             ) : (
-              filtered.map((p) => <ProductCard key={p.id} product={p} />)
+              filtered.map((p) => (
+                <ProductCard key={p.id} product={p} onSelect={setSelected} />
+              ))
             )}
           </div>
         </div>
       </div>
 
+      {/* Enlarged product view — tap a card to open, tap anywhere to close */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: "rgba(0,0,0,0.78)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="relative flex flex-col items-center rounded-2xl bg-black border border-white/10 overflow-hidden"
+            style={{
+              width: "min(80vw, 760px)",
+              maxHeight: "84vh",
+              padding: "clamp(16px, 2.5vw, 36px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              aria-label="Close product view"
+              className="absolute top-3 right-4 text-white/50 hover:text-white/90 tap-highlight-none focus:outline-none"
+              style={{
+                fontSize: "clamp(18px, 1.8vw, 26px)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              ✕
+            </button>
+
+            <div
+              className="w-full flex items-center justify-center"
+              style={{ height: "min(52vh, 560px)" }}
+            >
+              {selected.fileUrl?.fileUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={selected.fileUrl.fileUrl}
+                  alt={selected.name}
+                  draggable={false}
+                  className="max-w-full max-h-full object-contain pointer-events-none"
+                />
+              ) : (
+                <span className="text-white/20 text-sm uppercase tracking-widest">
+                  Product
+                </span>
+              )}
+            </div>
+
+            <div className="w-full text-center mt-4">
+              <div
+                className="text-white/40 uppercase truncate tracking-[0.18em]"
+                style={{ fontSize: "clamp(13px, 1.3vw, 18px)" }}
+              >
+                {selected.brand || "Brand"}
+              </div>
+              <div
+                className="text-white/90 font-medium leading-tight mt-1"
+                style={{ fontSize: "clamp(19px, 2vw, 30px)" }}
+              >
+                {selected.name}
+              </div>
+              {selected.type && (
+                <span
+                  className="inline-block mt-3 px-4 py-1.5 rounded-full uppercase tracking-[0.16em] text-white/55 bg-white/[0.06]"
+                  style={{ fontSize: "clamp(11px, 1.1vw, 16px)" }}
+                >
+                  {selected.type.replace(/_/g, " ")}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
