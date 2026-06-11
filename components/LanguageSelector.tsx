@@ -7,45 +7,10 @@ import { useState } from "react";
 const LANGUAGES = [
   { code: "en-US", label: "English" },
   { code: "en-GB", label: "English (UK)" },
-  { code: "en-AU", label: "English (AU)" },
-  { code: "en-IN", label: "English (IN)" },
-  { code: "en-SG", label: "English (SG)" },
-  { code: "en-NZ", label: "English (NZ)" },
-  { code: "en-ZA", label: "English (ZA)" },
-  { code: "en-IE", label: "English (IE)" },
   { code: "fr-FR", label: "French" },
   { code: "fr-CA", label: "French (CA)" },
-  { code: "fr-BE", label: "French (BE)" },
-  { code: "de-DE", label: "German" },
-  { code: "de-AT", label: "German (AT)" },
-  { code: "de-CH", label: "German (CH)" },
-  { code: "es-ES", label: "Spanish" },
-  { code: "es-MX", label: "Spanish (MX)" },
-  { code: "es-US", label: "Spanish (US)" },
-  { code: "it-IT", label: "Italian" },
-  { code: "pt-BR", label: "Portuguese (BR)" },
-  { code: "pt-PT", label: "Portuguese (PT)" },
-  { code: "nl-NL", label: "Dutch" },
-  { code: "nl-BE", label: "Dutch (BE)" },
-  { code: "pl-PL", label: "Polish" },
-  { code: "ru-RU", label: "Russian" },
-  { code: "sv-SE", label: "Swedish" },
-  { code: "da-DK", label: "Danish" },
-  { code: "nb-NO", label: "Norwegian" },
-  { code: "fi-FI", label: "Finnish" },
-  { code: "cs-CZ", label: "Czech" },
-  { code: "ro-RO", label: "Romanian" },
-  { code: "tr-TR", label: "Turkish" },
-  { code: "ca-ES", label: "Catalan" },
-  { code: "cy-GB", label: "Welsh" },
-  { code: "is-IS", label: "Icelandic" },
   { code: "ja-JP", label: "Japanese" },
   { code: "ko-KR", label: "Korean" },
-  { code: "cmn-CN", label: "Chinese (Mandarin)" },
-  { code: "yue-CN", label: "Chinese (Cantonese)" },
-  { code: "hi-IN", label: "Hindi" },
-  { code: "arb", label: "Arabic" },
-  { code: "ar-AE", label: "Arabic (Gulf)" },
 ];
 
 export function LanguageSelector() {
@@ -70,6 +35,7 @@ export function LanguageSelector() {
 
       {open && (
         <div className="absolute top-full left-0 mt-2 bg-black/80 border border-white/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl min-w-[100px]">
+          <div className="max-h-[60vh] overflow-y-auto">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
@@ -87,6 +53,7 @@ export function LanguageSelector() {
               {lang.label}
             </button>
           ))}
+          </div>
         </div>
       )}
     </div>
