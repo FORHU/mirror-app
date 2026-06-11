@@ -2602,7 +2602,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           // places_data: single place → navigate, multiple → curate and suggest.
           // For direct navigation phrases ("take me to X"), always navigate to the
           // first (best) result without showing the curation stack.
-          const places = hasEvents ? [] : (res.maps_data?.[0]?.places ?? []);
+          const places = hasEvents ? [] : (res.maps_data?.places ?? []);
           const navigateDirect =
             places.length > 1 &&
             (isNavigationPhrase(t) || isItineraryPhrase(t));
@@ -2671,7 +2671,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             const allPOIs: NearbyPOI[] = places.map((p) =>
               mapPlaceToNearbyPOI(p, originLat, originLng),
             );
-            const label = res.maps_data![0].query ?? t;
+            const label = res.maps_data!.query ?? t;
             // Only apply the 30 km proximity cap when we have a real user location.
             // When mapLoc is null, originLat/originLng are 0,0 — every PH place is
             // ~1 400 km away, so filtering would silently discard everything and fall
