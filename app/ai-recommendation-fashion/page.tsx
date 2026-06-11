@@ -835,7 +835,7 @@ export default function VirtualMirrorV2() {
                   style={{
                     width: "100%",
                     padding: "0 12px",
-                    paddingBottom: "145px",
+                    paddingBottom: "90px",
                     flex: 1,
                     minHeight: 0,
                     display: "flex",
@@ -847,7 +847,7 @@ export default function VirtualMirrorV2() {
                   {/* Image — proportional flex share, no fixed height */}
                   <div
                     style={{
-                      flex: "2 1 0",
+                      flex: "5 1 0",
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",

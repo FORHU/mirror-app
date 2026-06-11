@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROUTES } from "@/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
   cosmeticsService,
@@ -16,18 +15,12 @@ import {
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
-/** ms between auto-advances; interaction pauses autoplay for RESUME_DELAY. */
-const AUTOPLAY_INTERVAL = 3200;
-const RESUME_DELAY = 5000;
-
 function ProductCard({ product }: { product: CosmeticProduct }) {
   return (
     <div
-      data-card
-      className="flex flex-col items-center rounded-xl overflow-hidden bg-white/[0.03] border border-white/[0.06]"
+      className="flex flex-col items-center rounded-xl overflow-hidden bg-black border border-white/[0.06]"
       style={{
         width: "var(--card)",
-        scrollSnapAlign: "start",
         flex: "0 0 auto",
       }}
     >
@@ -103,10 +96,6 @@ export default function CosmeticProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
 
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  // Autoplay holds off until this timestamp; any user interaction pushes it out.
-  const pausedUntilRef = useRef(0);
-
   useEffect(() => {
     let cancelled = false;
     cosmeticsService
@@ -132,30 +121,6 @@ export default function CosmeticProductsPage() {
     () => products.filter((p) => matchesSkinType(p, skinType)),
     [products, skinType],
   );
-
-  // Restart from the first card whenever the skin type changes.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ left: 0 });
-  }, [skinType]);
-
-  // Auto-advance one card at a time; wraps to the start at the end.
-  useEffect(() => {
-    if (loading || filtered.length < 2) return;
-    const id = window.setInterval(() => {
-      const el = scrollRef.current;
-      if (!el || Date.now() < pausedUntilRef.current) return;
-      const card = el.querySelector<HTMLElement>("[data-card]");
-      const step = (card?.offsetWidth ?? 160) + 14;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - step / 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else el.scrollBy({ left: step, behavior: "smooth" });
-    }, AUTOPLAY_INTERVAL);
-    return () => window.clearInterval(id);
-  }, [loading, filtered.length]);
-
-  const pauseAutoplay = () => {
-    pausedUntilRef.current = Date.now() + RESUME_DELAY;
-  };
 
   return (
     <div
@@ -189,15 +154,14 @@ export default function CosmeticProductsPage() {
                 type="button"
                 onClick={() => setSkinType(key)}
                 aria-pressed={active}
-                className="rounded-2xl text-center transition-colors"
+                className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
+                  WebkitTapHighlightColor: "transparent",
                   padding:
                     "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
-                  background: active
-                    ? "rgba(79,195,247,0.14)"
-                    : "rgba(255,255,255,0.04)",
+                  background: "transparent",
                   border: active
-                    ? "1.5px solid rgba(79,195,247,0.55)"
+                    ? "1.5px solid rgba(255,255,255,0.5)"
                     : "1.5px solid rgba(255,255,255,0.1)",
                   cursor: "pointer",
                 }}
@@ -206,7 +170,7 @@ export default function CosmeticProductsPage() {
                   className="font-semibold tracking-[0.18em] uppercase"
                   style={{
                     fontSize: "clamp(12px, 1.3vw, 19px)",
-                    color: active ? "#aadeff" : "rgba(255,255,255,0.85)",
+                    color: active ? "#ffffff" : "rgba(255,255,255,0.85)",
                   }}
                 >
                   {SKIN_TYPE_FILTERS[key].label}
@@ -222,7 +186,7 @@ export default function CosmeticProductsPage() {
           })}
         </div>
 
-        {/* Product carousel — auto-advances, swipe/drag to browse */}
+        {/* All products for the selected skin type, wrapping grid */}
         <div
           className="w-full flex-1 min-h-0 flex flex-col justify-center gap-3"
           style={{ maxWidth: "min(94vw, 1600px)" }}
@@ -233,28 +197,25 @@ export default function CosmeticProductsPage() {
               : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
           </div>
           <div
-            ref={scrollRef}
-            className="mirror-scroll-x"
-            onPointerDown={pauseAutoplay}
-            onTouchStart={pauseAutoplay}
-            onWheel={pauseAutoplay}
+            className="mirror-scroll flex-1 min-h-0"
             style={
               {
                 display: "flex",
-                gap: 14,
-                overflowX: "auto",
-                overflowY: "hidden",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                alignContent: "flex-start",
+                gap: "clamp(10px, 1.4vw, 22px)",
+                overflowY: "auto",
+                overflowX: "hidden",
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
-                scrollSnapType: "x mandatory",
-                touchAction: "pan-x",
                 padding: "6px 2px 14px",
                 "--card": "clamp(220px, min(28vw, 42vh), 560px)",
               } as React.CSSProperties
             }
           >
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+              Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
             ) : error ? (
               <div className="w-full py-10 text-center text-white/35 text-sm">
                 {error}
@@ -271,22 +232,6 @@ export default function CosmeticProductsPage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push(ROUTES.AI_RECOMMENDATION_COSMETIC)}
-        aria-label="Open AI skin analysis"
-        className="fixed bottom-[104px] right-8 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-        style={{
-          background: "rgba(20,20,30,0.85)",
-          border: "1.5px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          AI Analysis
-        </span>
-      </button>
     </div>
   );
 }
