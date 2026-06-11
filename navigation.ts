@@ -1,53 +1,36 @@
 export const ROUTES = {
-  WELCOME: "/",
-  WAITING_LOGIN: "/waiting-login",
-  LOGGED_IN: "/logged-in",
-  EVENT_SETUP: "/event-setup",
-  WAITING_PERSONALIZE: "/waiting-personalize",
-  PERSONALIZE_OUTFIT: "/personalize-outfit",
-  OUTFIT_BUILDER: "/outfit-builder",
-  SAVE_OUTFIT: "/save-outfit",
-  CAPTURE: "/capture",
-  CAPTURE_PICTURE: "/capture-picture",
-  TRY_IT_ON: "/try-it-on",
-  VIRTUAL_MIRROR: "/virtual-mirror",
-  RECOMMENDATION_OUTFIT: "/recommendation-outfit",
+  WELCOME: "/ai-assistant",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
-  // AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
-  MIRROR_TEMPLATES: "/mirror-templates",
-  QRCODE: "/qrcode",
-  QRCODE_MIRROR_A: "/qrcode/mirror-a",
+  FASHION_CATALOG: "/fashion-catalog",
+  AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
+  COSMETIC_PRODUCTS: "/cosmetic-products",
   MAP: "/map",
-  SCHEDULE: "/schedule",
-  DASHBOARD: "/dashboard",
+  OVERVIEW: "/overview",
 } as const;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
+/**
+ * Flat list of the app's navigable routes, sent to ChatWonder as
+ * `sitemap_context`. Note: the canonical navigation path is the Stylist persona's
+ * `[STYLIST]` block (which uses its own route list); `sitemap_context` only feeds
+ * the legacy `[NAV_DATA]` fallback.
+ */
+export const SITEMAP_CONTEXT: string[] = Object.values(ROUTES);
+
+const ROUTE_VALUES = new Set<string>(Object.values(ROUTES));
+
+/**
+ * True when `target` is a real app route we can navigate to. Used to ignore
+ * stale `[STYLIST]` targets (e.g. `/virtual-mirror`) the external ChatWonder
+ * persona may still advertise after a screen has been removed.
+ */
+export function isKnownRoute(
+  target: string | null | undefined,
+): target is string {
+  return typeof target === "string" && ROUTE_VALUES.has(target);
+}
+
 export const ROUTE_RULES = {
-  // logged-in users cannot access these
-  guestOnly: [
-    ROUTES.WELCOME,
-    ROUTES.QRCODE_MIRROR_A,
-    ROUTES.WAITING_LOGIN,
-  ] as string[],
-  // logged-out users cannot access these
-  protected: [
-    ROUTES.LOGGED_IN,
-    ROUTES.WAITING_PERSONALIZE,
-    ROUTES.AI_RECOMMENDATION_FASHION,
-    // ROUTES.AI_RECOMMENDATION_COSMETIC
-  ] as string[],
-  sequences: {
-    // steps must be visited in order; skipping redirects to the first incomplete step
-    login: [
-      ROUTES.WELCOME,
-      ROUTES.QRCODE_MIRROR_A,
-      ROUTES.WAITING_LOGIN,
-    ] as string[],
-    fit: [
-      ROUTES.WAITING_PERSONALIZE,
-      ROUTES.AI_RECOMMENDATION_FASHION,
-    ] as string[],
-  },
+  protected: [ROUTES.AI_RECOMMENDATION_FASHION] as string[],
 } as const;

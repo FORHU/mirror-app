@@ -280,7 +280,7 @@ export default function WeatherWidget({
           {weather.temp !== null ? `${weather.temp}°C` : "--°C"}
         </span>
         <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px" }}>
-          {weather.city}
+          {weather.city !== "---" ? weather.city : (weather.condition ?? "")}
         </span>
       </div>
     </div>

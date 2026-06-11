@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ComponentType } from "react";
-import { useMapStore } from "../store/useMapStore";
-import { API_URL } from "@/modules/shared/config/device.config";
 import * as Icons from "lucide-react";
 import type { LucideProps } from "lucide-react";
 
@@ -14,30 +12,40 @@ interface WeatherData {
   humidity: number;
 }
 
-const WeatherWidget = () => {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const homeLocation = useMapStore((state) => state.homeLocation);
+interface Props {
+  location: { lat: number; lng: number } | null;
+}
 
-  const fetchWeather = async () => {
-    if (!homeLocation) return;
-    try {
-      const res = await fetch(
-        `${API_URL}/api/mirror/weather?lat=${homeLocation.lat}&lng=${homeLocation.lng}`,
-      );
-      const data = await res.json();
-      setWeather(data);
-    } catch (err) {
-      console.error("Failed to fetch weather:", err);
-    }
-  };
+const WeatherWidget = ({ location }: Props) => {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  // Round to 3 decimal places (~111m precision) to prevent GPS drift
+  // from triggering a new weather fetch on every geolocation update.
+  const lat =
+    location?.lat != null ? Math.round(location.lat * 1000) / 1000 : undefined;
+  const lng =
+    location?.lng != null ? Math.round(location.lng * 1000) / 1000 : undefined;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (lat === undefined || lng === undefined) return;
+
+    let cancelled = false;
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lng}`);
+        const data = await res.json();
+        if (!cancelled) setWeather(data);
+      } catch {
+        // silently ignore
+      }
+    };
+
     fetchWeather();
-    const interval = setInterval(fetchWeather, 10 * 60 * 1000); // 10 minutes
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [homeLocation]);
+    const interval = setInterval(fetchWeather, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [lat, lng]);
 
   if (!weather) return null;
 

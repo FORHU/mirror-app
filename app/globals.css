@@ -53,7 +53,9 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  /* Tinted near-black — slight violet cast toward the brand --primary (#8b7fc7),
+     never pure #000 (which reads flat and harsh on a mirror). */
+  --background: oklch(0.15 0.014 292);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -137,6 +139,12 @@
   /* App aliases (used throughout the repo) */
   --color-bg-main: var(--background);
   --color-text-main: var(--foreground);
+
+  /* Kiosk canvas — the one tinted near-black for full-screen backgrounds and
+     dark panels. Replaces scattered `bg-black` / `#050505`. Violet-tinted to
+     match the brand without reading as "purple". */
+  --color-canvas: oklch(0.15 0.014 292);
+  --color-canvas-raised: oklch(0.19 0.016 292);
 
   --color-background-primary: var(--background);
   --color-background-secondary: var(--card);
@@ -240,8 +248,8 @@
 
 .glass-morphism {
   background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .btn-primary {
@@ -274,10 +282,10 @@
 
 /* Glass panel — dark mirror surface */
 .mirror-panel {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: clamp(8px, 2vw, 16px);
   padding: var(--pad-y) var(--pad-x);
 }
@@ -299,6 +307,23 @@
 }
 .mirror-scroll::-webkit-scrollbar {
   display: none;
+}
+
+.mirror-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mirror-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* Layout tracing — outlines every container without shifting layout.
+   Enable by adding `debug-borders` to a page's root element; delete to disable. */
+.debug-borders div {
+  outline: 1px solid rgba(255, 80, 80, 0.45);
+  outline-offset: -1px;
 }
 
 /* Re-enable text selection inside text-heavy panels */

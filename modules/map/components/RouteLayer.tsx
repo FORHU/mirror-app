@@ -10,66 +10,45 @@ interface RouteLayerProps {
 
 const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
   const activeRoute = useMapStore((state) => state.activeRoute);
-  const lastTripGeojson = useMapStore((state) => state.lastTripGeojson);
 
   useEffect(() => {
     if (!map) return;
 
-    if (!map.getSource("last-trip")) {
-      map.addSource("last-trip", {
-        type: "geojson",
-        data: lastTripGeojson ?? { type: "FeatureCollection", features: [] },
-      });
-
-      // Ghost overlay of the previous trip
-      map.addLayer({
-        id: "last-trip-line",
-        type: "line",
-        source: "last-trip",
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: {
-          "line-color": "#ffffff",
-          "line-width": 2,
-          "line-opacity": 0.18,
-          "line-dasharray": [4, 4],
-        },
-      });
-    }
-
     if (!map.getSource("route")) {
       map.addSource("route", {
         type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
+        data: { type: "FeatureCollection", features: [] },
       });
 
-      // Soft outer glow
+      // Wide atmosphere halo
       map.addLayer({
         id: "route-glow-outer",
         type: "line",
         source: "route",
+        slot: "top",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#00cfff",
-          "line-width": 18,
+          "line-color": "#93c5fd",
+          "line-width": 32,
           "line-opacity": 0.25,
-          "line-blur": 8,
+          "line-blur": 14,
+          "line-emissive-strength": 1,
         },
       });
 
-      // Mid glow
+      // Inner glow
       map.addLayer({
         id: "route-glow",
         type: "line",
         source: "route",
+        slot: "top",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#00d4ff",
-          "line-width": 10,
+          "line-color": "#3b82f6",
+          "line-width": 16,
           "line-opacity": 0.55,
-          "line-blur": 4,
+          "line-blur": 5,
+          "line-emissive-strength": 1,
         },
       });
 
@@ -78,12 +57,30 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         id: "route",
         type: "line",
         source: "route",
+        slot: "top",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": "#ffffff",
-          "line-width": 3,
+          "line-color": "#3b82f6",
+          "line-width": 6,
           "line-opacity": 1,
           "line-blur": 0,
+          "line-emissive-strength": 1,
+        },
+      });
+
+      // Bright hot-centre streak
+      map.addLayer({
+        id: "route-core",
+        type: "line",
+        source: "route",
+        slot: "top",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": "#bfdbfe",
+          "line-width": 2,
+          "line-opacity": 0.9,
+          "line-blur": 0,
+          "line-emissive-strength": 1,
         },
       });
     }
@@ -98,13 +95,7 @@ const RouteLayer: React.FC<RouteLayerProps> = ({ map }) => {
         features: [],
       });
     }
-
-    if (map.getSource("last-trip")) {
-      (map.getSource("last-trip") as mapboxgl.GeoJSONSource).setData(
-        lastTripGeojson ?? { type: "FeatureCollection", features: [] },
-      );
-    }
-  }, [map, activeRoute, lastTripGeojson]);
+  }, [map, activeRoute]);
 
   return null;
 };

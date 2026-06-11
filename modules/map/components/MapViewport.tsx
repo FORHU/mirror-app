@@ -5,10 +5,11 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { MAPBOX_TOKEN } from "@/modules/shared/config/device.config";
 import { useMapStore } from "../store/useMapStore";
-import { applyMirrorStyle } from "../utils/mirrorStyle";
 import RouteLayer from "./RouteLayer";
 import UserPuck from "./UserPuck";
 import DestinationPin from "./DestinationPin";
+import ItineraryRouteLayer from "./ItineraryRouteLayer";
+import ItineraryPins from "./ItineraryPins";
 import { useMapCamera } from "../hooks/useMapCamera";
 
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -16,51 +17,51 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 const MapViewport = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const [map, setLocalMap] = useState<mapboxgl.Map | null>(null);
-  const { homeLocation, setSelectedPOI, showTraffic, showTerrain, setMap } =
-    useMapStore();
+  // Do NOT subscribe to userLocation — GPS updates every 10-20 s would
+  // re-evaluate initialCenter and reinitialize the entire Mapbox instance.
+  const { setSelectedPOI, showTraffic, setMap } = useMapStore();
 
-  // Use camera hook
+  // Capture the initial center exactly once at mount. Reading from the Zustand
+  // snapshot (getState) avoids any reactive dependency on live location updates.
+  const initialCenterRef = useRef<{ lat: number; lng: number } | null>(
+    useMapStore.getState().homeLocation ?? useMapStore.getState().userLocation,
+  );
+
   useMapCamera(map);
 
   useEffect(() => {
-    if (!mapContainerRef.current || !homeLocation) return;
+    const initialCenter = initialCenterRef.current;
+    if (!mapContainerRef.current || !initialCenter) return;
 
     const mapInstance = new mapboxgl.Map({
       container: mapContainerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
-      center: [homeLocation.lng, homeLocation.lat],
+      style: "mapbox://styles/mapbox/standard",
+      center: [initialCenter.lng, initialCenter.lat],
       zoom: 15,
       pitch: 0,
       bearing: 0,
-      antialias: true,
+    });
+
+    mapInstance.on("style.load", () => {
+      mapInstance.setConfigProperty("basemap", "showPointsOfInterest", false);
+      mapInstance.setConfigProperty(
+        "basemap",
+        "showPointOfInterestLabels",
+        false,
+      );
+      mapInstance.setConfigProperty("basemap", "showTransitLabels", false);
+      mapInstance.setConfigProperty("basemap", "lightPreset", "night");
     });
 
     mapInstance.on("load", () => {
-      mapInstance.addLayer({
-        id: "3d-buildings",
-        source: "composite",
-        "source-layer": "building",
-        filter: ["==", "extrude", "true"],
-        type: "fill-extrusion",
-        paint: {
-          "fill-extrusion-color": "#141414",
-          "fill-extrusion-height": ["get", "height"],
-          "fill-extrusion-base": ["get", "min_height"],
-          "fill-extrusion-opacity": 0.6,
-        },
-      });
-
-      applyMirrorStyle(mapInstance);
       setLocalMap(mapInstance);
       setMap(mapInstance);
 
-      // Handle map clicks for discovery
       mapInstance.on("click", (e) => {
         const features = mapInstance.queryRenderedFeatures(e.point);
         const namedFeature = features.find(
           (f) => f.properties?.name || f.properties?.name_en,
         );
-
         if (namedFeature) {
           const name =
             namedFeature.properties?.name || namedFeature.properties?.name_en;
@@ -78,7 +79,6 @@ const MapViewport = () => {
         }
       });
 
-      // Change cursor on hover
       mapInstance.on("mousemove", (e) => {
         const features = mapInstance.queryRenderedFeatures(e.point);
         const namedFeature = features.find(
@@ -88,25 +88,14 @@ const MapViewport = () => {
       });
     });
 
-    mapInstance.on("style.load", () => {
-      applyMirrorStyle(mapInstance);
-    });
-
-    // Re-apply after first idle so all sprite/tiles are loaded
-    mapInstance.once("idle", () => {
-      applyMirrorStyle(mapInstance);
-    });
-
     return () => {
       mapInstance.remove();
     };
-  }, [homeLocation, setMap, setSelectedPOI]); // Only init once when homeLocation is ready
+  }, [setMap, setSelectedPOI]);
 
-  // Handle Traffic and Terrain toggles
   useEffect(() => {
     if (!map) return;
 
-    // Traffic — add Mapbox traffic tileset on demand, hide/show without removing
     const TRAFFIC_SRC = "mapbox-traffic-v1";
     const TRAFFIC_LAYER = "traffic-congestion";
 
@@ -149,30 +138,21 @@ const MapViewport = () => {
         map.setLayoutProperty(TRAFFIC_LAYER, "visibility", "none");
       }
     }
-
-    // Terrain
-    if (showTerrain) {
-      if (!map.getSource("mapbox-dem")) {
-        map.addSource("mapbox-dem", {
-          type: "raster-dem",
-          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-          tileSize: 512,
-          maxzoom: 14,
-        });
-      }
-      map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
-    } else {
-      map.setTerrain(null);
-    }
-  }, [map, showTraffic, showTerrain]);
+  }, [map, showTraffic]);
 
   return (
-    <div ref={mapContainerRef} className="w-full h-full">
+    <div
+      ref={mapContainerRef}
+      className="w-full h-full"
+      style={{ filter: "brightness(0.75)" }}
+    >
       {map && (
         <>
           <RouteLayer map={map} />
+          <ItineraryRouteLayer map={map} />
           <UserPuck map={map} />
           <DestinationPin map={map} />
+          <ItineraryPins map={map} />
         </>
       )}
     </div>

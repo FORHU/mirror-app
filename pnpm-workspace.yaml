@@ -3,3 +3,6 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 minimumReleaseAge: 0
+
+allowBuilds:
+  core-js: set this to true or false

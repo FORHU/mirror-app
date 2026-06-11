@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useMapStore } from "../store/useMapStore";
 import { mapService, GeocodeResult } from "../services/map.service";
 import { Search, MapPin, Loader2, Check } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import mapboxgl from "mapbox-gl";
 
 const HomeLocationSetup = () => {
@@ -47,8 +47,7 @@ const HomeLocationSetup = () => {
   // Debounced search
   useEffect(() => {
     if (!query || query.length < 3) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setResults([]);
+      queueMicrotask(() => setResults([]));
       return;
     }
 

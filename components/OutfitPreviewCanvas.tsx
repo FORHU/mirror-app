@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { FittingSlot, type SlotMap } from "@/modules/garment/types";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 
-// ── Canvas compositing helpers (mirrors save-outfit logic) ─────────────────
+// ── Canvas compositing helpers ─────────────────────────────────────────────
 
 const SLOT_TO_PART: Record<FittingSlot, string> = {
   [FittingSlot.HeadGarment]: "head",
@@ -27,8 +27,11 @@ const BODY_POSITIONS: Record<string, [number, number, number, number]> = {
   earrings: [80, 80, 180, 66],
   neck: [210, 150, 90, 69],
   torso: [100, 120, 306, 383],
-  leftHand: [120, 400, 72, 132],
-  rightHand: [320, 400, 72, 132],
+  base: [-20, 30, 306, 383],
+  mid: [100, 30, 306, 383],
+  outer: [250, 30, 306, 383],
+  leftHand: [50, 500, 72, 132],
+  rightHand: [320, 500, 72, 132],
   waist: [160, 390, 186, 63],
   legs: [140, 360, 234, 370],
   feet: [140, 680, 234, 87],
@@ -41,8 +44,11 @@ const GARMENT_SCALE: Record<string, number> = {
   earrings: 0.5,
   neck: 1.5,
   torso: 0.8,
-  leftHand: 0.7,
-  rightHand: 0.7,
+  base: 0.8,
+  mid: 0.8,
+  outer: 0.8,
+  leftHand: 2,
+  rightHand: 2,
   waist: 0.8,
   legs: 0.8,
   feet: 1.3,
@@ -51,7 +57,6 @@ const GARMENT_SCALE: Record<string, number> = {
 
 const DRAW_ORDER = [
   "full",
-  "torso",
   "legs",
   "feet",
   "head",
@@ -149,9 +154,21 @@ function drawContained(
   );
 }
 
+async function loadLayer(
+  g: RemoteGarment | null | undefined,
+): Promise<HTMLImageElement | null> {
+  if (!g?.imageUrl) return null;
+  try {
+    return await loadGarmentImage(g.imageUrl);
+  } catch {
+    return null;
+  }
+}
+
 async function drawOutfit(
   canvas: HTMLCanvasElement,
   slotMap: SlotMap,
+  topLayers: Array<HTMLImageElement | null>,
   dpr = 1,
 ) {
   const W = 500,
@@ -177,6 +194,8 @@ async function drawOutfit(
     part: string;
     img: HTMLImageElement;
   }[];
+
+  // Draw non-torso parts in standard order
   DRAW_ORDER.forEach((part) => {
     const item = items.find((i) => i.part === part);
     if (!item) return;
@@ -193,20 +212,49 @@ async function drawOutfit(
       h * s,
     );
   });
+
+  // Draw top layers in order: BASE first, MID on top, OUTER on top
+  const layerKeys = ["base", "mid", "outer"] as const;
+  topLayers.forEach((img, i) => {
+    if (!img) return;
+    const key = layerKeys[i];
+    const pos = BODY_POSITIONS[key];
+    const s = GARMENT_SCALE[key] ?? 0.8;
+    const [lx, ly, lw, lh] = pos;
+    drawContained(
+      ctx,
+      img,
+      lx - (lw * s - lw) / 2,
+      ly - (lh * s - lh) / 2,
+      lw * s,
+      lh * s,
+    );
+  });
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-interface Props {
-  hat: RemoteGarment | null;
-  top: RemoteGarment | null;
-  bottom: RemoteGarment | null;
-  shoe: RemoteGarment | null;
-  bag: RemoteGarment | null;
+export interface OutfitPreviewCanvasHandle {
+  getBlob(): Promise<Blob | null>;
 }
 
-function toSlotMap({ hat, top, bottom, shoe, bag }: Props): SlotMap {
-  const add = (slot: FittingSlot, g: RemoteGarment | null) =>
+interface Props {
+  hat?: RemoteGarment | null;
+  topBase?: RemoteGarment | null;
+  topMid?: RemoteGarment | null;
+  topOuter?: RemoteGarment | null;
+  bottom?: RemoteGarment | null;
+  shoe?: RemoteGarment | null;
+  bag?: RemoteGarment | null;
+}
+
+function toSlotMap({
+  hat = null,
+  bottom,
+  shoe,
+  bag,
+}: Omit<Props, "topBase" | "topMid" | "topOuter">): SlotMap {
+  const add = (slot: FittingSlot, g: RemoteGarment | null | undefined) =>
     g
       ? {
           [slot]: {
@@ -218,42 +266,64 @@ function toSlotMap({ hat, top, bottom, shoe, bag }: Props): SlotMap {
       : {};
   return {
     ...add(FittingSlot.HeadGarment, hat),
-    ...add(FittingSlot.UpperGarment, top),
     ...add(FittingSlot.LowerGarment, bottom),
     ...add(FittingSlot.FootGarment, shoe),
     ...add(FittingSlot.RightHandAccessory, bag),
   };
 }
 
-export default function OutfitPreviewCanvas(props: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const OutfitPreviewCanvas = forwardRef<OutfitPreviewCanvasHandle, Props>(
+  function OutfitPreviewCanvas(props, ref) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const slotMap = toSlotMap(props);
-    const dpr =
-      typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    drawOutfit(canvas, slotMap, dpr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    props.hat?.id,
-    props.top?.id,
-    props.bottom?.id,
-    props.shoe?.id,
-    props.bag?.id,
-  ]);
+    useImperativeHandle(ref, () => ({
+      getBlob(): Promise<Blob | null> {
+        return new Promise((resolve) => {
+          const canvas = canvasRef.current;
+          if (!canvas) return resolve(null);
+          canvas.toBlob((blob) => resolve(blob), "image/png");
+        });
+      },
+    }));
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "contain",
-        background: "#f8f9fb",
-        borderRadius: "12px",
-      }}
-    />
-  );
-}
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const slotMap = toSlotMap(props);
+      const dpr =
+        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
+      Promise.all([
+        loadLayer(props.topBase),
+        loadLayer(props.topMid),
+        loadLayer(props.topOuter),
+      ]).then((topLayers) => {
+        drawOutfit(canvas, slotMap, topLayers, dpr);
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      props.hat?.id,
+      props.topBase?.id,
+      props.topMid?.id,
+      props.topOuter?.id,
+      props.bottom?.id,
+      props.shoe?.id,
+      props.bag?.id,
+    ]);
+
+    return (
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          background: "#f8f9fb",
+          borderRadius: "12px",
+        }}
+      />
+    );
+  },
+);
+
+export default OutfitPreviewCanvas;

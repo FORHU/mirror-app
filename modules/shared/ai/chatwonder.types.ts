@@ -10,7 +10,16 @@ export interface PageContext {
   pageName: string;
   activeStep?: string;
   collectedData?: EventSetupData;
+  mode?: "garment" | "map" | "cosmetics" | "overview";
+  persona?: string;
 }
+
+export type PendingEvent = {
+  eventName: string;
+  eventType: string;
+  timeLabel: string;
+  missingFields: ("location" | "time")[];
+};
 
 export interface ChatWonderInput {
   transcript: string;
@@ -18,7 +27,7 @@ export interface ChatWonderInput {
 }
 
 export type ChatWonderAction =
-  | { type: "navigate"; route: string }
+  | { type: "navigate"; route: string; suggestion?: string }
   | { type: "speak"; text?: string }
   | { type: "page_event"; event: string; payload: Record<string, unknown> }
   | {
@@ -31,21 +40,42 @@ export type ChatWonderAction =
   | { type: "calendar_query_date"; date: string }
   | { type: "calendar_clear_event"; id: string }
   | { type: "maps_navigate"; destination: string }
-  | { type: "maps_preview_location"; query: string; label: string }
   | {
       type: "maps_get_directions";
       destination: string;
       mode?: "driving" | "walking" | "transit";
     }
-  | { type: "maps_clear" }
+  | { type: "maps_preview_location"; query: string; label: string }
+  | { type: "maps_show_route"; destination?: string; query?: string }
+  | { type: "maps_clear_route" }
+  | { type: "stop_navigation" }
+  | { type: "maps_camera_overview" }
+  | { type: "maps_camera_free" }
   | { type: "traffic_on" }
   | { type: "traffic_off" }
-  | { type: "traffic_route" }
-  | { type: "stop_navigation" }
   | {
       type: "set_profile";
       profile: "car" | "motorcycle" | "bicycle" | "walking";
-    };
+    }
+  | {
+      type: "maps_suggest_places";
+      category:
+        | "food"
+        | "coffee"
+        | "activities"
+        | "shopping"
+        | "medical"
+        | "transit";
+      label: string;
+    }
+  | { type: "cosmetic_select_recommendation"; rank: number }
+  | { type: "fashion_select_outfit"; index: number }
+  | {
+      type: "fashion_select_garment";
+      slot: "base" | "mid" | "outer" | "bottoms" | "shoes" | "bags";
+      index: number;
+    }
+  | { type: "GARMENT_RECOMMENDATION"; response: unknown };
 
 export interface ChatWonderResponse {
   intent: string;

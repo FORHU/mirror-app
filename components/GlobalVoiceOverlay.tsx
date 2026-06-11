@@ -1,25 +1,29 @@
 "use client";
 
-import React from "react";
-import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Loader2, Volume2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Mic, Loader2, Volume2 } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { usePathname } from "next/navigation";
+import VoiceWaveform from "@/components/VoiceWaveform";
+import VoiceTranscriptBubble from "@/components/VoiceTranscriptBubble";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
-// Pages that already have their own voice UI — don't show the global overlay there
-const EXCLUDED_PATHS = ["/map"];
-
+// The shared tap-to-talk mic renders on every page. It's hidden only while
+// /ai-assistant sits on its idle "Tap to start" welcome screen, so the spoken
+// greeting gate isn't bypassed by tapping the mic directly.
 export default function GlobalVoiceOverlay() {
-  const pathname = usePathname();
-
-  // Hide on pages that have a built-in mic button
-  if (EXCLUDED_PATHS.some((p) => pathname.startsWith(p))) return null;
-
+  const assistantIdle = useMirrorStore((s) => s.assistantIdle);
+  if (assistantIdle) return null;
   return <VoiceUI />;
 }
 
 function VoiceUI() {
-  const { voiceState, transcript, reply, error, toggle } = useVoiceContext();
+  const { voiceState, transcript, reply, error, toggle, chatHistory } =
+    useVoiceContext();
+  const pathname = usePathname();
+  const isChatOpen = useMirrorStore((s) => s.isChatOpen);
+  const isCosmeticsPage = pathname.startsWith("/ai-recommendation-cosmetic");
+  const visibleHistory = isCosmeticsPage ? chatHistory.slice(-1) : chatHistory;
 
   const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
@@ -27,7 +31,7 @@ function VoiceUI() {
   const isActive = isListening || isProcessing || isSpeaking;
 
   const micIcon = isListening ? (
-    <MicOff className="w-7 h-7 text-red-400" />
+    <Mic className="w-7 h-7 text-emerald-400" />
   ) : isProcessing ? (
     <Loader2 className="w-7 h-7 text-[#4fc3f7] animate-spin" />
   ) : isSpeaking ? (
@@ -38,70 +42,114 @@ function VoiceUI() {
 
   return (
     <>
-      {/* Transcript / reply bubble — appears above the mic button */}
-      <AnimatePresence>
-        {(transcript || reply || error) && (
-          <motion.div
-            key="bubble"
-            initial={{ opacity: 0, y: 16, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.95 }}
-            className="fixed bottom-28 right-5 z-9999 w-72 pointer-events-none"
-          >
-            <div
-              className="rounded-2xl px-4 py-3 shadow-2xl"
-              style={{
-                background: "rgba(10,10,18,0.88)",
-                backdropFilter: "blur(16px)",
-                border: "1px solid rgba(255,255,255,0.12)",
-              }}
-            >
-              {error ? (
-                <p className="text-xs text-red-400">{error}</p>
-              ) : (
-                <>
-                  {transcript && (
-                    <p className="text-xs text-white/50 leading-tight mb-1">
-                      <span className="font-semibold text-white/70">You:</span>{" "}
-                      {transcript}
-                    </p>
-                  )}
-                  {reply && (
-                    <p className="text-sm text-white leading-snug">
-                      <span className="font-semibold text-[#4fc3f7]">AI:</span>{" "}
-                      {reply}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Floating mic button — bottom-right */}
-      <motion.button
-        onClick={toggle}
-        className="fixed bottom-6 right-5 z-9999 flex items-center justify-center rounded-full shadow-2xl transition-all"
-        style={{
-          width: 60,
-          height: 60,
-          background: isActive ? "rgba(79,195,247,0.2)" : "rgba(20,20,30,0.85)",
-          border: isActive
-            ? "2px solid rgba(79,195,247,0.7)"
-            : "2px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          boxShadow: isActive
-            ? "0 0 24px rgba(79,195,247,0.35)"
-            : "0 4px 24px rgba(0,0,0,0.5)",
-        }}
-        whileTap={{ scale: 0.9 }}
-        animate={isListening ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-        transition={isListening ? { repeat: Infinity, duration: 1.2 } : {}}
-        aria-label="Voice assistant"
+      {/* Chat History Overlay — centered above the mic, matching the bubble */}
+      <div
+        className={`fixed z-9999 inset-x-0 flex justify-center pointer-events-none ${
+          isCosmeticsPage ? "bottom-[132px]" : "bottom-[160px]"
+        }`}
       >
-        {micIcon}
-      </motion.button>
+        <AnimatePresence>
+          {isChatOpen && visibleHistory.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 16, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.95 }}
+              className={`pointer-events-auto ${
+                isCosmeticsPage ? "w-[min(20rem,calc(100vw-2.5rem))]" : "w-80"
+              }`}
+            >
+              <div
+                className={`rounded-2xl shadow-2xl flex flex-col overflow-y-auto ${
+                  isCosmeticsPage
+                    ? "gap-2 p-3 max-h-[34vh]"
+                    : "gap-3 p-4 max-h-[60vh]"
+                }`}
+                style={{
+                  background: "rgba(10,10,18,0.92)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                {visibleHistory.map((item, idx) => (
+                  <div key={idx} className="flex flex-col gap-1">
+                    <p className="text-xs text-white/60 leading-tight bg-white/5 p-2 rounded-lg rounded-tr-none self-end max-w-[85%]">
+                      {item.user}
+                    </p>
+                    <p
+                      className={`text-white bg-[#4fc3f7]/10 rounded-lg rounded-tl-none self-start max-w-[90%] border border-[#4fc3f7]/20 whitespace-pre-line ${
+                        isCosmeticsPage
+                          ? "text-xs leading-relaxed p-2"
+                          : "text-sm leading-snug p-2.5"
+                      }`}
+                    >
+                      {item.assistant}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Transcript / reply bubble — centered above the mic button */}
+      <VoiceTranscriptBubble
+        transcript={transcript}
+        reply={reply}
+        error={error}
+        isChatOpen={isChatOpen}
+        isCosmeticsPage={isCosmeticsPage}
+      />
+
+      {/* Floating voice control — centered at the bottom. Compact circle while
+          listening (ring gives feedback), morphs into a flowing waveform pill
+          while processing/speaking. Centered via the wrapper so framer-motion's
+          scale/width animations don't fight a translate transform. */}
+      <div className="fixed z-9999 bottom-6 inset-x-0 flex justify-center pointer-events-none">
+        <motion.button
+          onClick={toggle}
+          className="flex items-center justify-center shadow-2xl pointer-events-auto"
+          style={{
+            height: 64,
+            borderRadius: 9999,
+            background: isListening
+              ? "rgba(5,20,12,0.92)"
+              : isActive
+                ? "rgba(8,8,14,0.9)"
+                : "rgba(20,20,30,0.85)",
+            border: isListening
+              ? "2px solid rgba(34,197,94,0.7)"
+              : isActive
+                ? "2px solid rgba(120,180,255,0.45)"
+                : "2px solid rgba(255,255,255,0.15)",
+            backdropFilter: "blur(12px)",
+            boxShadow: isListening
+              ? "0 0 18px rgba(34,197,94,0.32)"
+              : isActive
+                ? "0 0 18px rgba(120,150,210,0.26)"
+                : "0 4px 20px rgba(0,0,0,0.45)",
+            overflow: "hidden",
+            padding: 0,
+          }}
+          whileTap={{ scale: 0.95 }}
+          animate={{
+            width: isProcessing || isSpeaking ? 224 : 64,
+          }}
+          transition={{ type: "spring", stiffness: 320, damping: 30 }}
+          aria-label="Voice assistant"
+        >
+          {isProcessing || isSpeaking ? (
+            <VoiceWaveform
+              active={isActive}
+              level={isProcessing ? 0.45 : 1}
+              width={208}
+              height={56}
+            />
+          ) : (
+            micIcon
+          )}
+        </motion.button>
+      </div>
     </>
   );
 }

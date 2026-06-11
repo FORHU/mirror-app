@@ -3,23 +3,114 @@ import type mapboxgl from "mapbox-gl";
 import { DEVICE_MODE } from "@/modules/shared/config/device.config";
 import {
   mapService,
-  GeocodeResult,
-  DirectionsFormatted,
+  type NearbyPOI,
+  type GeocodeResult,
+  type DirectionsFormatted,
 } from "../services/map.service";
+import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
+import { outlineService } from "@/modules/shared/api/outline.service";
 
-export interface NearbyPOI {
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  placeId: string;
+export interface ItineraryGroup {
+  label: string;
+  stops: {
+    name: string;
+    lat: number;
+    lng: number;
+    address?: string;
+    placeId?: string;
+    eventType?: string;
+    timeBlock?: string;
+  }[];
+}
+
+const EVENT_TYPE_TO_POI_CATEGORY: Record<string, string> = {
+  lunch: "restaurant",
+  dinner: "restaurant",
+  breakfast: "cafe",
+  meeting: "cafe",
+  conference: "cafe",
+  date: "restaurant",
+  event: "restaurant",
+  party: "restaurant",
+};
+
+// Shared helper — fetches routes + POIs for a set of stops from a given origin
+async function fetchRoutesAndPOIs(
+  stops: {
+    name: string;
+    lat: number;
+    lng: number;
+    address?: string;
+    placeId?: string;
+    eventType?: string;
+    timeBlock?: string;
+  }[],
+  origin: { lat: number; lng: number },
+  profile: "car" | "motorcycle" | "bicycle" | "walking",
+): Promise<{
+  routes: DirectionsFormatted[];
+  pois: { stopIndex: number; pois: NearbyPOI[] }[];
+}> {
+  const allPoints = [origin, ...stops];
+  const routes: DirectionsFormatted[] = [];
+  for (let i = 0; i < allPoints.length - 1; i++) {
+    try {
+      const route = await mapService.directions(
+        [allPoints[i].lng, allPoints[i].lat],
+        [allPoints[i + 1].lng, allPoints[i + 1].lat],
+        profile,
+      );
+      routes.push(route);
+    } catch {
+      /* skip failed legs */
+    }
+  }
+  const pois = await Promise.all(
+    stops.map(async (stop, i) => {
+      try {
+        const category = stop.eventType
+          ? EVENT_TYPE_TO_POI_CATEGORY[stop.eventType]
+          : undefined;
+        const { pois } = await mapService.nearbyPOIs(
+          stop.lat,
+          stop.lng,
+          1500,
+          category,
+        );
+        return { stopIndex: i, pois: pois.slice(0, 5) };
+      } catch {
+        return { stopIndex: i, pois: [] };
+      }
+    }),
+  );
+  return { routes, pois };
+}
+
+// Returns the correct starting point for an itinerary group:
+// group 0 uses user/home location; group N uses the last stop of group N-1.
+function groupOrigin(
+  groupIndex: number,
+  groups: ItineraryGroup[],
+  userLoc: { lat: number; lng: number } | null,
+  homeLoc: { lat: number; lng: number } | null,
+): { lat: number; lng: number } {
+  if (groupIndex > 0 && groups[groupIndex - 1]?.stops.length > 0) {
+    const prev = groups[groupIndex - 1].stops;
+    return prev[prev.length - 1];
+  }
+  return userLoc ?? homeLoc ?? { lat: 0, lng: 0 };
 }
 
 interface SelectedPOI {
   name: string;
   category: string;
+  address?: string;
+  distance?: number;
   location: { lat: number; lng: number };
-  layerId: string;
+  layerId?: string;
+  placeId?: string;
+  photo?: string | null;
+  travelFromStop?: { walkingMin: number; carMin: number };
 }
 
 type Destination = {
@@ -28,85 +119,75 @@ type Destination = {
   lng: number;
   address?: string;
   placeId?: string;
+  eventType?: string;
+  timeBlock?: string;
 };
 
 type Location = { lat: number; lng: number };
-
-function loadFromStorage<T>(key: string): T | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const s = localStorage.getItem(key);
-    return s ? (JSON.parse(s) as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveToStorage(key: string, value: unknown) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
 
 interface MapStore {
   deviceMode: "mirror";
   map: mapboxgl.Map | null;
   setMap: (map: mapboxgl.Map) => void;
 
+  isPanning: boolean;
+  setIsPanning: (v: boolean) => void;
+
   homeLocation: Location | null;
   homeLocationStatus: "idle" | "loading" | "loaded" | "error";
-  workLocation: Location | null;
 
   mapStyle: "mirror" | "standard";
-  cameraMode: "follow" | "overview" | "free";
-  isNavigating: boolean;
-  currentStepIndex: number;
-  distanceToNextManeuver: number;
-  remainingDistance: number;
-  remainingDuration: number;
+  cameraMode: "overview" | "free";
+  routeDistance: number;
+  routeDuration: number;
   activeRoute: DirectionsFormatted | null;
-  lastTripGeojson: GeoJSON.FeatureCollection | null;
 
   searchResults: GeocodeResult[];
   isSearching: boolean;
   selectedDestination: Destination | null;
   nearbyPOIs: NearbyPOI[];
+  suggestedPOIs: NearbyPOI[];
+  suggestionLabel: string;
   selectedPOI: SelectedPOI | null;
   activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
   showTraffic: boolean;
-  showTerrain: boolean;
   isRouting: boolean;
   userLocation: Location | null;
   origin: Location | null;
 
-  commuteEta: {
-    duration: number;
-    distance: number;
-    to: "work" | "home";
-  } | null;
-  commuteEtaLoading: boolean;
+  itineraryStops: Destination[];
+  itineraryRoutes: DirectionsFormatted[];
+  itineraryStopPOIs: { stopIndex: number; pois: NearbyPOI[] }[];
+  itineraryGroups: ItineraryGroup[];
+  activeItineraryIndex: number;
+  pendingEvents: PendingEvent[];
+
+  fetchNearbyPOIs: (destination: { lat: number; lng: number }) => Promise<void>;
 
   loadHomeLocation(): Promise<void>;
   saveHomeLocation(coords: Location): Promise<void>;
-  setWorkLocation(coords: Location): void;
-  clearWorkLocation(): void;
   setUserLocation(coords: Location): void;
-  setCameraMode(mode: "follow" | "overview" | "free"): void;
+  setCameraMode(mode: "overview" | "free"): void;
   toggleMapStyle(): void;
   toggleTraffic(): void;
-  toggleTerrain(): void;
   searchLocations(query: string): Promise<void>;
   setDestination(location: Destination): Promise<void>;
+  setItineraryStops(stops: Destination[]): Promise<void>;
+  setItineraryStopPOIs(data: { stopIndex: number; pois: NearbyPOI[] }[]): void;
+  addItineraryGroup(stops: Destination[], label?: string): Promise<void>;
+  setActiveItineraryIndex(index: number): Promise<void>;
   setSelectedPOI(poi: SelectedPOI | null): void;
   setNearbyPOIs(pois: NearbyPOI[]): void;
+  setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
+  clearSuggestions(): void;
   setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
-  startNavigation(): void;
-  stopNavigation(): void;
-  clearNavigation(): void;
-  updateNavigationProgress(location: Location): void;
-  fetchCommuteEta(): Promise<void>;
+  clearRoute(): void;
+  patchHomeLocation(coords: Location): Promise<void>;
+  setPendingEvents: (events: PendingEvent[]) => void;
+  clearPendingEvents: () => void;
+  loadOutlineStops: () => Promise<void>;
+  clearItinerary: () => Promise<void>;
 }
 
 export const useMapStore = create<MapStore>((set, get) => ({
@@ -114,34 +195,52 @@ export const useMapStore = create<MapStore>((set, get) => ({
   map: null,
   setMap: (map) => set({ map }),
 
+  isPanning: false,
+  setIsPanning: (v) => set({ isPanning: v }),
+
   homeLocation: null,
   homeLocationStatus: "idle",
-  workLocation: loadFromStorage<Location>("mirror_work_location"),
 
   mapStyle: "mirror",
-  cameraMode: "free",
-  isNavigating: false,
-  currentStepIndex: 0,
-  distanceToNextManeuver: 0,
-  remainingDistance: 0,
-  remainingDuration: 0,
+  cameraMode: "overview",
+  routeDistance: 0,
+  routeDuration: 0,
   activeRoute: null,
-  lastTripGeojson: loadFromStorage("mirror_last_trip"),
 
   searchResults: [],
   isSearching: false,
   selectedDestination: null,
   nearbyPOIs: [],
+  suggestedPOIs: [],
+  suggestionLabel: "",
   selectedPOI: null,
   activeProfile: "car",
   showTraffic: false,
-  showTerrain: false,
   isRouting: false,
   userLocation: null,
   origin: null,
+  itineraryStops: [],
+  itineraryRoutes: [],
+  itineraryStopPOIs: [],
+  itineraryGroups: [],
+  activeItineraryIndex: 0,
+  pendingEvents: [],
 
-  commuteEta: null,
-  commuteEtaLoading: false,
+  setPendingEvents: (events) => set({ pendingEvents: events }),
+  clearPendingEvents: () => set({ pendingEvents: [] }),
+
+  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  setSuggestedPOIs: (pois, label) =>
+    set({ suggestedPOIs: pois, suggestionLabel: label }),
+  clearSuggestions: () => set({ suggestedPOIs: [], suggestionLabel: "" }),
+  fetchNearbyPOIs: async ({ lat, lng }) => {
+    try {
+      const { pois } = await mapService.nearbyPOIs(lat, lng, 1000);
+      set({ nearbyPOIs: pois });
+    } catch {
+      // silently ignore — POIs are non-critical
+    }
+  },
 
   loadHomeLocation: async () => {
     set({ homeLocationStatus: "loading" });
@@ -159,29 +258,13 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   saveHomeLocation: async (coords) => {
-    set({ homeLocationStatus: "loading" });
     try {
       await mapService.setHomeLocation(coords);
-      set({
-        homeLocation: coords,
-        userLocation: coords,
-        origin: coords,
-        homeLocationStatus: "loaded",
-      });
+      set({ homeLocation: coords, userLocation: coords, origin: coords });
     } catch {
-      set({ homeLocationStatus: "error" });
+      // silently ignore — home location save is best-effort,
+      // do NOT touch homeLocationStatus (would unmount MapDashboard)
     }
-  },
-
-  setWorkLocation: (coords) => {
-    saveToStorage("mirror_work_location", coords);
-    set({ workLocation: coords });
-  },
-
-  clearWorkLocation: () => {
-    if (typeof window !== "undefined")
-      localStorage.removeItem("mirror_work_location");
-    set({ workLocation: null, commuteEta: null });
   },
 
   setUserLocation: (coords) => set({ userLocation: coords }),
@@ -189,7 +272,6 @@ export const useMapStore = create<MapStore>((set, get) => ({
   toggleMapStyle: () =>
     set((s) => ({ mapStyle: s.mapStyle === "mirror" ? "standard" : "mirror" })),
   toggleTraffic: () => set((s) => ({ showTraffic: !s.showTraffic })),
-  toggleTerrain: () => set((s) => ({ showTerrain: !s.showTerrain })),
 
   searchLocations: async (query) => {
     set({ isSearching: true });
@@ -204,23 +286,28 @@ export const useMapStore = create<MapStore>((set, get) => ({
   },
 
   fetchRoute: async () => {
-    const { selectedDestination, homeLocation, activeProfile } = get();
-    if (!selectedDestination || !homeLocation) return;
+    const { selectedDestination, homeLocation, userLocation, activeProfile } =
+      get();
+    const origin = userLocation ?? homeLocation;
+    if (!selectedDestination || !origin) return;
     set({ isRouting: true });
+    // Capture profile at call time — discard result if tab was switched mid-flight.
+    const profileAtCall = activeProfile;
     try {
       const route = await mapService.directions(
-        [homeLocation.lng, homeLocation.lat],
+        [origin.lng, origin.lat],
         [selectedDestination.lng, selectedDestination.lat],
         activeProfile,
       );
+      if (get().activeProfile !== profileAtCall) return;
       set({
         activeRoute: route,
-        remainingDistance: route.distance,
-        remainingDuration: route.duration,
+        routeDistance: route.distance,
+        routeDuration: route.duration,
         isRouting: false,
       });
     } catch {
-      set({ isRouting: false });
+      if (get().activeProfile === profileAtCall) set({ isRouting: false });
     }
   },
 
@@ -229,84 +316,329 @@ export const useMapStore = create<MapStore>((set, get) => ({
       selectedDestination: location,
       isSearching: false,
       searchResults: [],
+      itineraryStops: [],
+      itineraryRoutes: [],
     });
     get().fetchRoute();
   },
 
-  setSelectedPOI: (selectedPOI) => set({ selectedPOI }),
-  setNearbyPOIs: (nearbyPOIs) => set({ nearbyPOIs }),
+  setItineraryStopPOIs: (data) => set({ itineraryStopPOIs: data }),
 
-  setActiveProfile: (activeProfile) => {
+  setItineraryStops: async (stops) => {
+    const {
+      itineraryGroups,
+      activeItineraryIndex,
+      userLocation,
+      homeLocation,
+      activeProfile,
+    } = get();
+
+    // Sync with itineraryGroups — create group 0 if first time, otherwise update active group
+    let groups: ItineraryGroup[];
+    let groupIdx: number;
+    if (itineraryGroups.length === 0) {
+      groups = [{ label: "Leg 1", stops }];
+      groupIdx = 0;
+    } else {
+      groups = [...itineraryGroups];
+      groups[activeItineraryIndex] = { ...groups[activeItineraryIndex], stops };
+      groupIdx = activeItineraryIndex;
+    }
+
+    set({
+      itineraryGroups: groups,
+      activeItineraryIndex: groupIdx,
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+
+    if (stops.length === 0) return;
+    const origin = groupOrigin(groupIdx, groups, userLocation, homeLocation);
+    const { routes, pois } = await fetchRoutesAndPOIs(
+      stops,
+      origin,
+      activeProfile,
+    );
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+    // Persist stops to DB so loadOutlineStops can restore them on next page load
+    outlineService.saveMapStops(stops).catch(() => {});
+  },
+
+  addItineraryGroup: async (stops, label) => {
+    const { itineraryGroups, userLocation, homeLocation, activeProfile } =
+      get();
+    const newLabel = label ?? `Leg ${itineraryGroups.length + 1}`;
+    const newGroups = [...itineraryGroups, { label: newLabel, stops }];
+    const newIndex = newGroups.length - 1;
+
+    set({
+      itineraryGroups: newGroups,
+      activeItineraryIndex: newIndex,
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+
+    if (stops.length === 0) return;
+    const origin = groupOrigin(newIndex, newGroups, userLocation, homeLocation);
+    const { routes, pois } = await fetchRoutesAndPOIs(
+      stops,
+      origin,
+      activeProfile,
+    );
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+    outlineService.saveMapStops(stops).catch(() => {});
+  },
+
+  setActiveItineraryIndex: async (index) => {
+    const { itineraryGroups, userLocation, homeLocation, activeProfile } =
+      get();
+    if (index < 0 || index >= itineraryGroups.length) return;
+
+    const stops = itineraryGroups[index].stops;
+    set({
+      activeItineraryIndex: index,
+      itineraryStops: stops,
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      selectedDestination: null,
+      activeRoute: null,
+    });
+
+    if (stops.length === 0) return;
+    const origin = groupOrigin(
+      index,
+      itineraryGroups,
+      userLocation,
+      homeLocation,
+    );
+    const { routes, pois } = await fetchRoutesAndPOIs(
+      stops,
+      origin,
+      activeProfile,
+    );
+    set({ itineraryRoutes: routes, itineraryStopPOIs: pois });
+  },
+
+  clearRoute: () => {
+    set({
+      activeRoute: null,
+      selectedDestination: null,
+      routeDistance: 0,
+      routeDuration: 0,
+      nearbyPOIs: [],
+      suggestedPOIs: [],
+      showTraffic: false,
+      cameraMode: "overview",
+      itineraryStops: [],
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      itineraryGroups: [],
+      activeItineraryIndex: 0,
+    });
+  },
+
+  setSelectedPOI: (selectedPOI) => {
+    set({ selectedPOI });
+    if (!selectedPOI) return;
+
+    const fetchAndSetPhoto = (placeId: string) => {
+      mapService
+        .venuePhotos(placeId)
+        .then(({ photos }) => {
+          if (photos.length > 0) {
+            set((s) => {
+              if (s.selectedPOI && s.selectedPOI.placeId === placeId) {
+                return { selectedPOI: { ...s.selectedPOI, photo: photos[0] } };
+              }
+              return {};
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    if (selectedPOI.placeId) {
+      fetchAndSetPhoto(selectedPOI.placeId);
+    } else {
+      const { lat, lng } = selectedPOI.location;
+      mapService
+        .nearbyPOIs(lat, lng, 300)
+        .then(({ pois }) => {
+          const clickedName = selectedPOI.name.toLowerCase();
+          const match = pois.find((p) => {
+            const n = p.name.toLowerCase();
+            return n.includes(clickedName) || clickedName.includes(n);
+          });
+          if (match?.placeId) {
+            set((s) => {
+              if (s.selectedPOI && s.selectedPOI.name === selectedPOI.name) {
+                return {
+                  selectedPOI: {
+                    ...s.selectedPOI,
+                    placeId: match.placeId,
+                    photo: match.photo ?? null,
+                  },
+                };
+              }
+              return {};
+            });
+            fetchAndSetPhoto(match.placeId);
+          }
+        })
+        .catch(() => {});
+    }
+  },
+
+  setActiveProfile: async (activeProfile) => {
     set({ activeProfile });
-    const dest = get().selectedDestination;
-    if (dest) get().setDestination(dest);
-  },
-
-  startNavigation: () => {
-    if (!get().activeRoute) return;
-    set({ isNavigating: true, cameraMode: "follow", currentStepIndex: 0 });
-  },
-
-  stopNavigation: () => {
-    const { activeRoute } = get();
-    if (activeRoute?.geojson) {
-      saveToStorage("mirror_last_trip", activeRoute.geojson);
-      set({ lastTripGeojson: activeRoute.geojson });
-    }
-    set({
-      isNavigating: false,
-      cameraMode: "free",
-      activeRoute: null,
-      selectedDestination: null,
-    });
-  },
-
-  clearNavigation: () => {
-    set({
-      activeRoute: null,
-      selectedDestination: null,
-      searchResults: [],
-      isNavigating: false,
-    });
-  },
-
-  updateNavigationProgress: () => {},
-
-  fetchCommuteEta: async () => {
-    const { workLocation, homeLocation, userLocation, activeProfile } = get();
-    const origin = userLocation ?? homeLocation;
-    if (!origin) return;
-
-    const hour = new Date().getHours();
-    const isMorning = hour >= 6 && hour < 11;
-    const isEvening = hour >= 17 && hour < 22;
-
-    let destination: Location | null = null;
-    let to: "work" | "home" = "work";
-
-    if (isMorning && workLocation) {
-      destination = workLocation;
-      to = "work";
-    } else if (isEvening && homeLocation) {
-      destination = homeLocation;
-      to = "home";
-    }
-
-    if (!destination) return;
-
-    set({ commuteEtaLoading: true });
-    try {
-      const route = await mapService.directions(
-        [origin.lng, origin.lat],
-        [destination.lng, destination.lat],
+    const {
+      selectedDestination,
+      itineraryStops,
+      itineraryGroups,
+      activeItineraryIndex,
+      userLocation,
+      homeLocation,
+    } = get();
+    if (selectedDestination) {
+      get().setDestination(selectedDestination);
+    } else if (itineraryStops.length > 0) {
+      const origin = groupOrigin(
+        activeItineraryIndex,
+        itineraryGroups,
+        userLocation,
+        homeLocation,
+      );
+      const { routes } = await fetchRoutesAndPOIs(
+        itineraryStops,
+        origin,
         activeProfile,
       );
-      set({
-        commuteEta: { duration: route.duration, distance: route.distance, to },
-        commuteEtaLoading: false,
-      });
-    } catch {
-      set({ commuteEtaLoading: false });
+      set({ itineraryRoutes: routes });
     }
+  },
+
+  patchHomeLocation: async (coords) => {
+    await mapService.setHomeLocation(coords);
+    set({ homeLocation: coords, origin: coords });
+  },
+
+  loadOutlineStops: async () => {
+    const { itineraryGroups, userLocation, homeLocation } = get();
+
+    if (itineraryGroups.length > 0) {
+      console.log(
+        "[loadOutlineStops] skipped — itinerary already has stops:",
+        itineraryGroups,
+      );
+      return;
+    }
+
+    console.log("[loadOutlineStops] fetching active outline...");
+    try {
+      const outline = await outlineService.getActive();
+
+      if (!outline) {
+        console.log("[loadOutlineStops] no active outline found");
+        return;
+      }
+      console.log("[loadOutlineStops] outline found:", {
+        id: outline.id,
+        eventCount: outline.events?.length ?? 0,
+      });
+
+      if (!outline.events?.length) {
+        console.log("[loadOutlineStops] outline has no events");
+        return;
+      }
+
+      const eventsWithDest = outline.events.filter((e) => !!e.routeDestination);
+      console.log(
+        "[loadOutlineStops] events with routeDestination:",
+        eventsWithDest.map((e) => ({
+          type: e.type,
+          timeBlock: e.timeBlock,
+          routeDestination: e.routeDestination,
+        })),
+      );
+
+      const userLoc = userLocation ?? homeLocation ?? undefined;
+
+      const resolved = await Promise.all(
+        eventsWithDest.map(async (e) => {
+          try {
+            const { results } = await mapService.geocode(
+              e.routeDestination!,
+              userLoc,
+            );
+            if (!results.length) {
+              console.warn(
+                "[loadOutlineStops] geocode returned no results for:",
+                e.routeDestination,
+              );
+              return null;
+            }
+            console.log(
+              "[loadOutlineStops] geocoded:",
+              e.routeDestination,
+              "→",
+              results[0].lat,
+              results[0].lng,
+            );
+            return {
+              name: e.routeDestination!,
+              address: results[0].address,
+              lat: results[0].lat,
+              lng: results[0].lng,
+              placeId: results[0].placeId,
+            };
+          } catch (err) {
+            console.warn(
+              "[loadOutlineStops] geocode failed for:",
+              e.routeDestination,
+              err,
+            );
+            return null;
+          }
+        }),
+      );
+
+      const stops = resolved.filter(
+        (s): s is NonNullable<typeof s> => s !== null,
+      );
+      console.log("[loadOutlineStops] resolved stops:", stops);
+
+      if (!stops.length) {
+        console.log("[loadOutlineStops] no stops resolved after geocoding");
+        return;
+      }
+
+      await get().setItineraryStops(stops);
+      console.log(
+        "[loadOutlineStops] itinerary set with",
+        stops.length,
+        "stop(s)",
+      );
+    } catch (err) {
+      console.error("[loadOutlineStops] unexpected error:", err);
+    }
+  },
+
+  clearItinerary: async () => {
+    set({
+      itineraryStops: [],
+      itineraryGroups: [],
+      itineraryRoutes: [],
+      itineraryStopPOIs: [],
+      activeItineraryIndex: 0,
+      selectedDestination: null,
+      activeRoute: null,
+    });
+    outlineService.saveMapStops([]).catch(() => {});
   },
 }));

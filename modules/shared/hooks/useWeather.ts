@@ -6,6 +6,7 @@ export interface WeatherData {
   temp: number | null;
   city: string;
   code: number;
+  condition?: string;
 }
 
 const COORDS_KEY = "mirror_weather_coords";
@@ -19,11 +20,11 @@ interface CachedCoords {
 
 function readCachedCoords(): CachedCoords | null {
   try {
-    const raw = localStorage.getItem(COORDS_KEY);
+    const raw = sessionStorage.getItem(COORDS_KEY);
     if (!raw) return null;
     const cached: CachedCoords = JSON.parse(raw);
     if (Date.now() - cached.at > COORDS_TTL) {
-      localStorage.removeItem(COORDS_KEY);
+      sessionStorage.removeItem(COORDS_KEY);
       return null;
     }
     return cached;
@@ -34,7 +35,7 @@ function readCachedCoords(): CachedCoords | null {
 
 function writeCoords(lat: number, lon: number) {
   try {
-    localStorage.setItem(
+    sessionStorage.setItem(
       COORDS_KEY,
       JSON.stringify({ lat, lon, at: Date.now() }),
     );
@@ -44,20 +45,49 @@ function writeCoords(lat: number, lon: number) {
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(
+    null,
+  );
 
   useEffect(() => {
+    function normalizeWeather(raw: unknown, fallbackCity = "---"): WeatherData {
+      const d =
+        raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const temp =
+        typeof d.temp === "number"
+          ? d.temp
+          : typeof d.temperature === "number"
+            ? Math.round(d.temperature)
+            : null;
+      const code =
+        typeof d.code === "number"
+          ? d.code
+          : typeof d.weather_code === "number"
+            ? d.weather_code
+            : 0;
+      const city = typeof d.city === "string" ? d.city : fallbackCity;
+      const condition =
+        typeof d.condition === "string" ? d.condition : undefined;
+      return { temp, code, city, condition };
+    }
+
     function fetchWithCoords(lat: number, lon: number) {
-      fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+      fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`)
         .then((r) => r.json())
-        .then((d: WeatherData) => setWeather(d))
-        .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
+        .then((d) => setWeather(normalizeWeather(d)))
+        .catch(() =>
+          fetch(`/api/weather?lat=${lat}&lon=${lon}`)
+            .then((r) => r.json())
+            .then((d) => setWeather(normalizeWeather(d)))
+            .catch(() => setWeather({ temp: null, code: 0, city: "---" })),
+        )
         .finally(() => setLoading(false));
     }
 
     function fetchFromServer() {
       fetch("/api/weather")
         .then((r) => r.json())
-        .then((d: WeatherData) => setWeather(d))
+        .then((d) => setWeather(normalizeWeather(d)))
         .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
         .finally(() => setLoading(false));
     }
@@ -76,6 +106,7 @@ export function useWeather() {
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
           writeCoords(coords.latitude, coords.longitude);
+          setCoords({ lat: coords.latitude, lon: coords.longitude });
           fetchWithCoords(coords.latitude, coords.longitude);
         },
         fallback,
@@ -88,5 +119,5 @@ export function useWeather() {
     }
   }, []);
 
-  return { weather, loading };
+  return { weather, loading, coords };
 }

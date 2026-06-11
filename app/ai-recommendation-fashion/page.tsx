@@ -1,123 +1,137 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
-import { ROUTES } from "@/navigation";
 import {
   garmentService,
   type RemoteGarment,
 } from "@/modules/shared/api/garment.service";
+import { FittingSlot } from "@/modules/garment/types";
 import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import { FittingSlot } from "@/modules/garment/types";
-import WeatherWidget from "@/components/WeatherWidget";
-import OutfitPreviewCanvas from "@/components/OutfitPreviewCanvas";
-
-function useSwipe(onLeft: () => void, onRight: () => void) {
-  const startX = useRef<number | null>(null);
-  return {
-    onTouchStart: (e: React.TouchEvent) => {
-      startX.current = e.touches[0].clientX;
-    },
-    onTouchEnd: (e: React.TouchEvent) => {
-      if (startX.current === null) return;
-      const delta = e.changedTouches[0].clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseDown: (e: React.MouseEvent) => {
-      startX.current = e.clientX;
-    },
-    onMouseUp: (e: React.MouseEvent) => {
-      if (startX.current === null) return;
-      const delta = e.clientX - startX.current;
-      startX.current = null;
-      if (delta < -40) onLeft();
-      else if (delta > 40) onRight();
-    },
-    onMouseLeave: () => {
-      startX.current = null;
-    },
-  };
-}
-
-function SectionTitle({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 px-1 py-1">
-      <div className="flex-1 h-px bg-white/20" />
-      <span className="text-white text-xs font-bold tracking-widest uppercase">
-        {label}
-      </span>
-      <div className="flex-1 h-px bg-white/20" />
-    </div>
-  );
-}
-
-function SkeletonCell({
-  ratio = "1/1",
-  style,
-}: {
-  ratio?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <div
-      className="animate-pulse"
-      style={{
-        aspectRatio: ratio,
-        background: "rgba(255,255,255,0.1)",
-        borderRadius: "4px",
-        ...style,
-      }}
-    />
-  );
-}
-
-function useClock() {
-  const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return now;
-}
+import {
+  chatWonderService,
+  type ChatWonderMessageResponse,
+} from "@/modules/shared/api/chat-wonder.service";
+import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useVoice } from "@/modules/shared/voice/useVoice";
+import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { ChatNavLoader } from "@/components/ChatNavLoader";
+import { QuoteCarousel } from "@/components/QuoteCarousel";
+import MirrorHeader from "@/components/MirrorHeader";
+import { PromptFloater } from "@/components/PromptFloater";
+import { getToday } from "@/components/QuickResponseChips";
+import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
+import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
+import {
+  GarmentSelectionPanel,
+  type GarmentSlotConfig,
+} from "@/modules/fashion/components/GarmentSelectionPanel";
+import type { SwapSlot } from "@/modules/fashion/types";
+import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
+import {
+  FASHION_QUOTES,
+  FASHION_PROMPT_KEY,
+} from "@/modules/fashion/constants";
+import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 export default function VirtualMirrorV2() {
   const router = useRouter();
-  const now = useClock();
+  const searchParams = useSearchParams();
+  const { isProcessing, submitText } = useVoiceContext();
+  const [isChipLoading, setIsChipLoading] = useState(false);
+  const isLoading = isProcessing || isChipLoading;
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
-  const [selectedHat, setSelectedHat] = useState<RemoteGarment | null>(null);
   const [selectedBag, setSelectedBag] = useState<RemoteGarment | null>(null);
-  const [selectedTop, setSelectedTop] = useState<RemoteGarment | null>(null);
+  const [selectedTopBase, setSelectedTopBase] = useState<RemoteGarment | null>(
+    null,
+  );
+  const [selectedTopMid, setSelectedTopMid] = useState<RemoteGarment | null>(
+    null,
+  );
+  const [selectedTopOuter, setSelectedTopOuter] =
+    useState<RemoteGarment | null>(null);
   const [selectedBottom, setSelectedBottom] = useState<RemoteGarment | null>(
     null,
   );
   const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
-  const [loadingGarments, setLoadingGarments] = useState(true);
-  const [loadingOutfits, setLoadingOutfits] = useState(true);
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  const clearSlots = () => {
-    setSelectedHat(null);
+  const canvasRef = useRef<OutfitPreviewCanvasHandle>(null);
+
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [garmentPanelOpen, setGarmentPanelOpen] = useState(true);
+
+  const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
+  const [swapItemId, setSwapItemId] = useState<string | null>(null);
+  const [outfitOverrides, setOutfitOverrides] = useState<
+    Record<string, RemoteGarment>
+  >({});
+  const outfitModified = Object.keys(outfitOverrides).length > 0;
+
+  function resolveSwapSlot(
+    garmentType: string[],
+    fittingSlot: string[],
+  ): SwapSlot {
+    if (garmentType.includes("Bag")) return "bags";
+    if (fittingSlot.includes("LowerGarment")) return "bottoms";
+    if (fittingSlot.includes("FootGarment")) return "shoes";
+    const t = garmentType[0] ?? "";
+    if (["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t))
+      return "outer";
+    if (["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t)) return "mid";
+    return "base";
+  }
+
+  function applySwap(g: RemoteGarment) {
+    if (!swapItemId) return;
+    setOutfitOverrides((prev) => ({ ...prev, [swapItemId]: g }));
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }
+
+  function cancelSwap() {
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }
+
+  const clearSlots = useCallback(() => {
     setSelectedBag(null);
-    setSelectedTop(null);
+    setSelectedTopBase(null);
+    setSelectedTopMid(null);
+    setSelectedTopOuter(null);
     setSelectedBottom(null);
     setSelectedShoe(null);
-  };
-  const selectOutfit = (idx: number) => {
-    setSelectedOutfitIdx(idx);
-    clearSlots();
-  };
-  const outfitPageSize = 10;
+  }, []);
+
+  const selectOutfit = useCallback(
+    (idx: number) => {
+      setSelectedOutfitIdx(idx);
+      setGarmentPanelOpen(false);
+      clearSlots();
+      setOutfitOverrides({});
+      setSwapSlot(null);
+      setSwapItemId(null);
+    },
+    [clearSlots],
+  );
+
+  const handleGarmentPanelOpenChange = useCallback((open: boolean) => {
+    setGarmentPanelOpen(open);
+    if (!open) return;
+    setSelectedOutfitIdx(null);
+    setOutfitOverrides({});
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }, []);
+
+  const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
   const totalOutfitPages = Math.max(
     1,
@@ -132,561 +146,691 @@ export default function VirtualMirrorV2() {
     () => setOutfitPage((p) => Math.max(p - 1, 0)),
   );
 
-  const pageSize = 8;
+  const bottomsPageSize = 6;
   const shoesPageSize = 6;
-  const accessoryPageSize = 3;
+  const accessoryPageSize = 6;
+  const topsLayerPageSize = 2;
 
-  const [tops, setTops] = useState<RemoteGarment[]>([]);
-  const [topsPage, setTopsPage] = useState(0);
-  const totalTopsPages = Math.ceil(tops.length / pageSize);
-  const pagedTops = tops.slice(topsPage * pageSize, (topsPage + 1) * pageSize);
-  const topsSwipe = useSwipe(
-    () => setTopsPage((p) => Math.min(p + 1, totalTopsPages - 1)),
-    () => setTopsPage((p) => Math.max(p - 1, 0)),
+  const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
+  const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
+  const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
+  const [catalogTopsBase, setCatalogTopsBase] = useState<RemoteGarment[]>([]);
+  const [catalogTopsMid, setCatalogTopsMid] = useState<RemoteGarment[]>([]);
+  const [catalogTopsOuter, setCatalogTopsOuter] = useState<RemoteGarment[]>([]);
+  const [catalogBottoms, setCatalogBottoms] = useState<RemoteGarment[]>([]);
+  const [catalogShoes, setCatalogShoes] = useState<RemoteGarment[]>([]);
+  const [catalogBags, setCatalogBags] = useState<RemoteGarment[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  const [topsBasePage, setTopsBasePage] = useState(0);
+  const [topsMidPage, setTopsMidPage] = useState(0);
+  const [topsOuterPage, setTopsOuterPage] = useState(0);
+
+  const swappingGarmentId = (() => {
+    if (!swapItemId || selectedOutfitIdx === null) return null;
+    const outfit = outfits[selectedOutfitIdx];
+    if (!outfit) return null;
+    const item = outfit.items.find((i) => i.id === swapItemId);
+    if (!item) return null;
+    return (outfitOverrides[swapItemId] ?? item.garment).id;
+  })();
+
+  const filteredTopsBase =
+    swapSlot === "base" && swappingGarmentId
+      ? topsBase.filter((g) => g.id !== swappingGarmentId)
+      : topsBase;
+  const filteredTopsMid =
+    swapSlot === "mid" && swappingGarmentId
+      ? topsMid.filter((g) => g.id !== swappingGarmentId)
+      : topsMid;
+  const filteredTopsOuter =
+    swapSlot === "outer" && swappingGarmentId
+      ? topsOuter.filter((g) => g.id !== swappingGarmentId)
+      : topsOuter;
+
+  const pagedTopsBase = filteredTopsBase.slice(
+    topsBasePage * topsLayerPageSize,
+    (topsBasePage + 1) * topsLayerPageSize,
+  );
+  const pagedTopsMid = filteredTopsMid.slice(
+    topsMidPage * topsLayerPageSize,
+    (topsMidPage + 1) * topsLayerPageSize,
+  );
+  const pagedTopsOuter = filteredTopsOuter.slice(
+    topsOuterPage * topsLayerPageSize,
+    (topsOuterPage + 1) * topsLayerPageSize,
   );
 
   const [shoes, setShoes] = useState<RemoteGarment[]>([]);
   const [shoesPage, setShoesPage] = useState(0);
-  const totalShoesPages = Math.ceil(shoes.length / shoesPageSize);
-  const pagedShoes = shoes.slice(
+  const filteredShoes =
+    swapSlot === "shoes" && swappingGarmentId
+      ? shoes.filter((g) => g.id !== swappingGarmentId)
+      : shoes;
+  const pagedShoes = filteredShoes.slice(
     shoesPage * shoesPageSize,
     (shoesPage + 1) * shoesPageSize,
-  );
-  const shoesSwipe = useSwipe(
-    () => setShoesPage((p) => Math.min(p + 1, totalShoesPages - 1)),
-    () => setShoesPage((p) => Math.max(p - 1, 0)),
   );
 
   const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
   const [bottomsPage, setBottomsPage] = useState(0);
-  const totalBottomsPages = Math.ceil(bottoms.length / pageSize);
-  const pagedBottoms = bottoms.slice(
-    bottomsPage * pageSize,
-    (bottomsPage + 1) * pageSize,
-  );
-  const bottomsSwipe = useSwipe(
-    () => setBottomsPage((p) => Math.min(p + 1, totalBottomsPages - 1)),
-    () => setBottomsPage((p) => Math.max(p - 1, 0)),
+  const filteredBottoms =
+    swapSlot === "bottoms" && swappingGarmentId
+      ? bottoms.filter((g) => g.id !== swappingGarmentId)
+      : bottoms;
+  const pagedBottoms = filteredBottoms.slice(
+    bottomsPage * bottomsPageSize,
+    (bottomsPage + 1) * bottomsPageSize,
   );
 
-  const [headGarments, setHeadGarments] = useState<RemoteGarment[]>([]);
-  const [, setGlasses] = useState<RemoteGarment[]>([]);
-  const [, setEarrings] = useState<RemoteGarment[]>([]);
-  const [, setNeckAccessories] = useState<RemoteGarment[]>([]);
-  const [, setWaistAccessories] = useState<RemoteGarment[]>([]);
-  const [, setBracelets] = useState<RemoteGarment[]>([]);
-  const [, setWatches] = useState<RemoteGarment[]>([]);
   const [bags, setBags] = useState<RemoteGarment[]>([]);
 
-  const [headGarmentsPage, setHeadGarmentsPage] = useState(0);
-  const totalHeadGarmentsPages = Math.ceil(
-    headGarments.length / accessoryPageSize,
-  );
-  const pagedHeadGarments = headGarments.slice(
-    headGarmentsPage * accessoryPageSize,
-    (headGarmentsPage + 1) * accessoryPageSize,
-  );
-  const headSwipe = useSwipe(
-    () =>
-      setHeadGarmentsPage((p) => Math.min(p + 1, totalHeadGarmentsPages - 1)),
-    () => setHeadGarmentsPage((p) => Math.max(p - 1, 0)),
-  );
-
   const [bagsPage, setBagsPage] = useState(0);
-  const totalBagsPages = Math.ceil(bags.length / accessoryPageSize);
-  const pagedBags = bags.slice(
+  const filteredBags =
+    swapSlot === "bags" && swappingGarmentId
+      ? bags.filter((g) => g.id !== swappingGarmentId)
+      : bags;
+  const pagedBags = filteredBags.slice(
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
-  const bagSwipe = useSwipe(
-    () => setBagsPage((p) => Math.min(p + 1, totalBagsPages - 1)),
-    () => setBagsPage((p) => Math.max(p - 1, 0)),
-  );
 
   useEffect(() => {
-    // Garment grids resolve independently from the outfit grid
-    Promise.allSettled([
-      garmentService
-        .getBySlot(FittingSlot.UpperGarment)
-        .then(setTops)
-        .catch((err) => console.error("[Tops] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.LowerGarment)
-        .then(setBottoms)
-        .catch((err) => console.error("[Bottoms] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.FootGarment)
-        .then(setShoes)
-        .catch((err) => console.error("[Shoes] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.HeadGarment)
-        .then(setHeadGarments)
-        .catch((err) => console.error("[HeadGarment] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Glasses)
-        .then(setGlasses)
-        .catch((err) => console.error("[Glasses] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.Earrings)
-        .then(setEarrings)
-        .catch((err) => console.error("[Earrings] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.NeckAccessory)
-        .then(setNeckAccessories)
-        .catch((err) => console.error("[NeckAccessory] fetch error:", err)),
-      garmentService
-        .getBySlot(FittingSlot.WaistAccessory)
-        .then(setWaistAccessories)
-        .catch((err) => console.error("[WaistAccessory] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bracelet")
-        .then(setBracelets)
-        .catch((err) => console.error("[Bracelet] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Watch")
-        .then(setWatches)
-        .catch((err) => console.error("[Watch] fetch error:", err)),
-      garmentService
-        .getBySlotAndType(FittingSlot.RightHandAccessory, "Bag")
-        .then(setBags)
-        .catch((err) => console.error("[Bag] fetch error:", err)),
-    ]).finally(() => setLoadingGarments(false));
+    let cancelled = false;
+    const OUTER_TYPES = new Set([
+      "Blazer",
+      "Jacket",
+      "Coat",
+      "Parka",
+      "Windbreaker",
+    ]);
+    const MID_TYPES = new Set(["Hoodie", "Sweater", "Cardigan", "Pullover"]);
 
-    outfitService
-      .getAll()
-      .then(setOutfits)
-      .catch((err) => console.error("[Outfits] fetch error:", err))
-      .finally(() => setLoadingOutfits(false));
+    Promise.all([
+      garmentService.getBySlot(FittingSlot.UpperGarment),
+      garmentService.getBySlot(FittingSlot.LowerGarment),
+      garmentService.getBySlot(FittingSlot.FootGarment),
+      garmentService.getBySlot(FittingSlot.RightHandAccessory),
+    ])
+      .then(([upperItems, lowerItems, footItems, bagItems]) => {
+        if (cancelled) return;
+        setCatalogTopsOuter(
+          upperItems.filter((g) =>
+            g.garmentType.some((t) => OUTER_TYPES.has(t)),
+          ),
+        );
+        setCatalogTopsMid(
+          upperItems.filter((g) => g.garmentType.some((t) => MID_TYPES.has(t))),
+        );
+        setCatalogTopsBase(
+          upperItems.filter(
+            (g) =>
+              !g.garmentType.some(
+                (t) => OUTER_TYPES.has(t) || MID_TYPES.has(t),
+              ),
+          ),
+        );
+        setCatalogBottoms(lowerItems);
+        setCatalogShoes(footItems);
+        setCatalogBags(bagItems);
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const time = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const day = now.toLocaleDateString([], { weekday: "long" });
-  const date = now.toLocaleDateString([], { month: "long", day: "numeric" });
+  const handleAiComplete = useCallback(
+    (response: ChatWonderMessageResponse) => {
+      setSelectedBag(null);
+      setSelectedTopBase(null);
+      setSelectedTopMid(null);
+      setSelectedTopOuter(null);
+      setSelectedBottom(null);
+      setSelectedShoe(null);
+      setSelectedOutfitIdx(null);
+
+      const rawData = response.garment_data as Record<string, unknown> | null;
+      const query = typeof rawData?.query === "string" ? rawData.query : null;
+
+      if (query) {
+        // New format: ChatWonder sends query params, we fetch real DB outfits
+        outfitService
+          .getByQuery(query)
+          .then((fetchedOutfits) => {
+            const newTopsBase: RemoteGarment[] = [];
+            const newTopsMid: RemoteGarment[] = [];
+            const newTopsOuter: RemoteGarment[] = [];
+            const newBottoms: RemoteGarment[] = [];
+            const newShoes: RemoteGarment[] = [];
+            const newBags: RemoteGarment[] = [];
+            const seen = new Set<string>();
+
+            for (const outfit of fetchedOutfits) {
+              for (const item of outfit.items) {
+                const g = item.garment;
+                if (seen.has(g.id)) continue;
+                seen.add(g.id);
+
+                const mapped: RemoteGarment = {
+                  id: g.id,
+                  name: g.name,
+                  description: g.description ?? "",
+                  imageUrl: g.imageUrl,
+                  fittingSlot: g.fittingSlot,
+                  garmentType: g.garmentType,
+                  category: [],
+                  tags: [],
+                  gender: null,
+                  silhouette: null,
+                  layerLevel: g.layerLevel ?? null,
+                  file: null,
+                };
+
+                if (g.fittingSlot.includes("UpperGarment")) {
+                  const layer = g.layerLevel ?? "BASE";
+                  if (layer === "OUTER") newTopsOuter.push(mapped);
+                  else if (layer === "MID") newTopsMid.push(mapped);
+                  else newTopsBase.push(mapped);
+                } else if (g.fittingSlot.includes("LowerGarment")) {
+                  newBottoms.push(mapped);
+                } else if (g.fittingSlot.includes("FootGarment")) {
+                  newShoes.push(mapped);
+                } else if (g.garmentType.includes("Bag")) {
+                  newBags.push(mapped);
+                }
+              }
+            }
+
+            setTopsBase(newTopsBase);
+            setTopsBasePage(0);
+            setTopsMid(newTopsMid);
+            setTopsMidPage(0);
+            setTopsOuter(newTopsOuter);
+            setTopsOuterPage(0);
+            setBottoms(newBottoms);
+            setBottomsPage(0);
+            setShoes(newShoes);
+            setShoesPage(0);
+            setBags(newBags);
+            setBagsPage(0);
+            setOutfits(fetchedOutfits);
+            setOutfitPage(0);
+          })
+          .catch(console.error);
+        return;
+      }
+
+      // Legacy format: ChatWonder sends sets[] with inline recommendations
+      type AiItem = {
+        id?: string;
+        name: string;
+        type?: string;
+        description?: string;
+        reason?: string;
+        imageUrl?: string;
+        category?: string | string[];
+        garmentType?: string[];
+        fittingSlot?: string[];
+        layerLevel?: string;
+      };
+
+      const sets = Array.isArray(rawData?.sets)
+        ? (rawData.sets as Record<string, unknown>[])
+        : [];
+      const newTopsBase: RemoteGarment[] = [];
+      const newTopsMid: RemoteGarment[] = [];
+      const newTopsOuter: RemoteGarment[] = [];
+      const newBottoms: RemoteGarment[] = [];
+      const newShoes: RemoteGarment[] = [];
+      const newBags: RemoteGarment[] = [];
+      const seen = new Set<string>();
+
+      const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
+        id: item.id ?? crypto.randomUUID(),
+        name: item.name,
+        description: item.reason ?? item.description ?? "",
+        imageUrl: item.imageUrl ?? "",
+        fittingSlot: [slot],
+        garmentType: item.garmentType ?? (item.type ? [item.type] : []),
+        category: Array.isArray(item.category)
+          ? item.category
+          : item.category
+            ? [item.category]
+            : [],
+        tags: [],
+        gender: null,
+        silhouette: null,
+        layerLevel: item.layerLevel ?? null,
+        file: null,
+      });
+
+      function push(
+        item: AiItem | undefined,
+        bucket: RemoteGarment[],
+        slot: string,
+      ) {
+        if (!item?.id) return;
+        if (seen.has(item.id)) return;
+        seen.add(item.id);
+        bucket.push(toGarment(item, slot));
+      }
+
+      for (const s of sets) {
+        for (const r of (Array.isArray(s.recommendations)
+          ? s.recommendations
+          : []) as AiItem[]) {
+          if (r.fittingSlot?.includes("UpperGarment")) {
+            const layer = r.layerLevel ?? "BASE";
+            if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
+            else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
+            else push(r, newTopsBase, "UpperGarment");
+          }
+          if (r.fittingSlot?.includes("LowerGarment"))
+            push(r, newBottoms, "LowerGarment");
+          if (r.fittingSlot?.includes("FootGarment"))
+            push(r, newShoes, "FootGarment");
+          if (r.garmentType?.includes("Bag"))
+            push(r, newBags, "RightHandAccessory");
+        }
+      }
+      setTopsBase(newTopsBase);
+      setTopsMid(newTopsMid);
+      setTopsOuter(newTopsOuter);
+      setBottoms(newBottoms);
+      setShoes(newShoes);
+      setBags(newBags);
+      setBagsPage(0);
+
+      const seenOutfitIds = new Set<string>();
+      const newAiOutfits: RemoteOutfit[] = sets
+        .filter((s) => s.outfit_imageUrl)
+        .map((s, i) => {
+          const baseId = String(s.outfit_id ?? `outfit-${i}`);
+          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
+          seenOutfitIds.add(id);
+          return {
+            id,
+            name: String(s.outfit_name ?? "Outfit"),
+            description: String(s.reason ?? ""),
+            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
+            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map(
+              (r) => ({
+                id: String(r.id ?? crypto.randomUUID()),
+                slot: String(
+                  (r.fittingSlot as string[])?.[0] ?? "UpperGarment",
+                ),
+                garment: {
+                  id: String(r.id ?? ""),
+                  name: String(r.name ?? ""),
+                  description: String(r.description ?? ""),
+                  imageUrl: String(r.imageUrl ?? ""),
+                  garmentType: (r.garmentType as string[]) ?? [],
+                  fittingSlot: (r.fittingSlot as string[]) ?? [],
+                },
+              }),
+            ),
+            metaData: null,
+          };
+        });
+      setOutfits(newAiOutfits);
+      setOutfitPage(0);
+    },
+    [
+      setTopsBase,
+      setTopsBasePage,
+      setTopsMid,
+      setTopsMidPage,
+      setTopsOuter,
+      setTopsOuterPage,
+      setBottoms,
+      setBottomsPage,
+      setShoes,
+      setShoesPage,
+      setBags,
+      setBagsPage,
+      setOutfits,
+      setOutfitPage,
+      setSelectedBag,
+      setSelectedTopBase,
+      setSelectedTopMid,
+      setSelectedTopOuter,
+      setSelectedBottom,
+      setSelectedShoe,
+      setSelectedOutfitIdx,
+    ],
+  );
+
+  const handleChipSelect = useCallback(
+    async (prompt: string) => {
+      setIsChipLoading(true);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "garment",
+        });
+        const query = response.garment_data?.query;
+        const params = new URLSearchParams(query ?? "");
+        if (!params.has("limit")) params.set("limit", "4");
+        router.push(`/ai-recommendation-fashion?${params.toString()}`);
+      } catch {
+        router.push("/ai-recommendation-fashion?limit=4");
+      } finally {
+        setIsChipLoading(false);
+      }
+    },
+    [router],
+  );
+
+  const fashionPageContext = useMemo(
+    () => ({
+      route: "/ai-recommendation-fashion",
+      pageName: "Fashion Recommendations",
+      mode: "garment" as const,
+    }),
+    [],
+  );
+
+  const handleVoiceAction = useCallback(
+    (action: ChatWonderAction) => {
+      // TODO: restore once ChatWonder query-param flow is confirmed
+      // if (action.type === "GARMENT_RECOMMENDATION") {
+      //   const res = action.response as { garment_data?: unknown } | null;
+      //   if (res?.garment_data) { handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse); }
+      //   return;
+      // }
+      if (action.type === "fashion_select_outfit") {
+        const idx = action.index;
+        if (idx < 0 || idx >= outfits.length) return;
+        setOutfitPage(Math.floor(idx / outfitPageSize));
+        selectOutfit(idx);
+        return;
+      }
+      if (action.type === "fashion_select_garment") {
+        const { slot, index } = action;
+        type SlotEntry = {
+          arr: RemoteGarment[];
+          set: (g: RemoteGarment) => void;
+        };
+        const slotMap: Record<typeof slot, SlotEntry> = {
+          base: { arr: pagedTopsBase, set: setSelectedTopBase },
+          mid: { arr: pagedTopsMid, set: setSelectedTopMid },
+          outer: { arr: pagedTopsOuter, set: setSelectedTopOuter },
+          bottoms: { arr: pagedBottoms, set: setSelectedBottom },
+          shoes: { arr: pagedShoes, set: setSelectedShoe },
+          bags: { arr: pagedBags, set: setSelectedBag },
+        };
+        const target = slotMap[slot];
+        const garment = target.arr[index];
+        if (!garment) return;
+        if (swapSlot === slot && swapItemId) {
+          const id = swapItemId;
+          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
+          setSwapSlot(null);
+          setSwapItemId(null);
+        } else {
+          target.set(garment);
+          setSelectedOutfitIdx(null);
+        }
+      }
+    },
+    [
+      outfits,
+      outfitPageSize,
+      selectOutfit,
+      pagedTopsBase,
+      pagedTopsMid,
+      pagedTopsOuter,
+      pagedBottoms,
+      pagedShoes,
+      pagedBags,
+      swapSlot,
+      swapItemId,
+      setSelectedTopBase,
+      setSelectedTopMid,
+      setSelectedTopOuter,
+      setSelectedBottom,
+      setSelectedShoe,
+      setSelectedBag,
+      setSelectedOutfitIdx,
+      setOutfitOverrides,
+      setSwapSlot,
+      setSwapItemId,
+    ],
+  );
+
+  useVoice(fashionPageContext, handleVoiceAction);
+
+  // Re-fetch whenever URL params change — covers both initial mount and
+  // chip-tap navigation (?metaCategory=Casual&limit=4 etc.).
+  // limit=4 is injected if the caller omitted it.
+  const lastSearchParamsRef = useRef<string | null>(null);
+  useEffect(() => {
+    const current = searchParams.toString();
+    if (lastSearchParamsRef.current === current) return;
+    lastSearchParamsRef.current = current;
+
+    // Do not auto-fetch if there are no query parameters. This leaves
+    // the outfits array empty so the idle OutfitImageCarousel can display.
+    if (!current) {
+      queueMicrotask(() => setOutfits([]));
+      return;
+    }
+
+    const params = new URLSearchParams(current);
+    if (!params.has("limit")) params.set("limit", "4");
+    queueMicrotask(() =>
+      handleAiComplete({
+        garment_data: { query: params.toString() },
+      } as ChatWonderMessageResponse)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
+  const handoffFiredRef = useRef(false);
+  useEffect(() => {
+    if (handoffFiredRef.current) return;
+    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+    if (!prompt) return;
+    handoffFiredRef.current = true;
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
+  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
+  // useEffect(() => {
+  //   const pending = useMirrorStore.getState().pendingGarmentData;
+  //   if (!pending) return;
+  //   useMirrorStore.getState().setPendingGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
+  // }, []);
+
+  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
+  // useEffect(() => {
+  //   if (!chatGarmentData) return;
+  //   useMirrorStore.getState().setChatGarmentData(null);
+  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
+  // }, [chatGarmentData]);
+
+  // Select a garment for a slot — applies a pending swap, or sets the slot and
+  // clears the active outfit selection (same behavior as the old inline grids).
+  const handleSlotSelect = (slot: SwapSlot, g: RemoteGarment) => {
+    if (swapSlot === slot && swapItemId) {
+      applySwap(g);
+      return;
+    }
+    const setters: Record<SwapSlot, (g: RemoteGarment) => void> = {
+      base: setSelectedTopBase,
+      mid: setSelectedTopMid,
+      outer: setSelectedTopOuter,
+      bottoms: setSelectedBottom,
+      shoes: setSelectedShoe,
+      bags: setSelectedBag,
+    };
+    setters[slot](g);
+    setSelectedOutfitIdx(null);
+  };
+
+  const garmentSlots: GarmentSlotConfig[] = [
+    {
+      key: "base",
+      label: "Base",
+      items: catalogTopsBase,
+      pagedItems: catalogTopsBase,
+      pageSize: catalogTopsBase.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedTopBase?.id,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Base" : "No Base garments",
+    },
+    {
+      key: "mid",
+      label: "Mid",
+      items: catalogTopsMid,
+      pagedItems: catalogTopsMid,
+      pageSize: catalogTopsMid.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedTopMid?.id,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Mid" : "No Mid garments",
+    },
+    {
+      key: "outer",
+      label: "Outer",
+      items: catalogTopsOuter,
+      pagedItems: catalogTopsOuter,
+      pageSize: catalogTopsOuter.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedTopOuter?.id,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Outer" : "No Outer garments",
+    },
+    {
+      key: "bottoms",
+      label: "Bottoms",
+      items: catalogBottoms,
+      pagedItems: catalogBottoms,
+      pageSize: catalogBottoms.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedBottom?.id,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Bottoms" : "No Bottom garments",
+    },
+    {
+      key: "shoes",
+      label: "Shoes",
+      items: catalogShoes,
+      pagedItems: catalogShoes,
+      pageSize: catalogShoes.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedShoe?.id,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Shoes" : "No Shoe garments",
+    },
+    {
+      key: "bags",
+      label: "Accessories",
+      items: catalogBags,
+      pagedItems: catalogBags,
+      pageSize: catalogBags.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
+      selectedId: selectedBag?.id,
+      columns: 3,
+      loading: catalogLoading,
+      emptyMessage: catalogLoading
+        ? "Loading Accessories"
+        : "No Accessory garments",
+    },
+  ];
+
+  const hasRecommendations = outfits.length > 0;
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-black flex flex-col">
-      <header
-        className={"flex items-center shrink-0 py-4 px-4"}
-        style={{ background: "rgba(0,0,0,0.85)" }}
-      >
+    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
+      <ChatNavLoader />
+
+      <MirrorHeader onBack={() => router.back()} />
+
+      {/* Action row — Suggestions, between header and outfit panels */}
+      {!isLoading && (
         <div
           style={{
-            flex: "0 0 25%",
-            width: "25%",
             display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <WeatherWidget iconSize={32} />
-        </div>
-        <div
-          style={{
-            flex: "0 0 50%",
-            width: "50%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
             justifyContent: "center",
+            alignItems: "center",
+            gap: 12,
+            padding: "6px 16px",
+            flexShrink: 0,
           }}
         >
-          <span
-            className="text-white font-thin select-none shrink-0"
-            style={{ fontSize: "3rem", lineHeight: 1 }}
-          >
-            {time}
-          </span>
-          <span className="text-white/80 text-xl font-light select-none shrink-0">
-            {day}, {date}
-          </span>
+          <PromptFloater
+            onSelect={handleChipSelect}
+            prompts={[
+              "Formal outfit — top, bottom, shoes, and bag.",
+              "Business look that feels confident and professional.",
+              "Casual outfit for an everyday relaxed day.",
+              `SmartCasual layered outfit for today, ${getToday()}.`,
+              "Streetwear look with a bold statement vibe.",
+              "Athleisure outfit that blends comfort and style.",
+              "Activewear outfit for performance and movement.",
+              "Sportswear outfit suitable for training or activity.",
+              "Winterwear outfit with warm layers and structure.",
+              "Summerwear outfit that stays light and breathable.",
+              "Springwear outfit for transitional weather.",
+              "Autumnwear outfit with cozy layering.",
+              "Rainwear outfit that stays practical and stylish.",
+              "Minimalist outfit with clean lines and neutral tones.",
+              "Luxury-inspired outfit with a refined aesthetic.",
+              "AvantGarde outfit with an experimental fashion edge.",
+              "Vintage-inspired outfit with retro influence.",
+              "Traditional outfit with cultural inspiration.",
+              "Cultural outfit with heritage influence.",
+              "Uniform-inspired structured outfit style.",
+            ]}
+            className="relative z-40"
+            direction="below"
+          />
         </div>
-        <div
-          style={{
-            flex: "0 0 25%",
-            width: "25%",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={() => router.push(ROUTES.LOGGED_IN)}
-            className="p-4 transition-all hover:scale-105 active:scale-95"
-          >
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-        </div>
-      </header>
+      )}
+
+      {/* AI Suggestion Banner */}
+      <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
+
       <div className="flex flex-1" style={{ height: "546px" }}>
-        {/* Left panel — Accessories */}
-        <div
-          className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-          style={{ flex: "0 0 25%", width: "25%" }}
-        >
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Accessories" />
-
-            <div
-              {...headSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                marginBottom: "5px",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "4px",
-                }}
-                className="glass-card"
-              >
-                {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                  if (loadingGarments)
-                    return (
-                      <SkeletonCell
-                        key={i}
-                        style={{ marginTop: "5px", marginBottom: "5px" }}
-                      />
-                    );
-                  const g = pagedHeadGarments[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedHat(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        marginTop: "5px",
-                        marginBottom: "5px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedHat?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({
-                  length: Math.max(1, totalHeadGarmentsPages),
-                }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setHeadGarmentsPage(i)}
-                    aria-label={`Go to page ${i + 1}`}
-                    className="rounded-full transition-all duration-300"
-                    style={{
-                      width: i === headGarmentsPage ? 12 : 4,
-                      height: 4,
-                      background:
-                        i === headGarmentsPage
-                          ? "white"
-                          : "rgba(255,255,255,0.3)",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* <div {...glassesSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedGlasses[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalGlassesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setGlassesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === glassesPage ? 12 : 4, height: 4, background: i === glassesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* <div {...earringsSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedEarrings[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalEarringsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setEarringsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === earringsPage ? 12 : 4, height: 4, background: i === earringsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* <div {...neckSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedNeck[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px' }}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalNeckPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setNeckPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === neckPage ? 12 : 4, height: 4, background: i === neckPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* bracelet */}
-            {/* <div {...braceletSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedBracelets[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalBraceletsPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setBraceletsPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === braceletsPage ? 12 : 4, height: 4, background: i === braceletsPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* watch */}
-            {/* <div {...watchSwipe} style={{ touchAction: 'pan-y', userSelect: 'none', cursor: 'grab', marginBottom: '5px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }} className='glass-card'>
-                            {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                                const g = pagedWatches[i];
-                                return (
-                                    <div key={i} className="rounded-md overflow-hidden flex items-center justify-center" style={{ aspectRatio: '1/1', borderRadius: '4px', marginTop: '5px', marginBottom: '5px'}}>
-                                        {g?.imageUrl && <img src={g.imageUrl} alt={g.name} draggable={false} className="w-full h-full object-contain pointer-events-none" />}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="flex justify-center gap-1.5 pt-2">
-                            {Array.from({ length: Math.max(1, totalWatchesPages) }).map((_, i) => (
-                                <button key={i} type="button" onClick={() => setWatchesPage(i)} aria-label={`Go to page ${i + 1}`} className="rounded-full transition-all duration-300" style={{ width: i === watchesPage ? 12 : 4, height: 4, background: i === watchesPage ? 'white' : 'rgba(255,255,255,0.3)', border: 'none', padding: 0, cursor: 'pointer' }} />
-                            ))}
-                        </div>
-                    </div> */}
-
-            {/* bag */}
-            <div
-              {...bagSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-                marginBottom: "5px",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "4px",
-                }}
-                className="glass-card"
-              >
-                {Array.from({ length: accessoryPageSize }).map((_, i) => {
-                  if (loadingGarments)
-                    return (
-                      <SkeletonCell
-                        key={i}
-                        style={{ marginTop: "5px", marginBottom: "5px" }}
-                      />
-                    );
-                  const g = pagedBags[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedBag(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        marginTop: "5px",
-                        marginBottom: "5px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedBag?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalBagsPages) }).map(
-                  (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setBagsPage(i)}
-                      aria-label={`Go to page ${i + 1}`}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === bagsPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === bagsPage ? "white" : "rgba(255,255,255,0.3)",
-                        border: "none",
-                        padding: 0,
-                        cursor: "pointer",
-                      }}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Outfit" />
-            <div
-              {...outfitSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  rowGap: "10px",
-                  columnGap: "6px",
-                }}
-              >
-                {loadingOutfits
-                  ? Array.from({ length: 4 }).map((_, i) => (
-                      <SkeletonCell
-                        key={i}
-                        ratio="3/5"
-                        style={{ borderRadius: "10px" }}
-                      />
-                    ))
-                  : pagedOutfits.map((outfit, i) => {
-                      const globalIdx = outfitPage * outfitPageSize + i;
-                      return (
-                        <div
-                          key={outfit.id}
-                          onClick={() => selectOutfit(globalIdx)}
-                          style={{
-                            position: "relative",
-                            aspectRatio: "3/5",
-                            borderRadius: "10px",
-                            overflow: "hidden",
-                            background: "rgba(255,255,255,0.01)",
-                            cursor: "pointer",
-                            border:
-                              selectedOutfitIdx === globalIdx
-                                ? "2px solid rgba(255,255,255,0.6)"
-                                : "2px solid transparent",
-                            transition: "border-color 0.2s",
-                          }}
-                        >
-                          {outfit.file?.fileUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={outfit.file.fileUrl}
-                              alt={outfit.name}
-                              draggable={false}
-                              className="w-full h-full object-cover pointer-events-none"
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,0.2)",
-                                  fontSize: "11px",
-                                }}
-                              >
-                                {outfit.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: totalOutfitPages }).map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setOutfitPage(i)}
-                    style={{
-                      width: i === outfitPage ? 12 : 4,
-                      height: 4,
-                      borderRadius: "9999px",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      background:
-                        i === outfitPage ? "white" : "rgba(255,255,255,0.3)",
-                      transition: "all 0.3s",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Left panel — recommended outfit list */}
+        {hasRecommendations && !isLoading && (
+          <OutfitListPanel
+            outfits={outfits}
+            pagedOutfits={pagedOutfits}
+            outfitPage={outfitPage}
+            outfitPageSize={outfitPageSize}
+            totalOutfitPages={totalOutfitPages}
+            selectedOutfitIdx={selectedOutfitIdx}
+            isProcessing={isLoading}
+            swipeHandlers={outfitSwipe}
+            onSelect={selectOutfit}
+            onPageChange={setOutfitPage}
+          />
+        )}
 
         {/* Center panel */}
         {(() => {
@@ -696,16 +840,16 @@ export default function VirtualMirrorV2() {
               : null;
           return (
             <div
-              className="h-full flex flex-col items-center pt-8 gap-1 overflow-hidden"
-              style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
+              className="h-full flex flex-col items-center pt-2 gap-1 overflow-hidden"
+              style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
             >
               {/* Outfit display */}
-              {selectedOutfit && (
+              {selectedOutfit && !isLoading && (
                 <div
                   style={{
                     width: "100%",
                     padding: "0 12px",
-                    paddingBottom: "145px",
+                    paddingBottom: "90px",
                     flex: 1,
                     minHeight: 0,
                     display: "flex",
@@ -717,7 +861,7 @@ export default function VirtualMirrorV2() {
                   {/* Image — proportional flex share, no fixed height */}
                   <div
                     style={{
-                      flex: "2 1 0",
+                      flex: "5 1 0",
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",
@@ -841,103 +985,150 @@ export default function VirtualMirrorV2() {
                             rank(b.garment.garmentType)
                           );
                         })
-                        .map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex"
-                            style={{
-                              flex: "1 1 0",
-                              minHeight: 0,
-                              width: "100%",
-                              alignItems: "stretch",
-                              overflow: "hidden",
-                              background: "transparent",
-                            }}
-                          >
+                        .map((item) => {
+                          const effective =
+                            outfitOverrides[item.id] ?? item.garment;
+                          const isSwapping = swapItemId === item.id;
+                          const isOverridden = !!outfitOverrides[item.id];
+                          return (
                             <div
+                              key={item.id}
+                              role="button"
+                              tabIndex={0}
+                              aria-pressed={isSwapping}
+                              className="flex focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.currentTarget.click();
+                                }
+                              }}
+                              onClick={() => {
+                                const slot = resolveSwapSlot(
+                                  item.garment.garmentType,
+                                  item.garment.fittingSlot,
+                                );
+                                if (isSwapping) {
+                                  cancelSwap();
+                                  return;
+                                }
+                                setGarmentPanelOpen(true);
+                                setSwapSlot(slot);
+                                setSwapItemId(item.id);
+                              }}
                               style={{
-                                flex: "0 0 38%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: "8px 0 0 8px",
+                                flex: "1 1 0",
+                                minHeight: 0,
+                                width: "100%",
+                                alignItems: "stretch",
                                 overflow: "hidden",
+                                background: "transparent",
+                                cursor: "pointer",
+                                border: isSwapping
+                                  ? "1.5px solid rgba(255,255,255,0.6)"
+                                  : isOverridden
+                                    ? "1.5px solid rgba(100,220,120,0.5)"
+                                    : "1.5px solid transparent",
+                                borderRadius: "8px",
+                                transition: "border-color 0.15s",
                               }}
                             >
-                              {item.garment.imageUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={item.garment.imageUrl}
-                                  alt={item.garment.name}
-                                  draggable={false}
-                                  className="w-full h-full object-contain pointer-events-none"
-                                />
-                              ) : (
+                              <div
+                                style={{
+                                  flex: "0 0 38%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: "8px 0 0 8px",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {effective.imageUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={effective.imageUrl}
+                                    alt={effective.name}
+                                    draggable={false}
+                                    className="w-full h-full object-contain pointer-events-none"
+                                  />
+                                ) : (
+                                  <span
+                                    style={{
+                                      color: "rgba(255,255,255,0.25)",
+                                      fontSize: "10px",
+                                    }}
+                                  >
+                                    No Image
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  padding: "5px 8px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "center",
+                                  gap: "2px",
+                                  overflow: "hidden",
+                                }}
+                              >
                                 <span
                                   style={{
-                                    color: "rgba(255,255,255,0.25)",
-                                    fontSize: "10px",
+                                    color: "rgba(255,255,255,0.35)",
+                                    fontSize: "8px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    overflow: "hidden",
+                                    whiteSpace: "nowrap",
                                   }}
                                 >
-                                  No Image
+                                  {isOverridden
+                                    ? "Changed"
+                                    : effective.garmentType?.[0]}
                                 </span>
-                              )}
+                                <span
+                                  style={{
+                                    color: "white",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    lineHeight: 1.3,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.name}
+                                </span>
+                                <span
+                                  style={{
+                                    color: "rgba(255,255,255,0.45)",
+                                    fontSize: "9px",
+                                    lineHeight: 1.4,
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  {effective.description}
+                                </span>
+                              </div>
                             </div>
-                            <div
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                padding: "5px 8px",
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "center",
-                                gap: "2px",
-                                overflow: "hidden",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,255,0.01)",
-                                  fontSize: "8px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.08em",
-                                  overflow: "hidden",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {item.garment.garmentType[0]}
-                              </span>
-                              <span
-                                style={{
-                                  color: "white",
-                                  fontSize: "10px",
-                                  fontWeight: 600,
-                                  lineHeight: 1.3,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                {item.garment.name}
-                              </span>
-                              <span
-                                style={{
-                                  color: "rgba(255,255,255,0.45)",
-                                  fontSize: "9px",
-                                  lineHeight: 1.4,
-                                  overflow: "hidden",
-                                }}
-                              >
-                                {item.garment.description}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   )}
                 </div>
               )}
 
+              {/* Loading state — cycling fashion quotes */}
+              {isLoading && (
+                <QuoteCarousel
+                  quotes={FASHION_QUOTES}
+                  label="Style tip"
+                  className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
+                />
+              )}
+
               {/* Garment slot cards */}
-              {!selectedOutfit && (
+              {!selectedOutfit && !isLoading && (
                 <div
                   style={{
                     flex: 1,
@@ -952,45 +1143,14 @@ export default function VirtualMirrorV2() {
                   }}
                 >
                   {[
-                    selectedHat,
+                    selectedTopBase,
+                    selectedTopMid,
+                    selectedTopOuter,
                     selectedBag,
-                    selectedTop,
                     selectedBottom,
                     selectedShoe,
                   ]
                     .filter((g): g is RemoteGarment => g !== null)
-                    .sort((a, b) => {
-                      const UPPER = [
-                        "Shirt",
-                        "TShirt",
-                        "Polo",
-                        "Blouse",
-                        "Hoodie",
-                        "Sweater",
-                        "Jacket",
-                        "Coat",
-                        "Blazer",
-                      ];
-                      const LOWER = ["Pants", "Jeans", "Shorts", "Skirt"];
-                      const FOOT = [
-                        "Shoes",
-                        "Sneakers",
-                        "Sandals",
-                        "Boots",
-                        "Heels",
-                        "Socks",
-                      ];
-                      const HEAD = ["Hat", "Beanie", "Cap", "Headband"];
-                      const rank = (types: string[]) => {
-                        const t = types[0] ?? "";
-                        if (UPPER.includes(t)) return 0;
-                        if (LOWER.includes(t)) return 1;
-                        if (FOOT.includes(t)) return 2;
-                        if (HEAD.includes(t)) return 3;
-                        return 4;
-                      };
-                      return rank(a.garmentType) - rank(b.garmentType);
-                    })
                     .map((g) => (
                       <div
                         key={g.id}
@@ -1054,7 +1214,7 @@ export default function VirtualMirrorV2() {
                               whiteSpace: "nowrap",
                             }}
                           >
-                            {g.garmentType[0]}
+                            {g.layerLevel ?? g.garmentType[0]}
                           </span>
                           <span
                             style={{
@@ -1086,370 +1246,38 @@ export default function VirtualMirrorV2() {
           );
         })()}
 
-        {/* Right panel — Tops / Bottoms / Shoes */}
-        <div
-          className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-          style={{ flex: "0 0 25%", width: "25%" }}
-        >
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Tops" />
-            <div
-              {...topsSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "4px",
-                }}
-              >
-                {Array.from({ length: pageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedTops[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedTop(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedTop?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalTopsPages) }).map(
-                  (_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === topsPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === topsPage ? "white" : "rgba(255,255,255,0.3)",
-                      }}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Bottoms" />
-            <div
-              {...bottomsSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "4px",
-                }}
-              >
-                {Array.from({ length: pageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedBottoms[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedBottom(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedBottom?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalBottomsPages) }).map(
-                  (_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === bottomsPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === bottomsPage ? "white" : "rgba(255,255,255,0.3)",
-                      }}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <SectionTitle label="Shoes" />
-            <div
-              {...shoesSwipe}
-              style={{
-                touchAction: "pan-y",
-                userSelect: "none",
-                cursor: "grab",
-              }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "4px",
-                }}
-              >
-                {Array.from({ length: shoesPageSize }).map((_, i) => {
-                  if (loadingGarments) return <SkeletonCell key={i} />;
-                  const g = pagedShoes[i];
-                  return (
-                    <div
-                      key={i}
-                      onClick={() =>
-                        g && (setSelectedShoe(g), setSelectedOutfitIdx(null))
-                      }
-                      className="rounded-md overflow-hidden flex items-center justify-center"
-                      style={{
-                        aspectRatio: "1/1",
-                        borderRadius: "4px",
-                        cursor: g ? "pointer" : "default",
-                        border:
-                          g && selectedShoe?.id === g.id
-                            ? "1.5px solid rgba(255,255,255,0.6)"
-                            : "1.5px solid transparent",
-                      }}
-                    >
-                      {g?.imageUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={g.imageUrl}
-                          alt={g.name}
-                          draggable={false}
-                          className="w-full h-full object-contain pointer-events-none"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-center gap-1.5 pt-2">
-                {Array.from({ length: Math.max(1, totalShoesPages) }).map(
-                  (_, i) => (
-                    <div
-                      key={i}
-                      className="rounded-full transition-all duration-300"
-                      style={{
-                        width: i === shoesPage ? 12 : 4,
-                        height: 4,
-                        background:
-                          i === shoesPage ? "white" : "rgba(255,255,255,0.3)",
-                      }}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Right panel — per-slot garment pickers */}
+        {hasRecommendations && (
+          <GarmentSelectionPanel
+            slots={garmentSlots}
+            swapSlot={swapSlot}
+            isProcessing={isLoading}
+            isOpen={garmentPanelOpen}
+            onOpenChange={handleGarmentPanelOpenChange}
+            onCancelSwap={cancelSwap}
+            onSelect={handleSlotSelect}
+          />
+        )}
       </div>
 
-      {/* Create Outfit — fixed to viewport bottom center, hidden when outfit is selected */}
-      {selectedOutfitIdx === null && (
-        <button
-          style={{
-            position: "fixed",
-            bottom: "28px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 50,
-            padding: "14px 52px",
-            background: "#ffffff",
-            color: "#000",
-            border: "none",
-            borderRadius: "14px",
-            fontSize: "16px",
-            fontWeight: "700",
-            cursor: "pointer",
-            letterSpacing: "0.4px",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-            transition: "opacity 0.2s, transform 0.1s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-          onMouseDown={(e) =>
-            (e.currentTarget.style.transform = "translateX(-50%) scale(0.97)")
-          }
-          onMouseUp={(e) =>
-            (e.currentTarget.style.transform = "translateX(-50%) scale(1)")
-          }
-          onClick={() => setShowConfirm(true)}
-        >
-          Create Outfit
-        </button>
-      )}
-
-      {/* Confirm modal */}
       {showConfirm && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onClick={() => setShowConfirm(false)}
-        >
-          <div
-            style={{
-              background: "#111",
-              border: "1px solid rgba(255,255,255,0.15)",
-              borderRadius: "20px",
-              padding: "32px 28px",
-              width: "360px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "12px",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p
-              style={{
-                color: "white",
-                fontSize: "20px",
-                fontWeight: "700",
-                textAlign: "center",
-                margin: 0,
-              }}
-            >
-              Create Outfit?
-            </p>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.45)",
-                fontSize: "14px",
-                textAlign: "center",
-                margin: 0,
-              }}
-            >
-              Save your current selection as a new outfit.
-            </p>
-
-            {/* Outfit preview */}
-            <div
-              style={{
-                width: "100%",
-                aspectRatio: "2/3",
-                borderRadius: "12px",
-                overflow: "hidden",
-                background: "#f8f9fb",
-                marginTop: "4px",
-              }}
-            >
-              <OutfitPreviewCanvas
-                hat={selectedHat}
-                top={selectedTop}
-                bottom={selectedBottom}
-                shoe={selectedShoe}
-                bag={selectedBag}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                marginTop: "4px",
-                width: "100%",
-              }}
-            >
-              <button
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  borderRadius: "12px",
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-                onClick={() => setShowConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button
-                style={{
-                  flex: 1,
-                  padding: "12px",
-                  background: "#ffffff",
-                  border: "none",
-                  borderRadius: "12px",
-                  color: "#000",
-                  fontSize: "15px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  setShowConfirm(false); /* TODO: save logic */
-                }}
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
+        <OutfitPreviewModal
+          outfitModified={outfitModified}
+          activeOutfit={
+            selectedOutfitIdx !== null
+              ? (outfits[selectedOutfitIdx] ?? null)
+              : null
+          }
+          outfitOverrides={outfitOverrides}
+          selectedTopBase={selectedTopBase}
+          selectedTopMid={selectedTopMid}
+          selectedTopOuter={selectedTopOuter}
+          selectedBottom={selectedBottom}
+          selectedShoe={selectedShoe}
+          selectedBag={selectedBag}
+          canvasRef={canvasRef}
+          onClose={() => setShowConfirm(false)}
+        />
       )}
     </div>
   );

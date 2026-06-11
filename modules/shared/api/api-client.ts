@@ -9,18 +9,30 @@ import {
   setStorageData,
   removeStorageData,
 } from "@/modules/shared/utils/storage";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-
 // In the browser, use relative URLs so requests go through the Next.js proxy
-// (next.config.ts rewrites /api/remote/** → backend). This avoids CORS preflight
+// (next.config.ts rewrites /api/mirror/** → backend). This avoids CORS preflight
 // failures caused by the x-platform header the backend doesn't whitelist.
 const API_BASE_URL =
   typeof window !== "undefined"
     ? ""
     : (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 
-// In-memory token cache to avoid hitting localStorage on every request
+// In-memory token cache to avoid hitting sessionStorage on every request
 let _cachedAccessToken: string | null = null;
+
+function getKioskAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+    ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+    : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+}
+
+function getKioskRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+    ? (process.env.NEXT_PUBLIC_USER2_REFRESH_TOKEN ?? null)
+    : (process.env.NEXT_PUBLIC_USER1_REFRESH_TOKEN ?? null);
+}
 
 export function setCachedAccessToken(token: string | null) {
   _cachedAccessToken = token;
@@ -39,7 +51,10 @@ export const api = create({
 // Request interceptor — attach auth token
 api.axiosInstance.interceptors.request.use(async (config) => {
   if (!_cachedAccessToken && typeof window !== "undefined") {
-    _cachedAccessToken = await getStorageData<string>(ACCESS_TOKEN);
+    _cachedAccessToken = getKioskAccessToken();
+    if (!_cachedAccessToken) {
+      _cachedAccessToken = await getStorageData<string>(ACCESS_TOKEN);
+    }
   }
   if (_cachedAccessToken) {
     config.headers.Authorization = `Bearer ${_cachedAccessToken}`;
@@ -56,11 +71,14 @@ api.axiosInstance.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const rt = await getStorageData<string>(REFRESH_TOKEN);
+      let rt = getKioskRefreshToken();
+      if (!rt) {
+        rt = await getStorageData<string>(REFRESH_TOKEN);
+      }
       if (rt) {
         try {
           const refreshRes = await fetch(
-            `${API_BASE_URL}/api/remote/auth/refresh-token`,
+            `${API_BASE_URL}/api/mirror/auth/refresh-token`,
             {
               method: "POST",
               headers: {
@@ -99,11 +117,9 @@ api.axiosInstance.interceptors.response.use(
       await removeStorageData(REFRESH_TOKEN);
       await removeStorageData(USER);
       _cachedAccessToken = null;
-      useAuthStore.getState()._forceLogout();
 
-      // Dispatch a custom event for the UI to respond to if needed
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("unauthorized"));
+        window.dispatchEvent(new CustomEvent("session_expired"));
       }
     }
 

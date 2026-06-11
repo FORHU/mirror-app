@@ -5,7 +5,7 @@ import { StandardResponse } from "./api.types";
 export const authService = {
   /**
    * Unified login — email + optional username and kioskId (no password).
-   * Matches the companion-app and mirror-api /api/remote/auth/login contract.
+   * Matches the companion-app and mirror-api /api/mirror/auth/login contract.
    */
   login: async (
     email: string,
@@ -13,7 +13,7 @@ export const authService = {
     kioskId?: string,
   ): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/remote/auth/login",
+      "/api/mirror/auth/login",
       { email, username, kioskId },
     );
     if (response.ok && response.data?.status === "success") {
@@ -27,7 +27,7 @@ export const authService = {
     kioskId?: string,
   ): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/remote/auth/google",
+      "/api/mirror/auth/google",
       { idToken, kioskId },
     );
     if (response.ok && response.data?.status === "success") {
@@ -38,7 +38,7 @@ export const authService = {
 
   getCurrentUser: async (): Promise<User> => {
     const response = await api.get<StandardResponse<User>>(
-      "/api/remote/users/me",
+      "/api/mirror/users/me",
     );
     if (response.ok && response.data?.status === "success") {
       return response.data.data;
@@ -47,17 +47,30 @@ export const authService = {
   },
 
   logout: async (refreshToken: string): Promise<void> => {
-    await api.post("/api/remote/auth/logout", { refreshToken });
+    await api.post("/api/mirror/auth/logout", { refreshToken });
   },
 
   refreshAccessToken: async (refreshToken: string): Promise<AuthResponse> => {
     const response = await api.post<StandardResponse<AuthResponse>>(
-      "/api/remote/auth/refresh-token",
+      "/api/mirror/auth/refresh-token",
       { refreshToken },
     );
     if (response.ok && response.data?.status === "success") {
       return response.data.data;
     }
     throw new Error(response.data?.message || "Refresh token failed");
+  },
+
+  updateProfile: async (data: {
+    gender: "MALE" | "FEMALE" | null;
+  }): Promise<User> => {
+    const response = await api.post<StandardResponse<User>>(
+      "/api/mirror/auth/update",
+      { data },
+    );
+    if (response.ok && response.data?.status === "success") {
+      return response.data.data;
+    }
+    throw new Error(response.data?.message || "Failed to update profile");
   },
 };

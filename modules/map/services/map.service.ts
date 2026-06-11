@@ -1,5 +1,24 @@
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
-import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
+import { api } from "@/modules/shared/api/api-client";
+
+export interface NearbyPOI {
+  placeId: string;
+  name: string;
+  category: string;
+  categoryIcon: string;
+  lat: number;
+  lng: number;
+  address: string;
+  distance: number;
+  photo: string | null;
+  rating?: number;
+  userRatingsTotal?: number;
+  priceLevel?: number;
+  openNow?: boolean;
+  weekdayDescriptions?: string[];
+  phone?: string;
+  website?: string;
+}
 
 export interface GeocodeResult {
   name: string;
@@ -7,6 +26,7 @@ export interface GeocodeResult {
   lat: number;
   lng: number;
   placeId: string;
+  placeType: string;
 }
 
 export interface DirectionsFormatted {
@@ -23,27 +43,42 @@ export interface DirectionsFormatted {
 }
 
 export const mapService = {
-  getHomeLocation: async () => {
-    const response = await fetch(`/api/mirror/map/home-location`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-    });
-    if (!response.ok) throw new Error("Failed to fetch home location");
-    return response.json();
+  getHomeLocation: async (): Promise<{
+    homeLocation: { lat: number; lng: number };
+  }> => {
+    const res = await api.get<{ homeLocation: { lat: number; lng: number } }>(
+      "/api/mirror/map/home-location",
+    );
+    if (!res.ok) throw new Error("Failed to fetch home location");
+    return res.data as { homeLocation: { lat: number; lng: number } };
   },
 
   setHomeLocation: async (coords: { lat: number; lng: number }) => {
-    const response = await fetch(`/api/mirror/map/home-location`, {
+    let token: string | null = null;
+    if (typeof window !== "undefined") {
+      token =
+        window.location.hostname === process.env.NEXT_PUBLIC_DOMAIN2
+          ? (process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null)
+          : (process.env.NEXT_PUBLIC_USER1_ACCESS_TOKEN ?? null);
+      if (!token) {
+        token = sessionStorage.getItem("access_token");
+      }
+    }
+    const res = await fetch("/api/mirror/map/home-location", {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
+        "x-platform": "kiosk",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify(coords),
     });
-    if (!response.ok) throw new Error("Failed to save home location");
-    return response.json();
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error("[setHomeLocation] failed:", res.status, data);
+      throw new Error(`Failed to save home location: ${res.status}`);
+    }
+    return res.json();
   },
 
   geocode: async (
@@ -55,13 +90,12 @@ export const mapService = {
       body.lat = userLocation.lat;
       body.lng = userLocation.lng;
     }
-    const response = await fetch(`/api/mirror/map/geocode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) throw new Error("Geocoding failed");
-    return response.json();
+    const res = await api.post<{ results: GeocodeResult[] }>(
+      "/api/mirror/map/geocode",
+      body,
+    );
+    if (!res.ok) throw new Error("Geocoding failed");
+    return res.data!;
   },
 
   directions: async (
@@ -69,120 +103,113 @@ export const mapService = {
     destination: [number, number],
     profile: "car" | "motorcycle" | "bicycle" | "walking" = "car",
   ): Promise<DirectionsFormatted> => {
-    const response = await fetch(`/api/mirror/map/directions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(ACCESS_TOKEN)}`,
-      },
-      body: JSON.stringify({ origin, destination, profile }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Directions failed");
+    const res = await api.post<DirectionsFormatted>(
+      "/api/mirror/map/directions",
+      { origin, destination, profile },
+    );
+    if (!res.ok) {
+      const err = res.data as unknown as { error?: string };
+      throw new Error(err?.error ?? "Directions failed");
     }
-
-    return response.json();
+    return res.data!;
   },
 
-  tts: async (text: string): Promise<ArrayBuffer> => {
-    const response = await fetch(`/api/mirror/voice/tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    if (!response.ok) throw new Error("TTS failed");
-    return response.arrayBuffer();
+  nearbyPOIs: async (
+    lat: number,
+    lng: number,
+    radiusM = 1000,
+    category?: string,
+  ): Promise<{ pois: NearbyPOI[] }> => {
+    const params: Record<string, unknown> = { lat, lng, radius: radiusM };
+    if (category) params.category = category;
+    const res = await api.get<{ pois: NearbyPOI[] }>(
+      "/api/mirror/map/nearby-pois",
+      params,
+    );
+    if (!res.ok) throw new Error("Nearby POIs fetch failed");
+    return res.data!;
   },
 
-  voice: async (
-    pcmBuffer: ArrayBuffer,
-    ctx?: {
-      lat?: number;
-      lng?: number;
-      traffic?: boolean;
-      navigating?: boolean;
-      profile?: string;
-      remainingDistance?: number;
-      remainingDuration?: number;
-      destinationName?: string;
-      currentInstruction?: string;
-      nextManeuverDistance?: number;
-      nextInstruction?: string;
-      currentTime?: string;
-      currentDate?: string;
-      schedules?: string;
-      currentPage?: string;
-      userOutlineId?: string;
-    },
-    history?: Array<{ user: string; assistant: string }>,
-    sampleRate?: number,
+  venuePhotos: async (placeId: string): Promise<{ photos: string[] }> => {
+    const res = await api.get<{ photos: string[] }>(
+      `/api/mirror/map/venue-photos/${encodeURIComponent(placeId)}`,
+    );
+    if (!res.ok) throw new Error("Venue photos fetch failed");
+    return res.data!;
+  },
+
+  ask: async (
+    transcript: string,
+    ctx: Record<string, unknown>,
+    language: string = "en-US",
   ): Promise<{
     audio: ArrayBuffer;
-    transcript: string;
     reply: string;
     action: ChatWonderAction | null;
+    events: unknown[];
+    sessionId: string;
+    intent?: { primary: string; secondary: string | null; confidence: number };
+    emotion?: string;
+    requiresConfirmation?: boolean;
+    followUpQuestion?: string | null;
+    suggestions?: string[];
+    uiHints?: { overlay: string | null; focus: string | null };
+    memoryUpdates?: Record<string, unknown>;
   }> => {
-    const params = new URLSearchParams();
-    if (ctx?.lat !== undefined) params.set("lat", String(ctx.lat));
-    if (ctx?.lng !== undefined) params.set("lng", String(ctx.lng));
-    if (ctx?.traffic !== undefined) params.set("traffic", String(ctx.traffic));
-    if (ctx?.navigating !== undefined)
-      params.set("navigating", String(ctx.navigating));
-    if (ctx?.profile) params.set("profile", ctx.profile);
-    if (ctx?.remainingDistance !== undefined)
-      params.set("remainingDistance", String(ctx.remainingDistance));
-    if (ctx?.remainingDuration !== undefined)
-      params.set("remainingDuration", String(ctx.remainingDuration));
-    if (ctx?.destinationName)
-      params.set("destinationName", encodeURIComponent(ctx.destinationName));
-    if (ctx?.currentInstruction)
-      params.set(
-        "currentInstruction",
-        encodeURIComponent(ctx.currentInstruction),
-      );
-    if (ctx?.nextManeuverDistance !== undefined)
-      params.set("nextManeuverDistance", String(ctx.nextManeuverDistance));
-    if (ctx?.nextInstruction)
-      params.set("nextInstruction", encodeURIComponent(ctx.nextInstruction));
-    if (ctx?.currentTime)
-      params.set("currentTime", encodeURIComponent(ctx.currentTime));
-    if (ctx?.currentDate)
-      params.set("currentDate", encodeURIComponent(ctx.currentDate));
-    if (ctx?.schedules)
-      params.set("schedules", encodeURIComponent(ctx.schedules));
-    if (ctx?.currentPage)
-      params.set("currentPage", encodeURIComponent(ctx.currentPage));
-    if (ctx?.userOutlineId) params.set("userOutlineId", ctx.userOutlineId);
-    if (history?.length)
-      params.set("history", JSON.stringify(history.slice(-4)));
-    if (sampleRate) params.set("sampleRate", String(sampleRate));
+    const payload = { transcript, ctx };
+    const res = await api.axiosInstance.post<{
+      reply: string;
+      action: ChatWonderAction | null;
+      events: unknown[];
+      sessionId: string;
+      audioBase64: string;
+      intent?: {
+        primary: string;
+        secondary: string | null;
+        confidence: number;
+      };
+      emotion?: string;
+      requiresConfirmation?: boolean;
+      followUpQuestion?: string | null;
+      suggestions?: string[];
+      uiHints?: { overlay: string | null; focus: string | null };
+      memoryUpdates?: Record<string, unknown>;
+    }>(`/api/mirror/voice/ask?lang=${language}`, payload);
 
-    const url = `/api/mirror/voice/process?${params}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
-      body: pcmBuffer,
-    });
-    if (!response.ok) {
-      const err = await response
-        .json()
-        .catch(() => ({ error: "Voice processing failed" }));
-      throw new Error(err.error ?? "Voice processing failed");
-    }
-    const audio = await response.arrayBuffer();
-    const transcript = decodeURIComponent(
-      response.headers.get("X-Transcript") ?? "",
-    );
-    const reply = decodeURIComponent(response.headers.get("X-Reply") ?? "");
-    let action: ChatWonderAction | null = null;
-    try {
-      const raw = response.headers.get("X-Action");
-      if (raw) action = JSON.parse(decodeURIComponent(raw)) as ChatWonderAction;
-    } catch {
-      /* malformed action — ignore */
-    }
-    return { audio, transcript, reply, action };
+    const {
+      reply,
+      action,
+      events,
+      sessionId,
+      audioBase64,
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
+    } = res.data;
+
+    const binaryStr = atob(audioBase64 ?? "");
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++)
+      bytes[i] = binaryStr.charCodeAt(i);
+    const audio = bytes.buffer;
+
+    return {
+      audio,
+      reply,
+      action: action ?? null,
+      events: events ?? [],
+      sessionId: sessionId ?? "",
+      intent,
+      emotion,
+      requiresConfirmation,
+      followUpQuestion,
+      suggestions,
+      uiHints,
+      memoryUpdates,
+    };
   },
 };
