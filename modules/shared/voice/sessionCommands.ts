@@ -51,8 +51,22 @@ export async function performRestart(router: AppRouterInstance) {
 
   useOutlineStore.getState().reset();
   useMapStore.getState().clearRoute();
-  useMirrorStore.getState().clearAiSuggestion();
   useCalendarStore.getState().clearEvents();
+  useMirrorStore.setState({
+    aiSuggestion: null,
+    pendingGarmentData: null,
+    pendingCosmeticsData: null,
+    skinAnalysisResult: null,
+    skinCaptureUrl: null,
+    overviewFashionSnapshot: null,
+    overviewCosmeticsSnapshot: null,
+    chatNavPending: false,
+    chatStreamingText: "",
+    chatGarmentData: null,
+    chatCosmeticsData: null,
+    chatTailorData: null,
+    isChatOpen: false,
+  });
 
   router.push(ROUTES.WELCOME);
 }

@@ -1,13 +1,21 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
 
 export default function RestartButton() {
   const router = useRouter();
+  const pendingRef = useRef(false);
 
-  const handleRestart = () => {
-    performRestart(router).catch(() => {});
+  const handleRestart = (e: React.TouchEvent | React.MouseEvent) => {
+    // Suppress the synthetic click that follows a touchStart on mobile
+    if (e.type === "click" && typeof window !== "undefined" && "ontouchstart" in window) return;
+    if (pendingRef.current) return;
+    pendingRef.current = true;
+    performRestart(router).catch(() => {}).finally(() => {
+      pendingRef.current = false;
+    });
   };
 
   return (
