@@ -138,6 +138,7 @@ export default function CosmeticRecommendationPage() {
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
       : false,
   );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const pageContext = useMemo(
     () => ({
@@ -198,8 +199,6 @@ export default function CosmeticRecommendationPage() {
   const leftColRecs = sortedRecs.slice(0, 5);
   const rightColRecs = sortedRecs.slice(5, 10);
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
   // Derive the active recommendation during render (defaults to the top rank)
   // instead of syncing it via an effect, which triggers cascading renders.
   const selectedRec = useMemo<SkinRecommendation | null>(() => {
@@ -209,6 +208,17 @@ export default function CosmeticRecommendationPage() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
+      if (action.type === "GARMENT_RECOMMENDATION") {
+        const response = action.response as { cosmetics_data?: unknown } | null;
+        if (response?.cosmetics_data) {
+          useMirrorStore.getState().setPendingCosmeticsData(
+            response.cosmetics_data,
+          );
+          setSelectedId(null);
+        }
+        return;
+      }
+
       if (action.type !== "cosmetic_select_recommendation") return;
 
       const selected =
@@ -220,13 +230,30 @@ export default function CosmeticRecommendationPage() {
   );
 
   useVoice(pageContext, handleVoiceAction);
-  const { submitText, isProcessing } = useVoiceContext();
+  const { submitText, isProcessing, voiceState } = useVoiceContext();
+
+  const handleSuggestionSelect = useCallback(
+    (prompt: string) => {
+      setSelectedId(null);
+      setIsHandoffLoading(true);
+      useMirrorStore.getState().setPendingCosmeticsData(null);
+      useMirrorStore.getState().setChatCosmeticsData(null);
+      useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
+      void submitText(prompt)
+        .catch((err) => {
+          console.error("[cosmetics-suggestion]", err);
+        })
+        .finally(() => {
+          setIsHandoffLoading(false);
+        });
+    },
+    [submitText],
+  );
 
   useEffect(() => {
-    if (handoffStartedRef.current) return;
-
     const prompt = sessionStorage.getItem(COSMETIC_PROMPT_KEY);
     if (!prompt) return;
+    if (handoffStartedRef.current || voiceState !== "idle") return;
 
     handoffStartedRef.current = true;
     sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
@@ -239,7 +266,7 @@ export default function CosmeticRecommendationPage() {
       .finally(() => {
         setIsHandoffLoading(false);
       });
-  }, [submitText]);
+  }, [submitText, voiceState]);
 
   const isLoadingRecommendations =
     isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
@@ -410,6 +437,7 @@ export default function CosmeticRecommendationPage() {
           "Suggest a calming evening routine I can follow tonight to repair and hydrate my skin.",
           "I want to visibly improve my skin's texture and glow over the next 30 days — build me a product plan.",
         ]}
+        onSelect={handleSuggestionSelect}
       />
     </div>
   );

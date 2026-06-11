@@ -205,6 +205,7 @@ async function sendMessageOnce(
 
     const body: Record<string, unknown> = { input: request.input };
     if (request.location) body.location = request.location;
+    if (request.weather) body.weather = request.weather;
     if (request.voice) body.voice = request.voice;
     if (request.lang) body.lang = request.lang;
     if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
