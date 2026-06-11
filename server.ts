@@ -92,7 +92,9 @@ app.prepare().then(() => {
     let notifyChunk: (() => void) | null = null;
 
     ws.on("message", (data: RawData) => {
-      const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
+      const buf = Buffer.isBuffer(data)
+        ? data
+        : Buffer.from(data as ArrayBuffer);
 
       // Control messages are JSON (starts with '{')
       if (buf[0] === 0x7b) {

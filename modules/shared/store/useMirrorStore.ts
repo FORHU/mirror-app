@@ -63,7 +63,9 @@ interface MirrorState {
   setChatCosmeticsData: (data: unknown | null) => void;
   /** Tailor-generated outfit image from chat path. Consumed once by OutfitPreviewModal. */
   chatTailorData: { image_url: string; gender: string } | null;
-  setChatTailorData: (data: { image_url: string; gender: string } | null) => void;
+  setChatTailorData: (
+    data: { image_url: string; gender: string } | null,
+  ) => void;
   /** Last normalized fashion data shown on /ai-recommendation-fashion, for /overview mini cards. */
   overviewFashionSnapshot: OverviewFashionSnapshot | null;
   setOverviewFashionSnapshot: (data: OverviewFashionSnapshot | null) => void;

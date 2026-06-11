@@ -58,7 +58,10 @@ export async function POST(req: NextRequest) {
   try {
     audioBytes = new Uint8Array(await req.arrayBuffer());
   } catch {
-    return Response.json({ error: "Failed to read audio body" }, { status: 400 });
+    return Response.json(
+      { error: "Failed to read audio body" },
+      { status: 400 },
+    );
   }
 
   if (audioBytes.length === 0) {

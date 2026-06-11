@@ -75,7 +75,7 @@ describe("isLifestylePrompt", () => {
   it.each([
     "I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.",
     "Help me plan my day: what to wear, how to care for my skin, and where to go.",
-    "I want a \"clean girl aesthetic\" day — outfit, skincare, and place suggestions.",
+    'I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.',
     "Give me a weekend-ready outfit and a place I should visit.",
     "What should I wear and how should I care for my skin in hot weather?",
     "I want a lazy day look — comfy but still stylish, plus somewhere chill to go.",

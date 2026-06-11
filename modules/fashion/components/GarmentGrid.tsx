@@ -97,7 +97,9 @@ export function GarmentGrid({
 
   // Tile size scales with the viewport; rows double up when there are
   // enough items so the panel doesn't trail off into empty space.
-  const tileVar = { "--tile": "clamp(80px, 8.5vw, 132px)" } as React.CSSProperties;
+  const tileVar = {
+    "--tile": "clamp(80px, 8.5vw, 132px)",
+  } as React.CSSProperties;
   const rowCount = loading || pagedItems.length > 3 ? 2 : 1;
 
   return (
@@ -137,16 +139,18 @@ export function GarmentGrid({
           }
         >
           {loading ? (
-            Array.from({ length: Math.max(2, Math.min(pageSize, 4)) }).map((_, i) => (
-              <SkeletonCell
-                key={i}
-                style={{
-                  width: horizontal ? "var(--tile)" : undefined,
-                  height: horizontal ? "calc(var(--tile) * 1.2)" : undefined,
-                  ...itemStyle,
-                }}
-              />
-            ))
+            Array.from({ length: Math.max(2, Math.min(pageSize, 4)) }).map(
+              (_, i) => (
+                <SkeletonCell
+                  key={i}
+                  style={{
+                    width: horizontal ? "var(--tile)" : undefined,
+                    height: horizontal ? "calc(var(--tile) * 1.2)" : undefined,
+                    ...itemStyle,
+                  }}
+                />
+              ),
+            )
           ) : pagedItems.length === 0 ? (
             <div
               style={{

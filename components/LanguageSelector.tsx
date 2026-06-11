@@ -36,23 +36,23 @@ export function LanguageSelector() {
       {open && (
         <div className="absolute top-full left-0 mt-2 bg-black/80 border border-white/20 backdrop-blur-xl rounded-2xl overflow-hidden shadow-2xl min-w-[100px]">
           <div className="max-h-[60vh] overflow-y-auto">
-          {LANGUAGES.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={(e) => {
-                e.stopPropagation();
-                setVoiceLanguage(lang.code);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                voiceLanguage === lang.code
-                  ? "bg-white/20 text-white font-bold"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              {lang.label}
-            </button>
-          ))}
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVoiceLanguage(lang.code);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                  voiceLanguage === lang.code
+                    ? "bg-white/20 text-white font-bold"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {lang.label}
+              </button>
+            ))}
           </div>
         </div>
       )}

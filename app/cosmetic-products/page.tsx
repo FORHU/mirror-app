@@ -185,6 +185,16 @@ export default function CosmeticProductsPage() {
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
   const [selected, setSelected] = useState<CosmeticProduct | null>(null);
 
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Autoplay holds off until this timestamp; any user interaction pushes it out.
+  const pausedUntilRef = useRef(0);
+
+  // Close the enlarged view and restart the carousel when switching skin types.
+  useEffect(() => {
+    queueMicrotask(() => setSelected(null));
+    scrollRef.current?.scrollTo({ left: 0 });
+  }, [skinType]);
+
   useEffect(() => {
     let cancelled = false;
     cosmeticsService
@@ -238,7 +248,7 @@ export default function CosmeticProductsPage() {
         onBack={() => router.back()}
       />
 
-      <div className="flex-1 min-h-0 flex flex-col items-center pt-2 pb-6 gap-5">
+      <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-10 gap-6">
         {/* Skin type selector — single horizontal row, scales with viewport */}
         <div
           className="grid grid-cols-4 w-full"
@@ -258,8 +268,7 @@ export default function CosmeticProductsPage() {
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
                   WebkitTapHighlightColor: "transparent",
-                  padding:
-                    "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
+                  padding: "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
                   background: "transparent",
                   border: active
                     ? "1.5px solid rgba(255,255,255,0.5)"

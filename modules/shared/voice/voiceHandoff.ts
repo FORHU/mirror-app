@@ -30,7 +30,9 @@ export function isLifestylePrompt(text: string): boolean {
   // Fashion signal: existing handoff keywords OR look-based aesthetic phrases
   const hasFashion =
     isFashionHandoffPrompt(text) ||
-    /\b(?:lazy|clean girl|aesthetic|casual|everyday|day|night)\s+(?:day\s+)?look\b/i.test(text);
+    /\b(?:lazy|clean girl|aesthetic|casual|everyday|day|night)\s+(?:day\s+)?look\b/i.test(
+      text,
+    );
 
   // Cosmetics/skincare signal: existing handoff keywords OR "glow-up", "care for skin"
   const hasCosmetics =
