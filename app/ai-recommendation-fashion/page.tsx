@@ -109,6 +109,7 @@ export default function VirtualMirrorV2() {
   const selectOutfit = useCallback(
     (idx: number) => {
       setSelectedOutfitIdx(idx);
+      setGarmentPanelOpen(false);
       clearSlots();
       setOutfitOverrides({});
       setSwapSlot(null);
@@ -116,6 +117,15 @@ export default function VirtualMirrorV2() {
     },
     [clearSlots],
   );
+
+  const handleGarmentPanelOpenChange = useCallback((open: boolean) => {
+    setGarmentPanelOpen(open);
+    if (!open) return;
+    setSelectedOutfitIdx(null);
+    setOutfitOverrides({});
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }, []);
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -1173,7 +1183,7 @@ export default function VirtualMirrorV2() {
           swapSlot={swapSlot}
           isProcessing={isLoading}
           isOpen={garmentPanelOpen}
-          onOpenChange={setGarmentPanelOpen}
+          onOpenChange={handleGarmentPanelOpenChange}
           onCancelSwap={cancelSwap}
           onSelect={handleSlotSelect}
         />
