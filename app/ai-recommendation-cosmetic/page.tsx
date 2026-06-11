@@ -8,8 +8,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
-import type { SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
+import { cosmeticsService, type SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
 import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
@@ -64,6 +65,7 @@ function normalizeRecommendation(
   const imageUrl =
     str(productFile?.fileUrl) ||
     str(productFile?.thumbnailUrl) ||
+    str(asRecord(rec.fileUrl)?.fileUrl) ||
     str(rec.imageUrl) ||
     str(rec.image_url) ||
     str(rec.image);
@@ -127,6 +129,8 @@ const COSMETIC_QUOTES = [
 
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const lastSearchParamsRef = useRef<string | null>(null);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
@@ -149,12 +153,47 @@ export default function CosmeticRecommendationPage() {
     [],
   );
 
+  const handleAiComplete = useCallback(
+    (data: { query?: string; recommendations?: unknown[] } | null) => {
+      if (!data) return;
+      if (data.query) {
+        const params = new URLSearchParams(data.query);
+        if (!params.has("limit")) params.set("limit", "10");
+        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+        return;
+      }
+      useMirrorStore.getState().setPendingCosmeticsData(data);
+      setSelectedId(null);
+    },
+    [router],
+  );
+
+  // URL params flow — mirrors fashion: when query params change, fetch from DB.
+  useEffect(() => {
+    const current = searchParams.toString();
+    if (lastSearchParamsRef.current === current) return;
+    lastSearchParamsRef.current = current;
+    if (!current) return;
+    const params = new URLSearchParams(current);
+    if (!params.has("limit")) params.set("limit", "10");
+    setIsHandoffLoading(true);
+    cosmeticsService
+      .getByQuery(params.toString())
+      .then((products) => {
+        useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
+        setSelectedId(null);
+      })
+      .catch(console.error)
+      .finally(() => setIsHandoffLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
     useMirrorStore.getState().setChatCosmeticsData(null);
-    useMirrorStore.getState().setPendingCosmeticsData(chatCosmeticsData);
-  }, [chatCosmeticsData]);
+    handleAiComplete(chatCosmeticsData as { query?: string; recommendations?: unknown[] });
+  }, [chatCosmeticsData, handleAiComplete]);
 
   const rawRecs = useMemo(() => {
     if (isHandoffLoading && !pendingCosmeticsData) return [];
@@ -207,19 +246,7 @@ export default function CosmeticRecommendationPage() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      if (action.type === "GARMENT_RECOMMENDATION") {
-        const response = action.response as { cosmetics_data?: unknown } | null;
-        if (response?.cosmetics_data) {
-          useMirrorStore
-            .getState()
-            .setPendingCosmeticsData(response.cosmetics_data);
-          setSelectedId(null);
-        }
-        return;
-      }
-
       if (action.type !== "cosmetic_select_recommendation") return;
-
       const selected =
         sortedRecs.find((rec) => rec.rank === action.rank) ??
         sortedRecs[action.rank - 1];

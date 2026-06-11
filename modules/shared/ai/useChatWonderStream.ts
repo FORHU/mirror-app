@@ -5,6 +5,9 @@ import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 import {
   chatWonderService,
   resolveAccessToken,
+  type ChatWonderGarmentData,
+  type ChatWonderMapsData,
+  type ChatWonderCosmeticsData,
 } from "@/modules/shared/api/chat-wonder.service";
 import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
@@ -34,15 +37,15 @@ export interface ChatMessage {
 export interface ChatWonderCompletePayload {
   type: "complete";
   message?: string;
-  garment?: unknown | null;
-  garment_data?: unknown | null;
-  cosmetics?: unknown | null;
-  cosmetics_data?: unknown | null;
-  maps?: unknown | null;
-  maps_data?: unknown | null;
+  garment?: ChatWonderGarmentData | null;
+  garment_data?: ChatWonderGarmentData | null;
+  cosmetics?: ChatWonderCosmeticsData | null;
+  cosmetics_data?: ChatWonderCosmeticsData | null;
+  maps?: ChatWonderMapsData | null;
+  maps_data?: ChatWonderMapsData | null;
   nav?: unknown | null;
   nav_data?: unknown | null;
-  tailor_data?: unknown | null;
+  tailor_data?: { image_url: string; gender: string } | null;
   gender_update?: { gender?: string } | null;
   events?: unknown[];
   sets?: unknown[];
