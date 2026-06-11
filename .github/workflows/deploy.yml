@@ -26,7 +26,7 @@ jobs:
   deploy:
     name: Build, Push & Deploy (production)
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ec2-user-latest
+    runs-on: ubuntu-latest
     environment: production
 
     permissions:
