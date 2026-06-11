@@ -16,15 +16,99 @@ import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
-function ProductCard({ product }: { product: CosmeticProduct }) {
+type CosmeticMetadata = Record<string, unknown> | null | undefined;
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function prettyText(value: string) {
+  return value.replace(/_/g, " ").trim();
+}
+
+function getMetadata(product: CosmeticProduct): CosmeticMetadata {
+  const source = product as CosmeticProduct & {
+    metadata?: CosmeticMetadata;
+    metaData?: CosmeticMetadata;
+  };
+  return source.metadata ?? source.metaData;
+}
+
+function getProductExplanation(product: CosmeticProduct) {
+  const source = product as CosmeticProduct & {
+    why?: string | null;
+    reason?: string | null;
+    explanation?: string | null;
+    skin_type_verdict?: string | null;
+    skinTypeVerdict?: string | null;
+  };
+  const metadata = getMetadata(product);
+  const explicit = firstText(
+    source.why,
+    source.reason,
+    source.explanation,
+    metadata?.why,
+    metadata?.reason,
+    metadata?.explanation,
+  );
+  if (explicit) return explicit;
+
+  const category = firstText(product.category, product.type);
+  const benefit = firstText(...product.benefits);
+  const tag = firstText(...product.tags);
+  const skinVerdict = firstText(
+    source.skin_type_verdict,
+    source.skinTypeVerdict,
+    metadata?.skin_type_verdict,
+    metadata?.skinTypeVerdict,
+  );
+
+  if (category && benefit && tag) {
+    return `It has ${prettyText(benefit)} benefits and works well as ${prettyText(tag)}.`;
+  }
+  if (category && benefit) {
+    return `It has ${prettyText(benefit)} benefits.`;
+  }
+  if (category && skinVerdict) {
+    return `It has a ${prettyText(skinVerdict)} skin-type match.`;
+  }
+  if (category) return null;
+  return null;
+}
+
+function ProductCard({
+  product,
+  selected,
+  onSelect,
+}: {
+  product: CosmeticProduct;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className="flex flex-col items-center rounded-xl overflow-hidden tap-highlight-none focus:outline-none"
       style={{
         width: "100%",
         flex: "0 0 auto",
         scrollSnapAlign: "start",
         WebkitTapHighlightColor: "transparent",
+        cursor: "pointer",
+        border: selected
+          ? "1.5px solid rgba(255,255,255,0.55)"
+          : "1.5px solid transparent",
       }}
     >
       <div
@@ -99,6 +183,9 @@ export default function CosmeticProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +212,13 @@ export default function CosmeticProductsPage() {
     () => products.filter((p) => matchesSkinType(p, skinType)),
     [products, skinType],
   );
+  const selectedProduct = useMemo(
+    () => filtered.find((p) => p.id === selectedProductId) ?? null,
+    [filtered, selectedProductId],
+  );
+  const selectedProductExplanation = selectedProduct
+    ? getProductExplanation(selectedProduct)
+    : null;
 
   // Alternate products between the two side columns.
   const [leftItems, rightItems] = useMemo(() => {
@@ -163,7 +257,10 @@ export default function CosmeticProductsPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => setSkinType(key)}
+                onClick={() => {
+                  setSkinType(key);
+                  setSelectedProductId(null);
+                }}
                 aria-pressed={active}
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
@@ -217,16 +314,66 @@ export default function CosmeticProductsPage() {
             ) : error ? (
               <div className="text-white/35 text-xs text-center pt-4">{error}</div>
             ) : (
-              <MarqueeColumn key={`left-${skinType}`} loop={leftItems.length > 0}>
+              <MarqueeColumn key={`left-${skinType}`} loop={false}>
                 {leftItems.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    selected={selectedProductId === p.id}
+                    onSelect={() =>
+                      setSelectedProductId((current) =>
+                        current === p.id ? null : p.id,
+                      )
+                    }
+                  />
                 ))}
               </MarqueeColumn>
             )}
           </div>
 
-          {/* Empty center — mirror shows through */}
-          <div style={{ flex: 1 }} />
+          <div
+            className="h-full min-h-0 flex items-center justify-center px-6"
+            style={{ flex: 1, minWidth: 0 }}
+          >
+            {selectedProduct && (
+              <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                <div
+                  className="w-full flex items-center justify-center"
+                  style={{ height: "min(58vh, 520px)" }}
+                >
+                  {selectedProduct.fileUrl?.fileUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedProduct.fileUrl.fileUrl}
+                      alt={selectedProduct.name}
+                      draggable={false}
+                      className="max-w-full max-h-full object-contain pointer-events-none"
+                    />
+                  ) : (
+                    <span className="text-white/25 text-xs uppercase tracking-[0.18em]">
+                      Product
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 text-white/45 uppercase tracking-[0.18em] text-xs">
+                  {selectedProduct.brand || "Brand"}
+                </div>
+                <div className="mt-1 max-w-[520px] text-white font-semibold leading-tight text-2xl">
+                  {selectedProduct.name}
+                </div>
+                {selectedProduct.type && (
+                  <div className="mt-3 text-white/50 uppercase tracking-[0.16em] text-[11px]">
+                    {selectedProduct.type.replace(/_/g, " ")}
+                  </div>
+                )}
+                {selectedProductExplanation && (
+                  <div className="mt-4 max-w-[560px] text-white/55 text-sm leading-relaxed">
+                    {selectedProductExplanation}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div
             className="h-full min-h-0"
@@ -239,9 +386,18 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : !error && rightItems.length === 0 ? null : (
-              <MarqueeColumn key={`right-${skinType}`} loop={rightItems.length > 0}>
+              <MarqueeColumn key={`right-${skinType}`} loop={false}>
                 {rightItems.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    selected={selectedProductId === p.id}
+                    onSelect={() =>
+                      setSelectedProductId((current) =>
+                        current === p.id ? null : p.id,
+                      )
+                    }
+                  />
                 ))}
               </MarqueeColumn>
             )}

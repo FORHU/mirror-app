@@ -13,6 +13,7 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
@@ -54,9 +55,45 @@ const CATEGORY_MAP: Record<string, string[]> = {
   Formal: ["Formal", "Business", "SmartCasual", "Luxury", "Uniform"],
 };
 
+type GenderFilter = "MALE" | "FEMALE";
+
+function normalizeGender(value: unknown): GenderFilter | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  if (["MALE", "MAN", "MEN", "M"].includes(normalized)) return "MALE";
+  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized))
+    return "FEMALE";
+  return null;
+}
+
+function collectGenderValues(value: unknown): GenderFilter[] {
+  if (Array.isArray(value)) return value.flatMap(collectGenderValues);
+  const gender = normalizeGender(value);
+  return gender ? [gender] : [];
+}
+
+function filterOutfitsByGender(
+  items: RemoteOutfit[],
+  gender: GenderFilter | null,
+) {
+  if (!gender) return items;
+  return items.filter((outfit) => {
+    const meta = outfit.metaData;
+    const genders = [
+      ...collectGenderValues(meta?.gender),
+      ...collectGenderValues(meta?.targetGender),
+      ...collectGenderValues(meta?.genders),
+      ...outfit.items.flatMap((item) => collectGenderValues(item.garment.gender)),
+    ];
+    return genders.length === 0 || genders.includes(gender);
+  });
+}
+
 export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const userGender = useAuthStore((state) => state.user?.gender);
+  const genderFilter = useMemo(() => normalizeGender(userGender), [userGender]);
   const [isChipLoading, setIsChipLoading] = useState(false);
   const isLoading = isChipLoading;
 
@@ -123,6 +160,8 @@ export default function FashionCatalog() {
     );
     return [left, right];
   }, [outfits]);
+  const selectedOutfit =
+    selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
 
   // Card used by both marquee side columns; fixed height since the columns
   // drift continuously instead of fitting a 4-row page.
@@ -244,6 +283,10 @@ export default function FashionCatalog() {
         outfitService
           .getByQuery(query)
           .then((fetchedOutfits) => {
+            const visibleOutfits = filterOutfitsByGender(
+              fetchedOutfits,
+              genderFilter,
+            );
             const newTopsBase: RemoteGarment[] = [];
             const newTopsMid: RemoteGarment[] = [];
             const newTopsOuter: RemoteGarment[] = [];
@@ -252,7 +295,7 @@ export default function FashionCatalog() {
             const newBags: RemoteGarment[] = [];
             const seen = new Set<string>();
 
-            for (const outfit of fetchedOutfits) {
+            for (const outfit of visibleOutfits) {
               for (const item of outfit.items) {
                 const g = item.garment;
                 if (seen.has(g.id)) continue;
@@ -267,7 +310,7 @@ export default function FashionCatalog() {
                   garmentType: g.garmentType,
                   category: [],
                   tags: [],
-                  gender: null,
+                  gender: g.gender ?? null,
                   silhouette: null,
                   layerLevel: g.layerLevel ?? null,
                   file: null,
@@ -300,7 +343,7 @@ export default function FashionCatalog() {
             setShoesPage(0);
             setBags(newBags);
             setBagsPage(0);
-            setOutfits(fetchedOutfits);
+            setOutfits(visibleOutfits);
             setOutfitPage(0);
           })
           .catch(console.error)
@@ -320,6 +363,7 @@ export default function FashionCatalog() {
         garmentType?: string[];
         fittingSlot?: string[];
         layerLevel?: string;
+        gender?: string;
       };
 
       const sets = Array.isArray(rawData?.sets)
@@ -346,7 +390,7 @@ export default function FashionCatalog() {
             ? [item.category]
             : [],
         tags: [],
-        gender: null,
+        gender: normalizeGender(item.gender) ?? null,
         silhouette: null,
         layerLevel: item.layerLevel ?? null,
         file: null,
@@ -445,6 +489,7 @@ export default function FashionCatalog() {
       setSelectedBottom,
       setSelectedShoe,
       setSelectedOutfitIdx,
+      genderFilter,
     ],
   );
 
@@ -591,8 +636,9 @@ export default function FashionCatalog() {
   const lastSearchParamsRef = useRef<string | null>(null);
   useEffect(() => {
     const current = searchParams.toString();
-    if (lastSearchParamsRef.current === current) return;
-    lastSearchParamsRef.current = current;
+    const currentKey = `${current}::${genderFilter ?? "ANY"}`;
+    if (lastSearchParamsRef.current === currentKey) return;
+    lastSearchParamsRef.current = currentKey;
 
     // Do not auto-fetch if there are no query parameters. This leaves
     // the outfits array empty so the idle OutfitImageCarousel can display.
@@ -614,7 +660,7 @@ export default function FashionCatalog() {
     });
     // setIsChipLoading(false) is called inside handleAiComplete's .finally()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [searchParams, genderFilter]);
 
   // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
   const handoffFiredRef = useRef(false);
@@ -676,13 +722,13 @@ export default function FashionCatalog() {
       {activeMainCategory === "All" && !isLoading && <OutfitImageCarousel />}
 
       {activeMainCategory !== "All" && (
-        <div className="flex flex-1 w-full" style={{ height: "546px" }}>
+        <div className="flex flex-1 min-h-0 w-full">
           {/* Left panel — outfits 1-4 */}
           <div
             className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-            style={{ flex: "0 0 25%", width: "25%" }}
+            style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={leftOutfits.length > 0} gap={6}>
+            <MarqueeColumn loop={false} gap={6}>
               {!isLoading && leftOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
@@ -703,23 +749,63 @@ export default function FashionCatalog() {
 
             {/* Idle Reel removed based on sketch layout */}
 
-            {/* Garment slot cards - Shown when an outfit is selected */}
-            {selectedOutfitIdx !== null && !isLoading && (
+            {/* Large selected outfit preview */}
+            {selectedOutfit && !isLoading && (
               <div
                 style={{
                   flex: 1,
                   minHeight: 0,
                   width: "100%",
-                  padding: "0 10px 88px",
+                  padding: "0 8px 96px",
                   display: "flex",
                   flexDirection: "column",
-                  justifyContent: "center",
-                  gap: "6px",
-                  overflow: "hidden",
+                  gap: "12px",
+                  overflow: "auto",
                   background: "transparent",
                 }}
               >
-                {outfits[selectedOutfitIdx]?.items.map((item) => {
+                <div
+                  style={{
+                    flex: "0 0 min(76vh, 760px)",
+                    minHeight: "460px",
+                    borderRadius: "14px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                  }}
+                >
+                  {selectedOutfit.file?.fileUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedOutfit.file.fileUrl}
+                      alt={selectedOutfit.name}
+                      draggable={false}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                      }}
+                    />
+                  ) : (
+                    <span className="text-white/25 text-xs uppercase tracking-[0.18em]">
+                      Outfit
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div className="text-white font-semibold text-sm leading-tight">
+                    {selectedOutfit.name}
+                  </div>
+                  {selectedOutfit.description && (
+                    <div className="text-white/45 text-xs leading-snug mt-1">
+                      {selectedOutfit.description}
+                    </div>
+                  )}
+                </div>
+                {selectedOutfit.items.map((item) => {
                   const g = item.garment;
                   return (
                     <div
@@ -829,9 +915,9 @@ export default function FashionCatalog() {
           {/* Right panel — outfits 5-8 */}
           <div
             className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
-            style={{ flex: "0 0 25%", width: "25%" }}
+            style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={rightOutfits.length > 0} gap={6}>
+            <MarqueeColumn loop={false} gap={6}>
               {!isLoading && rightOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
@@ -876,11 +962,7 @@ export default function FashionCatalog() {
       {showConfirm && (
         <OutfitPreviewModal
           outfitModified={outfitModified}
-          activeOutfit={
-            selectedOutfitIdx !== null
-              ? (outfits[selectedOutfitIdx] ?? null)
-              : null
-          }
+          activeOutfit={selectedOutfit}
           outfitOverrides={outfitOverrides}
           selectedTopBase={selectedTopBase}
           selectedTopMid={selectedTopMid}
