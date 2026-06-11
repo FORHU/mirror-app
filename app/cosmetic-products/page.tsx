@@ -126,7 +126,7 @@ export default function CosmeticProductsPage() {
 
   // Close the enlarged view and restart the carousel when switching skin types.
   useEffect(() => {
-    setSelected(null);
+    queueMicrotask(() => setSelected(null));
     scrollRef.current?.scrollTo({ left: 0 });
   }, [skinType]);
 
@@ -190,7 +190,6 @@ export default function CosmeticProductsPage() {
       />
 
       <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-10 gap-6">
-
         {/* Skin type selector — single horizontal row, scales with viewport */}
         <div
           className="grid grid-cols-4 w-full"
@@ -210,8 +209,7 @@ export default function CosmeticProductsPage() {
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
                   WebkitTapHighlightColor: "transparent",
-                  padding:
-                    "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
+                  padding: "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
                   background: "transparent",
                   border: active
                     ? "1.5px solid rgba(255,255,255,0.5)"

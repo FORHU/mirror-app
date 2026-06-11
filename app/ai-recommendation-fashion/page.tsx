@@ -260,9 +260,7 @@ export default function VirtualMirrorV2() {
           ),
         );
         setCatalogTopsMid(
-          upperItems.filter((g) =>
-            g.garmentType.some((t) => MID_TYPES.has(t)),
-          ),
+          upperItems.filter((g) => g.garmentType.some((t) => MID_TYPES.has(t))),
         );
         setCatalogTopsBase(
           upperItems.filter(
@@ -615,17 +613,21 @@ export default function VirtualMirrorV2() {
     const current = searchParams.toString();
     if (lastSearchParamsRef.current === current) return;
     lastSearchParamsRef.current = current;
-    
+
     // Do not auto-fetch if there are no query parameters. This leaves
     // the outfits array empty so the idle OutfitImageCarousel can display.
     if (!current) {
-      setOutfits([]);
+      queueMicrotask(() => setOutfits([]));
       return;
     }
 
     const params = new URLSearchParams(current);
     if (!params.has("limit")) params.set("limit", "4");
-    handleAiComplete({ garment_data: { query: params.toString() } } as ChatWonderMessageResponse);
+    queueMicrotask(() =>
+      handleAiComplete({
+        garment_data: { query: params.toString() },
+      } as ChatWonderMessageResponse)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -754,10 +756,11 @@ export default function VirtualMirrorV2() {
       selectedId: selectedBag?.id,
       columns: 3,
       loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Accessories" : "No Accessory garments",
+      emptyMessage: catalogLoading
+        ? "Loading Accessories"
+        : "No Accessory garments",
     },
   ];
-
 
   const hasRecommendations = outfits.length > 0;
 
@@ -811,7 +814,6 @@ export default function VirtualMirrorV2() {
 
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
-
 
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — recommended outfit list */}

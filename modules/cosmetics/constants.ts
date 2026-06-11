@@ -29,7 +29,14 @@ export const SKIN_TYPE_FILTERS: Record<SkinTypeKey, SkinTypeFilter> = {
   DRY: {
     label: "Dry",
     blurb: "Hydration boost, dewy & natural finishes",
-    types: ["MOISTURIZER", "SERUM", "ESSENCE", "CLEANSER", "SUNSCREEN", "PRIMER"],
+    types: [
+      "MOISTURIZER",
+      "SERUM",
+      "ESSENCE",
+      "CLEANSER",
+      "SUNSCREEN",
+      "PRIMER",
+    ],
     finishes: ["DEWY", "NATURAL"],
   },
   NORMAL: {
@@ -62,7 +69,10 @@ export function matchesSkinType(
   skinType: SkinTypeKey,
 ): boolean {
   const filter = SKIN_TYPE_FILTERS[skinType];
-  const type = product.type?.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const type = product.type
+    ?.trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
   const typeOk =
     filter.types === "all" || (!!type && filter.types.includes(type));
   if (!typeOk) return false;

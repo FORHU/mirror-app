@@ -211,9 +211,9 @@ export default function CosmeticRecommendationPage() {
       if (action.type === "GARMENT_RECOMMENDATION") {
         const response = action.response as { cosmetics_data?: unknown } | null;
         if (response?.cosmetics_data) {
-          useMirrorStore.getState().setPendingCosmeticsData(
-            response.cosmetics_data,
-          );
+          useMirrorStore
+            .getState()
+            .setPendingCosmeticsData(response.cosmetics_data);
           setSelectedId(null);
         }
         return;

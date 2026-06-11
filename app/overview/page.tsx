@@ -228,15 +228,14 @@ export default function OverviewPage() {
     if (overviewFashionSnapshot?.outfits.length) {
       setOutfits(overviewFashionSnapshot.outfits);
     }
-    const cosmetics =
-      overviewCosmeticsSnapshot?.length
-        ? overviewCosmeticsSnapshot
-        : adaptCosmeticsData(
-            pendingCosmeticsData ??
-              chatCosmeticsData ??
-              skinAnalysisResult?.recommendations ??
-              [],
-          );
+    const cosmetics = overviewCosmeticsSnapshot?.length
+      ? overviewCosmeticsSnapshot
+      : adaptCosmeticsData(
+          pendingCosmeticsData ??
+            chatCosmeticsData ??
+            skinAnalysisResult?.recommendations ??
+            [],
+        );
     if (cosmetics.length) {
       setCosmetics(cosmetics);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
@@ -264,7 +263,11 @@ export default function OverviewPage() {
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
   const pageContext = useMemo(
-    () => ({ route: ROUTES.OVERVIEW, pageName: "Overview", mode: "overview" as const }),
+    () => ({
+      route: ROUTES.OVERVIEW,
+      pageName: "Overview",
+      mode: "overview" as const,
+    }),
     [],
   );
 
@@ -330,12 +333,19 @@ export default function OverviewPage() {
           locationCtx,
         );
 
-        const rawGarmentData = response.garment_data as Record<string, unknown> | null;
-        const garmentQuery = typeof rawGarmentData?.query === "string" ? rawGarmentData.query : null;
+        const rawGarmentData = response.garment_data as Record<
+          string,
+          unknown
+        > | null;
+        const garmentQuery =
+          typeof rawGarmentData?.query === "string"
+            ? rawGarmentData.query
+            : null;
 
         if (garmentQuery) {
           const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
-          const { garments, outfits } = adaptRemoteOutfitsToTiles(fetchedOutfits);
+          const { garments, outfits } =
+            adaptRemoteOutfitsToTiles(fetchedOutfits);
           setGarments(garments);
           setOutfits(outfits);
         } else {

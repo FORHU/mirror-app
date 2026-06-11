@@ -194,114 +194,114 @@ async function sendMessageOnce(
   request: ChatWonderMessageRequest,
   options?: ChatWonderMessageOptions,
 ): Promise<ChatWonderMessageResponse> {
-    const token = await resolveAccessToken();
+  const token = await resolveAccessToken();
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "x-platform": "kiosk",
-    };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "x-platform": "kiosk",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const body: Record<string, unknown> = { input: request.input };
-    if (request.location) body.location = request.location;
-    if (request.weather) body.weather = request.weather;
-    if (request.voice) body.voice = request.voice;
-    if (request.lang) body.lang = request.lang;
-    if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
-    if (request.pageMode) body.page_mode = request.pageMode;
-    body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
+  const body: Record<string, unknown> = { input: request.input };
+  if (request.location) body.location = request.location;
+  if (request.weather) body.weather = request.weather;
+  if (request.voice) body.voice = request.voice;
+  if (request.lang) body.lang = request.lang;
+  if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
+  if (request.pageMode) body.page_mode = request.pageMode;
+  body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
-    const signal = options?.signal;
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE_URL}/api/mirror/chat-wonder/message`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-        signal,
-      });
-    } catch (err: unknown) {
-      throw new Error((err as Error).message ?? "Network error");
-    }
+  const signal = options?.signal;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/api/mirror/chat-wonder/message`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err: unknown) {
+    throw new Error((err as Error).message ?? "Network error");
+  }
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const audioQueue = options?.silent ? null : new AudioQueue();
-    let finalData: ChatWonderMessageResponse | null = null;
+  const audioQueue = options?.silent ? null : new AudioQueue();
+  let finalData: ChatWonderMessageResponse | null = null;
 
-    if (res.body) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let audioNotified = false;
+  if (res.body) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let audioNotified = false;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() || "";
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6);
-            if (dataStr === "[DONE]") continue;
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const dataStr = line.slice(6);
+          if (dataStr === "[DONE]") continue;
 
-            // Parse in its own try/catch — error events below must throw to
-            // the caller, not be swallowed by the partial-JSON guard.
-            let parsed: {
-              type?: string;
-              audioBase64?: string;
-              content?: string;
-              code?: string;
-              message?: string;
-            };
+          // Parse in its own try/catch — error events below must throw to
+          // the caller, not be swallowed by the partial-JSON guard.
+          let parsed: {
+            type?: string;
+            audioBase64?: string;
+            content?: string;
+            code?: string;
+            message?: string;
+          };
+          try {
+            parsed = JSON.parse(dataStr);
+          } catch {
+            continue; // partial json
+          }
+
+          if (parsed.type === "audio_chunk" && parsed.audioBase64) {
+            if (!audioNotified) {
+              audioNotified = true;
+              try {
+                options?.onAudioChunk?.();
+              } catch {}
+            }
+            audioQueue?.enqueue(parsed.audioBase64);
+          } else if (parsed.type === "chunk") {
+            // Stream textual chunks to the caller if provided
             try {
-              parsed = JSON.parse(dataStr);
-            } catch {
-              continue; // partial json
+              options?.onChunk?.(parsed.content ?? "");
+            } catch {}
+          } else if (parsed.type === "raw_chunk") {
+            try {
+              options?.onChunk?.(parsed.content ?? "");
+            } catch {}
+          } else if (parsed.type === "complete") {
+            finalData = parsed as unknown as ChatWonderMessageResponse;
+          } else if (parsed.type === "error") {
+            audioQueue?.stop();
+            if (parsed.code === "session_expired") {
+              throw new Error("Session expired. Please resend your message.");
             }
-
-            if (parsed.type === "audio_chunk" && parsed.audioBase64) {
-              if (!audioNotified) {
-                audioNotified = true;
-                try {
-                  options?.onAudioChunk?.();
-                } catch {}
-              }
-              audioQueue?.enqueue(parsed.audioBase64);
-            } else if (parsed.type === "chunk") {
-              // Stream textual chunks to the caller if provided
-              try {
-                options?.onChunk?.(parsed.content ?? "");
-              } catch {}
-            } else if (parsed.type === "raw_chunk") {
-              try {
-                options?.onChunk?.(parsed.content ?? "");
-              } catch {}
-            } else if (parsed.type === "complete") {
-              finalData = parsed as unknown as ChatWonderMessageResponse;
-            } else if (parsed.type === "error") {
-              audioQueue?.stop();
-              if (parsed.code === "session_expired") {
-                throw new Error("Session expired. Please resend your message.");
-              }
-              throw new Error(parsed.message || "Stream error");
-            }
+            throw new Error(parsed.message || "Stream error");
           }
         }
       }
     }
+  }
 
-    if (!finalData) {
-      throw new Error("Did not receive complete event");
-    }
+  if (!finalData) {
+    throw new Error("Did not receive complete event");
+  }
 
-    if (finalData.audioBase64) {
-      finalData.audioBase64 = null; // Prevent double playback by callers, AudioQueue handled it
-    }
+  if (finalData.audioBase64) {
+    finalData.audioBase64 = null; // Prevent double playback by callers, AudioQueue handled it
+  }
 
-    return finalData;
+  return finalData;
 }

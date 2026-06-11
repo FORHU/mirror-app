@@ -67,7 +67,10 @@ export async function POST(req: NextRequest) {
     );
 
     if (!AudioStream) {
-      return Response.json({ error: "No audio stream from Polly" }, { status: 500 });
+      return Response.json(
+        { error: "No audio stream from Polly" },
+        { status: 500 },
+      );
     }
 
     const chunks: Uint8Array[] = [];

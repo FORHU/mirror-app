@@ -396,10 +396,9 @@ export function OverviewGrid() {
   const cosmetics = useOverviewStore((s) => s.cosmetics);
   const map = useOverviewStore((s) => s.map);
 
-  const garmentItems =
-    garments.data?.length
-      ? garments.data
-      : (outfits.data ?? []).flatMap((outfit) => outfit.garments);
+  const garmentItems = garments.data?.length
+    ? garments.data
+    : (outfits.data ?? []).flatMap((outfit) => outfit.garments);
 
   const wardrobeState: TileState<boolean> = {
     status: outfits.status,

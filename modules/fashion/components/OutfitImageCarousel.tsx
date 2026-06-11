@@ -6,6 +6,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
+import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 
 interface OutfitImageCarouselProps {
   /** Auto-advance interval in ms. */
@@ -85,38 +86,57 @@ export function OutfitImageCarousel({
     })();
   }, [idx, outfits.length, fetchBatch]);
 
+  const [interactionKey, setInteractionKey] = useState(0);
+
+  const nextImage = useCallback(() => {
+    setInteractionKey((k) => k + 1);
+    setIdx((i) => {
+      if (i + 1 < outfits.length) return i + 1;
+      const next = nextBatchRef.current;
+      if (next && next.length) {
+        nextBatchRef.current = null;
+        setOutfits(next);
+      } else {
+        setOutfits((q) => {
+          const r = shuffle(q);
+          if (q.length > 1 && r[0].id === q[i].id) {
+            [r[0], r[1]] = [r[1], r[0]];
+          }
+          return r;
+        });
+      }
+      return 0;
+    });
+  }, [outfits.length]);
+
+  const prevImage = useCallback(() => {
+    setInteractionKey((k) => k + 1);
+    setIdx((i) => {
+      if (i - 1 >= 0) return i - 1;
+      return outfits.length - 1;
+    });
+  }, [outfits.length]);
+
+  const swipeProps = useSwipe(nextImage, prevImage);
+
   // Auto-advance. When the batch finishes, swap to the prefetched next batch
   // (fresh outfits from the backend); fall back to reshuffling if it isn't ready.
   useEffect(() => {
     if (outfits.length <= 1) return;
-    const id = setInterval(() => {
-      setIdx((i) => {
-        if (i + 1 < outfits.length) return i + 1;
-        const next = nextBatchRef.current;
-        if (next && next.length) {
-          nextBatchRef.current = null;
-          setOutfits(next);
-        } else {
-          setOutfits((q) => {
-            const r = shuffle(q);
-            if (q.length > 1 && r[0].id === q[i].id) {
-              [r[0], r[1]] = [r[1], r[0]];
-            }
-            return r;
-          });
-        }
-        return 0;
-      });
-    }, intervalMs);
+    const id = setInterval(nextImage, intervalMs);
     return () => clearInterval(id);
-  }, [outfits, intervalMs]);
+  }, [outfits.length, intervalMs, nextImage, interactionKey]);
 
   if (outfits.length === 0) return null;
 
   const current = outfits[idx % outfits.length];
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
+    <div
+      {...swipeProps}
+      className="w-full h-full flex flex-col items-center justify-center gap-3 select-none cursor-grab active:cursor-grabbing"
+      style={{ touchAction: "pan-y", zIndex: 0 }}
+    >
       {/* Constant-size frame — image crossfades in place (opacity only), so it
           never moves or shrinks regardless of aspect ratio or transition. */}
       <div
@@ -140,7 +160,7 @@ export function OutfitImageCarousel({
       </div>
 
       {/* Caption — name crossfades in place, clamp to 2 lines so nothing gets cut */}
-      <div className="w-[70%] flex items-center justify-center">
+      <div className="w-[70%] h-[40px] flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.span
             key={current.id}

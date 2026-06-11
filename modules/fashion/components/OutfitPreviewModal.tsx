@@ -81,8 +81,11 @@ export function OutfitPreviewModal({
   useEffect(() => {
     if (!chatTailorData) return;
     setChatTailorData(null);
-    setResultUrl(chatTailorData.image_url);
-    setView("result");
+    const url = chatTailorData.image_url;
+    queueMicrotask(() => {
+      setResultUrl(url);
+      setView("result");
+    });
   }, [chatTailorData, setChatTailorData]);
 
   // Garment resolution (same logic as before)

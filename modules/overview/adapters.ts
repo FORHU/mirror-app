@@ -183,7 +183,9 @@ export function adaptMapsData(raw: unknown): MapTileData | null {
 }
 
 /** SkinAnalysis payloads from the shared mirror store -> skin profile tile. */
-export function adaptSkinAnalysisData(raw: unknown): SkinAnalysisTileItem | null {
+export function adaptSkinAnalysisData(
+  raw: unknown,
+): SkinAnalysisTileItem | null {
   const data = asRecord(raw);
   if (!data) return null;
 

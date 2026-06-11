@@ -11,9 +11,11 @@ export default function RestartButton() {
   const handleAction = () => {
     if (pendingRef.current) return;
     pendingRef.current = true;
-    performRestart(router).catch(() => {}).finally(() => {
-      pendingRef.current = false;
-    });
+    performRestart(router)
+      .catch(() => {})
+      .finally(() => {
+        pendingRef.current = false;
+      });
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {

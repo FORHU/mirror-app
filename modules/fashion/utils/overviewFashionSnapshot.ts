@@ -1,10 +1,7 @@
 import type { CreatedOutfit } from "@/modules/shared/api/outfit.service";
 import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import type {
-  GarmentTileItem,
-  OutfitTileItem,
-} from "@/modules/overview/types";
+import type { GarmentTileItem, OutfitTileItem } from "@/modules/overview/types";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
