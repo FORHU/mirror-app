@@ -24,7 +24,6 @@ import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCar
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 import type { SwapSlot } from "@/modules/fashion/types";
-import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import {
   FASHION_QUOTES,
   FASHION_PROMPT_KEY,
@@ -111,19 +110,7 @@ export default function FashionCatalog() {
   );
 
   const outfitPageSize = 8;
-  const [outfitPage, setOutfitPage] = useState(0);
-  const totalOutfitPages = Math.max(
-    1,
-    Math.ceil(outfits.length / outfitPageSize),
-  );
-  const pagedOutfits = outfits.slice(
-    outfitPage * outfitPageSize,
-    (outfitPage + 1) * outfitPageSize,
-  );
-  const outfitSwipe = useSwipe(
-    () => setOutfitPage((p) => Math.min(p + 1, totalOutfitPages - 1)),
-    () => setOutfitPage((p) => Math.max(p - 1, 0)),
-  );
+  const [, setOutfitPage] = useState(0);
 
   // All outfits split across the two auto-scrolling side columns
   // (even index → left, odd → right). `idx` stays the global index into
