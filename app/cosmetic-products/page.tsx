@@ -6,24 +6,138 @@ import MirrorHeader from "@/components/MirrorHeader";
 import {
   cosmeticsService,
   type CosmeticProduct,
+  type SkinAnalysis,
 } from "@/modules/shared/api/cosmetics.service";
 import {
   SKIN_TYPE_FILTERS,
   matchesSkinType,
   type SkinTypeKey,
 } from "@/modules/cosmetics/constants";
+import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
-function ProductCard({ product }: { product: CosmeticProduct }) {
+type CosmeticMetadata = Record<string, unknown> | null | undefined;
+
+function firstText(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function prettyText(value: string) {
+  return value.replace(/_/g, " ").trim();
+}
+
+function getMetadata(product: CosmeticProduct): CosmeticMetadata {
+  const source = product as CosmeticProduct & {
+    metadata?: CosmeticMetadata;
+    metaData?: CosmeticMetadata;
+  };
+  return source.metadata ?? source.metaData;
+}
+
+function getProductExplanation(product: CosmeticProduct) {
+  const source = product as CosmeticProduct & {
+    why?: string | null;
+    reason?: string | null;
+    explanation?: string | null;
+    skin_type_verdict?: string | null;
+    skinTypeVerdict?: string | null;
+  };
+  const metadata = getMetadata(product);
+  const explicit = firstText(
+    source.why,
+    source.reason,
+    source.explanation,
+    metadata?.why,
+    metadata?.reason,
+    metadata?.explanation,
+  );
+  if (explicit) return explicit;
+
+  const category = firstText(product.category, product.type);
+  const benefit = firstText(...product.benefits);
+  const tag = firstText(...product.tags);
+  const skinVerdict = firstText(
+    source.skin_type_verdict,
+    source.skinTypeVerdict,
+    metadata?.skin_type_verdict,
+    metadata?.skinTypeVerdict,
+  );
+
+  if (category && benefit && tag) {
+    return `It has ${prettyText(benefit)} benefits and works well as ${prettyText(tag)}.`;
+  }
+  if (category && benefit) {
+    return `It has ${prettyText(benefit)} benefits.`;
+  }
+  if (category && skinVerdict) {
+    return `It has a ${prettyText(skinVerdict)} skin-type match.`;
+  }
+  if (category) return null;
+  return null;
+}
+
+function recommendationPool(items: CosmeticProduct[]) {
+  const buckets = new Map<string, CosmeticProduct[]>();
+  for (const item of items) {
+    const key = item.type ?? item.category ?? "OTHER";
+    buckets.set(key, [...(buckets.get(key) ?? []), item]);
+  }
+
+  const mixed: CosmeticProduct[] = [];
+  const bucketItems = Array.from(buckets.values());
+  let offset = 1;
+  while (mixed.length < items.length) {
+    let added = false;
+    for (const bucket of bucketItems) {
+      const item = bucket[offset % bucket.length];
+      if (item && !mixed.some((candidate) => candidate.id === item.id)) {
+        mixed.push(item);
+        added = true;
+      }
+    }
+    if (!added) break;
+    offset += 1;
+  }
+
+  return mixed.length ? mixed : items;
+}
+
+function ProductCard({
+  product,
+  selected,
+  onSelect,
+}: {
+  product: CosmeticProduct;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className="flex flex-col items-center rounded-xl overflow-hidden tap-highlight-none focus:outline-none"
       style={{
         width: "100%",
         flex: "0 0 auto",
         scrollSnapAlign: "start",
         WebkitTapHighlightColor: "transparent",
+        cursor: "pointer",
+        border: selected
+          ? "1.5px solid rgba(255,255,255,0.55)"
+          : "1.5px solid transparent",
       }}
     >
       <div
@@ -92,36 +206,15 @@ function SkeletonCard() {
   );
 }
 
-/**
- * Vertical column that responds to touch swipe with scroll-snap so each card
- * clicks into place. No auto-drift — the user controls the pace.
- */
-function SwipeColumn({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="mirror-scroll h-full"
-      style={{
-        overflowY: "auto",
-        overflowX: "hidden",
-        scrollbarWidth: "none",
-        msOverflowStyle: "none",
-        scrollSnapType: "y mandatory",
-        overscrollBehavior: "contain",
-      }}
-    >
-      <div className="flex flex-col" style={{ gap: 14, paddingBottom: 14 }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 export default function CosmeticProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<CosmeticProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +241,13 @@ export default function CosmeticProductsPage() {
     () => products.filter((p) => matchesSkinType(p, skinType)),
     [products, skinType],
   );
+  const selectedProduct = useMemo(
+    () => filtered.find((p) => p.id === selectedProductId) ?? null,
+    [filtered, selectedProductId],
+  );
+  const selectedProductExplanation = selectedProduct
+    ? getProductExplanation(selectedProduct)
+    : null;
 
   // Alternate products between the two side columns.
   const [leftItems, rightItems] = useMemo(() => {
@@ -156,6 +256,44 @@ export default function CosmeticProductsPage() {
     filtered.forEach((p, i) => (i % 2 === 0 ? left : right).push(p));
     return [left, right];
   }, [filtered]);
+
+  const handleEvaluateSkin = () => {
+    const evaluation = {
+      success: true,
+      skin_type: skinType,
+    };
+    const recommendations = recommendationPool(filtered)
+      .slice(0, 10)
+      .map((product, index) => ({
+      id: `catalog-${skinType.toLowerCase()}-${product.id}`,
+      rank: index + 1,
+      score: Math.max(0.7, 1 - index * 0.03),
+      reason:
+        getProductExplanation(product) ??
+        `Recommended for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
+      cosmeticProduct: product,
+      }));
+    const result: SkinAnalysis = {
+      id: `catalog-evaluation-${skinType.toLowerCase()}`,
+      skinType: evaluation.skin_type,
+      skinTone: null,
+      hydrationPct: skinType === "DRY" ? 32 : skinType === "OILY" ? 68 : 52,
+      oilinessPct: skinType === "OILY" ? 78 : skinType === "DRY" ? 24 : 48,
+      concerns: [SKIN_TYPE_FILTERS[skinType].label],
+      routineTip: `Showing recommendations for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
+      recommendations,
+    };
+
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    useMirrorStore.getState().setChatCosmeticsData(null);
+    useMirrorStore.getState().setSkinAnalysisResult(result);
+    useMirrorStore
+      .getState()
+      .setAiSuggestion(
+        `Skin evaluation complete: ${SKIN_TYPE_FILTERS[skinType].label} skin.`,
+      );
+    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+  };
 
   return (
     <div
@@ -186,7 +324,10 @@ export default function CosmeticProductsPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => setSkinType(key)}
+                onClick={() => {
+                  setSkinType(key);
+                  setSelectedProductId(null);
+                }}
                 aria-pressed={active}
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
@@ -219,6 +360,25 @@ export default function CosmeticProductsPage() {
           })}
         </div>
 
+        <button
+          type="button"
+          onClick={handleEvaluateSkin}
+          disabled={loading || filtered.length === 0}
+          className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{
+            WebkitTapHighlightColor: "transparent",
+            padding: "clamp(10px, 1.5vh, 18px) clamp(22px, 3vw, 44px)",
+            background: "transparent",
+            border: "1.5px solid rgba(255,255,255,0.5)",
+            color: "#ffffff",
+            cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+          }}
+        >
+          <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
+            Evaluate Your Skin
+          </span>
+        </button>
+
         <div className="text-white/45 text-[11px] tracking-[0.24em] uppercase text-center">
           {loading
             ? "Loading products"
@@ -242,16 +402,70 @@ export default function CosmeticProductsPage() {
                 {error}
               </div>
             ) : (
-              <SwipeColumn key={`left-${skinType}`}>
+              <MarqueeColumn
+                key={`left-${skinType}`}
+                loop={false}
+                style={{ scrollSnapType: "y mandatory" }}
+              >
                 {leftItems.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    selected={selectedProductId === p.id}
+                    onSelect={() =>
+                      setSelectedProductId((current) =>
+                        current === p.id ? null : p.id,
+                      )
+                    }
+                  />
                 ))}
-              </SwipeColumn>
+              </MarqueeColumn>
             )}
           </div>
 
-          {/* Empty center — mirror shows through */}
-          <div style={{ flex: 1 }} />
+          <div
+            className="h-full min-h-0 flex items-center justify-center px-6"
+            style={{ flex: 1, minWidth: 0 }}
+          >
+            {selectedProduct && (
+              <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                <div
+                  className="w-full flex items-center justify-center"
+                  style={{ height: "min(58vh, 520px)" }}
+                >
+                  {selectedProduct.fileUrl?.fileUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedProduct.fileUrl.fileUrl}
+                      alt={selectedProduct.name}
+                      draggable={false}
+                      className="max-w-full max-h-full object-contain pointer-events-none"
+                    />
+                  ) : (
+                    <span className="text-white/25 text-xs uppercase tracking-[0.18em]">
+                      Product
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 text-white/45 uppercase tracking-[0.18em] text-xs">
+                  {selectedProduct.brand || "Brand"}
+                </div>
+                <div className="mt-1 max-w-[520px] text-white font-semibold leading-tight text-2xl">
+                  {selectedProduct.name}
+                </div>
+                {selectedProduct.type && (
+                  <div className="mt-3 text-white/50 uppercase tracking-[0.16em] text-[11px]">
+                    {selectedProduct.type.replace(/_/g, " ")}
+                  </div>
+                )}
+                {selectedProductExplanation && (
+                  <div className="mt-4 max-w-[560px] text-white text-sm leading-relaxed">
+                    {selectedProductExplanation}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div
             className="h-full min-h-0"
@@ -264,11 +478,24 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : !error && rightItems.length === 0 ? null : (
-              <SwipeColumn key={`right-${skinType}`}>
+              <MarqueeColumn
+                key={`right-${skinType}`}
+                loop={false}
+                style={{ scrollSnapType: "y mandatory" }}
+              >
                 {rightItems.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    selected={selectedProductId === p.id}
+                    onSelect={() =>
+                      setSelectedProductId((current) =>
+                        current === p.id ? null : p.id,
+                      )
+                    }
+                  />
                 ))}
-              </SwipeColumn>
+              </MarqueeColumn>
             )}
           </div>
         </div>

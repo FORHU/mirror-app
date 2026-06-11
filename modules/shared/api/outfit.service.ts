@@ -14,6 +14,7 @@ export interface RemoteOutfitGarment {
   garmentType: string[];
   fittingSlot: string[];
   layerLevel?: string | null;
+  gender?: string | null;
 }
 
 export interface RemoteOutfitItem {
@@ -28,7 +29,14 @@ export interface RemoteOutfit {
   description: string | null;
   file: { fileUrl: string };
   items: RemoteOutfitItem[];
-  metaData: { category: string; categoryMix: Record<string, number> } | null;
+  metaData: {
+    category?: string;
+    categoryMix?: Record<string, number>;
+    gender?: string | string[] | null;
+    targetGender?: string | string[] | null;
+    genders?: string[] | null;
+    [key: string]: unknown;
+  } | null;
 }
 
 export interface CreateOutfitParams {

@@ -8,22 +8,45 @@ import {
 export const runtime = "nodejs";
 
 const SUPPORTED_CODES = new Set<string>([
+  // English
   "en-US",
   "en-GB",
   "en-AU",
   "en-IN",
+  // Romance
   "fr-FR",
   "fr-CA",
-  "de-DE",
   "es-ES",
   "es-US",
   "it-IT",
   "pt-BR",
   "pt-PT",
+  "ro-RO",
+  // Germanic
+  "de-DE",
+  "nl-NL",
+  "da-DK",
+  "sv-SE",
+  "fi-FI",
+  // Slavic
+  "pl-PL",
+  "cs-CZ",
+  "sk-SK",
+  "sl-SI",
+  "hr-HR",
+  "bg-BG",
+  // Baltic
+  "lv-LV",
+  "lt-LT",
+  // Other European
+  "el-GR",
+  "hu-HU",
+  "et-ET",
+  // Asian
   "ja-JP",
   "ko-KR",
   "zh-CN",
-  "nl-NL",
+  // Other
   "hi-IN",
 ]);
 
@@ -34,10 +57,25 @@ const LANGUAGE_FALLBACK: Record<string, LanguageCode> = {
   es: "es-US",
   it: "it-IT",
   pt: "pt-BR",
+  ro: "ro-RO",
+  nl: "nl-NL",
+  da: "da-DK",
+  sv: "sv-SE",
+  fi: "fi-FI",
+  pl: "pl-PL",
+  cs: "cs-CZ",
+  sk: "sk-SK",
+  sl: "sl-SI",
+  hr: "hr-HR",
+  bg: "bg-BG",
+  lv: "lv-LV",
+  lt: "lt-LT",
+  el: "el-GR",
+  hu: "hu-HU",
+  et: "et-ET",
   ja: "ja-JP",
   ko: "ko-KR",
   zh: "zh-CN",
-  nl: "nl-NL",
   hi: "hi-IN",
 };
 

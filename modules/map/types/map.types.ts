@@ -1,4 +1,4 @@
-export type TransportProfile = "car" | "motorcycle" | "bicycle" | "walking";
+export type TransportProfile = "car" | "bicycle" | "walking";
 
 export interface DirectionsResponse {
   geojson: GeoJSON.FeatureCollection;

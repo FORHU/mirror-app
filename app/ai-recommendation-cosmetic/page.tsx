@@ -19,6 +19,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -73,9 +74,9 @@ function normalizeRecommendation(
     str(rec.image_url) ||
     str(rec.image);
   const rawTags = Array.isArray(product?.tags)
-    ? product.tags
+    ? (product?.tags as unknown[])
     : Array.isArray(rec.tags)
-      ? rec.tags
+      ? (rec.tags as unknown[])
       : [];
 
   return {
@@ -94,9 +95,9 @@ function normalizeRecommendation(
       type: str(product?.type) || str(rec.type) || null,
       tags: rawTags.map(String),
       benefits: Array.isArray(product?.benefits)
-        ? product.benefits.map(String)
+        ? (product?.benefits as unknown[]).map(String)
         : Array.isArray(rec.benefits)
-          ? rec.benefits.map(String)
+          ? (rec.benefits as unknown[]).map(String)
           : [],
       fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
     },
@@ -206,6 +207,17 @@ export default function CosmeticRecommendationPage() {
     Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
 
+  // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
+  // New format sends { query } instead of { recommendations } — route it through
+  // handleAiComplete so the URL params effect fetches the real products.
+  useEffect(() => {
+    if (!pendingCosmeticsData) return;
+    const d = pendingCosmeticsData as { query?: string };
+    if (typeof d.query !== "string") return;
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    queueMicrotask(() => handleAiComplete({ query: d.query as string }));
+  }, [pendingCosmeticsData, handleAiComplete]);
+
   const rawRecs = useMemo(() => {
     if (isHandoffLoading && !pendingCosmeticsData) return [];
 
@@ -257,34 +269,57 @@ export default function CosmeticRecommendationPage() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      if (action.type !== "cosmetic_select_recommendation") return;
-      const selected =
-        sortedRecs.find((rec) => rec.rank === action.rank) ??
-        sortedRecs[action.rank - 1];
-      if (selected) setSelectedId(selected.id);
+      if (action.type === "cosmetic_select_recommendation") {
+        const selected =
+          sortedRecs.find((rec) => rec.rank === action.rank) ??
+          sortedRecs[action.rank - 1];
+        if (selected) setSelectedId(selected.id);
+        return;
+      }
+
+      if (action.type === "GARMENT_RECOMMENDATION") {
+        const response = action.response as {
+          cosmetics_data?: { query?: string; recommendations?: unknown[] } | null;
+        } | null;
+        if (response?.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      }
     },
-    [sortedRecs],
+    [handleAiComplete, sortedRecs],
   );
 
   useVoice(pageContext, handleVoiceAction);
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
-      void submitText(prompt)
-        .catch((err) => {
-          console.error("[cosmetics-suggestion]", err);
-        })
-        .finally(() => {
-          setIsHandoffLoading(false);
+      useMirrorStore.getState().clearAiSuggestion();
+      try {
+        const response = await chatWonderService.message({
+          input: `[cosmetics] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
         });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [submitText],
+    [handleAiComplete, skinAnalysisResult],
   );
 
   useEffect(() => {

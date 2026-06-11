@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "copy-vad": "node scripts/copy-vad-assets.mjs",
-    "dev": "node scripts/copy-vad-assets.mjs && cross-env NODE_OPTIONS=--max-old-space-size=4096 tsx server.ts",
-    "build": "node scripts/copy-vad-assets.mjs && next build",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 tsx server.ts",
+    "build": "next build",
     "export": "next build",
     "deploy": "next build && gh-pages -d out",
     "start": "cross-env NODE_ENV=production tsx server.ts",
@@ -18,7 +17,6 @@
   "dependencies": {
     "@aws-sdk/client-polly": "^3.0.0",
     "@aws-sdk/client-transcribe-streaming": "^3.0.0",
-    "@ricky0123/vad-web": "^0.0.30",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tensorflow-models/blazeface": "^0.1.0",

@@ -46,7 +46,7 @@ async function fetchRoutesAndPOIs(
     timeBlock?: string;
   }[],
   origin: { lat: number; lng: number },
-  profile: "car" | "motorcycle" | "bicycle" | "walking",
+  profile: "car" | "bicycle" | "walking",
 ): Promise<{
   routes: DirectionsFormatted[];
   pois: { stopIndex: number; pois: NearbyPOI[] }[];
@@ -149,7 +149,7 @@ interface MapStore {
   suggestedPOIs: NearbyPOI[];
   suggestionLabel: string;
   selectedPOI: SelectedPOI | null;
-  activeProfile: "car" | "motorcycle" | "bicycle" | "walking";
+  activeProfile: "car" | "bicycle" | "walking";
   showTraffic: boolean;
   isRouting: boolean;
   userLocation: Location | null;
@@ -180,7 +180,7 @@ interface MapStore {
   setNearbyPOIs(pois: NearbyPOI[]): void;
   setSuggestedPOIs(pois: NearbyPOI[], label: string): void;
   clearSuggestions(): void;
-  setActiveProfile(profile: "car" | "motorcycle" | "bicycle" | "walking"): void;
+  setActiveProfile(profile: "car" | "bicycle" | "walking"): void;
   fetchRoute(force?: boolean): Promise<void>;
   clearRoute(): void;
   patchHomeLocation(coords: Location): Promise<void>;

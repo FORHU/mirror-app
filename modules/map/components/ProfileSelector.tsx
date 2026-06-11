@@ -11,9 +11,8 @@ export default function ProfileSelector() {
   const profiles: { id: TransportProfile; icon: typeof Car; label: string }[] =
     [
       { id: "car", icon: Car, label: "Car" },
-      { id: "motorcycle", icon: Bike, label: "Moto" },
-      { id: "bicycle", icon: Bike, label: "Bike" },
-      { id: "walking", icon: PersonStanding, label: "Walk" },
+      { id: "bicycle", icon: Bike, label: "Cycle" },
+      { id: "walking", icon: PersonStanding, label: "Steps" },
     ];
 
   return (

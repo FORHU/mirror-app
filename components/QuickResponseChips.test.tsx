@@ -10,6 +10,10 @@ vi.mock("@/modules/shared/voice/VoiceProvider", () => ({
   useVoiceContext: mockUseVoiceContext,
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 // Replace animated wrappers with plain HTML so tests focus on logic, not animation
 vi.mock("motion/react", () => {
   function el(tag: string) {

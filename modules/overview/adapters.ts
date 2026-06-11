@@ -125,7 +125,8 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
         str(rec.imageUrl) ||
         str(rec.image_url) ||
         str(productFile?.fileUrl) ||
-        str(productFile?.thumbnailUrl);
+        str(productFile?.thumbnailUrl) ||
+        str(asRecord(rec.fileUrl)?.fileUrl);
       if (!id || !imageUrl || seen.has(id)) continue;
       seen.add(id);
       items.push({

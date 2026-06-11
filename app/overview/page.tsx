@@ -39,6 +39,7 @@ import {
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outfitService } from "@/modules/shared/api/outfit.service";
+import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import MirrorHeader from "@/components/MirrorHeader";
 
@@ -319,8 +320,21 @@ export default function OverviewPage() {
           setOutfits(outfits);
         }
 
-        const cosmetics = adaptCosmeticsData(response.cosmetics_data);
-        setCosmetics(cosmetics);
+        const rawCosmeticsData = response.cosmetics_data as Record<
+          string,
+          unknown
+        > | null;
+        const cosmeticsQuery =
+          typeof rawCosmeticsData?.query === "string"
+            ? rawCosmeticsData.query
+            : null;
+        if (cosmeticsQuery) {
+          const fetchedProducts =
+            await cosmeticsService.getByQuery(cosmeticsQuery);
+          setCosmetics(adaptCosmeticsData(fetchedProducts));
+        } else {
+          setCosmetics(adaptCosmeticsData(response.cosmetics_data));
+        }
 
         const mapPayload = Array.isArray(response.maps_data)
           ? response.maps_data[0]

@@ -49,6 +49,11 @@ interface MirrorState {
    *  gate isn't bypassed. Ephemeral — never persisted. */
   assistantIdle: boolean;
   setAssistantIdle: (idle: boolean) => void;
+  /** True while a page is processing a request (e.g. fetching a suggestion) so
+   *  the shared mic can be disabled and a second concurrent request prevented.
+   *  Ephemeral — never persisted. */
+  micBusy: boolean;
+  setMicBusy: (busy: boolean) => void;
   /** Chat-path early navigation state (set on nav_early, cleared on complete) */
   chatNavPending: boolean;
   setChatNavPending: (pending: boolean) => void;
@@ -102,6 +107,8 @@ export const useMirrorStore = create<MirrorState>()(
       setIsChatOpen: (open) => set({ isChatOpen: open }),
       assistantIdle: false,
       setAssistantIdle: (idle) => set({ assistantIdle: idle }),
+      micBusy: false,
+      setMicBusy: (busy) => set({ micBusy: busy }),
       chatNavPending: false,
       setChatNavPending: (pending) => set({ chatNavPending: pending }),
       chatStreamingText: "",
