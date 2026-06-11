@@ -13,22 +13,15 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
 import AssistantNavBar from "@/components/AssistantNavBar";
-import { useProximitySensor } from "@/modules/shared/hooks/useProximitySensor";
 import { useRouter } from "next/navigation";
-import { performRestart } from "@/modules/shared/voice/sessionCommands";
 import {
   useOverviewStore,
   adaptGarmentData,
   adaptMapsData,
-  CameraDisclaimer,
 } from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import {
-  cosmeticsService,
-  type SkinAnalysis,
-} from "@/modules/shared/api/cosmetics.service";
-import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { ASSISTANT_CHIP_CATEGORIES } from "./categories";
 
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
@@ -87,59 +80,6 @@ const ASSISTANT_GREETINGS = [
   "Good to see you! What's your style mood today?",
 ];
 
-const ASSISTANT_CHIP_CATEGORIES: PromptCategory[] = [
-  {
-    label: "Lifestyle",
-    icon: "🌟",
-    prompts: [
-      `I want a complete daily glow-up plan — outfit, skincare, and somewhere to go today.`,
-      `Help me plan my day: what to wear, how to care for my skin, and where to go.`,
-      `I want a "clean girl aesthetic" day — outfit, skincare, and place suggestions.`,
-      `Give me a weekend-ready outfit and a place I should visit.`,
-      `What should I wear and how should I care for my skin in hot weather?`,
-      `I want a lazy day look — comfy but still stylish, plus somewhere chill to go.`,
-    ],
-  },
-  {
-    label: "Fashion",
-    icon: "👗",
-    route: ROUTES.FASHION_CATALOG,
-    prompts: [
-      `What should I wear today? It's ${getToday()} and I want something stylish but comfortable.`,
-      `I have an event this ${nextWeekday(5)} — build me a full outfit from head to toe.`,
-      `Give me a clean, minimal look for today — effortless but put together.`,
-      `Suggest a bold outfit for when I want to stand out.`,
-      `I don't know what to wear — give me 3 outfit options.`,
-      `Give me a simple but attractive everyday look.`,
-    ],
-  },
-  {
-    label: "Skincare",
-    icon: "✨",
-    route: ROUTES.AI_RECOMMENDATION_COSMETIC,
-    prompts: [
-      `My skin feels dull lately — what skincare routine should I follow?`,
-      `Recommend a simple morning and night skincare routine for normal skin.`,
-      `What products should I use for glowing skin fast?`,
-      `I need help fixing dry skin — what routine should I follow?`,
-      `Suggest a calming evening routine to repair and hydrate my skin.`,
-      `What are the best products to improve my skin texture and glow?`,
-    ],
-  },
-  {
-    label: "Places",
-    icon: "📍",
-    route: ROUTES.MAP,
-    prompts: [
-      `What are some good cafes or restaurants near me worth visiting?`,
-      `I want to go somewhere relaxing today — any nice spots nearby?`,
-      `Suggest a fun place to visit this weekend around my area.`,
-      `Give me a hidden gem spot I can visit that isn't too crowded.`,
-      `What's a great place to go today for a quick escape?`,
-      `Find me somewhere nearby that's good for photos.`,
-    ],
-  },
-];
 
 export default function AIAssistantPage() {
   const router = useRouter();
@@ -158,8 +98,6 @@ export default function AIAssistantPage() {
       s.map.status === "ready" ||
       s.cosmetics.status === "ready",
   );
-  const setSkinAnalysisResult = useMirrorStore((s) => s.setSkinAnalysisResult);
-  const setSkinCaptureUrl = useMirrorStore((s) => s.setSkinCaptureUrl);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
 
   const chipCategories = useMemo<PromptCategory[]>(() => {
@@ -185,8 +123,6 @@ export default function AIAssistantPage() {
   const [taglineIndex, setTaglineIndex] = useState(0);
   const [activeGreeting, setActiveGreeting] = useState(ASSISTANT_GREETINGS[0]);
   const hasGreetedRef = useRef(false);
-  const hasBeenPresentRef = useRef(false);
-  const hasCapturedSkinRef = useRef(false);
 
   const pageContext = useMemo(
     () => ({
@@ -232,48 +168,6 @@ export default function AIAssistantPage() {
     speakText,
   } = useVoiceContext();
 
-  const {
-    isPresent,
-    videoRef,
-    status: sensorStatus,
-    captureFrame,
-  } = useProximitySensor({
-    intervalMs: 1000,
-    missesUntilExit: 3,
-  });
-
-  // Background Skin Analysis
-  useEffect(() => {
-    if (isPresent && !hasCapturedSkinRef.current) {
-      hasCapturedSkinRef.current = true;
-      const frame = captureFrame();
-      if (frame) {
-        (async () => {
-          try {
-            const uploaded = await cosmeticsService.uploadCapture(frame);
-            setSkinCaptureUrl(uploaded.fileUrl);
-            await listenForSkinAnalysis({
-              onComplete: (data) => {
-                const analysis = data as SkinAnalysis;
-                setSkinAnalysisResult(analysis);
-              },
-              onError: (msg) =>
-                console.error("[skin-analysis] Background failed:", msg),
-            });
-            await cosmeticsService.startSkinAnalysis(uploaded.id);
-          } catch (e) {
-            console.error("[skin-analysis] Upload/start failed:", e);
-          }
-        })();
-      }
-    }
-  }, [
-    isPresent,
-    captureFrame,
-    setSkinAnalysisResult,
-    setSkinCaptureUrl,
-    submitText,
-  ]);
 
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -357,43 +251,6 @@ export default function AIAssistantPage() {
     [chooseGreeting, playGreeting, showIdle],
   );
 
-  // Camera-gated wake on the real mirror. But when the proximity sensor is
-  // unavailable (dev machine / no camera), fall back to arming the mic on load
-  // so the mirror is still usable hands-free instead of sitting deaf.
-  const hasAutoWokeRef = useRef(false);
-  useEffect(() => {
-    if (hasAutoWokeRef.current || sensorStatus !== "unavailable") return;
-    hasAutoWokeRef.current = true;
-    const id = setTimeout(() => handleWake(false), 400);
-    return () => clearTimeout(id);
-  }, [sensorStatus, handleWake]);
-
-  // Handle Proximity Changes
-  useEffect(() => {
-    if (isPresent) {
-      hasBeenPresentRef.current = true;
-    }
-
-    if (isPresent && showIdle) {
-      // User arrived (detected by camera) — greet out loud, same initial audio
-      // as the tap path, then the welcome flow continues into listening.
-      setTimeout(() => handleWake(true), 0);
-    } else if (
-      !isPresent &&
-      !showIdle &&
-      sensorStatus !== "unavailable" &&
-      hasBeenPresentRef.current
-    ) {
-      // User walked away! (Only if they were actually present before)
-      setShowIdle(true);
-      hasGreetedRef.current = false;
-      hasBeenPresentRef.current = false;
-      // Restart the session completely
-      performRestart(router).finally(() => {
-        window.location.reload();
-      });
-    }
-  }, [isPresent, showIdle, handleWake, sensorStatus, router]);
 
   const status = isListening
     ? "Listening"
@@ -480,9 +337,6 @@ export default function AIAssistantPage() {
               </p>
             </motion.div>
 
-            <div className="absolute bottom-6 inset-x-0 px-6 z-10">
-              <CameraDisclaimer />
-            </div>
           </motion.div>
         ) : (
           <motion.main
@@ -539,11 +393,6 @@ export default function AIAssistantPage() {
               <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
                 {status}
               </p>
-              {sensorStatus === "unavailable" && (
-                <p className="text-white/20 text-[9px] tracking-wide">
-                  Camera unavailable
-                </p>
-              )}
             </div>
 
             {/* Quick Response Chips — categorised */}
@@ -557,31 +406,6 @@ export default function AIAssistantPage() {
         )}
       </AnimatePresence>
 
-      {/* Camera Debug Overlay — left side so it doesn't clash with LanguageSelector */}
-      <div className="fixed top-24 left-4 z-999 flex flex-col items-start gap-2 pointer-events-none">
-        <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center gap-2">
-          <span className="text-white/60 text-[10px] uppercase tracking-wider font-medium">
-            Camera Debug
-          </span>
-          <div
-            className={`w-2 h-2 rounded-full ${isPresent ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]" : "bg-red-500/50 animate-pulse"}`}
-          />
-        </div>
-        <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black shadow-2xl w-48 aspect-video">
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-contain transform -scale-x-100"
-          />
-          {/* Simulated bounding box when face is detected */}
-          {isPresent && (
-            <div className="absolute inset-0 border-2 border-green-500/50 m-4 rounded shadow-[inset_0_0_10px_rgba(34,197,94,0.2)] flex items-center justify-center">
-              <div className="w-1/2 h-1/2 border border-green-400/30 rounded-full" />
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

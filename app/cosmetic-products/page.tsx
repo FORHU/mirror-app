@@ -15,9 +15,9 @@ import {
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 
-/** ms between auto-advances; interaction pauses autoplay for RESUME_DELAY. */
-const AUTOPLAY_INTERVAL = 3200;
-const RESUME_DELAY = 5000;
+/** Marquee drift speed in px/s; interaction pauses it for RESUME_DELAY. */
+const MARQUEE_SPEED = 26;
+const RESUME_DELAY = 4500;
 
 function ProductCard({
   product,
@@ -28,7 +28,6 @@ function ProductCard({
 }) {
   return (
     <div
-      data-card
       role="button"
       tabIndex={0}
       onClick={() => onSelect?.(product)}
@@ -40,16 +39,15 @@ function ProductCard({
       }}
       className="flex flex-col items-center rounded-xl overflow-hidden bg-black border border-white/[0.06] tap-highlight-none focus:outline-none"
       style={{
-        width: "var(--card)",
+        width: "100%",
         flex: "0 0 auto",
-        scrollSnapAlign: "start",
         cursor: "pointer",
         WebkitTapHighlightColor: "transparent",
       }}
     >
       <div
-        className="w-full flex items-center justify-center p-5"
-        style={{ height: "calc(var(--card) * 0.9)" }}
+        className="w-full flex items-center justify-center p-4"
+        style={{ height: "clamp(110px, 15vh, 210px)" }}
       >
         {product.fileUrl?.fileUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -67,17 +65,17 @@ function ProductCard({
           </span>
         )}
       </div>
-      <div className="w-full px-4 pb-6 text-center">
+      <div className="w-full px-3 pb-4 text-center">
         <div
-          className="text-white/40 uppercase truncate tracking-[0.16em]"
-          style={{ fontSize: "clamp(11px, 1.1vw, 16px)" }}
+          className="text-white/40 uppercase truncate tracking-[0.14em]"
+          style={{ fontSize: "clamp(10px, 0.95vw, 14px)" }}
         >
           {product.brand || "Brand"}
         </div>
         <div
-          className="text-white/85 font-medium leading-tight overflow-hidden mt-1"
+          className="text-white/85 font-medium leading-tight overflow-hidden mt-0.5"
           style={{
-            fontSize: "clamp(15px, 1.5vw, 23px)",
+            fontSize: "clamp(13px, 1.2vw, 18px)",
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
@@ -88,8 +86,8 @@ function ProductCard({
         </div>
         {product.type && (
           <span
-            className="inline-block mt-3 px-3.5 py-1 rounded-full uppercase tracking-[0.16em] text-white/50 bg-white/[0.06]"
-            style={{ fontSize: "clamp(10px, 1vw, 14px)" }}
+            className="inline-block mt-2 px-3 py-0.5 rounded-full uppercase tracking-[0.14em] text-white/50 bg-white/[0.06]"
+            style={{ fontSize: "clamp(9px, 0.85vw, 13px)" }}
           >
             {product.type.replace(/_/g, " ")}
           </span>
@@ -104,11 +102,78 @@ function SkeletonCard() {
     <div
       className="animate-pulse rounded-xl bg-white/[0.04]"
       style={{
-        width: "var(--card)",
-        height: "calc(var(--card) * 1.45)",
+        width: "100%",
+        height: "clamp(180px, 24vh, 320px)",
         flex: "0 0 auto",
       }}
     />
+  );
+}
+
+/**
+ * Vertical column that drifts upward continuously. Content is rendered twice
+ * (when `loop`) so the wrap from the end back to the start is seamless; any
+ * touch/drag/wheel pauses the drift and the user can scroll freely.
+ */
+function MarqueeColumn({
+  loop,
+  children,
+}: {
+  loop: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const pausedUntilRef = useRef(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !loop) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      // Clamp dt so a backgrounded tab doesn't jump on resume.
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      const half = el.scrollHeight / 2;
+      if (half > el.clientHeight && Date.now() >= pausedUntilRef.current) {
+        el.scrollTop += MARQUEE_SPEED * dt;
+        if (el.scrollTop >= half) el.scrollTop -= half;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loop]);
+
+  const pause = () => {
+    pausedUntilRef.current = Date.now() + RESUME_DELAY;
+  };
+
+  return (
+    <div
+      ref={ref}
+      onPointerDown={pause}
+      onTouchStart={pause}
+      onWheel={pause}
+      className="mirror-scroll h-full"
+      style={{
+        overflowY: "auto",
+        overflowX: "hidden",
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+      }}
+    >
+      <div className="flex flex-col" style={{ gap: 14, paddingBottom: 14 }}>
+        <div className="flex flex-col" style={{ gap: 14 }}>
+          {children}
+        </div>
+        {loop && (
+          <div className="flex flex-col" style={{ gap: 14 }} aria-hidden>
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -156,24 +221,18 @@ export default function CosmeticProductsPage() {
     [products, skinType],
   );
 
-  // Auto-advance one card at a time; wraps to the start at the end.
-  useEffect(() => {
-    if (loading || filtered.length < 2 || selected) return;
-    const id = window.setInterval(() => {
-      const el = scrollRef.current;
-      if (!el || Date.now() < pausedUntilRef.current) return;
-      const card = el.querySelector<HTMLElement>("[data-card]");
-      const step = (card?.offsetWidth ?? 160) + 14;
-      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - step / 2;
-      if (atEnd) el.scrollTo({ left: 0, behavior: "smooth" });
-      else el.scrollBy({ left: step, behavior: "smooth" });
-    }, AUTOPLAY_INTERVAL);
-    return () => window.clearInterval(id);
-  }, [loading, filtered.length, selected]);
+  // Alternate products between the two side columns.
+  const [leftItems, rightItems] = useMemo(() => {
+    const left: CosmeticProduct[] = [];
+    const right: CosmeticProduct[] = [];
+    filtered.forEach((p, i) => (i % 2 === 0 ? left : right).push(p));
+    return [left, right];
+  }, [filtered]);
 
-  const pauseAutoplay = () => {
-    pausedUntilRef.current = Date.now() + RESUME_DELAY;
-  };
+  // Close the enlarged view when switching skin types.
+  useEffect(() => {
+    setSelected(null);
+  }, [skinType]);
 
   return (
     <div
@@ -237,137 +296,147 @@ export default function CosmeticProductsPage() {
           })}
         </div>
 
-        {/* Product carousel — auto-advances, swipe/drag to browse */}
-        <div
-          className="w-full flex-1 min-h-0 flex flex-col justify-center gap-3"
-          style={{ maxWidth: "min(94vw, 1600px)" }}
-        >
-          <div className="text-white/45 text-[11px] tracking-[0.24em] uppercase text-center">
-            {loading
-              ? "Loading products"
-              : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
-          </div>
+        <div className="text-white/45 text-[11px] tracking-[0.24em] uppercase text-center">
+          {loading
+            ? "Loading products"
+            : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
+        </div>
+
+        {/* Side columns drift on their own; tap a product to inspect it center */}
+        <div className="w-full flex-1 min-h-0 flex gap-4 px-2">
           <div
-            ref={scrollRef}
-            className="mirror-scroll-x"
-            onPointerDown={pauseAutoplay}
-            onTouchStart={pauseAutoplay}
-            onWheel={pauseAutoplay}
-            style={
-              {
-                display: "flex",
-                gap: 14,
-                overflowX: "auto",
-                overflowY: "hidden",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                scrollSnapType: "x mandatory",
-                touchAction: "pan-x",
-                padding: "6px 2px 14px",
-                "--card": "clamp(220px, min(28vw, 42vh), 560px)",
-              } as React.CSSProperties
-            }
+            className="h-full min-h-0"
+            style={{ flex: "0 0 24%", minWidth: 0, maxWidth: "24%" }}
           >
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-            ) : error ? (
-              <div className="w-full py-10 text-center text-white/35 text-sm">
-                {error}
+              <div className="flex flex-col" style={{ gap: 14 }}>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
               </div>
-            ) : filtered.length === 0 ? (
-              <div className="w-full py-10 text-center text-white/35 text-sm">
+            ) : (
+              <MarqueeColumn
+                key={`left-${skinType}`}
+                loop={leftItems.length > 2}
+              >
+                {leftItems.map((p) => (
+                  <ProductCard key={p.id} product={p} onSelect={setSelected} />
+                ))}
+              </MarqueeColumn>
+            )}
+          </div>
+
+          {/* Center — enlarged selected product, or a hint while nothing is picked */}
+          <div className="flex-1 min-w-0 h-full flex items-center justify-center">
+            {error ? (
+              <div className="text-white/35 text-sm text-center">{error}</div>
+            ) : !loading && filtered.length === 0 ? (
+              <div className="text-white/35 text-sm text-center">
                 No products available for{" "}
                 {SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin yet.
               </div>
+            ) : selected ? (
+              <div
+                className="relative flex flex-col items-center rounded-2xl bg-black border border-white/10 overflow-hidden"
+                style={{
+                  width: "min(92%, 680px)",
+                  maxHeight: "100%",
+                  padding: "clamp(16px, 2.5vw, 36px)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSelected(null)}
+                  aria-label="Close product view"
+                  className="absolute top-3 right-4 text-white/50 hover:text-white/90 tap-highlight-none focus:outline-none"
+                  style={{
+                    fontSize: "clamp(18px, 1.8vw, 26px)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  ✕
+                </button>
+
+                <div
+                  className="w-full flex items-center justify-center"
+                  style={{ height: "min(46vh, 520px)" }}
+                >
+                  {selected.fileUrl?.fileUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selected.fileUrl.fileUrl}
+                      alt={selected.name}
+                      draggable={false}
+                      className="max-w-full max-h-full object-contain pointer-events-none"
+                    />
+                  ) : (
+                    <span className="text-white/20 text-sm uppercase tracking-widest">
+                      Product
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full text-center mt-4">
+                  <div
+                    className="text-white/40 uppercase truncate tracking-[0.18em]"
+                    style={{ fontSize: "clamp(13px, 1.3vw, 18px)" }}
+                  >
+                    {selected.brand || "Brand"}
+                  </div>
+                  <div
+                    className="text-white/90 font-medium leading-tight mt-1"
+                    style={{ fontSize: "clamp(19px, 2vw, 30px)" }}
+                  >
+                    {selected.name}
+                  </div>
+                  {selected.type && (
+                    <span
+                      className="inline-block mt-3 px-4 py-1.5 rounded-full uppercase tracking-[0.16em] text-white/55 bg-white/[0.06]"
+                      style={{ fontSize: "clamp(11px, 1.1vw, 16px)" }}
+                    >
+                      {selected.type.replace(/_/g, " ")}
+                    </span>
+                  )}
+                </div>
+              </div>
             ) : (
-              filtered.map((p) => (
-                <ProductCard key={p.id} product={p} onSelect={setSelected} />
-              ))
+              <div className="text-white/25 text-center">
+                <div
+                  className="uppercase tracking-[0.3em]"
+                  style={{ fontSize: "clamp(11px, 1vw, 14px)" }}
+                >
+                  Tap a product to view it here
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="h-full min-h-0"
+            style={{ flex: "0 0 24%", minWidth: 0, maxWidth: "24%" }}
+          >
+            {loading ? (
+              <div className="flex flex-col" style={{ gap: 14 }}>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+            ) : (
+              <MarqueeColumn
+                key={`right-${skinType}`}
+                loop={rightItems.length > 2}
+              >
+                {rightItems.map((p) => (
+                  <ProductCard key={p.id} product={p} onSelect={setSelected} />
+                ))}
+              </MarqueeColumn>
             )}
           </div>
         </div>
       </div>
-
-      {/* Enlarged product view — tap a card to open, tap anywhere to close */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{
-            background: "rgba(0,0,0,0.78)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-          }}
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="relative flex flex-col items-center rounded-2xl bg-black border border-white/10 overflow-hidden"
-            style={{
-              width: "min(80vw, 760px)",
-              maxHeight: "84vh",
-              padding: "clamp(16px, 2.5vw, 36px)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              aria-label="Close product view"
-              className="absolute top-3 right-4 text-white/50 hover:text-white/90 tap-highlight-none focus:outline-none"
-              style={{
-                fontSize: "clamp(18px, 1.8vw, 26px)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              ✕
-            </button>
-
-            <div
-              className="w-full flex items-center justify-center"
-              style={{ height: "min(52vh, 560px)" }}
-            >
-              {selected.fileUrl?.fileUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={selected.fileUrl.fileUrl}
-                  alt={selected.name}
-                  draggable={false}
-                  className="max-w-full max-h-full object-contain pointer-events-none"
-                />
-              ) : (
-                <span className="text-white/20 text-sm uppercase tracking-widest">
-                  Product
-                </span>
-              )}
-            </div>
-
-            <div className="w-full text-center mt-4">
-              <div
-                className="text-white/40 uppercase truncate tracking-[0.18em]"
-                style={{ fontSize: "clamp(13px, 1.3vw, 18px)" }}
-              >
-                {selected.brand || "Brand"}
-              </div>
-              <div
-                className="text-white/90 font-medium leading-tight mt-1"
-                style={{ fontSize: "clamp(19px, 2vw, 30px)" }}
-              >
-                {selected.name}
-              </div>
-              {selected.type && (
-                <span
-                  className="inline-block mt-3 px-4 py-1.5 rounded-full uppercase tracking-[0.16em] text-white/55 bg-white/[0.06]"
-                  style={{ fontSize: "clamp(11px, 1.1vw, 16px)" }}
-                >
-                  {selected.type.replace(/_/g, " ")}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
