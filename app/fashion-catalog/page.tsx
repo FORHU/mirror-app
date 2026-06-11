@@ -1015,7 +1015,7 @@ export default function FashionCatalog() {
                 "Cultural outfit with heritage influence.",
                 "Uniform-inspired structured outfit style.",
               ]}
-              className="relative z-40 w-full"
+              className="relative z-40"
               direction="above"
             />
           </div>
