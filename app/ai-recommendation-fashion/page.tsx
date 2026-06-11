@@ -736,7 +736,7 @@ export default function VirtualMirrorV2() {
     },
     {
       key: "bags",
-      label: "Bags",
+      label: "Accessories",
       items: catalogBags,
       pagedItems: catalogBags,
       pageSize: catalogBags.length,
@@ -746,7 +746,7 @@ export default function VirtualMirrorV2() {
       selectedId: selectedBag?.id,
       columns: 3,
       loading: catalogLoading,
-      emptyMessage: catalogLoading ? "Loading Bags" : "No Bag garments",
+      emptyMessage: catalogLoading ? "Loading Accessories" : "No Accessory garments",
     },
   ];
 
