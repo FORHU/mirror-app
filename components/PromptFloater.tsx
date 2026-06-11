@@ -57,22 +57,22 @@ export function PromptFloater({
               opacity: 0,
               y: isBelow ? -8 : 12,
               scale: 0.96,
-              ...(isBelow ? {} : { x: "-50%" }),
+              x: "-50%",
             }}
             animate={{
               opacity: 1,
               y: 0,
               scale: 1,
-              ...(isBelow ? {} : { x: "-50%" }),
+              x: "-50%",
             }}
             exit={{
               opacity: 0,
               y: isBelow ? -8 : 12,
               scale: 0.96,
-              ...(isBelow ? {} : { x: "-50%" }),
+              x: "-50%",
             }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className={`absolute w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl ${isBelow ? "top-full mt-3 right-0" : "bottom-full mb-3 left-1/2"}`}
+            className={`absolute w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl left-1/2 ${isBelow ? "top-full mt-3" : "bottom-full mb-3"}`}
             style={{
               background: "rgba(10,10,18,0.92)",
               backdropFilter: "blur(18px)",
