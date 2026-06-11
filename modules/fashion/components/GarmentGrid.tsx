@@ -167,26 +167,28 @@ export function GarmentGrid({
           )}
         </div>
 
-        <div className="flex justify-center gap-1.5 pt-2">
-          {Array.from({ length: Math.max(1, totalPages) }).map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onPageChange(i)}
-              aria-label={`Go to page ${i + 1}`}
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: i === currentPage ? 12 : 4,
-                height: 4,
-                background:
-                  i === currentPage ? "white" : "rgba(255,255,255,0.3)",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            />
-          ))}
-        </div>
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-1.5 pt-2">
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onPageChange(i)}
+                aria-label={`Go to page ${i + 1}`}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === currentPage ? 12 : 4,
+                  height: 4,
+                  background:
+                    i === currentPage ? "white" : "rgba(255,255,255,0.3)",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

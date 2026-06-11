@@ -62,6 +62,7 @@ export default function VirtualMirrorV2() {
   const canvasRef = useRef<OutfitPreviewCanvasHandle>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [garmentPanelOpen, setGarmentPanelOpen] = useState(true);
 
   const [swapSlot, setSwapSlot] = useState<SwapSlot | null>(null);
   const [swapItemId, setSwapItemId] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function VirtualMirrorV2() {
   const selectOutfit = useCallback(
     (idx: number) => {
       setSelectedOutfitIdx(idx);
+      setGarmentPanelOpen(false);
       clearSlots();
       setOutfitOverrides({});
       setSwapSlot(null);
@@ -115,6 +117,15 @@ export default function VirtualMirrorV2() {
     },
     [clearSlots],
   );
+
+  const handleGarmentPanelOpenChange = useCallback((open: boolean) => {
+    setGarmentPanelOpen(open);
+    if (!open) return;
+    setSelectedOutfitIdx(null);
+    setOutfitOverrides({});
+    setSwapSlot(null);
+    setSwapItemId(null);
+  }, []);
 
   const outfitPageSize = 4;
   const [outfitPage, setOutfitPage] = useState(0);
@@ -521,7 +532,6 @@ export default function VirtualMirrorV2() {
       }
     },
     [
-      handleAiComplete,
       outfits,
       outfitPageSize,
       selectOutfit,
@@ -692,7 +702,7 @@ export default function VirtualMirrorV2() {
 
       <MirrorHeader onBack={() => router.back()} />
 
-      {/* Action row — Create a Wardrobe + Suggestions, between header and outfit panels */}
+      {/* Action row — Suggestions, between header and outfit panels */}
       {!isLoading && (
         <div
           style={{
@@ -704,21 +714,6 @@ export default function VirtualMirrorV2() {
             flexShrink: 0,
           }}
         >
-          <button
-            type="button"
-            onClick={() => router.push("/wardrobe/create")}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-            style={{
-              background: "rgba(20,20,30,0.85)",
-              border: "1.5px solid rgba(255,255,255,0.15)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-            }}
-          >
-            <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-              Create a Wardrobe
-            </span>
-          </button>
           <PromptFloater
             onSelect={handleChipSelect}
             prompts={[
@@ -777,7 +772,7 @@ export default function VirtualMirrorV2() {
           return (
             <div
               className="h-full flex flex-col items-center pt-8 gap-1 overflow-hidden"
-              style={{ flex: "0 0 50%", width: "50%", minHeight: 0 }}
+              style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
             >
               {/* Outfit display */}
               {selectedOutfit && !isLoading && (
@@ -948,6 +943,7 @@ export default function VirtualMirrorV2() {
                                   cancelSwap();
                                   return;
                                 }
+                                setGarmentPanelOpen(true);
                                 setSwapSlot(slot);
                                 setSwapItemId(item.id);
                               }}
@@ -1186,6 +1182,8 @@ export default function VirtualMirrorV2() {
           slots={garmentSlots}
           swapSlot={swapSlot}
           isProcessing={isLoading}
+          isOpen={garmentPanelOpen}
+          onOpenChange={handleGarmentPanelOpenChange}
           onCancelSwap={cancelSwap}
           onSelect={handleSlotSelect}
         />
