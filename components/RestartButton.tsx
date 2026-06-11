@@ -1,12 +1,25 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 export default function RestartButton() {
   const router = useRouter();
   const pendingRef = useRef(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  const refreshSessionId = () => {
+    chatWonderService
+      .getCurrentSessionId()
+      .then(setSessionId)
+      .catch(() => setSessionId(null));
+  };
+
+  useEffect(() => {
+    refreshSessionId();
+  }, []);
 
   const handleAction = () => {
     if (pendingRef.current) return;
@@ -15,6 +28,7 @@ export default function RestartButton() {
       .catch(() => {})
       .finally(() => {
         pendingRef.current = false;
+        refreshSessionId();
       });
   };
 
@@ -28,13 +42,20 @@ export default function RestartButton() {
   };
 
   return (
-    <button
-      type="button"
-      onTouchStart={handleTouchStart}
-      onClick={handleClick}
-      className="fixed bottom-4 left-4 z-50 text-white/25 text-[9px] px-3 py-1.5 border border-white/10 rounded-lg uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
-    >
-      New Session
-    </button>
+    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2">
+      <button
+        type="button"
+        onTouchStart={handleTouchStart}
+        onClick={handleClick}
+        className="text-white/25 text-[9px] px-3 py-1.5 border border-white/10 rounded-lg uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
+      >
+        New Session
+      </button>
+      {sessionId && (
+        <span className="text-white/20 text-[9px] tracking-wider select-text">
+          {sessionId}
+        </span>
+      )}
+    </div>
   );
 }

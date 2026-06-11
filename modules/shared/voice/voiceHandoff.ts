@@ -9,6 +9,36 @@ export function isFashionHandoffPrompt(text: string): boolean {
   );
 }
 
+/**
+ * True when a fashion prompt carries enough context to actually generate
+ * recommendations — an occasion, a time, weather, a style direction, or a
+ * color. Bare requests ("recommend me fashion") have none of these; the
+ * mirror should ask a follow-up question instead of navigating.
+ */
+export function hasFashionContext(text: string): boolean {
+  const hasOccasion =
+    /\b(dinner|lunch|brunch|breakfast|date|wedding|party|club|clubbing|concert|festival|church|funeral|graduation|interview|meeting|work|office|school|gym|workout|training|beach|pool|picnic|hike|hiking|travel|trip|flight|vacation|event|gala|prom|birthday|anniversary|reunion|presentation|conference|errands|shopping|night out|day out|hang ?out)\b/i.test(
+      text,
+    );
+  const hasTime =
+    /\b(tonight|today|tomorrow|later|right now|this (?:morning|afternoon|evening|weekend|week)|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekend|morning|afternoon|evening)\b/i.test(
+      text,
+    );
+  const hasWeather =
+    /\b(rain|rainy|raining|sunny|hot|cold|chilly|warm|cool|windy|snow|snowy|humid|summer|winter|spring|autumn|fall)\b/i.test(
+      text,
+    );
+  const hasStyle =
+    /\b(formal|casual|smart[- ]?casual|business|streetwear|athleisure|sporty|activewear|minimal(?:ist)?|vintage|retro|elegant|classy|chic|bold|edgy|preppy|comfy|comfortable|relaxed|dressy|luxury|avant[- ]?garde|traditional|cultural|uniform|stylish|trendy|aesthetic|old money|y2k)\b/i.test(
+      text,
+    );
+  const hasColor =
+    /\b(black|white|red|blue|navy|green|olive|sage|yellow|orange|purple|pink|brown|beige|cream|tan|khaki|gr[ae]y|gold|silver|maroon|teal|monochrome|pastel|neutral|earth tones?)\b/i.test(
+      text,
+    );
+  return hasOccasion || hasTime || hasWeather || hasStyle || hasColor;
+}
+
 export function isCosmeticHandoffPrompt(text: string): boolean {
   return /(cosmetic|makeup|make-up|skincare|skin care|foundation|moisturize|moisturizer|moisturizing|moisturized|moisture|lipstick|sunscreen|serum|cleanser|toner|blush|concealer|spf|lotion|facial|eyeshadow|eye shadow|eyeliner|eye liner|lip gloss|lipgloss|lip balm|retinol|hyaluronic|niacinamide|exfoliate|exfoliating|exfoliant|exfoliation|acne|primer|essence|bb cream|cc cream|eye cream|face wash|face mask|face cream|sheet mask|clay mask|cream|mask|face oil|facial oil|skin oil|hair oil|body oil)\b/i.test(
     text,

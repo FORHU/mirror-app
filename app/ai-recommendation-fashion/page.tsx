@@ -17,6 +17,7 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -643,14 +644,17 @@ export default function VirtualMirrorV2() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
-  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  // useEffect(() => {
-  //   const pending = useMirrorStore.getState().pendingGarmentData;
-  //   if (!pending) return;
-  //   useMirrorStore.getState().setPendingGarmentData(null);
-  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
-  // }, []);
+  // Consume garment data forwarded from another page (VoiceProvider stores it
+  // via setPendingGarmentData right before the stylist navigation pushes here).
+  useEffect(() => {
+    const pending = useMirrorStore.getState().pendingGarmentData;
+    if (!pending) return;
+    useMirrorStore.getState().setPendingGarmentData(null);
+    setTimeout(() => {
+      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
   // useEffect(() => {

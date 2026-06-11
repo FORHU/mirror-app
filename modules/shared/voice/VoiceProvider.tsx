@@ -296,6 +296,7 @@ function extractFashionGarmentSelection(
 
 import {
   isFashionHandoffPrompt,
+  hasFashionContext,
   isCosmeticHandoffPrompt,
   isMapDiscoveryPrompt,
   isLifestylePrompt,
@@ -574,6 +575,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
+        // Without any context (occasion, time, weather, style, color) the
+        // recommendation page has nothing to work with — ask for details
+        // instead of navigating.
+        if (!hasFashionContext(t)) {
+          const askReply =
+            "Happy to style you! What's the occasion — and when or where are you headed?";
+          setReply(askReply);
+          const newHistory = [
+            ...historyRef.current,
+            { user: t, assistant: askReply },
+          ];
+          historyRef.current = newHistory;
+          setChatHistory(newHistory);
+          await speakText(askReply);
+          return;
+        }
         const assistantReply =
           "Opening fashion recommendations for your outfit.";
         setReply(assistantReply);
@@ -733,6 +750,30 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setTranscript(t);
 
       try {
+        // ── Vague fashion gate ──────────────────────────────────────────────────
+        // Fashion prompts without any context (occasion, time, weather, style,
+        // color) give the recommendation page nothing to work with — ask for
+        // details instead of letting the stylist navigate there. Skipped when
+        // already on the fashion page, where no navigation is involved.
+        if (
+          isFashionHandoffPrompt(t) &&
+          !isNavigationPhrase(t) &&
+          !hasFashionContext(t) &&
+          !pathname.startsWith(ROUTES.AI_RECOMMENDATION_FASHION)
+        ) {
+          const askReply =
+            "Happy to style you! What's the occasion — and when or where are you headed?";
+          setReply(askReply);
+          historyRef.current = [
+            ...historyRef.current,
+            { user: t, assistant: askReply },
+          ];
+          setChatHistory(historyRef.current);
+          await speakText(askReply);
+          return;
+        }
+        // ── End vague fashion gate ──────────────────────────────────────────────
+
         // ── Activity map offer: yes/no intercept ────────────────────────────────
         // If the AI just offered to show an activity spot on the map, handle the
         // user's response before any other processing.
@@ -1175,6 +1216,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         // Maps mode: use chat-wonder/message for both directions and recommendations
         if (pathname.startsWith("/map")) {
           // ── Fashion handoff: outfit requests on the map page navigate to fashion ─
+          // (vague prompts never reach here — the gate at the top of
+          // processTranscript intercepts them)
           if (isFashionHandoffPrompt(t) && !isNavigationPhrase(t)) {
             try {
               sessionStorage.setItem(FASHION_PROMPT_KEY, t);

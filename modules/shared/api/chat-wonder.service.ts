@@ -143,6 +143,20 @@ export const chatWonderService = {
   },
 
   /**
+   * Read-only: the current ChatWonder session ID. Unlike getSessionId, this
+   * never resets the remote conversation — safe for display/debug UI.
+   */
+  async getCurrentSessionId(): Promise<string> {
+    const res = await api.get<{ status: string; data: { sessionId: string } }>(
+      "/api/mirror/chat-wonder/session-id/current",
+    );
+    if (!res.ok || !res.data?.data?.sessionId) {
+      throw new Error("Failed to retrieve current ChatWonder session ID");
+    }
+    return res.data.data.sessionId;
+  },
+
+  /**
    * RESTART — for the next person at the mirror: nulls the user's stored gender
    * and forces a brand-new ChatWonder session (clears history). Returns the new
    * session ID. Does NOT clear the itinerary (see `outlineService.reset`).
