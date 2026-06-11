@@ -63,8 +63,7 @@ function normalizeGender(value: unknown): GenderFilter | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
   if (["MALE", "MAN", "MEN", "M"].includes(normalized)) return "MALE";
-  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized))
-    return "FEMALE";
+  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized)) return "FEMALE";
   return null;
 }
 
@@ -85,7 +84,9 @@ function filterOutfitsByGender(
       ...collectGenderValues(meta?.gender),
       ...collectGenderValues(meta?.targetGender),
       ...collectGenderValues(meta?.genders),
-      ...outfit.items.flatMap((item) => collectGenderValues(item.garment.gender)),
+      ...outfit.items.flatMap((item) =>
+        collectGenderValues(item.garment.gender),
+      ),
     ];
     return genders.length === 0 || genders.includes(gender);
   });
@@ -695,7 +696,6 @@ export default function FashionCatalog() {
     handoffFiredRef.current = true;
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
     // SubmitText is gone; we ignore voice prompts on the catalog page.
-     
   }, []);
 
   // TODO: restore ChatWonder garment_data flows once query-param format is confirmed

@@ -8,7 +8,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
-import { cosmeticsService, type SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
+import {
+  cosmeticsService,
+  type SkinRecommendation,
+} from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";

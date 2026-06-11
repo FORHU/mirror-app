@@ -312,9 +312,15 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : error ? (
-              <div className="text-white/35 text-xs text-center pt-4">{error}</div>
+              <div className="text-white/35 text-xs text-center pt-4">
+                {error}
+              </div>
             ) : (
-              <MarqueeColumn key={`left-${skinType}`} loop={false} style={{ scrollSnapType: "y mandatory" }}>
+              <MarqueeColumn
+                key={`left-${skinType}`}
+                loop={false}
+                style={{ scrollSnapType: "y mandatory" }}
+              >
                 {leftItems.map((p) => (
                   <ProductCard
                     key={p.id}
@@ -386,7 +392,11 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : !error && rightItems.length === 0 ? null : (
-              <MarqueeColumn key={`right-${skinType}`} loop={false} style={{ scrollSnapType: "y mandatory" }}>
+              <MarqueeColumn
+                key={`right-${skinType}`}
+                loop={false}
+                style={{ scrollSnapType: "y mandatory" }}
+              >
                 {rightItems.map((p) => (
                   <ProductCard
                     key={p.id}
