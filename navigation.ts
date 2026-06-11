@@ -2,6 +2,7 @@ export const ROUTES = {
   WELCOME: "/ai-assistant",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
+  COSMETIC_PRODUCTS: "/cosmetic-products",
   MAP: "/map",
   OVERVIEW: "/overview",
 } as const;

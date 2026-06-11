@@ -32,6 +32,21 @@ export interface SkinAnalysis {
 }
 
 export const cosmeticsService = {
+  // Full product catalog; skin-type filtering happens on the frontend
+  // (see modules/cosmetics/constants.ts SKIN_TYPE_FILTERS).
+  getAllProducts: async (): Promise<CosmeticProduct[]> => {
+    const res = await api.get<
+      StandardResponse<{ items: CosmeticProduct[] } | CosmeticProduct[]>
+    >("/api/mirror/cosmetic-products");
+    if (!res.ok) {
+      throw new Error(res.problem ?? "Failed to fetch cosmetic products");
+    }
+    const data = res.data?.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    throw new Error("Unexpected response shape");
+  },
+
   uploadCapture: async (
     dataUrl: string,
   ): Promise<{ id: string; fileUrl: string }> => {
