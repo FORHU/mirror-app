@@ -1170,7 +1170,7 @@ export default function VirtualMirrorV2() {
                             <span
                               style={{
                                 color: "rgba(255,255,255,0.25)",
-                                fontSize: "10px",
+                                fontSize: "9px",
                               }}
                             >
                               No Image
@@ -1204,9 +1204,12 @@ export default function VirtualMirrorV2() {
                           <span
                             style={{
                               color: "white",
-                              fontSize: "12px",
+                              fontSize: "11px",
                               fontWeight: 600,
                               lineHeight: 1.3,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
                               overflow: "hidden",
                             }}
                           >
@@ -1215,8 +1218,11 @@ export default function VirtualMirrorV2() {
                           <span
                             style={{
                               color: "rgba(255,255,255,0.45)",
-                              fontSize: "10px",
+                              fontSize: "9px",
                               lineHeight: 1.4,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
                               overflow: "hidden",
                             }}
                           >
