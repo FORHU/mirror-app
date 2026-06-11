@@ -1129,9 +1129,11 @@ export function extractNearbyPOIQuery(transcript: string): string | null {
   if (somewhereM)
     return ACTIVITY_TO_CATEGORY[somewhereM[1].toLowerCase()] ?? somewhereM[1];
 
-  // ── Group 9: "suggest / recommend X" ────────────────────────────────────
+  // ── Group 9: "suggest / recommend X near me / here" ─────────────────────
+  // Proximity word is required — bare "suggest/recommend X" is a product or
+  // content request, not a map search, and must not trigger the POI redirect.
   const suggestM = t.match(
-    /\b(?:suggest|recommend)\s+(?:me\s+)?(?:a\s+|an\s+|some\s+)?(.+?)(?:\s+(?:near(?:\s+me)?|nearby|around\s+here|here)|\s*$)/i,
+    /\b(?:suggest|recommend)\s+(?:me\s+)?(?:a\s+|an\s+|some\s+)?(.+?)\s+(?:near(?:\s+me)?|nearby|around\s+here|here)\b/i,
   );
   if (suggestM) {
     const candidate = suggestM[1].trim();
