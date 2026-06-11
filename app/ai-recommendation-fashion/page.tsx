@@ -839,7 +839,7 @@ export default function VirtualMirrorV2() {
               : null;
           return (
             <div
-              className="h-full flex flex-col items-center pt-8 gap-1 overflow-hidden"
+              className="h-full flex flex-col items-center pt-2 gap-1 overflow-hidden"
               style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
             >
               {/* Outfit display */}

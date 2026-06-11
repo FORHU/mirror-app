@@ -319,6 +319,13 @@
   display: none;
 }
 
+/* Layout tracing — outlines every container without shifting layout.
+   Enable by adding `debug-borders` to a page's root element; delete to disable. */
+.debug-borders div {
+  outline: 1px solid rgba(255, 80, 80, 0.45);
+  outline-offset: -1px;
+}
+
 /* Re-enable text selection inside text-heavy panels */
 .selectable {
   -webkit-user-select: text;
