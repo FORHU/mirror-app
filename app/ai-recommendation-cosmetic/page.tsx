@@ -202,6 +202,17 @@ export default function CosmeticRecommendationPage() {
     });
   }, [chatCosmeticsData, handleAiComplete]);
 
+  // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
+  // New format sends { query } instead of { recommendations } — route it through
+  // handleAiComplete so the URL params effect fetches the real products.
+  useEffect(() => {
+    if (!pendingCosmeticsData) return;
+    const d = pendingCosmeticsData as { query?: string };
+    if (typeof d.query !== "string") return;
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    queueMicrotask(() => handleAiComplete({ query: d.query as string }));
+  }, [pendingCosmeticsData, handleAiComplete]);
+
   const rawRecs = useMemo(() => {
     if (isHandoffLoading && !pendingCosmeticsData) return [];
 

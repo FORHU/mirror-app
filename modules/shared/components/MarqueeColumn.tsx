@@ -13,6 +13,7 @@ export function MarqueeColumn({
   speed = 26,
   resumeDelay = 4500,
   gap = 14,
+  style,
 }: {
   loop: boolean;
   children: React.ReactNode;
@@ -22,6 +23,8 @@ export function MarqueeColumn({
   resumeDelay?: number;
   /** Vertical gap between items (and between the looped copies), in px. */
   gap?: number;
+  /** Extra styles applied to the scroll container (e.g. scrollSnapType). */
+  style?: React.CSSProperties;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const pausedUntilRef = useRef(0);
@@ -71,6 +74,7 @@ export function MarqueeColumn({
         overflowX: "hidden",
         scrollbarWidth: "none",
         msOverflowStyle: "none",
+        ...style,
       }}
     >
       <div className="flex flex-col" style={{ gap, paddingBottom: gap }}>

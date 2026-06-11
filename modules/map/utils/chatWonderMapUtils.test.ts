@@ -1301,7 +1301,7 @@ describe("buildMapInput", () => {
 
     it("falls back to English for unknown BCP-47 code", () => {
       expect(
-        buildMapInput("hola", null, null, false, undefined, "[maps]", "es-ES"),
+        buildMapInput("hola", null, null, false, undefined, "[maps]", "xx-XX"),
       ).toBe("[maps] Respond in English. hola");
     });
   });
