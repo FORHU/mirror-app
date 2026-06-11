@@ -3166,10 +3166,18 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState !== "idle") return;
     setError(null);
 
-    // Reuse existing VAD instance — just re-start it
+    // Reuse existing VAD instance — just re-start it.
+    // start() is async; not awaiting it means a suspended AudioContext (common
+    // after page navigation) never resumes, sending garbage audio to Transcribe.
     if (vadRef.current) {
-      vadRef.current.start();
-      return;
+      try {
+        await vadRef.current.start();
+        return;
+      } catch {
+        // AudioContext couldn't resume — discard the stale instance and
+        // fall through to full re-initialisation below.
+        vadRef.current = null;
+      }
     }
 
     // Prevent concurrent initialisation
