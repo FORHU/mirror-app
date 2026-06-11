@@ -47,8 +47,15 @@ export default function VirtualMirrorV2() {
   const isLoading = isProcessing || isChipLoading;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
-  useEffect(() => { setAssistantIdle(isLoading); }, [isLoading, setAssistantIdle]);
-  useEffect(() => () => { setAssistantIdle(false); }, [setAssistantIdle]);
+  useEffect(() => {
+    setAssistantIdle(isLoading);
+  }, [isLoading, setAssistantIdle]);
+  useEffect(
+    () => () => {
+      setAssistantIdle(false);
+    },
+    [setAssistantIdle],
+  );
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
@@ -631,7 +638,7 @@ export default function VirtualMirrorV2() {
     queueMicrotask(() =>
       handleAiComplete({
         garment_data: { query: params.toString() },
-      } as ChatWonderMessageResponse)
+      } as ChatWonderMessageResponse),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);

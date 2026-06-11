@@ -102,9 +102,10 @@ export default function FashionCatalog() {
 
   const selectOutfit = useCallback(
     (idx: number | null) => {
-      setSelectedOutfitIdx(idx);
+      setSelectedOutfitIdx(idx);
+
       clearSlots();
-      setOutfitOverrides({});
+      setOutfitOverrides({});
     },
     [clearSlots],
   );
@@ -498,7 +499,7 @@ export default function FashionCatalog() {
         if (!garment) return;
         if (swapSlot === slot && swapItemId) {
           const id = swapItemId;
-          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
+          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
         } else {
           target.set(garment);
           setSelectedOutfitIdx(null);
@@ -571,7 +572,6 @@ export default function FashionCatalog() {
     handoffFiredRef.current = true;
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
     // SubmitText is gone; we ignore voice prompts on the catalog page.
-     
   }, []);
 
   // TODO: restore ChatWonder garment_data flows once query-param format is confirmed

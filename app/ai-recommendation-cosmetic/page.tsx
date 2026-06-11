@@ -8,7 +8,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
-import { cosmeticsService, type SkinRecommendation } from "@/modules/shared/api/cosmetics.service";
+import {
+  cosmeticsService,
+  type SkinRecommendation,
+} from "@/modules/shared/api/cosmetics.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
@@ -176,23 +179,31 @@ export default function CosmeticRecommendationPage() {
     if (!current) return;
     const params = new URLSearchParams(current);
     if (!params.has("limit")) params.set("limit", "10");
-    setIsHandoffLoading(true);
-    cosmeticsService
-      .getByQuery(params.toString())
+    const queryStr = params.toString();
+    Promise.resolve()
+      .then(() => {
+        setIsHandoffLoading(true);
+        return cosmeticsService.getByQuery(queryStr);
+      })
       .then((products) => {
-        useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
+        useMirrorStore
+          .getState()
+          .setPendingCosmeticsData({ recommendations: products });
         setSelectedId(null);
       })
       .catch(console.error)
       .finally(() => setIsHandoffLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
+    const data = chatCosmeticsData as {
+      query?: string;
+      recommendations?: unknown[];
+    };
     useMirrorStore.getState().setChatCosmeticsData(null);
-    handleAiComplete(chatCosmeticsData as { query?: string; recommendations?: unknown[] });
+    Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
 
   const rawRecs = useMemo(() => {

@@ -238,7 +238,9 @@ export default function CosmeticProductsPage() {
                 ))}
               </div>
             ) : error ? (
-              <div className="text-white/35 text-xs text-center pt-4">{error}</div>
+              <div className="text-white/35 text-xs text-center pt-4">
+                {error}
+              </div>
             ) : (
               <SwipeColumn key={`left-${skinType}`}>
                 {leftItems.map((p) => (
