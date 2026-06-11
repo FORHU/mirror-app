@@ -309,6 +309,16 @@
   display: none;
 }
 
+.mirror-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mirror-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
 /* Re-enable text selection inside text-heavy panels */
 .selectable {
   -webkit-user-select: text;

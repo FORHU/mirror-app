@@ -17,6 +17,7 @@ export interface GarmentSlotConfig {
   onPageChange: (page: number) => void;
   selectedId?: string;
   columns?: number;
+  loading?: boolean;
   emptyMessage: string;
 }
 
@@ -46,7 +47,7 @@ export function GarmentSelectionPanel({
   const visibleSlots = slots.filter(
     (slot) =>
       !isProcessing &&
-      slot.items.length > 0 &&
+      (slot.loading || slot.items.length > 0) &&
       (!swapSlot || swapSlot === slot.key),
   );
   const ignorePaging = () => undefined;
@@ -170,7 +171,7 @@ export function GarmentSelectionPanel({
               key={slot.key}
               label={slot.label}
               pagedItems={slot.items}
-              loading={false}
+              loading={Boolean(slot.loading)}
               pageSize={slot.items.length}
               currentPage={0}
               totalPages={1}
@@ -181,6 +182,7 @@ export function GarmentSelectionPanel({
               columns={slot.columns}
               onSelect={(g) => onSelect(slot.key, g)}
               emptyMessage={slot.emptyMessage}
+              horizontal
             />
           ))}
         </div>

@@ -73,6 +73,7 @@ export interface GarmentGridProps {
   onSelect: (g: RemoteGarment) => void;
   emptyMessage: string;
   itemStyle?: React.CSSProperties;
+  horizontal?: boolean;
 }
 
 export function GarmentGrid({
@@ -90,31 +91,67 @@ export function GarmentGrid({
   onSelect,
   emptyMessage,
   itemStyle,
+  horizontal = false,
 }: GarmentGridProps) {
   const swipeHandlers = useSwipe(onNext, onPrev);
+
+  // Tile size scales with the viewport; rows double up when there are
+  // enough items so the panel doesn't trail off into empty space.
+  const tileVar = { "--tile": "clamp(80px, 8.5vw, 132px)" } as React.CSSProperties;
+  const rowCount = loading || pagedItems.length > 3 ? 2 : 1;
 
   return (
     <div className="flex flex-col gap-1">
       <SectionTitle label={label} />
       <div
         {...swipeHandlers}
-        style={{ touchAction: "pan-y", userSelect: "none", cursor: "grab" }}
+        className={horizontal ? "mirror-scroll-x" : undefined}
+        style={{
+          touchAction: horizontal ? "pan-x pan-y" : "pan-y",
+          userSelect: "none",
+          cursor: horizontal ? "default" : "grab",
+          overflowX: horizontal ? "auto" : "visible",
+          overflowY: "hidden",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          scrollSnapType: horizontal ? "x mandatory" : undefined,
+        }}
       >
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${columns}, 1fr)`,
-            gap: "4px",
-          }}
+          style={
+            horizontal
+              ? {
+                  display: "grid",
+                  gridAutoFlow: "column",
+                  gridTemplateRows: `repeat(${rowCount}, max-content)`,
+                  gap: "10px",
+                  alignItems: "center",
+                  width: "max-content",
+                  ...tileVar,
+                }
+              : {
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${columns}, 1fr)`,
+                  gap: "4px",
+                }
+          }
         >
           {loading ? (
-            Array.from({ length: pageSize }).map((_, i) => (
-              <SkeletonCell key={i} style={itemStyle} />
+            Array.from({ length: Math.max(2, Math.min(pageSize, 4)) }).map((_, i) => (
+              <SkeletonCell
+                key={i}
+                style={{
+                  width: horizontal ? "var(--tile)" : undefined,
+                  height: horizontal ? "calc(var(--tile) * 1.2)" : undefined,
+                  ...itemStyle,
+                }}
+              />
             ))
           ) : pagedItems.length === 0 ? (
             <div
               style={{
-                gridColumn: "1 / -1",
+                gridColumn: horizontal ? undefined : "1 / -1",
+                minWidth: horizontal ? "calc(var(--tile) * 2.5)" : undefined,
                 height: "60px",
                 display: "flex",
                 alignItems: "center",
@@ -144,6 +181,9 @@ export function GarmentGrid({
                 className="rounded-md overflow-hidden flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 style={{
                   aspectRatio: "1/1",
+                  width: horizontal ? "var(--tile)" : undefined,
+                  height: horizontal ? "calc(var(--tile) * 1.2)" : undefined,
+                  scrollSnapAlign: horizontal ? "start" : undefined,
                   borderRadius: "4px",
                   cursor: "pointer",
                   border:

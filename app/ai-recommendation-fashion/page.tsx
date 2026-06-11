@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
-import type { RemoteGarment } from "@/modules/shared/api/garment.service";
+import {
+  garmentService,
+  type RemoteGarment,
+} from "@/modules/shared/api/garment.service";
+import { FittingSlot } from "@/modules/garment/types";
 import {
   outfitService,
   type RemoteOutfit,
@@ -150,6 +154,13 @@ export default function VirtualMirrorV2() {
   const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
   const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
   const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
+  const [catalogTopsBase, setCatalogTopsBase] = useState<RemoteGarment[]>([]);
+  const [catalogTopsMid, setCatalogTopsMid] = useState<RemoteGarment[]>([]);
+  const [catalogTopsOuter, setCatalogTopsOuter] = useState<RemoteGarment[]>([]);
+  const [catalogBottoms, setCatalogBottoms] = useState<RemoteGarment[]>([]);
+  const [catalogShoes, setCatalogShoes] = useState<RemoteGarment[]>([]);
+  const [catalogBags, setCatalogBags] = useState<RemoteGarment[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
 
   const [topsBasePage, setTopsBasePage] = useState(0);
   const [topsMidPage, setTopsMidPage] = useState(0);
@@ -177,16 +188,6 @@ export default function VirtualMirrorV2() {
       ? topsOuter.filter((g) => g.id !== swappingGarmentId)
       : topsOuter;
 
-  const totalTopsBasePages = Math.ceil(
-    filteredTopsBase.length / topsLayerPageSize,
-  );
-  const totalTopsMidPages = Math.ceil(
-    filteredTopsMid.length / topsLayerPageSize,
-  );
-  const totalTopsOuterPages = Math.ceil(
-    filteredTopsOuter.length / topsLayerPageSize,
-  );
-
   const pagedTopsBase = filteredTopsBase.slice(
     topsBasePage * topsLayerPageSize,
     (topsBasePage + 1) * topsLayerPageSize,
@@ -206,7 +207,6 @@ export default function VirtualMirrorV2() {
     swapSlot === "shoes" && swappingGarmentId
       ? shoes.filter((g) => g.id !== swappingGarmentId)
       : shoes;
-  const totalShoesPages = Math.ceil(filteredShoes.length / shoesPageSize);
   const pagedShoes = filteredShoes.slice(
     shoesPage * shoesPageSize,
     (shoesPage + 1) * shoesPageSize,
@@ -218,7 +218,6 @@ export default function VirtualMirrorV2() {
     swapSlot === "bottoms" && swappingGarmentId
       ? bottoms.filter((g) => g.id !== swappingGarmentId)
       : bottoms;
-  const totalBottomsPages = Math.ceil(filteredBottoms.length / bottomsPageSize);
   const pagedBottoms = filteredBottoms.slice(
     bottomsPage * bottomsPageSize,
     (bottomsPage + 1) * bottomsPageSize,
@@ -231,11 +230,61 @@ export default function VirtualMirrorV2() {
     swapSlot === "bags" && swappingGarmentId
       ? bags.filter((g) => g.id !== swappingGarmentId)
       : bags;
-  const totalBagsPages = Math.ceil(filteredBags.length / accessoryPageSize);
   const pagedBags = filteredBags.slice(
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const OUTER_TYPES = new Set([
+      "Blazer",
+      "Jacket",
+      "Coat",
+      "Parka",
+      "Windbreaker",
+    ]);
+    const MID_TYPES = new Set(["Hoodie", "Sweater", "Cardigan", "Pullover"]);
+
+    Promise.all([
+      garmentService.getBySlot(FittingSlot.UpperGarment),
+      garmentService.getBySlot(FittingSlot.LowerGarment),
+      garmentService.getBySlot(FittingSlot.FootGarment),
+      garmentService.getBySlot(FittingSlot.RightHandAccessory),
+    ])
+      .then(([upperItems, lowerItems, footItems, bagItems]) => {
+        if (cancelled) return;
+        setCatalogTopsOuter(
+          upperItems.filter((g) =>
+            g.garmentType.some((t) => OUTER_TYPES.has(t)),
+          ),
+        );
+        setCatalogTopsMid(
+          upperItems.filter((g) =>
+            g.garmentType.some((t) => MID_TYPES.has(t)),
+          ),
+        );
+        setCatalogTopsBase(
+          upperItems.filter(
+            (g) =>
+              !g.garmentType.some(
+                (t) => OUTER_TYPES.has(t) || MID_TYPES.has(t),
+              ),
+          ),
+        );
+        setCatalogBottoms(lowerItems);
+        setCatalogShoes(footItems);
+        setCatalogBags(bagItems);
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleAiComplete = useCallback(
     (response: ChatWonderMessageResponse) => {
@@ -623,75 +672,81 @@ export default function VirtualMirrorV2() {
     {
       key: "base",
       label: "Base",
-      items: topsBase,
-      pagedItems: pagedTopsBase,
-      pageSize: topsLayerPageSize,
-      currentPage: topsBasePage,
-      totalPages: totalTopsBasePages,
-      onPageChange: setTopsBasePage,
+      items: catalogTopsBase,
+      pagedItems: catalogTopsBase,
+      pageSize: catalogTopsBase.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedTopBase?.id,
-      emptyMessage: "No recommended Base",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Base" : "No Base garments",
     },
     {
       key: "mid",
       label: "Mid",
-      items: topsMid,
-      pagedItems: pagedTopsMid,
-      pageSize: topsLayerPageSize,
-      currentPage: topsMidPage,
-      totalPages: totalTopsMidPages,
-      onPageChange: setTopsMidPage,
+      items: catalogTopsMid,
+      pagedItems: catalogTopsMid,
+      pageSize: catalogTopsMid.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedTopMid?.id,
-      emptyMessage: "No recommended Mid",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Mid" : "No Mid garments",
     },
     {
       key: "outer",
       label: "Outer",
-      items: topsOuter,
-      pagedItems: pagedTopsOuter,
-      pageSize: topsLayerPageSize,
-      currentPage: topsOuterPage,
-      totalPages: totalTopsOuterPages,
-      onPageChange: setTopsOuterPage,
+      items: catalogTopsOuter,
+      pagedItems: catalogTopsOuter,
+      pageSize: catalogTopsOuter.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedTopOuter?.id,
-      emptyMessage: "No recommended Outer",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Outer" : "No Outer garments",
     },
     {
       key: "bottoms",
       label: "Bottoms",
-      items: bottoms,
-      pagedItems: pagedBottoms,
-      pageSize: bottomsPageSize,
-      currentPage: bottomsPage,
-      totalPages: totalBottomsPages,
-      onPageChange: setBottomsPage,
+      items: catalogBottoms,
+      pagedItems: catalogBottoms,
+      pageSize: catalogBottoms.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedBottom?.id,
-      emptyMessage: "No recommended Bottoms",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Bottoms" : "No Bottom garments",
     },
     {
       key: "shoes",
       label: "Shoes",
-      items: shoes,
-      pagedItems: pagedShoes,
-      pageSize: shoesPageSize,
-      currentPage: shoesPage,
-      totalPages: totalShoesPages,
-      onPageChange: setShoesPage,
+      items: catalogShoes,
+      pagedItems: catalogShoes,
+      pageSize: catalogShoes.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedShoe?.id,
-      emptyMessage: "No recommended Shoes",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Shoes" : "No Shoe garments",
     },
     {
       key: "bags",
       label: "Bags",
-      items: bags,
-      pagedItems: pagedBags,
-      pageSize: accessoryPageSize,
-      currentPage: bagsPage,
-      totalPages: totalBagsPages,
-      onPageChange: setBagsPage,
+      items: catalogBags,
+      pagedItems: catalogBags,
+      pageSize: catalogBags.length,
+      currentPage: 0,
+      totalPages: 1,
+      onPageChange: () => undefined,
       selectedId: selectedBag?.id,
       columns: 3,
-      emptyMessage: "No recommended Bags",
+      loading: catalogLoading,
+      emptyMessage: catalogLoading ? "Loading Bags" : "No Bag garments",
     },
   ];
 
