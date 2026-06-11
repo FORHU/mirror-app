@@ -26,6 +26,7 @@ import { getToday } from "@/components/QuickResponseChips";
 import { PromptFloater } from "@/components/PromptFloater";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
+import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
@@ -615,6 +616,14 @@ export default function VirtualMirrorV2() {
     const current = searchParams.toString();
     if (lastSearchParamsRef.current === current) return;
     lastSearchParamsRef.current = current;
+    
+    // Do not auto-fetch if there are no query parameters. This leaves
+    // the outfits array empty so the idle OutfitImageCarousel can display.
+    if (!current) {
+      setOutfits([]);
+      return;
+    }
+
     const params = new URLSearchParams(current);
     if (!params.has("limit")) params.set("limit", "4");
     handleAiComplete({ garment_data: { query: params.toString() } } as ChatWonderMessageResponse);
@@ -751,6 +760,8 @@ export default function VirtualMirrorV2() {
   ];
 
 
+  const hasRecommendations = outfits.length > 0;
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
       <ChatNavLoader />
@@ -805,18 +816,20 @@ export default function VirtualMirrorV2() {
 
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — recommended outfit list */}
-        <OutfitListPanel
-          outfits={outfits}
-          pagedOutfits={pagedOutfits}
-          outfitPage={outfitPage}
-          outfitPageSize={outfitPageSize}
-          totalOutfitPages={totalOutfitPages}
-          selectedOutfitIdx={selectedOutfitIdx}
-          isProcessing={isLoading}
-          swipeHandlers={outfitSwipe}
-          onSelect={selectOutfit}
-          onPageChange={setOutfitPage}
-        />
+        {hasRecommendations && !isLoading && (
+          <OutfitListPanel
+            outfits={outfits}
+            pagedOutfits={pagedOutfits}
+            outfitPage={outfitPage}
+            outfitPageSize={outfitPageSize}
+            totalOutfitPages={totalOutfitPages}
+            selectedOutfitIdx={selectedOutfitIdx}
+            isProcessing={isLoading}
+            swipeHandlers={outfitSwipe}
+            onSelect={selectOutfit}
+            onPageChange={setOutfitPage}
+          />
+        )}
 
         {/* Center panel */}
         {(() => {
@@ -1113,6 +1126,11 @@ export default function VirtualMirrorV2() {
                 />
               )}
 
+              {/* Idle Reel - Shown when no recommendations */}
+              {!hasRecommendations && !isLoading && (
+                <OutfitImageCarousel />
+              )}
+
               {/* Garment slot cards */}
               {!selectedOutfit && !isLoading && (
                 <div
@@ -1233,15 +1251,17 @@ export default function VirtualMirrorV2() {
         })()}
 
         {/* Right panel — per-slot garment pickers */}
-        <GarmentSelectionPanel
-          slots={garmentSlots}
-          swapSlot={swapSlot}
-          isProcessing={isLoading}
-          isOpen={garmentPanelOpen}
-          onOpenChange={handleGarmentPanelOpenChange}
-          onCancelSwap={cancelSwap}
-          onSelect={handleSlotSelect}
-        />
+        {hasRecommendations && (
+          <GarmentSelectionPanel
+            slots={garmentSlots}
+            swapSlot={swapSlot}
+            isProcessing={isLoading}
+            isOpen={garmentPanelOpen}
+            onOpenChange={handleGarmentPanelOpenChange}
+            onCancelSwap={cancelSwap}
+            onSelect={handleSlotSelect}
+          />
+        )}
       </div>
 
       {showConfirm && (
