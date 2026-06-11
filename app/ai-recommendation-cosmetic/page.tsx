@@ -180,30 +180,31 @@ export default function CosmeticRecommendationPage() {
     if (!current) return;
     const params = new URLSearchParams(current);
     if (!params.has("limit")) params.set("limit", "10");
-    queueMicrotask(() => {
-      setIsHandoffLoading(true);
-      cosmeticsService
-        .getByQuery(params.toString())
-        .then((products) => {
-          useMirrorStore
-            .getState()
-            .setPendingCosmeticsData({ recommendations: products });
-          setSelectedId(null);
-        })
-        .catch(console.error)
-        .finally(() => setIsHandoffLoading(false));
-    });
+    const queryStr = params.toString();
+    Promise.resolve()
+      .then(() => {
+        setIsHandoffLoading(true);
+        return cosmeticsService.getByQuery(queryStr);
+      })
+      .then((products) => {
+        useMirrorStore
+          .getState()
+          .setPendingCosmeticsData({ recommendations: products });
+        setSelectedId(null);
+      })
+      .catch(console.error)
+      .finally(() => setIsHandoffLoading(false));
   }, [searchParams]);
 
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
+    const data = chatCosmeticsData as {
+      query?: string;
+      recommendations?: unknown[];
+    };
     useMirrorStore.getState().setChatCosmeticsData(null);
-    queueMicrotask(() => {
-      handleAiComplete(
-        chatCosmeticsData as { query?: string; recommendations?: unknown[] },
-      );
-    });
+    Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
 
   // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
