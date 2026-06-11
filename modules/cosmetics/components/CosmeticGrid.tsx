@@ -47,7 +47,7 @@ function SkeletonCell({ fitRow = false }: { fitRow?: boolean }) {
 }
 
 export interface CosmeticGridProps {
-  label: string;
+  label?: string;
   pagedItems: SkinRecommendation[];
   loading: boolean;
   pageSize: number;
@@ -71,7 +71,7 @@ export function CosmeticGrid({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-      <SectionTitle label={label} />
+      {label && <SectionTitle label={label} />}
       <div
         className="min-h-0 flex-1 overflow-hidden pr-1"
         style={{

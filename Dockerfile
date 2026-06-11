@@ -50,8 +50,14 @@ RUN pnpm build
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+# Use full production node_modules so server.ts deps (ws, tsx, etc.) are available.
+# The Next.js standalone subset omits packages only referenced by server.ts.
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/package.json ./
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node_modules/.bin/tsx", "server.ts"]

@@ -354,11 +354,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const playbackRef = useRef<AudioBufferSourceNode | null>(null);
   const playbackCtxRef = useRef<AudioContext | null>(null);
 
-  // Streaming AWS Transcribe WebSocket session
-  const transcribeWsRef = useRef<WebSocket | null>(null);
-  const partialTranscriptRef = useRef<string>("");
-  const wsResolveRef = useRef<((t: string) => void) | null>(null);
-  const wsRejectRef = useRef<((e: Error) => void) | null>(null);
   // Holds the activity destination (e.g. "hiking trail") detected in the user's last
   // non-map transcript. Cleared when the user responds yes/no to the map offer.
   const pendingActivityDestRef = useRef<{
@@ -741,7 +736,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const submitAudioRef = useRef<
-    ((frames: Float32Array[], preTranscript?: string) => Promise<void>) | null
+    ((frames: Float32Array[]) => Promise<void>) | null
   >(null);
   const processTranscript = useCallback(
     async (t: string) => {
@@ -3163,19 +3158,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const submitAudio = useCallback(
-    async (frames: Float32Array[], preTranscript?: string) => {
+    async (frames: Float32Array[]) => {
       try {
-        // Fast path: WebSocket already delivered the transcript
-        if (preTranscript !== undefined) {
-          if (preTranscript.trim()) {
-            await processTranscript(preTranscript.trim());
-          } else {
-            setVoiceState("idle");
-          }
-          return;
-        }
-
-        // HTTP fallback: send full audio buffer to AWS Transcribe
         if (frames.length === 0) {
           setVoiceState("idle");
           return;
@@ -3239,11 +3223,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         if (isVadSpeakingRef.current) {
           const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
           speechFramesRef.current.push(chunk);
-          // Stream each chunk in real-time to the AWS Transcribe WebSocket
-          const ws = transcribeWsRef.current;
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(float32ToInt16(chunk).buffer as ArrayBuffer);
-          }
         }
       };
       source.connect(processor);
@@ -3266,7 +3245,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         onSpeechStart: () => {
           isVadSpeakingRef.current = true;
           speechFramesRef.current = [];
-          partialTranscriptRef.current = "";
           setVoiceState("recording");
         },
         onSpeechEnd: async () => {
@@ -3276,31 +3254,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           const frames = speechFramesRef.current;
           speechFramesRef.current = [];
           setVoiceState("processing");
-
-          const ws = transcribeWsRef.current;
-          transcribeWsRef.current = null;
-
-          if (ws?.readyState === WebSocket.OPEN) {
-            // Signal end of audio and wait up to 10s for the final transcript
-            const transcript = await Promise.race([
-              new Promise<string>((resolve, reject) => {
-                wsResolveRef.current = resolve;
-                wsRejectRef.current = reject;
-                ws.send(JSON.stringify({ type: "end" }));
-              }),
-              new Promise<string>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("Transcription timeout")),
-                  10000,
-                ),
-              ),
-            ]).catch(() => "");
-
-            await submitAudioRef.current?.([], transcript);
-          } else {
-            // WebSocket unavailable — fall back to HTTP AWS Transcribe
-            await submitAudioRef.current?.(frames);
-          }
+          await submitAudioRef.current?.(frames);
         },
         onVADMisfire: () => {
           isVadSpeakingRef.current = false;
@@ -3335,31 +3289,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       speechFramesRef.current = [];
       vadRef.current?.pause();
       setVoiceState("processing");
-
-      const ws = transcribeWsRef.current;
-      transcribeWsRef.current = null;
-
-      if (ws?.readyState === WebSocket.OPEN) {
-        const transcript = await Promise.race([
-          new Promise<string>((resolve) => {
-            wsResolveRef.current = resolve;
-            wsRejectRef.current = () => resolve("");
-            ws.send(JSON.stringify({ type: "end" }));
-          }),
-          new Promise<string>((resolve) =>
-            setTimeout(() => resolve(""), 10000),
-          ),
-        ]).catch(() => "");
-
-        await submitAudioRef.current?.([], transcript);
-      } else {
-        await submitAudioRef.current?.(frames);
-      }
+      await submitAudioRef.current?.(frames);
     } else {
-      // Abort any in-flight WebSocket without waiting for transcription
-      const ws = transcribeWsRef.current;
-      if (ws?.readyState === WebSocket.OPEN) ws.close();
-      transcribeWsRef.current = null;
       vadRef.current?.pause();
       setVoiceState("idle");
     }
@@ -3403,12 +3334,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     if (voiceState === "speaking" || voiceState === "processing") {
       stopPlayback();
       vadRef.current?.pause();
-      // Abort any in-flight streaming transcription
-      const ws = transcribeWsRef.current;
-      if (ws?.readyState === WebSocket.OPEN) ws.close();
-      transcribeWsRef.current = null;
-      wsResolveRef.current = null;
-      wsRejectRef.current = null;
       setTranscript("");
       setReply("");
       setError(null);
