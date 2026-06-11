@@ -157,13 +157,15 @@ export function GarmentSelectionPanel({
 
       {isOpen && (
         <div
-          className="flex flex-col gap-3 pt-2"
+          className="flex flex-col gap-3 pt-2 mirror-scroll"
           style={{
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
             overflowX: "hidden",
             paddingRight: 2,
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
           }}
         >
           {visibleSlots.map((slot) => (
