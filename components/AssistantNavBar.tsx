@@ -58,7 +58,7 @@ function NavButton({
  *   [ Fashion · Cosmetics ·  (mic)  · Overview ]
  *                LISTENING…
  *
- * Two equal flex-1 sides hug a centered gap so the gap — and the viewport-centered
+ * Two flex-1 sides hug a centered gap so the gap — and the viewport-centered
  * mic floating in it — stays dead-center regardless of button widths. The bar
  * hides while the mic morphs into its wide waveform (processing/speaking) so the
  * two never collide.

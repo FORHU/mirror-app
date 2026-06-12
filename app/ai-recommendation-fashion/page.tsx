@@ -22,6 +22,7 @@ import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { getToday } from "@/components/QuickResponseChips";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
 import {
@@ -37,6 +38,7 @@ import {
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 export default function VirtualMirrorV2() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
@@ -793,6 +795,7 @@ export default function VirtualMirrorV2() {
         >
           <PromptFloater
             onSelect={handleChipSelect}
+            weather={weather}
             prompts={[
               `Style me for today, ${getToday()}.`,
               "Give me a casual everyday look.",

@@ -6,7 +6,6 @@ import type { TrackerStatus } from "@/modules/shared/hooks/useProximitySensor";
 import type {
   CosmeticTileItem,
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
 } from "@/modules/overview/types";
 
@@ -77,9 +76,6 @@ interface MirrorState {
   /** Last normalized cosmetic recommendations shown on /ai-recommendation-cosmetic. */
   overviewCosmeticsSnapshot: CosmeticTileItem[] | null;
   setOverviewCosmeticsSnapshot: (data: CosmeticTileItem[] | null) => void;
-  /** Last map tile data shown on the map page, for /overview mini card. */
-  overviewMapSnapshot: MapTileData | null;
-  setOverviewMapSnapshot: (data: MapTileData | null) => void;
   clearChatNav: () => void;
 }
 
@@ -125,8 +121,6 @@ export const useMirrorStore = create<MirrorState>()(
       overviewCosmeticsSnapshot: null,
       setOverviewCosmeticsSnapshot: (data) =>
         set({ overviewCosmeticsSnapshot: data }),
-      overviewMapSnapshot: null,
-      setOverviewMapSnapshot: (data) => set({ overviewMapSnapshot: data }),
       clearChatNav: () =>
         set({
           chatNavPending: false,

@@ -4,7 +4,6 @@ export const ROUTES = {
   FASHION_CATALOG: "/fashion-catalog",
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   COSMETIC_PRODUCTS: "/cosmetic-products",
-  MAP: "/map",
   OVERVIEW: "/overview",
 } as const;
 
@@ -22,7 +21,6 @@ export const SITEMAP_CONTEXT: string[] = [
   `${ROUTES.FASHION_CATALOG} (fashion catalog browse)`,
   `${ROUTES.AI_RECOMMENDATION_COSMETIC} (skincare & cosmetics AI)`,
   `${ROUTES.COSMETIC_PRODUCTS} (cosmetics products browse)`,
-  `${ROUTES.MAP} (map & navigation)`,
   `${ROUTES.OVERVIEW} (combined overview of all recommendations)`,
 ];
 
