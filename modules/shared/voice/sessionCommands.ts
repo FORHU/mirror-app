@@ -4,7 +4,6 @@ import { outlineService } from "@/modules/shared/api/outline.service";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { ROUTES, isKnownRoute } from "@/navigation";
 
@@ -50,7 +49,6 @@ export async function performRestart(router: AppRouterInstance) {
   if (user) useAuthStore.setState({ user: { ...user, gender: undefined } });
 
   useOutlineStore.getState().reset();
-  useMapStore.getState().clearRoute();
   useCalendarStore.getState().clearEvents();
   useMirrorStore.setState({
     aiSuggestion: null,
@@ -77,14 +75,8 @@ export async function performRestart(router: AppRouterInstance) {
  * on-screen state isn't cleared here (the persisted rows are); the map route is.
  */
 export async function performReset(pathname: string) {
-  const scope: "fashion" | "itinerary" | null = pathname.includes("fashion")
-    ? "fashion"
-    : pathname.startsWith("/map")
-      ? "itinerary"
-      : null;
-  if (!scope) return;
-  await outlineService.reset(scope);
-  if (scope === "itinerary") useMapStore.getState().clearRoute();
+  if (!pathname.includes("fashion")) return;
+  await outlineService.reset("fashion");
 }
 
 /**
