@@ -27,16 +27,5 @@ export function getAssistantChipCategories(): PromptCategory[] {
         `What are the best products to improve my skin texture and glow?`,
       ],
     },
-    {
-      label: "Places",
-      icon: "📍",
-      route: ROUTES.MAP,
-      noWeather: true,
-      prompts: [
-        `What are some good cafes or restaurants near me worth visiting?`,
-        `I want to go somewhere relaxing today — any nice spots nearby?`,
-        `Suggest a fun place to visit this weekend around my area.`,
-      ],
-    },
   ];
 }
