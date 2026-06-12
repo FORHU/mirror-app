@@ -42,6 +42,7 @@ import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas
 export default function VirtualMirrorV2() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
   const { isProcessing, submitText } = useVoiceContext();
   const [isChipLoading, setIsChipLoading] = useState(false);
   const isLoading = isProcessing || isChipLoading;
@@ -549,12 +550,6 @@ export default function VirtualMirrorV2() {
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
-      // TODO: restore once ChatWonder query-param flow is confirmed
-      // if (action.type === "GARMENT_RECOMMENDATION") {
-      //   const res = action.response as { garment_data?: unknown } | null;
-      //   if (res?.garment_data) { handleAiComplete({ garment_data: res.garment_data } as ChatWonderMessageResponse); }
-      //   return;
-      // }
       if (action.type === "fashion_select_outfit") {
         const idx = action.index;
         if (idx < 0 || idx >= outfits.length) return;
@@ -622,18 +617,17 @@ export default function VirtualMirrorV2() {
   // limit=4 is injected if the caller omitted it.
   const lastSearchParamsRef = useRef<string | null>(null);
   useEffect(() => {
-    const current = searchParams.toString();
-    if (lastSearchParamsRef.current === current) return;
-    lastSearchParamsRef.current = current;
+    if (lastSearchParamsRef.current === currentSearch) return;
+    lastSearchParamsRef.current = currentSearch;
 
     // Do not auto-fetch if there are no query parameters. This leaves
     // the outfits array empty so the idle OutfitImageCarousel can display.
-    if (!current) {
+    if (!currentSearch) {
       queueMicrotask(() => setOutfits([]));
       return;
     }
 
-    const params = new URLSearchParams(current);
+    const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "4");
     queueMicrotask(() =>
       handleAiComplete({
@@ -641,7 +635,7 @@ export default function VirtualMirrorV2() {
       } as ChatWonderMessageResponse),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [currentSearch]);
 
   // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
   const handoffFiredRef = useRef(false);
@@ -666,13 +660,6 @@ export default function VirtualMirrorV2() {
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
-  // useEffect(() => {
-  //   if (!chatGarmentData) return;
-  //   useMirrorStore.getState().setChatGarmentData(null);
-  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
-  // }, [chatGarmentData]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
