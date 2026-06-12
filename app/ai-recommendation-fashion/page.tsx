@@ -662,7 +662,9 @@ export default function VirtualMirrorV2() {
     if (!chatGarmentData) return;
     useMirrorStore.getState().setChatGarmentData(null);
     Promise.resolve().then(() =>
-      handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse),
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse),
     );
   }, [chatGarmentData, handleAiComplete]);
 
