@@ -6,6 +6,7 @@ import type { TrackerStatus } from "@/modules/shared/hooks/useProximitySensor";
 import type {
   CosmeticTileItem,
   GarmentTileItem,
+  MapTileData,
   OutfitTileItem,
 } from "@/modules/overview/types";
 
@@ -76,6 +77,12 @@ interface MirrorState {
   /** Last normalized cosmetic recommendations shown on /ai-recommendation-cosmetic. */
   overviewCosmeticsSnapshot: CosmeticTileItem[] | null;
   setOverviewCosmeticsSnapshot: (data: CosmeticTileItem[] | null) => void;
+  /** Last map tile data shown on the map page, for /overview mini card. */
+  overviewMapSnapshot: MapTileData | null;
+  setOverviewMapSnapshot: (data: MapTileData | null) => void;
+  /** Category filter forwarded from /fashion-catalog to the next API call. Consumed once by sendMessage. */
+  pendingCategory: string | null;
+  setPendingCategory: (category: string | null) => void;
   clearChatNav: () => void;
 }
 
@@ -121,6 +128,10 @@ export const useMirrorStore = create<MirrorState>()(
       overviewCosmeticsSnapshot: null,
       setOverviewCosmeticsSnapshot: (data) =>
         set({ overviewCosmeticsSnapshot: data }),
+      overviewMapSnapshot: null,
+      setOverviewMapSnapshot: (data) => set({ overviewMapSnapshot: data }),
+      pendingCategory: null,
+      setPendingCategory: (category) => set({ pendingCategory: category }),
       clearChatNav: () =>
         set({
           chatNavPending: false,

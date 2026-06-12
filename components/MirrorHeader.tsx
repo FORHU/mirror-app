@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import WeatherWidget from "@/components/WeatherWidget";
-import { LanguageSelector } from "@/components/LanguageSelector";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 // Single source of truth for the standard kiosk top bar:
@@ -146,7 +145,6 @@ export default function MirrorHeader({
       >
         <CameraIndicator />
         {rightContent}
-        <LanguageSelector />
       </div>
     </header>
   );
