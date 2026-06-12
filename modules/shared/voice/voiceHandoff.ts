@@ -3,6 +3,13 @@
  * whether a transcript should navigate to a different feature page.
  */
 
+const NAVIGATION_PATTERN =
+  /\b(take me to|navigate to|navigate me to|go to|directions to|how do i get to|get me to|drive to|walk to|bring me to|i want to go to|i need to go to|let's go to|route me|can you route|show me (the way|how to get)|bring me|head to|i('m| am) going to|going to)\b/i;
+
+export function isNavigationPhrase(transcript: string): boolean {
+  return NAVIGATION_PATTERN.test(transcript);
+}
+
 export function isFashionHandoffPrompt(text: string): boolean {
   return /\b(outfit|fashion|clothing|what to wear|what should i wear|suggest.*outfit|recommend.*outfit|full look|complete look|full.*outfit|dress.*for|style.*for my|outfit.*for my|outfit.*for the|wardrobe)\b/i.test(
     text,

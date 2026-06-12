@@ -20,6 +20,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -169,6 +170,7 @@ function ExpandableSuggestion({ text }: { text: string }) {
 }
 
 export default function CosmeticRecommendationPage() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
@@ -559,26 +561,10 @@ export default function CosmeticRecommendationPage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push(ROUTES.COSMETIC_PRODUCTS)}
-        aria-label="Browse products by skin type"
-        className="fixed bottom-4 right-8 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-        style={{
-          background: "rgba(20,20,30,0.85)",
-          border: "1.5px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          Skin Types
-        </span>
-      </button>
-
       <PromptFloater
         prompts={PROMPT_SUGGESTIONS}
         onSelect={handleSuggestionSelect}
+        weather={weather}
       />
     </div>
   );

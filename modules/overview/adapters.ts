@@ -1,7 +1,6 @@
 import type {
   CosmeticTileItem,
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
   SkinAnalysisTileItem,
 } from "./types";
@@ -152,35 +151,6 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
   }
 
   return items;
-}
-
-/** ChatWonderMapsData (or a maps_data[0] entry) → a single map tile. */
-export function adaptMapsData(raw: unknown): MapTileData | null {
-  const data = asRecord(raw);
-  if (!data) return null;
-
-  const lat = num(data.lat);
-  const lng = num(data.lng);
-  if (lat === null || lng === null) return null;
-
-  const places = Array.isArray(data.places) ? data.places : [];
-  const stops = places
-    .map((p) => {
-      const place = asRecord(p);
-      if (!place) return null;
-      const pLat = num(place.lat);
-      const pLng = num(place.lng);
-      if (pLat === null || pLng === null) return null;
-      return { name: str(place.name) || "Place", lat: pLat, lng: pLng };
-    })
-    .filter((s): s is { name: string; lat: number; lng: number } => s !== null);
-
-  return {
-    name: str(data.location_label) || str(data.query) || "Destination",
-    lat,
-    lng,
-    stops: stops.length ? stops : undefined,
-  };
 }
 
 /** SkinAnalysis payloads from the shared mirror store -> skin profile tile. */
