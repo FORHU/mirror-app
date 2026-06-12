@@ -73,14 +73,17 @@ export default function MapPage() {
     onAction,
   );
 
+  // Read the handoff prompt on mount and store in a ref.
+  // We intentionally do NOT call submitText here — we wait until homeLocation
+  // has settled so that geocoding runs with proximity bias and route fetching
+  // starts from the user's home location rather than {lat:0,lng:0}.
   const handoffFiredRef = useRef(false);
+  const handoffPromptRef = useRef<string | null>(null);
   useEffect(() => {
-    if (handoffFiredRef.current) return;
     const prompt = sessionStorage.getItem(MAP_PROMPT_KEY);
     if (!prompt) return;
-    handoffFiredRef.current = true;
     sessionStorage.removeItem(MAP_PROMPT_KEY);
-    void submitText(prompt);
+    handoffPromptRef.current = prompt;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -94,6 +97,19 @@ export default function MapPage() {
     consumePendingDirections();
     loadOutlineStops();
   }, [homeLocationStatus, homeLocation, loadOutlineStops]);
+
+  // Fire the handoff prompt once location loading settles (loaded or error).
+  // At this point homeLocation is in the map store, so geocoding will use it
+  // as a proximity hint and setItineraryStops will route from the right origin.
+  useEffect(() => {
+    if (homeLocationStatus === "idle" || homeLocationStatus === "loading") return;
+    if (handoffFiredRef.current || !handoffPromptRef.current) return;
+    handoffFiredRef.current = true;
+    const prompt = handoffPromptRef.current;
+    handoffPromptRef.current = null;
+    void submitText(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeLocationStatus]);
 
   if (homeLocationStatus === "idle" || homeLocationStatus === "loading") {
     return (

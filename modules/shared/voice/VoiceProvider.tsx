@@ -761,6 +761,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       historyRef.current = newHistory;
       setChatHistory(newHistory);
 
+      // Write prompt handoff keys before playing TTS so the target page reads
+      // them in sessionStorage the moment it mounts after navigation.
       if (data?.route === ROUTES.OVERVIEW) {
         try {
           sessionStorage.setItem(OVERVIEW_PROMPT_KEY, t);
@@ -768,13 +770,22 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           /* overview just won't auto-fire */
         }
       }
-
-      if (data?.route) {
-        router.push(data.route);
+      if (data?.route === ROUTES.MAP) {
+        try {
+          sessionStorage.setItem(MAP_PROMPT_KEY, t);
+        } catch {
+          /* best-effort */
+        }
       }
+
+      const pendingRoute = data?.route ?? null;
 
       const finish = () => {
         setVoiceState("idle");
+        // Navigate AFTER TTS ends so voiceState is already "idle" when the
+        // target page mounts. This prevents submitText from being rejected by
+        // the voiceState !== "idle" guard in the handoff effect.
+        if (pendingRoute) router.push(pendingRoute);
       };
 
       const audio = await pollyTts(assistantReply).catch(() => null);
@@ -2592,15 +2603,30 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             voiceLang,
           );
 
-          const res = await chatWonderService.message(
+          const mapMsgPayload: import("@/modules/shared/api/chat-wonder.service").ChatWonderMessageRequest =
             {
               input: enrichedInput,
               lang: voiceLang,
-            },
-            // Map page speaks its own short curated reply below — silence the
-            // service AudioQueue so they don't overlap (dual voice).
-            { silent: true },
-          );
+              pageMode: "map",
+              ...(mapLoc
+                ? {
+                    location: {
+                      lat: mapLoc.lat,
+                      lng: mapLoc.lng,
+                    },
+                  }
+                : {}),
+            };
+          const res = await chatWonderService
+            .message(mapMsgPayload, { silent: true })
+            .catch(async (err: unknown) => {
+              // Session conflict from a prior page — restart and retry once.
+              if (err instanceof Error && err.message.includes("HTTP 409")) {
+                await chatWonderService.restart();
+                return chatWonderService.message(mapMsgPayload, { silent: true });
+              }
+              throw err;
+            });
 
           if (res.stylist_data?.target_url) {
             const targetUrl = res.stylist_data.target_url;
