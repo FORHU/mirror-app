@@ -107,7 +107,6 @@ export default function AIAssistantPage() {
 
   // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isPresent && showIdle) handleWake();
   }, [isPresent, showIdle, handleWake]);
 

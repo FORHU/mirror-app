@@ -28,7 +28,7 @@ function StandaloneDetailsPane({
       key={item.id}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center text-center gap-10 px-6 py-8 transition-all duration-300 w-full h-full justify-center"
+      className="flex flex-col items-center text-center gap-10 px-6 pt-8 pb-28 transition-all duration-300 w-full h-full justify-center"
     >
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
         {item.imageUrl ? (
@@ -338,53 +338,59 @@ function CosmeticsStrip({
 }) {
   return (
     <div
-      className={`grid gap-5 content-start relative z-10 ${standalone ? "h-full min-h-0 grid-cols-2 overflow-y-auto scrollbar-hidden pb-20 pr-2" : "grid-cols-3 overflow-hidden"}`}
+      className={`relative z-10 ${standalone ? "flex flex-col gap-3 h-full overflow-y-auto scrollbar-hidden pr-1" : "grid gap-5 grid-cols-3 overflow-hidden"}`}
     >
-      {items.slice(0, standalone ? 15 : 6).map((c) => (
+      {items.slice(0, standalone ? 20 : 6).map((c) => (
         <button
           key={c.id}
           onClick={() => onSelect?.(c.id)}
-          className={`min-w-0 flex flex-col transition-all group/item text-left ${
+          className={`min-w-0 transition-all group/item text-left overflow-hidden ${
             standalone
-              ? selectedId === c.id
-                ? "scale-[1.03] drop-shadow-[0_0_15px_rgba(255,255,255,0.15)] ring-1 ring-white/30 rounded-3xl bg-white/5"
-                : "opacity-60 hover:opacity-100"
-              : "rounded-2xl overflow-hidden bg-white/5 border border-white/10 hover:border-white/30"
+              ? `flex flex-col h-[calc((100%-3rem)/5)] shrink-0 rounded-2xl overflow-hidden ${selectedId === c.id ? "ring-1 ring-white/30 bg-white/5" : "opacity-60 hover:opacity-100"}`
+              : "flex flex-col rounded-2xl bg-white/5 border border-white/10 hover:border-white/30"
           }`}
         >
-          <div
-            className={`${standalone ? "aspect-square rounded-3xl" : "aspect-square bg-white/[0.03]"} overflow-hidden`}
-          >
-            <img
-              src={proxied(c.imageUrl)}
-              alt={c.name}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.opacity = "0.15";
-              }}
-            />
-          </div>
-          <div
-            className={
-              standalone
-                ? "pt-3 flex flex-col"
-                : "px-3 py-2.5 shrink-0 bg-black/20"
-            }
-          >
-            <p
-              className={`text-white/90 ${standalone ? "text-base font-bold" : "text-[13px] font-bold"} truncate drop-shadow-sm`}
-            >
-              {c.name}
-            </p>
-            {c.brand && (
-              <p
-                className={`text-white/50 ${standalone ? "text-xs mt-1" : "text-[10px] mt-0.5"} font-semibold uppercase tracking-widest truncate`}
-              >
-                {c.brand}
-              </p>
-            )}
-          </div>
+          {standalone ? (
+            <>
+              <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center">
+                <img
+                  src={proxied(c.imageUrl)}
+                  alt={c.name}
+                  loading="lazy"
+                  className="w-full h-full object-contain transition-transform duration-500 group-hover/item:scale-105"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.15"; }}
+                />
+              </div>
+              <div className="shrink-0 px-2 py-1.5 bg-black/30">
+                <p className="text-white/90 text-[10px] font-bold line-clamp-1 drop-shadow-sm leading-snug">
+                  {c.name}
+                </p>
+                {c.brand && (
+                  <p className="text-white/50 text-[8px] mt-0.5 font-semibold uppercase tracking-widest truncate">
+                    {c.brand}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="aspect-square bg-white/3 overflow-hidden">
+                <img
+                  src={proxied(c.imageUrl)}
+                  alt={c.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.15"; }}
+                />
+              </div>
+              <div className="px-3 py-2.5 shrink-0 bg-black/20">
+                <p className="text-white/90 text-[13px] font-bold truncate drop-shadow-sm">{c.name}</p>
+                {c.brand && (
+                  <p className="text-white/50 text-[10px] mt-0.5 font-semibold uppercase tracking-widest truncate">{c.brand}</p>
+                )}
+              </div>
+            </>
+          )}
         </button>
       ))}
     </div>
@@ -418,7 +424,7 @@ function Tile({
       className={[
         standalone
           ? "flex flex-col p-2 min-h-0 overflow-hidden relative group"
-          : "glass-card-strong neon-border-white rounded-[2rem] flex flex-col p-6 min-h-0 overflow-hidden relative group",
+          : "glass-card-strong neon-border-white rounded-4xl flex flex-col p-6 min-h-0 overflow-hidden relative group",
         className,
       ]
         .filter(Boolean)
@@ -427,8 +433,8 @@ function Tile({
       {!standalone && (
         <>
           {/* Premium Glass Glare Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-white/[0.01] to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-br from-white/8 via-white/1 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
         </>
       )}
 
@@ -531,15 +537,15 @@ export function OverviewGrid() {
 
           {showCosmetics && (
             <>
-              <div className="w-[25%] shrink-0" />
-              <div className="w-[50%] flex flex-col">
+              <div className="w-[15%] shrink-0" />
+              <div className="w-[70%] flex flex-col">
                 <StandaloneDetailsPane item={activeItem} />
               </div>
               <Tile
                 icon={Sparkles}
                 label="Skin Routine"
                 state={cosmetics}
-                className="w-[25%] h-full shrink-0"
+                className="w-[15%] h-full shrink-0"
                 delay={0.2}
                 standalone
                 rightContent={

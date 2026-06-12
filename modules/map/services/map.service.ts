@@ -30,7 +30,7 @@ export interface GeocodeResult {
 }
 
 export interface DirectionsFormatted {
-  geojson: GeoJSON.FeatureCollection;
+  geojson: { type: "FeatureCollection"; features: unknown[] };
   steps: Array<{
     instruction: string;
     maneuver: { type: string; modifier: string };
