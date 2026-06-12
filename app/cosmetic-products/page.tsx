@@ -385,7 +385,8 @@ export default function CosmeticProductsPage() {
             background: "transparent",
             border: "1.5px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
-            cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+            cursor:
+              loading || filtered.length === 0 ? "not-allowed" : "pointer",
           }}
         >
           <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">

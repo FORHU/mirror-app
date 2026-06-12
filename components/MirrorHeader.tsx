@@ -13,7 +13,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 function ClockDisplay() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
+    setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
@@ -23,11 +23,19 @@ function ClockDisplay() {
       <>
         <div
           className="rounded"
-          style={{ width: "80px", height: "2rem", background: "rgba(255,255,255,0.10)" }}
+          style={{
+            width: "80px",
+            height: "2rem",
+            background: "rgba(255,255,255,0.10)",
+          }}
         />
         <div
           className="rounded mt-1"
-          style={{ width: "120px", height: "0.875rem", background: "rgba(255,255,255,0.07)" }}
+          style={{
+            width: "120px",
+            height: "0.875rem",
+            background: "rgba(255,255,255,0.07)",
+          }}
         />
       </>
     );
