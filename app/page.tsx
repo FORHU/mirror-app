@@ -8,7 +8,7 @@ export default function RootPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(ROUTES.WELCOME);
+    router.replace(ROUTES.AI_ASSISTANT);
   }, [router]);
 
   return null;

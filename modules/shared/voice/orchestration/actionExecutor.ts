@@ -26,7 +26,7 @@ export async function executeAction(
       if (action.suggestion) setAiSuggestion(action.suggestion);
       else clearAiSuggestion();
 
-      router.push(action.route ?? ROUTES.WELCOME);
+      router.push(action.route ?? ROUTES.AI_ASSISTANT);
       return;
     }
 

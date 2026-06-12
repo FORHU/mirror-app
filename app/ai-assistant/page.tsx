@@ -107,6 +107,7 @@ export default function AIAssistantPage() {
       s.cosmetics.status === "ready",
   );
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const isPresent = useMirrorStore((s) => s.isPresent);
 
   const chipCategories = useMemo<PromptCategory[]>(() => {
     const base = getAssistantChipCategories();
@@ -135,7 +136,7 @@ export default function AIAssistantPage() {
 
   const pageContext = useMemo(
     () => ({
-      route: ROUTES.WELCOME,
+      route: ROUTES.AI_ASSISTANT,
       pageName: "AI Assistant",
       mode: "overview" as const,
       activeStep: "conversation",
@@ -247,6 +248,12 @@ export default function AIAssistantPage() {
     },
     [chooseGreeting, playGreeting, showIdle],
   );
+
+  // Auto-wake when the proximity sensor detects someone stepping up
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- external camera event driving UI state
+    if (isPresent && showIdle) handleWake(true);
+  }, [isPresent, showIdle, handleWake]);
 
   const status = isListening
     ? "Listening"

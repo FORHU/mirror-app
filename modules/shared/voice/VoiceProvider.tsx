@@ -444,6 +444,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const stopPlayback = useCallback(() => {
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    playbackCtxRef.current?.close();
+    playbackCtxRef.current = null;
+  }, []);
+
+  // ----------------------
+
   const startItineraryIdleTimer = useCallback(() => {
     clearItineraryIdleTimer();
     itineraryIdleTimerRef.current = setTimeout(async () => {
@@ -463,6 +472,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         src.connect(playCtx.destination);
         playbackRef.current = src;
         src.onended = () => {
+          stopPlayback();
           setVoiceState("idle");
         };
         src.start(0);
@@ -470,16 +480,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     }, 15000);
-  }, [clearItineraryIdleTimer]);
-
-  // ----------------------
-
-  const stopPlayback = useCallback(() => {
-    playbackRef.current?.stop();
-    playbackRef.current = null;
-    playbackCtxRef.current?.close();
-    playbackCtxRef.current = null;
-  }, []);
+  }, [clearItineraryIdleTimer, stopPlayback]);
 
   // Tear down the mic stream/graph and stop collecting frames. Safe to call
   // when nothing is recording. (Refs are stable, so no deps needed.)
@@ -511,7 +512,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
     // On arrival at the Attract screen, kill any in-flight audio and start a
     // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
-    if (pathname === ROUTES.WELCOME) {
+    if (pathname === ROUTES.AI_ASSISTANT) {
       stopPlayback();
       stopMicCapture();
       queueMicrotask(() => setVoiceState("idle"));
@@ -2622,7 +2623,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               // Session conflict from a prior page — restart and retry once.
               if (err instanceof Error && err.message.includes("HTTP 409")) {
                 await chatWonderService.restart();
-                return chatWonderService.message(mapMsgPayload, { silent: true });
+                return chatWonderService.message(mapMsgPayload, {
+                  silent: true,
+                });
               }
               throw err;
             });
@@ -3342,13 +3345,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   }, [voiceState]);
 
   const stopListening = useCallback(async () => {
-    if (voiceState !== "recording") return;
+    if (!isRecordingRef.current) return;
     // Grab the captured frames, tear down the mic, then transcribe.
     const frames = speechFramesRef.current;
     stopMicCapture();
     setVoiceState("processing");
     await submitAudioRef.current?.(frames);
-  }, [voiceState, stopMicCapture]);
+  }, [stopMicCapture]);
 
   // Keep the ref current so the max-recording timer always calls the latest one.
   useEffect(() => {
@@ -3370,7 +3373,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setVoiceState("processing");
 
       try {
-        if (pathname.startsWith(ROUTES.WELCOME)) {
+        if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
           await handleAIAssistantText(t);
           return;
         }

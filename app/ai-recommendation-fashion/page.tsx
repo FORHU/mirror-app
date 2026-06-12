@@ -12,7 +12,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import { type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -41,10 +41,10 @@ export default function VirtualMirrorV2() {
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const { isProcessing, submitText } = useVoiceContext();
-  const [isChipLoading, _setIsChipLoading] = useState(false);
-  const isLoading = isProcessing || isChipLoading;
+  const isLoading = isProcessing;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
@@ -655,6 +655,18 @@ export default function VirtualMirrorV2() {
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Consume garment data from the chat/voice path when already on this page
+  // (VoiceProvider/ChatWonderProvider set chatGarmentData instead of navigating).
+  useEffect(() => {
+    if (!chatGarmentData) return;
+    useMirrorStore.getState().setChatGarmentData(null);
+    Promise.resolve().then(() =>
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse),
+    );
+  }, [chatGarmentData, handleAiComplete]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
