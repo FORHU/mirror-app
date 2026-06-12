@@ -28,6 +28,8 @@ export interface ChatWonderMessageRequest {
   skinAnalysis?: SkinAnalysis | null;
   /** Current page mode — tells the backend which parameters to forward and which intent tag to use. */
   pageMode?: "garment" | "cosmetics" | "map" | "overview" | null;
+  /** Fashion category filter forwarded from the catalog page (e.g. "metaCategory=Winterwear,Summerwear" or "ALL"). */
+  category?: string;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -256,6 +258,7 @@ async function sendMessageOnce(
   if (request.lang) body.lang = request.lang;
   if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
   if (request.pageMode) body.page_mode = request.pageMode;
+  if (request.category) body.category = request.category;
   body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
   const signal = options?.signal;

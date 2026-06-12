@@ -1,5 +1,8 @@
 export const FASHION_PROMPT_KEY = "mirror_fashion_prompt";
 
+export const FASHION_DEFAULT_RECOMMENDATION_PROMPT =
+  "Recommend an outfit based on my current weather and location.";
+
 /** Style quotes cycled on the fashion loading screen while the AI composes outfits. */
 export const FASHION_QUOTES = [
   {

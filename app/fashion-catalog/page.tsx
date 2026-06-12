@@ -11,21 +11,27 @@ import {
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
-import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import {
+  useMirrorStore,
+  useMirrorStore as useMirrorStoreInstance,
+} from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
-import { PromptFloater } from "@/components/PromptFloater";
-import { QuickResponseChips, getToday } from "@/components/QuickResponseChips";
-import { useWeather } from "@/modules/shared/hooks/useWeather";
+import { QuickResponseChips } from "@/components/QuickResponseChips";
+
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 import type { SwapSlot } from "@/modules/fashion/types";
-import { FASHION_QUOTES } from "@/modules/fashion/constants";
+import {
+  FASHION_QUOTES,
+  FASHION_PROMPT_KEY,
+  FASHION_DEFAULT_RECOMMENDATION_PROMPT,
+} from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 const MAIN_CATEGORIES = ["All", "Casual", "Formal", "Outdoor"];
@@ -88,7 +94,6 @@ function filterOutfitsByGender(
 }
 
 export default function FashionCatalog() {
-  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
@@ -501,6 +506,16 @@ export default function FashionCatalog() {
     ],
   );
 
+  const setPendingCategory = useMirrorStoreInstance((s) => s.setPendingCategory);
+
+  const handleRecommendationsClick = useCallback(() => {
+    const metaCategory = searchParams.get("metaCategory");
+    const category = metaCategory ? `metaCategory=${metaCategory}` : "ALL";
+    setPendingCategory(category);
+    sessionStorage.setItem(FASHION_PROMPT_KEY, FASHION_DEFAULT_RECOMMENDATION_PROMPT);
+    router.push("/ai-recommendation-fashion");
+  }, [searchParams, setPendingCategory, router]);
+
   const handleChipSelect = useCallback(
     (prompt: string) => {
       if (prompt === "All") {
@@ -519,29 +534,6 @@ export default function FashionCatalog() {
         }
         return;
       }
-    },
-    [router],
-  );
-
-  const handlePromptSelect = useCallback(
-    (prompt: string) => {
-      const lower = prompt.toLowerCase();
-      let metaCategory = "";
-      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
-      else if (/streetwear/i.test(lower)) metaCategory = "Streetwear";
-      else if (/athleisure/i.test(lower)) metaCategory = "Athleisure";
-      else if (/activewear/i.test(lower)) metaCategory = "Activewear";
-      else if (/sportswear/i.test(lower)) metaCategory = "Sportswear";
-      else if (/winterwear/i.test(lower)) metaCategory = "Winterwear";
-      else if (/summerwear/i.test(lower)) metaCategory = "Summerwear";
-      else if (/springwear/i.test(lower)) metaCategory = "Springwear";
-      else if (/business/i.test(lower)) metaCategory = "Business";
-      else if (/formal/i.test(lower)) metaCategory = "Formal";
-      else if (/casual/i.test(lower)) metaCategory = "Casual";
-      const params = new URLSearchParams();
-      if (metaCategory) params.set("metaCategory", metaCategory);
-      params.set("limit", "100");
-      router.push(`/ai-recommendation-fashion?${params.toString()}`);
     },
     [router],
   );
@@ -913,38 +905,21 @@ export default function FashionCatalog() {
         </div>
       )}
 
-      {/* Action row — Suggestions, positioned above the mic */}
+      {/* Action row — Recommendations, positioned above the mic */}
       {!isLoading && (
         <div className="absolute bottom-[100px] left-0 right-0 z-40 flex flex-col items-center px-4 pointer-events-none">
-          <div className="pointer-events-auto w-full flex justify-center">
-            <PromptFloater
-              onSelect={handlePromptSelect}
-              weather={weather}
-              prompts={[
-                "Formal outfit — top, bottom, shoes, and bag.",
-                "Business look that feels confident and professional.",
-                "Casual outfit for an everyday relaxed day.",
-                `SmartCasual layered outfit for today, ${getToday()}.`,
-                "Streetwear look with a bold statement vibe.",
-                "Athleisure outfit that blends comfort and style.",
-                "Activewear outfit for performance and movement.",
-                "Sportswear outfit suitable for training or activity.",
-                "Winterwear outfit with warm layers and structure.",
-                "Summerwear outfit that stays light and breathable.",
-                "Springwear outfit for transitional weather.",
-                "Autumnwear outfit with cozy layering.",
-                "Rainwear outfit that stays practical and stylish.",
-                "Minimalist outfit with clean lines and neutral tones.",
-                "Luxury-inspired outfit with a refined aesthetic.",
-                "AvantGarde outfit with an experimental fashion edge.",
-                "Vintage-inspired outfit with retro influence.",
-                "Traditional outfit with cultural inspiration.",
-                "Cultural outfit with heritage influence.",
-                "Uniform-inspired structured outfit style.",
-              ]}
-              className="relative z-40"
-              direction="above"
-            />
+          <div className="pointer-events-auto">
+            <button
+              onClick={handleRecommendationsClick}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                backdropFilter: "blur(12px)",
+              }}
+            >
+              Recommendations
+            </button>
           </div>
         </div>
       )}
