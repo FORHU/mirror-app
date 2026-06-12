@@ -47,6 +47,14 @@ interface OverviewState {
 
   setSkinAnalysis: (item: SkinAnalysisTileItem | null) => void;
 
+  startMap: () => void;
+  setMap: (data: MapTileData) => void;
+  emptyMap: () => void;
+  failMap: (error: string) => void;
+
+  pendingPrompt: string | null;
+  setPendingPrompt: (prompt: string | null) => void;
+
   reset: () => void;
 }
 
@@ -57,6 +65,7 @@ const initial = {
   outfits: idle<OutfitTileItem[]>(),
   cosmetics: idle<CosmeticTileItem[]>(),
   skinAnalysis: idle<SkinAnalysisTileItem>(),
+  pendingPrompt: null as string | null,
 };
 
 export const useOverviewStore = create<OverviewState>((set) => ({
@@ -106,6 +115,13 @@ export const useOverviewStore = create<OverviewState>((set) => ({
         error: null,
       },
     }),
+
+  startMap: () => set({ map: { status: "loading", data: null, error: null } }),
+  setMap: (data) => set({ map: { status: "ready", data, error: null } }),
+  emptyMap: () => set({ map: { status: "empty", data: null, error: null } }),
+  failMap: (error) => set({ map: { status: "error", data: null, error } }),
+
+  setPendingPrompt: (prompt) => set({ pendingPrompt: prompt }),
 
   reset: () => set({ ...initial }),
 }));

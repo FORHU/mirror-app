@@ -9,9 +9,9 @@
  *  2. On detection we greet the user (on-screen + TTS) and silently kick off a
  *     background skin analysis (capture → upload → analyze → Socket.io result),
  *     which fills the Cosmetics tile.
- *  3. The user then speaks an intent ("I have a dinner tonight"). The global voice
- *     mic routes it through ChatWonder, whose tools (garments, skin) stream back
- *     and populate the remaining tiles.
+ *  3. The user then speaks an intent ("I have a dinner in Baguio tonight"). The
+ *     global voice mic routes it through ChatWonder, whose tools (garments,
+ *     skin, location, weather) stream back and populate the remaining tiles.
  *  4. Until each tool's data arrives, its tile shows a skeleton.
  */
 
@@ -25,6 +25,8 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import { mapService } from "@/modules/map/services/map.service";
+import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
 
 import {
   OverviewGrid,
@@ -51,10 +53,23 @@ type GarmentRecommendationAction = {
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
-async function requestGarmentsWithFreshSession(input: string) {
+type OverviewLocationContext = { lat: number; lng: number };
+
+async function requestGarmentsWithFreshSession(
+  input: string,
+  location?: OverviewLocationContext | null,
+) {
   const payload = {
     input,
     pageMode: "overview" as const,
+    ...(location
+      ? {
+          location: {
+            lat: location.lat.toString(),
+            lng: location.lng.toString(),
+          },
+        }
+      : {}),
   };
   try {
     return await chatWonderService.message(payload);
@@ -113,6 +128,8 @@ export default function OverviewPage() {
   const handoffFiredRef = useRef(false);
 
   // ── hybrid hydration: reflect the persisted Outline on arrival ──
+  // Overview is a downstream dashboard, so on mount we fill the tiles from the
+  // user's saved Outline. Live ChatWonder updates overwrite these afterward.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -121,6 +138,9 @@ export default function OverviewPage() {
         if (cancelled || !outline) return;
         const { garments, outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
+        // Skip overwriting tiles the handoff already set to "loading" — letting
+        // outline data flip them to "ready" here hides the overlay while the AI
+        // call is still running, flashing stale data on screen for several seconds.
         if (!handoffFiredRef.current) {
           if (garments.length) setGarments(garments);
           if (outfits.length) setOutfits(outfits);
@@ -189,6 +209,8 @@ export default function OverviewPage() {
       if (action.type !== "GARMENT_RECOMMENDATION") return;
 
       const response = (action as GarmentRecommendationAction).response;
+      // Preserve semantics: a turn that doesn't mention a section leaves that
+      // tile as-is (don't stomp hydrated/earlier data with an empty result).
       const { garments, outfits } = adaptGarmentData(response?.garment_data);
       if (garments.length) setGarments(garments);
       if (outfits.length) setOutfits(outfits);
@@ -203,9 +225,33 @@ export default function OverviewPage() {
 
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
+      const destination = extractLocationFromTranscript(prompt);
+      // Location for weather: prefer the geocoded destination, fall back to the
+      // user's current GPS position. The backend resolves weather from location.
+      let locationCtx: OverviewLocationContext | null = null;
+
+      if (destination) {
+        try {
+          const { results } = await mapService.geocode(destination);
+          const place = results[0];
+          if (place) {
+            locationCtx = { lat: place.lat, lng: place.lng };
+          }
+        } catch {
+          console.warn("Geocoding failed for weather resolution");
+        }
+      }
+
       try {
         const response = await requestGarmentsWithFreshSession(
-          ["[stylist]", `Plan: ${prompt}`].join(" "),
+          [
+            "[stylist]",
+            `Plan: ${prompt}`,
+            destination ? `Destination: ${destination}.` : "",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          locationCtx,
         );
 
         const rawGarmentData = response.garment_data as Record<
@@ -254,35 +300,50 @@ export default function OverviewPage() {
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
-  useEffect(() => {
-    if (handoffFiredRef.current) return;
+  const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
+  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
 
-    let prompt: string | null = null;
-    try {
-      prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
-      if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
-    } catch {
-      /* sessionStorage unavailable */
+  useEffect(() => {
+    let prompt: string | null = pendingPrompt;
+
+    // Fallback to sessionStorage in case of hard refresh or direct nav
+    if (!prompt) {
+      try {
+        prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
+        if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
+      } catch {
+        /* sessionStorage unavailable */
+      }
     }
+
     if (!prompt) return;
 
+    // Clear it so it doesn't fire again
+    setPendingPrompt(null);
     handoffFiredRef.current = true;
     cameFromAssistantRef.current = true;
 
+    // Show the tiles as actively loading (skeletons) while the tools resolve.
     setGreeting("Pulling that together for you…");
     startGarments();
     startOutfits();
     startCosmetics();
 
     void runOverviewPlan(prompt);
-    // Fire exactly once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    pendingPrompt,
+    setPendingPrompt,
+    setGreeting,
+    startGarments,
+    startOutfits,
+    startCosmetics,
+    runOverviewPlan,
+  ]);
 
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <MirrorHeader
-        className="w-full"
+        className="w-full relative z-20"
         style={{
           background: "transparent",
           paddingLeft: "16px",
@@ -292,7 +353,7 @@ export default function OverviewPage() {
       />
 
       {/* Grid */}
-      <div className="m-5 flex-1 min-h-0 flex flex-col">
+      <div className="m-5 flex-1 min-h-0 flex flex-col relative z-10">
         <OverviewGrid />
       </div>
 

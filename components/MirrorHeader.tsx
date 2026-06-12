@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import WeatherWidget from "@/components/WeatherWidget";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 // Single source of truth for the standard kiosk top bar:
 //   [ weather ]      [ time / day, date ]      [ optional back / custom ]
@@ -54,6 +55,33 @@ function ClockDisplay() {
         {now.toLocaleDateString([], { month: "long", day: "numeric" })}
       </span>
     </>
+  );
+}
+
+function CameraIndicator() {
+  const isPresent = useMirrorStore((s) => s.isPresent);
+  const sensorStatus = useMirrorStore((s) => s.sensorStatus);
+
+  if (sensorStatus === "unavailable" || sensorStatus === "starting") {
+    return null;
+  }
+
+  const color = isPresent ? "#10b981" : "#f59e0b"; // Green for detected, yellow for searching
+  const text = isPresent ? "Detected" : "Scanning";
+  const pulse = !isPresent ? "animate-pulse" : "";
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 ${pulse}`}
+    >
+      <div
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
+      />
+      <span className="text-[9px] uppercase tracking-widest text-white/60">
+        {text}
+      </span>
+    </div>
   );
 }
 
@@ -116,6 +144,7 @@ export default function MirrorHeader({
           gap: "12px",
         }}
       >
+        <CameraIndicator />
         {rightContent}
         <LanguageSelector />
       </div>
