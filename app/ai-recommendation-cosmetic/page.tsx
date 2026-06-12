@@ -425,7 +425,7 @@ export default function CosmeticRecommendationPage() {
       <MirrorHeader
         className="w-full relative z-10"
         style={{ background: "transparent" }}
-        onBack={() => router.push(ROUTES.COSMETIC_PRODUCTS)}
+        onBack={() => router.back()}
       />
 
       {/* Main 3 Column Layout */}
