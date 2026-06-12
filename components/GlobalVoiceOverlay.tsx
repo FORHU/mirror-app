@@ -9,12 +9,17 @@ import VoiceWaveform from "@/components/VoiceWaveform";
 import VoiceTranscriptBubble from "@/components/VoiceTranscriptBubble";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
+/** Master switch for the shared mic UI (mic button, transcript bubble, chat
+ *  history) on all pages. Flip to true to bring it back — voice playback
+ *  (TTS replies) is unaffected either way, only the on-screen controls. */
+const MIC_UI_ENABLED = false;
+
 // The shared tap-to-talk mic renders on every page. It's hidden only while
 // /ai-assistant sits on its idle "Tap to start" welcome screen, so the spoken
 // greeting gate isn't bypassed by tapping the mic directly.
 export default function GlobalVoiceOverlay() {
   const assistantIdle = useMirrorStore((s) => s.assistantIdle);
-  if (assistantIdle) return null;
+  if (!MIC_UI_ENABLED || assistantIdle) return null;
   return <VoiceUI />;
 }
 
