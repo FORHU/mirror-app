@@ -138,12 +138,18 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         }
         audioQueueRef.current = new AudioQueue();
 
+        const pendingCategory = useMirrorStore.getState().pendingCategory;
+        if (pendingCategory) {
+          useMirrorStore.getState().setPendingCategory(null);
+        }
+
         const payload: Record<string, unknown> = {
           input: finalInput,
           conversationId: options?.conversationId,
           voice: true,
           kioskId,
           sitemap_context: SITEMAP_CONTEXT,
+          ...(pendingCategory ? { category: pendingCategory } : {}),
         };
 
         if (
