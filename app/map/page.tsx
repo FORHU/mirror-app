@@ -11,7 +11,6 @@ import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuickResponseChips } from "@/components/QuickResponseChips";
-import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 async function consumePendingLocation() {
   try {
@@ -54,7 +53,6 @@ async function consumePendingDirections() {
 }
 
 export default function MapPage() {
-  const { weather } = useWeather();
   const {
     homeLocation,
     homeLocationStatus,
@@ -159,7 +157,6 @@ export default function MapPage() {
       <div className="absolute bottom-28 left-0 right-0 z-30 pointer-events-none">
         <div className="pointer-events-auto">
           <QuickResponseChips
-            weather={weather}
             prompts={[
               "Show me restaurants and cafes near me.",
               "Show me popular spots and attractions near me.",

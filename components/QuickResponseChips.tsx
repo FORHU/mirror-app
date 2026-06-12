@@ -43,6 +43,8 @@ export interface PromptCategory {
   prompts: string[];
   /** If set, navigates to this route when a chip in this category is tapped */
   route?: string;
+  /** If true, weather context is not appended to prompts in this category */
+  noWeather?: boolean;
 }
 
 interface QuickResponseChipsProps {
@@ -102,7 +104,7 @@ export function QuickResponseChips({
 
   const handleTap = (prompt: string) => {
     onPromptSelect?.();
-    const enriched = withWeather(prompt, weather);
+    const enriched = activeCategory?.noWeather ? prompt : withWeather(prompt, weather);
     const route = activeCategory?.route;
     if (route && HANDOFF_ROUTES[route]) {
       // Chips with a destination route bypass ChatWonder on the source page.
