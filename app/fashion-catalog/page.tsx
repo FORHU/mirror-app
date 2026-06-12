@@ -8,10 +8,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
@@ -27,10 +24,7 @@ import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCar
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 
 import type { SwapSlot } from "@/modules/fashion/types";
-import {
-  FASHION_QUOTES,
-  FASHION_PROMPT_KEY,
-} from "@/modules/fashion/constants";
+import { FASHION_QUOTES } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 const MAIN_CATEGORIES = ["All", "Casual", "Formal", "Outdoor"];
@@ -95,6 +89,7 @@ function filterOutfitsByGender(
 export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
   const { speakText } = useVoiceContext();
   const setMicBusy = useMirrorStore((s) => s.setMicBusy);
   const userGender = useAuthStore((state) => state.user?.gender);
@@ -527,28 +522,24 @@ export default function FashionCatalog() {
   );
 
   const handlePromptSelect = useCallback(
-    async (prompt: string) => {
-      setIsChipLoading(true);
-      try {
-        const response = await chatWonderService.message({
-          input: `[stylist] ${prompt}`,
-          pageMode: "garment",
-        });
-        const query = response.garment_data?.query ?? "";
-        const params = new URLSearchParams(query);
-        if (!params.has("limit")) params.set("limit", "4");
-
-        const fetchedOutfits = await outfitService.getByQuery(
-          params.toString(),
-        );
-        if (fetchedOutfits && fetchedOutfits.length > 0) {
-          router.push(`/ai-recommendation-fashion?${params.toString()}`);
-        }
-      } catch {
-        // Do nothing on error
-      } finally {
-        setIsChipLoading(false);
-      }
+    (prompt: string) => {
+      const lower = prompt.toLowerCase();
+      let metaCategory = "";
+      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
+      else if (/streetwear/i.test(lower)) metaCategory = "Streetwear";
+      else if (/athleisure/i.test(lower)) metaCategory = "Athleisure";
+      else if (/activewear/i.test(lower)) metaCategory = "Activewear";
+      else if (/sportswear/i.test(lower)) metaCategory = "Sportswear";
+      else if (/winterwear/i.test(lower)) metaCategory = "Winterwear";
+      else if (/summerwear/i.test(lower)) metaCategory = "Summerwear";
+      else if (/springwear/i.test(lower)) metaCategory = "Springwear";
+      else if (/business/i.test(lower)) metaCategory = "Business";
+      else if (/formal/i.test(lower)) metaCategory = "Formal";
+      else if (/casual/i.test(lower)) metaCategory = "Casual";
+      const params = new URLSearchParams();
+      if (metaCategory) params.set("metaCategory", metaCategory);
+      params.set("limit", "100");
+      router.push(`/ai-recommendation-fashion?${params.toString()}`);
     },
     [router],
   );
@@ -658,19 +649,18 @@ export default function FashionCatalog() {
   // limit=4 is injected if the caller omitted it.
   const lastSearchParamsRef = useRef<string | null>(null);
   useEffect(() => {
-    const current = searchParams.toString();
-    const currentKey = `${current}::${genderFilter ?? "ANY"}`;
+    const currentKey = `${currentSearch}::${genderFilter ?? "ANY"}`;
     if (lastSearchParamsRef.current === currentKey) return;
     lastSearchParamsRef.current = currentKey;
 
     // Do not auto-fetch if there are no query parameters. This leaves
     // the outfits array empty so the idle OutfitImageCarousel can display.
-    if (!current) {
+    if (!currentSearch) {
       queueMicrotask(() => setOutfits([]));
       return;
     }
 
-    const params = new URLSearchParams(current);
+    const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "100"); // fetch all available outfits
 
     // Directly trigger the AI-complete path which fetches & maps outfits in one shot
@@ -683,34 +673,7 @@ export default function FashionCatalog() {
     });
     // setIsChipLoading(false) is called inside handleAiComplete's .finally()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, genderFilter]);
-
-  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
-  const handoffFiredRef = useRef(false);
-  useEffect(() => {
-    if (handoffFiredRef.current) return;
-    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
-    if (!prompt) return;
-    handoffFiredRef.current = true;
-    sessionStorage.removeItem(FASHION_PROMPT_KEY);
-    // SubmitText is gone; we ignore voice prompts on the catalog page.
-  }, []);
-
-  // TODO: restore ChatWonder garment_data flows once query-param format is confirmed
-  // Consume garment data forwarded from /ai-assistant via useMirrorStore.
-  // useEffect(() => {
-  //   const pending = useMirrorStore.getState().pendingGarmentData;
-  //   if (!pending) return;
-  //   useMirrorStore.getState().setPendingGarmentData(null);
-  //   setTimeout(() => { handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse); }, 0);
-  // }, []);
-
-  // Consume garment data from the chat-path nav_early flow (ChatWonderProvider).
-  // useEffect(() => {
-  //   if (!chatGarmentData) return;
-  //   useMirrorStore.getState().setChatGarmentData(null);
-  //   setTimeout(() => { handleAiComplete({ garment_data: chatGarmentData } as ChatWonderMessageResponse); }, 0);
-  // }, [chatGarmentData]);
+  }, [currentSearch, genderFilter]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">

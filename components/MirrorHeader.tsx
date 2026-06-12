@@ -10,19 +10,51 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 // Each page used to re-declare this markup (and its own useClock); they now
 // just render <MirrorHeader />.
 
-function useClock() {
+function ClockDisplay() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    // Wrap the initial state update in a timeout to avoid the synchronous setState warning
-    const timeoutId = setTimeout(() => setNow(new Date()), 0);
-    const intervalId = setInterval(() => setNow(new Date()), 1000);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
-    };
+    setTimeout(() => setNow(new Date()), 0);
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
   }, []);
-  return now;
+
+  if (!now) {
+    return (
+      <>
+        <div
+          className="rounded"
+          style={{
+            width: "80px",
+            height: "2rem",
+            background: "rgba(255,255,255,0.10)",
+          }}
+        />
+        <div
+          className="rounded mt-1"
+          style={{
+            width: "120px",
+            height: "0.875rem",
+            background: "rgba(255,255,255,0.07)",
+          }}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span
+        className="text-white font-thin select-none"
+        style={{ fontSize: "2rem", lineHeight: 1 }}
+      >
+        {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      </span>
+      <span className="text-white/60 text-sm font-light select-none">
+        {now.toLocaleDateString([], { weekday: "long" })},{" "}
+        {now.toLocaleDateString([], { month: "long", day: "numeric" })}
+      </span>
+    </>
+  );
 }
 
 export interface MirrorHeaderProps {
@@ -45,18 +77,6 @@ export default function MirrorHeader({
   className = "",
   style,
 }: MirrorHeaderProps) {
-  const now = useClock();
-  const time = now
-    ? now.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
-  const day = now ? now.toLocaleDateString([], { weekday: "long" }) : "";
-  const date = now
-    ? now.toLocaleDateString([], { month: "long", day: "numeric" })
-    : "";
-
   const rightContent =
     right ??
     (onBack ? (
@@ -85,15 +105,7 @@ export default function MirrorHeader({
           alignItems: "center",
         }}
       >
-        <span
-          className="text-white font-thin select-none"
-          style={{ fontSize: "2rem", lineHeight: 1 }}
-        >
-          {time}
-        </span>
-        <span className="text-white/60 text-sm font-light select-none">
-          {day}, {date}
-        </span>
+        <ClockDisplay />
       </div>
       <div
         style={{

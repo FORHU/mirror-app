@@ -20,7 +20,8 @@ import {
 } from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
-import { ASSISTANT_CHIP_CATEGORIES } from "./categories";
+import { getAssistantChipCategories } from "./categories";
+import { cn } from "../../modules/shared/utils";
 
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
@@ -29,11 +30,21 @@ type GarmentRecommendationAction = {
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
 const TAGLINES = [
-  "Ask me to navigate anywhere.",
-  "Step closer to check the weather.",
-  "I can recommend outfits for your day.",
-  "Your mirror. Always ready.",
-  "Reflect. Navigate. Discover.",
+  "Personalized for every reflection.",
+  "Smart style. Seamless discovery.",
+  "Designed around you.",
+  "Your world, beautifully understood.",
+  "See more. Discover more. Be more.",
+  "Style. Beauty. Places. Perfectly Connected.",
+  "Discover your look. Discover your world.",
+  "Where beauty meets every destination.",
+  "Your guide to style, beauty, and beyond.",
+  "Navigate life beautifully.",
+  "Look Good. Go Anywhere.",
+  "Fashion, Beauty, and Places—All in One Reflection.",
+  "Find Your Style. Find Your Way.",
+  "Curated for your look. Designed for your journey.",
+  "Beauty in every direction.",
 ];
 
 const ASSISTANT_GREETINGS = [
@@ -98,9 +109,10 @@ export default function AIAssistantPage() {
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
 
   const chipCategories = useMemo<PromptCategory[]>(() => {
-    if (!overviewHasData) return ASSISTANT_CHIP_CATEGORIES;
+    const base = getAssistantChipCategories();
+    if (!overviewHasData) return base;
     return [
-      ...ASSISTANT_CHIP_CATEGORIES,
+      ...base,
       {
         label: "Overview",
         icon: "📋",
@@ -185,17 +197,6 @@ export default function AIAssistantPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory, transcript, reply, error]);
 
-  const taglines = useMemo(() => {
-    const hour = new Date().getHours();
-    const timeTagline =
-      hour >= 5 && hour < 12
-        ? "Good morning. What's on your mind?"
-        : hour >= 17
-          ? "Good evening. Ready when you are."
-          : "Ready when you are.";
-    return [...TAGLINES, timeTagline];
-  }, []);
-
   // For development convenience: force a session restart on hard-refresh
   // so F5 acts like a "walk away" event and resets the gender/session.
   useEffect(() => {
@@ -210,11 +211,11 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (!showIdle) return;
     const id = setInterval(
-      () => setTaglineIndex((i) => (i + 1) % taglines.length),
-      5000,
+      () => setTaglineIndex((i) => (i + 1) % TAGLINES.length),
+      4000,
     );
     return () => clearInterval(id);
-  }, [showIdle, taglines.length]);
+  }, [showIdle]);
 
   const chooseGreeting = useCallback(() => {
     return ASSISTANT_GREETINGS[
@@ -260,7 +261,16 @@ export default function AIAssistantPage() {
   const displayReply = error || reply || latest?.assistant || activeGreeting;
 
   return (
-    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
+    <div
+      className={cn(
+        "w-screen",
+        "h-screen",
+        "bg-canvas",
+        "flex",
+        "flex-col",
+        "overflow-hidden",
+      )}
+    >
       <MirrorHeader />
 
       <AnimatePresence mode="wait">
@@ -271,7 +281,16 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer relative"
+            className={cn(
+              "flex-1",
+              "flex",
+              "flex-col",
+              "items-center",
+              "justify-center",
+              "px-12",
+              "cursor-pointer",
+              "relative",
+            )}
             onClick={() => handleWake(true)}
           >
             {/* 
@@ -284,12 +303,35 @@ export default function AIAssistantPage() {
               muted
               loop
               playsInline
-              className="absolute inset-0 w-full h-full object-cover opacity-60 z-0 pointer-events-none"
+              className={cn(
+                "absolute",
+                "inset-0",
+                "w-full",
+                "h-full",
+                "object-cover",
+                "opacity-60",
+                "z-0",
+                "pointer-events-none",
+              )}
             />
-            <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
+            <div
+              className={cn(
+                "absolute",
+                "inset-0",
+                "bg-black/40",
+                "z-0",
+                "pointer-events-none",
+              )}
+            />
 
             <div
-              className="flex items-center justify-center relative z-10"
+              className={cn(
+                "flex",
+                "items-center",
+                "justify-center",
+                "relative",
+                "z-10",
+              )}
               style={{ minHeight: "8rem" }}
             >
               <AnimatePresence mode="wait">
@@ -299,23 +341,56 @@ export default function AIAssistantPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.6 }}
-                  className="text-white font-thin text-center leading-[1.15] tracking-tight"
+                  className={cn(
+                    "text-white",
+                    "font-thin",
+                    "text-center",
+                    "leading-[1.15]",
+                    "tracking-tight",
+                  )}
                   style={{ fontSize: "clamp(2rem, 6.5vw, 3.75rem)" }}
                 >
-                  {taglines[taglineIndex]}
+                  {TAGLINES[taglineIndex]}
                 </motion.p>
               </AnimatePresence>
             </div>
 
-            <div className="mt-8 flex flex-col items-center gap-4 relative z-10">
-              <div className="h-px w-12 bg-white/15" />
-              <p className="text-[10px] uppercase tracking-[0.5em] text-white/30 font-light drop-shadow-md">
+            <div
+              className={cn(
+                "mt-8",
+                "flex",
+                "flex-col",
+                "items-center",
+                "gap-4",
+                "relative",
+                "z-10",
+              )}
+            >
+              <div className={cn("h-px", "w-12", "bg-white/15")} />
+              <p
+                className={cn(
+                  "text-[10px]",
+                  "uppercase",
+                  "tracking-[0.5em]",
+                  "text-white/30",
+                  "font-light",
+                  "drop-shadow-md",
+                )}
+              >
                 Step closer to begin
               </p>
             </div>
 
             <motion.div
-              className="mt-10 flex flex-col items-center gap-3 relative z-10"
+              className={cn(
+                "mt-10",
+                "flex",
+                "flex-col",
+                "items-center",
+                "gap-3",
+                "relative",
+                "z-10",
+              )}
               animate={{ opacity: [0.4, 0.9, 0.4] }}
               transition={{
                 duration: 2.5,
@@ -324,10 +399,18 @@ export default function AIAssistantPage() {
               }}
             >
               <div
-                className="rounded-full border border-white/20"
+                className={cn("rounded-full", "border", "border-white/20")}
                 style={{ width: 48, height: 48 }}
               />
-              <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 font-light">
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "uppercase",
+                  "tracking-[0.5em]",
+                  "text-white/25",
+                  "font-light",
+                )}
+              >
                 Tap to start
               </p>
             </motion.div>
@@ -339,10 +422,29 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 min-h-0 flex flex-col px-10 pt-8 pb-28"
+            className={cn(
+              "flex-1",
+              "min-h-0",
+              "flex",
+              "flex-col",
+              "px-10",
+              "pt-8",
+              "pb-28",
+            )}
           >
             {/* conversation — top half */}
-            <div className="flex-1 min-h-0 flex flex-col justify-center max-w-2xl mx-auto w-full">
+            <div
+              className={cn(
+                "flex-1",
+                "min-h-0",
+                "flex",
+                "flex-col",
+                "justify-center",
+                "max-w-2xl",
+                "mx-auto",
+                "w-full",
+              )}
+            >
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${displayUser}-${displayReply}-${voiceState}`}
@@ -350,20 +452,45 @@ export default function AIAssistantPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.4 }}
-                  className="flex flex-col gap-8"
+                  className={cn("flex", "flex-col", "gap-8")}
                 >
                   {displayUser && (
                     <div className="text-right">
-                      <p className="text-white/25 text-[9px] uppercase tracking-[0.4em] font-light mb-2">
+                      <p
+                        className={cn(
+                          "text-white/25",
+                          "text-[9px]",
+                          "uppercase",
+                          "tracking-[0.4em]",
+                          "font-light",
+                          "mb-2",
+                        )}
+                      >
                         You said
                       </p>
-                      <p className="text-white/55 text-lg font-light leading-relaxed">
+                      <p
+                        className={cn(
+                          "text-white/55",
+                          "text-lg",
+                          "font-light",
+                          "leading-relaxed",
+                        )}
+                      >
                         {displayUser}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-white/25 text-[9px] uppercase tracking-[0.4em] font-light mb-2">
+                    <p
+                      className={cn(
+                        "text-white/25",
+                        "text-[9px]",
+                        "uppercase",
+                        "tracking-[0.4em]",
+                        "font-light",
+                        "mb-2",
+                      )}
+                    >
                       Mirror
                     </p>
                     <p
@@ -383,8 +510,26 @@ export default function AIAssistantPage() {
             </div>
 
             {/* ambient state indicator — NOT flex-1 so chips below have room */}
-            <div className="shrink-0 flex flex-col items-center justify-center gap-3 py-4">
-              <p className="text-white/50 text-[10px] uppercase tracking-[0.4em] font-light">
+            <div
+              className={cn(
+                "shrink-0",
+                "flex",
+                "flex-col",
+                "items-center",
+                "justify-center",
+                "gap-3",
+                "py-4",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-white/50",
+                  "text-[10px]",
+                  "uppercase",
+                  "tracking-[0.4em]",
+                  "font-light",
+                )}
+              >
                 {status}
               </p>
             </div>

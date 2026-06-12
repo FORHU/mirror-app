@@ -19,7 +19,6 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -131,9 +130,18 @@ const COSMETIC_QUOTES = [
   },
 ];
 
+const PROMPT_SUGGESTIONS = [
+  "Suggest a morning skincare routine for today.",
+  "What products give me a fresh, polished look?",
+  "What products address my main skin concerns?",
+  "Suggest a calming evening routine.",
+  "How do I improve my skin texture and glow?",
+];
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
   const lastSearchParamsRef = useRef<string | null>(null);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
@@ -174,11 +182,12 @@ export default function CosmeticRecommendationPage() {
 
   // URL params flow — mirrors fashion: when query params change, fetch from DB.
   useEffect(() => {
-    const current = searchParams.toString();
-    if (lastSearchParamsRef.current === current) return;
-    lastSearchParamsRef.current = current;
-    if (!current) return;
-    const params = new URLSearchParams(current);
+    if (lastSearchParamsRef.current === currentSearch) return;
+    lastSearchParamsRef.current = currentSearch;
+    if (!currentSearch) return;
+
+    let cancelled = false;
+    const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "10");
     const queryStr = params.toString();
     Promise.resolve()
@@ -187,14 +196,23 @@ export default function CosmeticRecommendationPage() {
         return cosmeticsService.getByQuery(queryStr);
       })
       .then((products) => {
+        if (cancelled) return;
         useMirrorStore
           .getState()
           .setPendingCosmeticsData({ recommendations: products });
         setSelectedId(null);
       })
-      .catch(console.error)
-      .finally(() => setIsHandoffLoading(false));
-  }, [searchParams]);
+      .catch((err) => {
+        if (!cancelled) console.error(err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsHandoffLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSearch]);
 
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
@@ -257,8 +275,8 @@ export default function CosmeticRecommendationPage() {
   }, [sortedRecs]);
 
   // The design requests 10 items total, split 5 on left, 5 on right.
-  const leftColRecs = sortedRecs.slice(0, 5);
-  const rightColRecs = sortedRecs.slice(5, 10);
+  const leftColRecs = useMemo(() => sortedRecs.slice(0, 5), [sortedRecs]);
+  const rightColRecs = useMemo(() => sortedRecs.slice(5, 10), [sortedRecs]);
 
   // Derive the active recommendation during render (defaults to the top rank)
   // instead of syncing it via an effect, which triggers cascading renders.
@@ -266,6 +284,11 @@ export default function CosmeticRecommendationPage() {
     if (!sortedRecs.length) return null;
     return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
   }, [selectedId, sortedRecs]);
+
+  const handleRecommendationSelect = useCallback(
+    (rec: SkinRecommendation) => setSelectedId(rec.id),
+    [],
+  );
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
@@ -279,7 +302,10 @@ export default function CosmeticRecommendationPage() {
 
       if (action.type === "GARMENT_RECOMMENDATION") {
         const response = action.response as {
-          cosmetics_data?: { query?: string; recommendations?: unknown[] } | null;
+          cosmetics_data?: {
+            query?: string;
+            recommendations?: unknown[];
+          } | null;
         } | null;
         if (response?.cosmetics_data) {
           handleAiComplete(response.cosmetics_data);
@@ -293,33 +319,20 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    async (prompt: string) => {
+    (_prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      try {
-        const response = await chatWonderService.message({
-          input: `[cosmetics] ${prompt}`,
-          pageMode: "cosmetics",
-          skinAnalysis: skinAnalysisResult,
-          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
-        });
-        if (response.message) {
-          useMirrorStore.getState().setAiSuggestion(response.message);
-        }
-        if (response.cosmetics_data) {
-          handleAiComplete(response.cosmetics_data);
-        }
-      } catch (err) {
-        console.error("[cosmetics-suggestion]", err);
-      } finally {
-        setIsHandoffLoading(false);
-      }
+      const params = new URLSearchParams();
+      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+      if (skinCat) params.set("metaCategory", skinCat);
+      params.set("limit", "10");
+      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
     },
-    [handleAiComplete, skinAnalysisResult],
+    [router, skinAnalysisResult],
   );
 
   useEffect(() => {
@@ -374,7 +387,7 @@ export default function CosmeticRecommendationPage() {
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={(rec) => setSelectedId(rec.id)}
+            onSelect={handleRecommendationSelect}
             emptyMessage="No products available."
           />
         </div>
@@ -493,7 +506,7 @@ export default function CosmeticRecommendationPage() {
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={(rec) => setSelectedId(rec.id)}
+            onSelect={handleRecommendationSelect}
             emptyMessage="No more products"
           />
         </div>
@@ -517,13 +530,7 @@ export default function CosmeticRecommendationPage() {
       </button>
 
       <PromptFloater
-        prompts={[
-          "Suggest a morning skincare routine for today.",
-          "What products give me a fresh, polished look?",
-          "What products address my main skin concerns?",
-          "Suggest a calming evening routine.",
-          "How do I improve my skin texture and glow?",
-        ]}
+        prompts={PROMPT_SUGGESTIONS}
         onSelect={handleSuggestionSelect}
       />
     </div>
