@@ -12,6 +12,7 @@ import {
   cosmeticsService,
   type SkinRecommendation,
 } from "@/modules/shared/api/cosmetics.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
@@ -319,20 +320,39 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (_prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      const params = new URLSearchParams();
-      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
-      if (skinCat) params.set("metaCategory", skinCat);
-      params.set("limit", "10");
-      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+        });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+        // Fallback: fetch the skin-type catalog so the chip still shows products.
+        const params = new URLSearchParams();
+        const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+        if (skinCat) params.set("metaCategory", skinCat);
+        params.set("limit", "10");
+        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [router, skinAnalysisResult],
+    [handleAiComplete, router, skinAnalysisResult],
   );
 
   useEffect(() => {
