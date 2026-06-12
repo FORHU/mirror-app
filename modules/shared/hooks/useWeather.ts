@@ -87,7 +87,14 @@ export function useWeather() {
           fetch(`/api/weather?lat=${lat}&lon=${lon}`)
             .then((r) => r.json())
             .then((d) => setWeather(normalizeWeather(d)))
-            .catch(() => setWeather({ temp: null, code: 0, city: "---", condition: getTimeOfDay() })),
+            .catch(() =>
+              setWeather({
+                temp: null,
+                code: 0,
+                city: "---",
+                condition: getTimeOfDay(),
+              }),
+            ),
         )
         .finally(() => setLoading(false));
     }
@@ -96,7 +103,14 @@ export function useWeather() {
       fetch("/api/weather")
         .then((r) => r.json())
         .then((d) => setWeather(normalizeWeather(d)))
-        .catch(() => setWeather({ temp: null, code: 0, city: "---", condition: getTimeOfDay() }))
+        .catch(() =>
+          setWeather({
+            temp: null,
+            code: 0,
+            city: "---",
+            condition: getTimeOfDay(),
+          }),
+        )
         .finally(() => setLoading(false));
     }
 

@@ -44,7 +44,7 @@ const TAGLINES = [
   "Fashion, Beauty, and Places—All in One Reflection.",
   "Find Your Style. Find Your Way.",
   "Curated for your look. Designed for your journey.",
-  "Beauty in every direction."
+  "Beauty in every direction.",
 ];
 
 const ASSISTANT_GREETINGS = [
@@ -93,8 +93,8 @@ const ASSISTANT_GREETINGS = [
 export default function AIAssistantPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
-  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => { });
-  const startListeningRef = useRef<() => void>(() => { });
+  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const startListeningRef = useRef<() => void>(() => {});
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
@@ -202,7 +202,7 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
-        m.chatWonderService.restart().catch(() => { });
+        m.chatWonderService.restart().catch(() => {});
       });
     }
   }, []);
@@ -261,7 +261,16 @@ export default function AIAssistantPage() {
   const displayReply = error || reply || latest?.assistant || activeGreeting;
 
   return (
-    <div className={cn('w-screen', 'h-screen', 'bg-canvas', 'flex', 'flex-col', 'overflow-hidden')}>
+    <div
+      className={cn(
+        "w-screen",
+        "h-screen",
+        "bg-canvas",
+        "flex",
+        "flex-col",
+        "overflow-hidden",
+      )}
+    >
       <MirrorHeader />
 
       <AnimatePresence mode="wait">
@@ -272,7 +281,16 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={cn('flex-1', 'flex', 'flex-col', 'items-center', 'justify-center', 'px-12', 'cursor-pointer', 'relative')}
+            className={cn(
+              "flex-1",
+              "flex",
+              "flex-col",
+              "items-center",
+              "justify-center",
+              "px-12",
+              "cursor-pointer",
+              "relative",
+            )}
             onClick={() => handleWake(true)}
           >
             {/* 
@@ -285,12 +303,35 @@ export default function AIAssistantPage() {
               muted
               loop
               playsInline
-              className={cn('absolute', 'inset-0', 'w-full', 'h-full', 'object-cover', 'opacity-60', 'z-0', 'pointer-events-none')}
+              className={cn(
+                "absolute",
+                "inset-0",
+                "w-full",
+                "h-full",
+                "object-cover",
+                "opacity-60",
+                "z-0",
+                "pointer-events-none",
+              )}
             />
-            <div className={cn('absolute', 'inset-0', 'bg-black/40', 'z-0', 'pointer-events-none')} />
+            <div
+              className={cn(
+                "absolute",
+                "inset-0",
+                "bg-black/40",
+                "z-0",
+                "pointer-events-none",
+              )}
+            />
 
             <div
-              className={cn('flex', 'items-center', 'justify-center', 'relative', 'z-10')}
+              className={cn(
+                "flex",
+                "items-center",
+                "justify-center",
+                "relative",
+                "z-10",
+              )}
               style={{ minHeight: "8rem" }}
             >
               <AnimatePresence mode="wait">
@@ -300,7 +341,13 @@ export default function AIAssistantPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.6 }}
-                  className={cn('text-white', 'font-thin', 'text-center', 'leading-[1.15]', 'tracking-tight')}
+                  className={cn(
+                    "text-white",
+                    "font-thin",
+                    "text-center",
+                    "leading-[1.15]",
+                    "tracking-tight",
+                  )}
                   style={{ fontSize: "clamp(2rem, 6.5vw, 3.75rem)" }}
                 >
                   {TAGLINES[taglineIndex]}
@@ -308,15 +355,42 @@ export default function AIAssistantPage() {
               </AnimatePresence>
             </div>
 
-            <div className={cn('mt-8', 'flex', 'flex-col', 'items-center', 'gap-4', 'relative', 'z-10')}>
-              <div className={cn('h-px', 'w-12', 'bg-white/15')} />
-              <p className={cn('text-[10px]', 'uppercase', 'tracking-[0.5em]', 'text-white/30', 'font-light', 'drop-shadow-md')}>
+            <div
+              className={cn(
+                "mt-8",
+                "flex",
+                "flex-col",
+                "items-center",
+                "gap-4",
+                "relative",
+                "z-10",
+              )}
+            >
+              <div className={cn("h-px", "w-12", "bg-white/15")} />
+              <p
+                className={cn(
+                  "text-[10px]",
+                  "uppercase",
+                  "tracking-[0.5em]",
+                  "text-white/30",
+                  "font-light",
+                  "drop-shadow-md",
+                )}
+              >
                 Step closer to begin
               </p>
             </div>
 
             <motion.div
-              className={cn('mt-10', 'flex', 'flex-col', 'items-center', 'gap-3', 'relative', 'z-10')}
+              className={cn(
+                "mt-10",
+                "flex",
+                "flex-col",
+                "items-center",
+                "gap-3",
+                "relative",
+                "z-10",
+              )}
               animate={{ opacity: [0.4, 0.9, 0.4] }}
               transition={{
                 duration: 2.5,
@@ -325,10 +399,18 @@ export default function AIAssistantPage() {
               }}
             >
               <div
-                className={cn('rounded-full', 'border', 'border-white/20')}
+                className={cn("rounded-full", "border", "border-white/20")}
                 style={{ width: 48, height: 48 }}
               />
-              <p className={cn('text-[9px]', 'uppercase', 'tracking-[0.5em]', 'text-white/25', 'font-light')}>
+              <p
+                className={cn(
+                  "text-[9px]",
+                  "uppercase",
+                  "tracking-[0.5em]",
+                  "text-white/25",
+                  "font-light",
+                )}
+              >
                 Tap to start
               </p>
             </motion.div>
@@ -340,10 +422,29 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={cn('flex-1', 'min-h-0', 'flex', 'flex-col', 'px-10', 'pt-8', 'pb-28')}
+            className={cn(
+              "flex-1",
+              "min-h-0",
+              "flex",
+              "flex-col",
+              "px-10",
+              "pt-8",
+              "pb-28",
+            )}
           >
             {/* conversation — top half */}
-            <div className={cn('flex-1', 'min-h-0', 'flex', 'flex-col', 'justify-center', 'max-w-2xl', 'mx-auto', 'w-full')}>
+            <div
+              className={cn(
+                "flex-1",
+                "min-h-0",
+                "flex",
+                "flex-col",
+                "justify-center",
+                "max-w-2xl",
+                "mx-auto",
+                "w-full",
+              )}
+            >
               <AnimatePresence mode="wait">
                 <motion.div
                   key={`${displayUser}-${displayReply}-${voiceState}`}
@@ -351,25 +452,51 @@ export default function AIAssistantPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.4 }}
-                  className={cn('flex', 'flex-col', 'gap-8')}
+                  className={cn("flex", "flex-col", "gap-8")}
                 >
                   {displayUser && (
                     <div className="text-right">
-                      <p className={cn('text-white/25', 'text-[9px]', 'uppercase', 'tracking-[0.4em]', 'font-light', 'mb-2')}>
+                      <p
+                        className={cn(
+                          "text-white/25",
+                          "text-[9px]",
+                          "uppercase",
+                          "tracking-[0.4em]",
+                          "font-light",
+                          "mb-2",
+                        )}
+                      >
                         You said
                       </p>
-                      <p className={cn('text-white/55', 'text-lg', 'font-light', 'leading-relaxed')}>
+                      <p
+                        className={cn(
+                          "text-white/55",
+                          "text-lg",
+                          "font-light",
+                          "leading-relaxed",
+                        )}
+                      >
                         {displayUser}
                       </p>
                     </div>
                   )}
                   <div>
-                    <p className={cn('text-white/25', 'text-[9px]', 'uppercase', 'tracking-[0.4em]', 'font-light', 'mb-2')}>
+                    <p
+                      className={cn(
+                        "text-white/25",
+                        "text-[9px]",
+                        "uppercase",
+                        "tracking-[0.4em]",
+                        "font-light",
+                        "mb-2",
+                      )}
+                    >
                       Mirror
                     </p>
                     <p
-                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${error ? "text-red-300/75" : "text-white/90"
-                        }`}
+                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
+                        error ? "text-red-300/75" : "text-white/90"
+                      }`}
                       style={{
                         fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
                         maxHeight: "45vh",
@@ -383,8 +510,26 @@ export default function AIAssistantPage() {
             </div>
 
             {/* ambient state indicator — NOT flex-1 so chips below have room */}
-            <div className={cn('shrink-0', 'flex', 'flex-col', 'items-center', 'justify-center', 'gap-3', 'py-4')}>
-              <p className={cn('text-white/50', 'text-[10px]', 'uppercase', 'tracking-[0.4em]', 'font-light')}>
+            <div
+              className={cn(
+                "shrink-0",
+                "flex",
+                "flex-col",
+                "items-center",
+                "justify-center",
+                "gap-3",
+                "py-4",
+              )}
+            >
+              <p
+                className={cn(
+                  "text-white/50",
+                  "text-[10px]",
+                  "uppercase",
+                  "tracking-[0.4em]",
+                  "font-light",
+                )}
+              >
                 {status}
               </p>
             </div>
