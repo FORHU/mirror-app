@@ -380,39 +380,6 @@ export default function OverviewPage() {
         <OverviewGrid />
       </div>
 
-      {/* Touch UI Fallback (No Mic) */}
-      {!isLoading && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute bottom-8 w-full flex justify-center gap-4 z-40 px-8 flex-wrap"
-        >
-          {[
-            { label: "👔 Work Outfit", prompt: "Plan a professional outfit for a business meeting" },
-            { label: "🍷 Date Night", prompt: "I have a dinner date tonight, what should I wear?" },
-            { label: "☕ Casual Weekend", prompt: "Plan a casual and comfortable outfit for a weekend coffee run" },
-            { label: "✨ Skincare Focus", prompt: "Recommend a skincare routine for today" },
-          ].map((btn) => (
-            <motion.button
-              key={btn.label}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setPendingPrompt(null);
-                setGreeting("Pulling that together for you…");
-                startGarments();
-                startOutfits();
-                startCosmetics();
-                void runOverviewPlan(btn.prompt);
-              }}
-              className="px-6 py-3 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-white/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] font-medium text-sm hover:bg-white/10 hover:text-white hover:border-white/20 transition-colors"
-            >
-              {btn.label}
-            </motion.button>
-          ))}
-        </motion.div>
-      )}
-
       {/* Full-screen video loader overlay when resolving data */}
       <AnimatePresence>
         {isLoading && (
@@ -423,7 +390,7 @@ export default function OverviewPage() {
               opacity: 0,
               transition: { duration: 0.5, ease: "easeInOut" },
             }}
-            className="absolute inset-0 z-50 bg-canvas flex flex-col items-center justify-center overflow-hidden"
+            className="fixed inset-0 z-[9999] bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
