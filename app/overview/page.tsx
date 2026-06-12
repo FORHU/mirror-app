@@ -38,7 +38,10 @@ import {
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outfitService } from "@/modules/shared/api/outfit.service";
-import { cosmeticsService, type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
+import {
+  cosmeticsService,
+  type SkinAnalysis,
+} from "@/modules/shared/api/cosmetics.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import MirrorHeader from "@/components/MirrorHeader";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
