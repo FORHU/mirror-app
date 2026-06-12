@@ -3,17 +3,14 @@
 import { useState } from "react";
 import {
   AlertCircle,
-  MapPin,
   ShoppingBag,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
   CosmeticTileItem,
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
   TileState,
 } from "../types";
@@ -220,91 +217,6 @@ function WardrobeContent({
   );
 }
 
-function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
-  const pin = (size: number) => (
-    <div
-      className="relative rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
-      style={{
-        height: size,
-        width: size,
-        background:
-          "radial-gradient(ellipse at 35% 45%, rgba(96,140,255,0.14), transparent 70%)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <MapPin
-          className="text-blue-300 drop-shadow-lg"
-          style={{ width: size * 0.28, height: size * 0.28 }}
-        />
-      </motion.div>
-      <motion.div
-        className="absolute bottom-3 w-6 h-0.5 rounded-full bg-blue-400/25"
-        animate={{ scaleX: [1, 0.6, 1], opacity: [0.5, 0.2, 0.5] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <span className="absolute top-2 right-3 text-[10px] text-white/20 font-mono">
-        {data.lat.toFixed(3)}, {data.lng.toFixed(3)}
-      </span>
-    </div>
-  );
-
-  const stopList = data.stops && data.stops.length > 1 && (
-    <div className="space-y-1.5 border-t border-white/5 pt-3 overflow-y-auto">
-      {data.stops.slice(0, wide ? 6 : 5).map((s, i, arr) => (
-        <div key={`${s.name}-${i}`} className="flex items-start gap-3">
-          <div className="flex flex-col items-center shrink-0 mt-1">
-            <div className="w-2 h-2 rounded-full bg-blue-400/70" />
-            {i < arr.length - 1 && (
-              <div className="w-px h-3 bg-white/10 mt-0.5" />
-            )}
-          </div>
-          <span className="text-white/45 text-sm truncate">{s.name}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  if (wide) {
-    return (
-      <div className="flex gap-5 h-full">
-        {pin(180)}
-        <div className="flex flex-col gap-3 flex-1 min-w-0 justify-start pt-1">
-          <div>
-            <p className="text-white text-xl font-bold truncate">{data.name}</p>
-            {data.address && (
-              <p className="text-white/35 text-sm truncate mt-0.5">
-                {data.address}
-              </p>
-            )}
-          </div>
-          {stopList}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3 h-full">
-      {pin(100)}
-      <div className="shrink-0">
-        <p className="text-white text-base font-semibold truncate">
-          {data.name}
-        </p>
-        {data.address && (
-          <p className="text-white/35 text-sm truncate mt-0.5">
-            {data.address}
-          </p>
-        )}
-      </div>
-      {stopList}
-    </div>
-  );
-}
-
 function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
   if (!items.length) return <EmptyTile text="No fashion pieces yet." />;
 
@@ -394,7 +306,6 @@ export function OverviewGrid() {
   const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
   const cosmetics = useOverviewStore((s) => s.cosmetics);
-  const map = useOverviewStore((s) => s.map);
 
   const garmentItems = garments.data?.length
     ? garments.data
@@ -417,27 +328,24 @@ export function OverviewGrid() {
         <GarmentsContent items={garmentItems} />
       </Tile>
 
-      <Tile icon={MapPin} label="Map" state={map}>
-        {map.data ? (
-          <MapContent data={map.data} />
-        ) : (
-          <EmptyTile text="No map destination yet." />
-        )}
-      </Tile>
-
-      <Tile icon={Sparkles} label="Cosmetics" state={cosmetics}>
-        {cosmetics.data?.length ? (
-          <CosmeticsStrip items={cosmetics.data} />
-        ) : (
-          <EmptyTile text="No cosmetic picks yet." />
-        )}
-      </Tile>
-
       <Tile icon={WandSparkles} label="Outfits" state={wardrobeState}>
         {outfits.data?.length ? (
           <WardrobeContent outfits={outfits.data} />
         ) : (
           <EmptyTile text="No outfits yet." />
+        )}
+      </Tile>
+
+      <Tile
+        icon={Sparkles}
+        label="Cosmetics"
+        state={cosmetics}
+        className="col-span-2"
+      >
+        {cosmetics.data?.length ? (
+          <CosmeticsStrip items={cosmetics.data} />
+        ) : (
+          <EmptyTile text="No cosmetic picks yet." />
         )}
       </Tile>
     </div>

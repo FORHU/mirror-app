@@ -60,7 +60,6 @@ export async function performRestart(router: AppRouterInstance) {
     skinCaptureUrl: null,
     overviewFashionSnapshot: null,
     overviewCosmeticsSnapshot: null,
-    overviewMapSnapshot: null,
     chatNavPending: false,
     chatStreamingText: "",
     chatGarmentData: null,
