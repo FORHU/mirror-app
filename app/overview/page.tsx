@@ -41,6 +41,7 @@ import { outfitService } from "@/modules/shared/api/outfit.service";
 import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import MirrorHeader from "@/components/MirrorHeader";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 // The voice pipeline emits this extended action (not part of the base union)
 // when a garment recommendation resolves; narrow against it safely.
@@ -58,6 +59,8 @@ type OverviewLocationContext = { lat: number; lng: number };
 async function requestGarmentsWithFreshSession(
   input: string,
   location?: OverviewLocationContext | null,
+  weather?: Record<string, unknown> | null,
+  skinAnalysis?: Record<string, unknown> | null,
 ) {
   const payload = {
     input,
@@ -70,6 +73,8 @@ async function requestGarmentsWithFreshSession(
           },
         }
       : {}),
+    ...(weather ? { weather } : {}),
+    ...(skinAnalysis ? { skinAnalysis } : {}),
   };
   try {
     return await chatWonderService.message(payload);
@@ -103,6 +108,8 @@ export default function OverviewPage() {
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
+
+  const { weather } = useWeather();
 
   // Explicit gate for the full-screen loader: true while the initial Outline
   // hydration is in flight (so we don't flash empty tiles before data arrives),
@@ -252,6 +259,8 @@ export default function OverviewPage() {
             .filter(Boolean)
             .join(" "),
           locationCtx,
+          weather as Record<string, unknown> | null,
+          skinAnalysisResult,
         );
 
         const rawGarmentData = response.garment_data as Record<
@@ -267,13 +276,16 @@ export default function OverviewPage() {
           const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
-          
+
           if (garments.length > 0 || outfits.length > 0) {
             setGarments(garments);
             setOutfits(outfits);
           } else {
             // Fallback: If DB search yields nothing, use the LLM's generated sets (if any)
-            const fallback = adaptGarmentData({ ...rawGarmentData, query: undefined });
+            const fallback = adaptGarmentData({
+              ...rawGarmentData,
+              query: undefined,
+            });
             setGarments(fallback.garments);
             setOutfits(fallback.outfits);
           }
@@ -304,7 +316,7 @@ export default function OverviewPage() {
         setCosmetics([]);
       }
     },
-    [setGarments, setOutfits, setCosmetics],
+    [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
