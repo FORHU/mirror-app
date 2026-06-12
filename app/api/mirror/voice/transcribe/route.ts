@@ -88,6 +88,14 @@ function resolveLanguageCode(lang: string): LanguageCode {
 // 500ms of silence padding (int16 PCM at 16kHz = 16000 samples/s × 0.5s × 2 bytes)
 const SILENCE_PADDING = new Uint8Array(16000);
 
+const transcribeClient = new TranscribeStreamingClient({
+  region: process.env.AWS_REGION ?? "ap-southeast-1",
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
+  },
+});
+
 export async function POST(req: NextRequest) {
   const lang = req.nextUrl.searchParams.get("lang") ?? "en-US";
 
@@ -113,14 +121,6 @@ export async function POST(req: NextRequest) {
   padded.set(audioBytes, SILENCE_PADDING.length);
   padded.set(SILENCE_PADDING, SILENCE_PADDING.length + audioBytes.length);
 
-  const client = new TranscribeStreamingClient({
-    region: process.env.AWS_REGION ?? "ap-southeast-1",
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? "",
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? "",
-    },
-  });
-
   async function* audioStream() {
     const CHUNK = 8192; // 4096 samples × 2 bytes — matches ScriptProcessorNode buffer size
     for (let i = 0; i < padded.length; i += CHUNK) {
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { TranscriptResultStream } = await client.send(
+    const { TranscriptResultStream } = await transcribeClient.send(
       new StartStreamTranscriptionCommand({
         LanguageCode: resolveLanguageCode(lang),
         MediaEncoding: "pcm",
@@ -154,7 +154,5 @@ export async function POST(req: NextRequest) {
       { error: err instanceof Error ? err.message : "Transcription failed" },
       { status: 500 },
     );
-  } finally {
-    client.destroy();
   }
 }

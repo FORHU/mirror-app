@@ -444,6 +444,15 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const stopPlayback = useCallback(() => {
+    playbackRef.current?.stop();
+    playbackRef.current = null;
+    playbackCtxRef.current?.close();
+    playbackCtxRef.current = null;
+  }, []);
+
+  // ----------------------
+
   const startItineraryIdleTimer = useCallback(() => {
     clearItineraryIdleTimer();
     itineraryIdleTimerRef.current = setTimeout(async () => {
@@ -463,6 +472,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         src.connect(playCtx.destination);
         playbackRef.current = src;
         src.onended = () => {
+          stopPlayback();
           setVoiceState("idle");
         };
         src.start(0);
@@ -470,16 +480,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     }, 15000);
-  }, [clearItineraryIdleTimer]);
-
-  // ----------------------
-
-  const stopPlayback = useCallback(() => {
-    playbackRef.current?.stop();
-    playbackRef.current = null;
-    playbackCtxRef.current?.close();
-    playbackCtxRef.current = null;
-  }, []);
+  }, [clearItineraryIdleTimer, stopPlayback]);
 
   // Tear down the mic stream/graph and stop collecting frames. Safe to call
   // when nothing is recording. (Refs are stable, so no deps needed.)
@@ -3342,13 +3343,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   }, [voiceState]);
 
   const stopListening = useCallback(async () => {
-    if (voiceState !== "recording") return;
+    if (!isRecordingRef.current) return;
     // Grab the captured frames, tear down the mic, then transcribe.
     const frames = speechFramesRef.current;
     stopMicCapture();
     setVoiceState("processing");
     await submitAudioRef.current?.(frames);
-  }, [voiceState, stopMicCapture]);
+  }, [stopMicCapture]);
 
   // Keep the ref current so the max-recording timer always calls the latest one.
   useEffect(() => {
