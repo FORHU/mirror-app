@@ -1,12 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { performRestart } from "@/modules/shared/voice/sessionCommands";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 export default function RestartButton() {
-  const router = useRouter();
   const pendingRef = useRef(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
@@ -24,7 +21,8 @@ export default function RestartButton() {
   const handleAction = () => {
     if (pendingRef.current) return;
     pendingRef.current = true;
-    performRestart(router)
+    chatWonderService
+      .restart()
       .catch(() => {})
       .finally(() => {
         pendingRef.current = false;
@@ -42,7 +40,7 @@ export default function RestartButton() {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onTouchStart={handleTouchStart}
