@@ -2623,7 +2623,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               // Session conflict from a prior page — restart and retry once.
               if (err instanceof Error && err.message.includes("HTTP 409")) {
                 await chatWonderService.restart();
-                return chatWonderService.message(mapMsgPayload, { silent: true });
+                return chatWonderService.message(mapMsgPayload, {
+                  silent: true,
+                });
               }
               throw err;
             });
