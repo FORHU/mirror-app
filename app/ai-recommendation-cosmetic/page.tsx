@@ -12,6 +12,7 @@ import {
   cosmeticsService,
   type SkinRecommendation,
 } from "@/modules/shared/api/cosmetics.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
@@ -130,9 +131,47 @@ const COSMETIC_QUOTES = [
   },
 ];
 
+const PROMPT_SUGGESTIONS = [
+  "Suggest a morning skincare routine for today.",
+  "What products give me a fresh, polished look?",
+  "What products address my main skin concerns?",
+  "Suggest a calming evening routine.",
+  "How do I improve my skin texture and glow?",
+];
+
+/** Collapsed AI suggestion banner: tap to expand into a scrollable panel.
+ *  Mount with `key={text}` so a new suggestion always starts collapsed. */
+function ExpandableSuggestion({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full text-left tap-highlight-none focus:outline-none"
+    >
+      <p
+        className={`text-[14px] text-white/58 italic leading-relaxed font-light ${
+          expanded ? "max-h-[32vh] overflow-y-auto pr-2" : "line-clamp-4"
+        }`}
+        // The page root sets touchAction: "none"; re-enable vertical pan so the
+        // expanded text is touch-scrollable on the mirror.
+        style={expanded ? { touchAction: "pan-y" } : undefined}
+      >
+        &quot;{text}&quot;
+      </p>
+      {text.length > 240 && (
+        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/35">
+          {expanded ? "Tap to collapse" : "Tap to read more"}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
   const lastSearchParamsRef = useRef<string | null>(null);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
@@ -173,11 +212,12 @@ export default function CosmeticRecommendationPage() {
 
   // URL params flow — mirrors fashion: when query params change, fetch from DB.
   useEffect(() => {
-    const current = searchParams.toString();
-    if (lastSearchParamsRef.current === current) return;
-    lastSearchParamsRef.current = current;
-    if (!current) return;
-    const params = new URLSearchParams(current);
+    if (lastSearchParamsRef.current === currentSearch) return;
+    lastSearchParamsRef.current = currentSearch;
+    if (!currentSearch) return;
+
+    let cancelled = false;
+    const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "10");
     const queryStr = params.toString();
     Promise.resolve()
@@ -186,14 +226,23 @@ export default function CosmeticRecommendationPage() {
         return cosmeticsService.getByQuery(queryStr);
       })
       .then((products) => {
+        if (cancelled) return;
         useMirrorStore
           .getState()
           .setPendingCosmeticsData({ recommendations: products });
         setSelectedId(null);
       })
-      .catch(console.error)
-      .finally(() => setIsHandoffLoading(false));
-  }, [searchParams]);
+      .catch((err) => {
+        if (!cancelled) console.error(err);
+      })
+      .finally(() => {
+        if (!cancelled) setIsHandoffLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSearch]);
 
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
@@ -256,8 +305,8 @@ export default function CosmeticRecommendationPage() {
   }, [sortedRecs]);
 
   // The design requests 10 items total, split 5 on left, 5 on right.
-  const leftColRecs = sortedRecs.slice(0, 5);
-  const rightColRecs = sortedRecs.slice(5, 10);
+  const leftColRecs = useMemo(() => sortedRecs.slice(0, 5), [sortedRecs]);
+  const rightColRecs = useMemo(() => sortedRecs.slice(5, 10), [sortedRecs]);
 
   // Derive the active recommendation during render (defaults to the top rank)
   // instead of syncing it via an effect, which triggers cascading renders.
@@ -265,6 +314,11 @@ export default function CosmeticRecommendationPage() {
     if (!sortedRecs.length) return null;
     return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
   }, [selectedId, sortedRecs]);
+
+  const handleRecommendationSelect = useCallback(
+    (rec: SkinRecommendation) => setSelectedId(rec.id),
+    [],
+  );
 
   const handleVoiceAction = useCallback(
     (action: ChatWonderAction) => {
@@ -295,20 +349,39 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (_prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      const params = new URLSearchParams();
-      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
-      if (skinCat) params.set("metaCategory", skinCat);
-      params.set("limit", "10");
-      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+        });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+        // Fallback: fetch the skin-type catalog so the chip still shows products.
+        const params = new URLSearchParams();
+        const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+        if (skinCat) params.set("metaCategory", skinCat);
+        params.set("limit", "10");
+        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [router, skinAnalysisResult],
+    [handleAiComplete, router, skinAnalysisResult],
   );
 
   useEffect(() => {
@@ -363,7 +436,7 @@ export default function CosmeticRecommendationPage() {
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={(rec) => setSelectedId(rec.id)}
+            onSelect={handleRecommendationSelect}
             emptyMessage="No products available."
           />
         </div>
@@ -465,10 +538,8 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             {aiSuggestion && (
-              <div className="mt-6 px-5 shrink-0">
-                <p className="text-[14px] text-white/58 italic leading-relaxed font-light">
-                  &quot;{aiSuggestion}&quot;
-                </p>
+              <div className="mt-6 px-5 shrink-0 w-full">
+                <ExpandableSuggestion key={aiSuggestion} text={aiSuggestion} />
               </div>
             )}
           </div>
@@ -482,7 +553,7 @@ export default function CosmeticRecommendationPage() {
             pageSize={5}
             columns={1}
             selectedId={selectedRec?.id}
-            onSelect={(rec) => setSelectedId(rec.id)}
+            onSelect={handleRecommendationSelect}
             emptyMessage="No more products"
           />
         </div>
@@ -506,13 +577,7 @@ export default function CosmeticRecommendationPage() {
       </button>
 
       <PromptFloater
-        prompts={[
-          "Suggest a morning skincare routine for today.",
-          "What products give me a fresh, polished look?",
-          "What products address my main skin concerns?",
-          "Suggest a calming evening routine.",
-          "How do I improve my skin texture and glow?",
-        ]}
+        prompts={PROMPT_SUGGESTIONS}
         onSelect={handleSuggestionSelect}
       />
     </div>

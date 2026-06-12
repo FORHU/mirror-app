@@ -4,6 +4,10 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { ROUTES } from "@/navigation";
+import { MAP_PROMPT_KEY } from "@/modules/map";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 
 // ── Date helpers — computed at render time so prompts always carry today's date ──
 
@@ -77,14 +81,29 @@ export function QuickResponseChips({
     ? activeCategory.prompts
     : (prompts ?? []);
 
+  const HANDOFF_ROUTES: Record<string, string> = {
+    [ROUTES.MAP]: MAP_PROMPT_KEY,
+    [ROUTES.AI_RECOMMENDATION_FASHION]: FASHION_PROMPT_KEY,
+    [ROUTES.AI_RECOMMENDATION_COSMETIC]: COSMETIC_PROMPT_KEY,
+  };
+
   const handleTap = (prompt: string) => {
     onPromptSelect?.();
+    const route = activeCategory?.route;
+    if (route && HANDOFF_ROUTES[route]) {
+      // Chips with a destination route bypass ChatWonder on the source page.
+      // Write the prompt to the destination's handoff key so it processes the
+      // query itself once mounted (with voiceState idle and location loaded).
+      try { sessionStorage.setItem(HANDOFF_ROUTES[route], prompt); } catch {}
+      router.push(route);
+      return;
+    }
     if (onSelect) {
       onSelect(prompt);
     } else {
       void submitText(prompt);
     }
-    if (activeCategory?.route) router.push(activeCategory.route);
+    if (route) router.push(route);
   };
 
   return (

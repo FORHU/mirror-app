@@ -10,7 +10,7 @@ export function getAssistantChipCategories(): PromptCategory[] {
     {
       label: "Fashion",
       icon: "👗",
-      route: ROUTES.FASHION_CATALOG,
+      route: ROUTES.AI_RECOMMENDATION_FASHION,
       prompts: [
         `What should I wear today? It's ${getToday()} and I want something stylish but comfortable.`,
         `I have an event this ${nextWeekday(5)} — build me a full outfit from head to toe.`,
