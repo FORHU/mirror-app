@@ -29,7 +29,7 @@ export async function runKernel(
   }
 
   if (guard.action) {
-    await executeAction(guard.action, router, pathname, onAction);
+    await executeAction(guard.action, router, onAction);
   }
 
   return {

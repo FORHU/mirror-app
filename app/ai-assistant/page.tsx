@@ -16,7 +16,6 @@ import AssistantNavBar from "@/components/AssistantNavBar";
 import {
   useOverviewStore,
   adaptGarmentData,
-  adaptMapsData,
 } from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
@@ -26,7 +25,7 @@ import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
-  response?: { garment_data?: unknown; maps_data?: unknown };
+  response?: { garment_data?: unknown };
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
@@ -100,12 +99,10 @@ export default function AIAssistantPage() {
 
   const setGarments = useOverviewStore((s) => s.setGarments);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
-  const setMap = useOverviewStore((s) => s.setMap);
   const overviewHasData = useOverviewStore(
     (s) =>
       s.garments.status === "ready" ||
       s.outfits.status === "ready" ||
-      s.map.status === "ready" ||
       s.cosmetics.status === "ready",
   );
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
@@ -158,10 +155,8 @@ export default function AIAssistantPage() {
       if (g.length) setGarments(g);
       if (o.length) setOutfits(o);
 
-      const m = adaptMapsData(response?.maps_data);
-      if (m) setMap(m);
     },
-    [setGarments, setOutfits, setMap],
+    [setGarments, setOutfits],
   );
 
   useVoice(pageContext, handleVoiceAction);
@@ -253,7 +248,6 @@ export default function AIAssistantPage() {
 
   // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- external camera event driving UI state
     if (isPresent && showIdle) handleWake(true);
   }, [isPresent, showIdle, handleWake]);
 

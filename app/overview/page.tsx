@@ -9,9 +9,9 @@
  *  2. On detection we greet the user (on-screen + TTS) and silently kick off a
  *     background skin analysis (capture → upload → analyze → Socket.io result),
  *     which fills the Cosmetics tile.
- *  3. The user then speaks an intent ("I have a dinner in Baguio tonight"). The
- *     global voice mic routes it through ChatWonder, whose tools (garments,
- *     skin, location, weather) stream back and populate the remaining tiles.
+ *  3. The user then speaks an intent ("I have a dinner tonight"). The global voice
+ *     mic routes it through ChatWonder, whose tools (garments, skin) stream back
+ *     and populate the remaining tiles.
  *  4. Until each tool's data arrives, its tile shows a skeleton.
  */
 
@@ -25,8 +25,6 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
-import { mapService } from "@/modules/map/services/map.service";
-import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
 
 import {
   OverviewGrid,
@@ -34,7 +32,6 @@ import {
   adaptGarmentData,
   adaptRemoteOutfitsToTiles,
   adaptCosmeticsData,
-  adaptMapsData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
@@ -49,29 +46,15 @@ type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
   response?: {
     garment_data?: unknown;
-    maps_data?: unknown[];
     cosmetics_data?: unknown;
   };
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
-type OverviewLocationContext = { lat: number; lng: number };
-
-async function requestGarmentsWithFreshSession(
-  input: string,
-  location?: OverviewLocationContext | null,
-) {
+async function requestGarmentsWithFreshSession(input: string) {
   const payload = {
     input,
     pageMode: "overview" as const,
-    ...(location
-      ? {
-          location: {
-            lat: location.lat.toString(),
-            lng: location.lng.toString(),
-          },
-        }
-      : {}),
   };
   try {
     return await chatWonderService.message(payload);
@@ -87,7 +70,6 @@ async function requestGarmentsWithFreshSession(
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const emptyMap = useOverviewStore((s) => s.emptyMap);
   const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
@@ -95,9 +77,6 @@ export default function OverviewPage() {
   const startCosmetics = useOverviewStore((s) => s.startCosmetics);
   const setCosmetics = useOverviewStore((s) => s.setCosmetics);
   const setSkinAnalysis = useOverviewStore((s) => s.setSkinAnalysis);
-  const startMap = useOverviewStore((s) => s.startMap);
-  const setMap = useOverviewStore((s) => s.setMap);
-  const failMap = useOverviewStore((s) => s.failMap);
 
   const greeting = useOverviewStore((s) => s.greeting);
   const overviewFashionSnapshot = useMirrorStore(
@@ -105,10 +84,6 @@ export default function OverviewPage() {
   );
   const overviewCosmeticsSnapshot = useMirrorStore(
     (s) => s.overviewCosmeticsSnapshot,
-  );
-  const overviewMapSnapshot = useMirrorStore((s) => s.overviewMapSnapshot);
-  const setOverviewMapSnapshot = useMirrorStore(
-    (s) => s.setOverviewMapSnapshot,
   );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
@@ -128,28 +103,16 @@ export default function OverviewPage() {
   const cosmeticsLoading = useOverviewStore(
     (s) => s.cosmetics.status === "loading",
   );
-  const mapLoading = useOverviewStore((s) => s.map.status === "loading");
 
   const isLoading =
-    hydrating ||
-    garmentsLoading ||
-    outfitsLoading ||
-    cosmeticsLoading ||
-    mapLoading;
+    hydrating || garmentsLoading || outfitsLoading || cosmeticsLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
   const handoffFiredRef = useRef(false);
 
-  // ── no longer reset the grid whenever a fresh session lands here ──
-  // because we route here from /ai-assistant and need to preserve the data we just caught.
-
   // ── hybrid hydration: reflect the persisted Outline on arrival ──
-  // Overview is a downstream dashboard, so on mount we fill the tiles from the
-  // user's saved Outline. Live ChatWonder updates overwrite these afterward.
-  // Map stays user-driven; do not hydrate route destinations from the outline
-  // because that can surface stale trips before the user opens Maps.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -158,9 +121,6 @@ export default function OverviewPage() {
         if (cancelled || !outline) return;
         const { garments, outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
-        // Skip overwriting tiles the handoff already set to "loading" — letting
-        // outline data flip them to "ready" here hides the overlay while the AI
-        // call is still running, flashing stale data on screen for several seconds.
         if (!handoffFiredRef.current) {
           if (garments.length) setGarments(garments);
           if (outfits.length) setOutfits(outfits);
@@ -179,14 +139,6 @@ export default function OverviewPage() {
   }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
 
   const router = useRouter();
-
-  const commitMap = useCallback(
-    (data: Parameters<typeof setMap>[0]) => {
-      setMap(data);
-      setOverviewMapSnapshot(data);
-    },
-    [setMap, setOverviewMapSnapshot],
-  );
 
   useEffect(() => {
     if (handoffFiredRef.current) return;
@@ -209,13 +161,9 @@ export default function OverviewPage() {
       setCosmetics(cosmetics);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
     }
-
-    if (overviewMapSnapshot) setMap(overviewMapSnapshot);
-    else emptyMap();
   }, [
     overviewFashionSnapshot,
     overviewCosmeticsSnapshot,
-    overviewMapSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
     skinAnalysisResult?.recommendations,
@@ -223,8 +171,6 @@ export default function OverviewPage() {
     setOutfits,
     setCosmetics,
     setSkinAnalysis,
-    setMap,
-    emptyMap,
   ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
@@ -243,60 +189,23 @@ export default function OverviewPage() {
       if (action.type !== "GARMENT_RECOMMENDATION") return;
 
       const response = (action as GarmentRecommendationAction).response;
-      // Preserve semantics: a turn that doesn't mention a section leaves that
-      // tile as-is (don't stomp hydrated/earlier data with an empty result).
       const { garments, outfits } = adaptGarmentData(response?.garment_data);
       if (garments.length) setGarments(garments);
       if (outfits.length) setOutfits(outfits);
 
       const cosmetics = adaptCosmeticsData(response?.cosmetics_data);
       if (cosmetics.length) setCosmetics(cosmetics);
-
-      const m = adaptMapsData(response?.maps_data?.[0]);
-      if (m) commitMap(m);
     },
-    [setGarments, setOutfits, setCosmetics, commitMap],
+    [setGarments, setOutfits, setCosmetics],
   );
 
   useVoice(pageContext, handleVoiceAction);
 
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
-      const destination = extractLocationFromTranscript(prompt);
-      // Location for weather: prefer the geocoded destination, fall back to the
-      // user's current GPS position. The backend resolves weather from location.
-      let locationCtx: OverviewLocationContext | null = null;
-
-      if (destination) {
-        try {
-          const { results } = await mapService.geocode(destination);
-          const place = results[0];
-          if (place) {
-            commitMap({
-              name: place.name || destination,
-              address: place.address,
-              lat: place.lat,
-              lng: place.lng,
-            });
-            locationCtx = { lat: place.lat, lng: place.lng };
-          } else {
-            emptyMap();
-          }
-        } catch (err) {
-          failMap(err instanceof Error ? err.message : "Map lookup failed");
-        }
-      }
-
       try {
         const response = await requestGarmentsWithFreshSession(
-          [
-            "[stylist]",
-            `Plan: ${prompt}`,
-            destination ? `Destination: ${destination}.` : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-          locationCtx,
+          ["[stylist]", `Plan: ${prompt}`].join(" "),
         );
 
         const rawGarmentData = response.garment_data as Record<
@@ -335,21 +244,13 @@ export default function OverviewPage() {
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));
         }
-
-        const mapPayload = Array.isArray(response.maps_data)
-          ? response.maps_data[0]
-          : response.maps_data;
-        const m = adaptMapsData(mapPayload);
-        if (m) commitMap(m);
-        else if (!destination) emptyMap();
       } catch {
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
-        if (!destination) emptyMap();
       }
     },
-    [emptyMap, failMap, setGarments, commitMap, setOutfits, setCosmetics],
+    [setGarments, setOutfits, setCosmetics],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
@@ -368,15 +269,13 @@ export default function OverviewPage() {
     handoffFiredRef.current = true;
     cameFromAssistantRef.current = true;
 
-    // Show the tiles as actively loading (skeletons) while the tools resolve.
     setGreeting("Pulling that together for you…");
     startGarments();
     startOutfits();
     startCosmetics();
-    startMap();
 
     void runOverviewPlan(prompt);
-    // Fire exactly once on mount; weather is best-effort and may still be null.
+    // Fire exactly once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

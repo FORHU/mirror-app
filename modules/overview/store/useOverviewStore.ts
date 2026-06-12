@@ -3,7 +3,6 @@
 import { create } from "zustand";
 import type {
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
   CosmeticTileItem,
   SkinAnalysisTileItem,
@@ -31,7 +30,6 @@ interface OverviewState {
 
   garments: TileState<GarmentTileItem[]>;
   outfits: TileState<OutfitTileItem[]>;
-  map: TileState<MapTileData>;
   cosmetics: TileState<CosmeticTileItem[]>;
   skinAnalysis: TileState<SkinAnalysisTileItem>;
 
@@ -49,11 +47,6 @@ interface OverviewState {
 
   setSkinAnalysis: (item: SkinAnalysisTileItem | null) => void;
 
-  startMap: () => void;
-  setMap: (data: MapTileData) => void;
-  emptyMap: () => void;
-  failMap: (error: string) => void;
-
   reset: () => void;
 }
 
@@ -62,7 +55,6 @@ const initial = {
   greeting: null as string | null,
   garments: idle<GarmentTileItem[]>(),
   outfits: idle<OutfitTileItem[]>(),
-  map: idle<MapTileData>(),
   cosmetics: idle<CosmeticTileItem[]>(),
   skinAnalysis: idle<SkinAnalysisTileItem>(),
 };
@@ -114,11 +106,6 @@ export const useOverviewStore = create<OverviewState>((set) => ({
         error: null,
       },
     }),
-
-  startMap: () => set({ map: { status: "loading", data: null, error: null } }),
-  setMap: (data) => set({ map: { status: "ready", data, error: null } }),
-  emptyMap: () => set({ map: { status: "empty", data: null, error: null } }),
-  failMap: (error) => set({ map: { status: "error", data: null, error } }),
 
   reset: () => set({ ...initial }),
 }));
