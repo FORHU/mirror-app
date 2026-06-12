@@ -84,7 +84,6 @@ export default function MapPage() {
     if (!prompt) return;
     sessionStorage.removeItem(MAP_PROMPT_KEY);
     handoffPromptRef.current = prompt;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
