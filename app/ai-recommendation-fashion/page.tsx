@@ -12,10 +12,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import { type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -43,7 +40,7 @@ export default function VirtualMirrorV2() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isProcessing, submitText } = useVoiceContext();
-  const [isChipLoading, setIsChipLoading] = useState(false);
+  const [isChipLoading, _setIsChipLoading] = useState(false);
   const isLoading = isProcessing || isChipLoading;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
