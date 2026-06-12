@@ -96,7 +96,7 @@ export default function RootLayout({
               <ChatWonderProvider>
                 <ProximitySensorMount>
                   <AuthInitializer>{children}</AuthInitializer>
-                  <GlobalVoiceOverlay />
+                  {/* <GlobalVoiceOverlay /> */}
                   <RestartButton />
                   <WalkAwayWatcher />
                   <SkinAnalysisTrigger />
