@@ -1,19 +1,14 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState } from "react";
-import {
-  AlertCircle,
-  MapPin,
-  ShoppingBag,
-  Sparkles,
-  WandSparkles,
-} from "lucide-react";
+import { AlertCircle, ShoppingBag, Sparkles, WandSparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
 import type {
   CosmeticTileItem,
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
   TileState,
 } from "../types";
@@ -29,11 +24,11 @@ function TileHeader({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-3 pb-3 shrink-0">
-      <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl">
-        <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
+    <div className="flex items-center gap-3 pb-3 shrink-0 relative z-10">
+      <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/10">
+        <Icon className="w-5 h-5 text-white/90" strokeWidth={1.5} />
       </div>
-      <span className="text-white/45 text-[11px] font-semibold uppercase tracking-widest">
+      <span className="text-white/60 text-[11px] font-bold uppercase tracking-[0.2em]">
         {label}
       </span>
     </div>
@@ -42,16 +37,16 @@ function TileHeader({
 
 function TileSkeleton({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="animate-pulse space-y-3 flex-1">
+    <div className="space-y-4 flex-1 opacity-80">
       <div
-        className="w-full rounded-2xl bg-white/5"
+        className="w-full rounded-2xl bg-white/[0.04] shimmer-bg"
         style={{ aspectRatio: "3/2" }}
       />
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="h-3 rounded-full bg-white/6"
-          style={{ width: `${78 - i * 12}%` }}
+          className="h-3 rounded-full bg-white/[0.04] shimmer-bg"
+          style={{ width: `${85 - i * 15}%` }}
         />
       ))}
     </div>
@@ -61,8 +56,8 @@ function TileSkeleton({ rows = 3 }: { rows?: number }) {
 function TileError({ text }: { text: string }) {
   return (
     <div className="h-full min-h-[120px] flex flex-col items-center justify-center gap-2 text-center">
-      <AlertCircle className="w-5 h-5 text-white/50" />
-      <p className="text-white/55 text-sm max-w-[80%]">{text}</p>
+      <AlertCircle className="w-6 h-6 text-white/40" />
+      <p className="text-white/50 text-sm max-w-[80%] font-medium">{text}</p>
     </div>
   );
 }
@@ -70,7 +65,7 @@ function TileError({ text }: { text: string }) {
 function EmptyTile({ text }: { text: string }) {
   return (
     <div className="h-full min-h-[120px] flex items-center justify-center text-center">
-      <p className="text-white/35 text-sm max-w-[220px] leading-relaxed">
+      <p className="text-white/40 text-sm max-w-[220px] leading-relaxed font-medium">
         {text}
       </p>
     </div>
@@ -79,12 +74,11 @@ function EmptyTile({ text }: { text: string }) {
 
 function CardImage({ src, alt }: { src: string; alt: string }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={proxied(src)}
       alt={alt}
       loading="lazy"
-      className="w-full h-full object-cover"
+      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
       onError={(e) => {
         (e.currentTarget as HTMLImageElement).style.opacity = "0.15";
       }}
@@ -106,45 +100,54 @@ function WardrobeContent({
 
   if (wide && outfits.length > 1) {
     return (
-      <div className="flex gap-4 h-full min-h-0">
-        <div className="relative flex-[1.45] min-w-0 rounded-2xl overflow-hidden bg-white/3">
+      <div className="flex gap-5 h-full min-h-0 relative z-10">
+        <div className="relative flex-[1.45] min-w-0 rounded-2xl overflow-hidden bg-white/5 border border-white/10 group-hover:border-white/20 transition-colors">
           <CardImage src={outfit.imageUrl} alt={outfit.name} />
-          <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-5">
-            <p className="text-white font-semibold text-xl leading-snug truncate">
+          <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 left-0 right-0 p-6">
+            <p className="text-white font-bold text-2xl leading-snug truncate drop-shadow-md">
               {outfit.name}
             </p>
             {outfit.vibe && (
-              <p className="text-white/50 text-sm mt-0.5 truncate">
+              <p className="text-white/70 text-sm mt-1 truncate uppercase tracking-wider text-[11px] font-semibold">
                 {outfit.vibe}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 flex-1 min-w-0 overflow-y-auto">
+        <div className="flex flex-col gap-2.5 flex-1 min-w-0 overflow-y-auto scrollbar-hidden pr-1">
           {outfits.slice(0, 5).map((o, i) => (
             <button
               key={o.id}
               onClick={() => setIndex(i)}
-              className={`grid grid-cols-[64px_1fr] gap-3 shrink-0 rounded-xl overflow-hidden border transition-all text-left ${
+              className={`group/btn grid grid-cols-[72px_1fr] gap-4 shrink-0 rounded-2xl overflow-hidden border transition-all text-left ${
                 i === index
-                  ? "border-white/30 ring-1 ring-white/20"
-                  : "border-white/10 opacity-60 hover:opacity-80"
+                  ? "border-white/40 ring-1 ring-white/20 bg-white/10"
+                  : "border-white/10 opacity-70 hover:opacity-100 hover:bg-white/5"
               }`}
             >
-              <div className="bg-white/3" style={{ aspectRatio: "3/4" }}>
-                <CardImage src={o.imageUrl} alt={o.name} />
+              <div
+                className="bg-white/5 overflow-hidden"
+                style={{ aspectRatio: "3/4" }}
+              >
+                <img
+                  src={proxied(o.imageUrl)}
+                  alt={o.name}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/btn:scale-110"
+                />
               </div>
-              <div className="min-w-0 py-2.5 pr-3 flex flex-col justify-center">
-                <p className="text-white text-sm font-medium truncate">
+              <div className="min-w-0 py-3 pr-4 flex flex-col justify-center">
+                <p className="text-white text-[15px] font-semibold truncate drop-shadow-sm">
                   {o.name}
                 </p>
                 {o.vibe && (
-                  <p className="text-white/60 text-xs truncate">{o.vibe}</p>
+                  <p className="text-white/60 text-[10px] uppercase tracking-widest truncate mt-0.5 font-medium">
+                    {o.vibe}
+                  </p>
                 )}
                 {o.reason && (
-                  <p className="text-white/55 text-[11px] line-clamp-2 mt-0.5">
+                  <p className="text-white/50 text-xs line-clamp-2 mt-1.5 leading-relaxed">
                     {o.reason}
                   </p>
                 )}
@@ -157,8 +160,8 @@ function WardrobeContent({
   }
 
   return (
-    <div className="flex flex-col h-full gap-3">
-      <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden bg-white/3">
+    <div className="flex flex-col h-full gap-4 relative z-10">
+      <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden bg-white/5 border border-white/10">
         {outfit.imageUrl ? (
           <CardImage src={outfit.imageUrl} alt={outfit.name} />
         ) : (
@@ -166,13 +169,13 @@ function WardrobeContent({
             <WandSparkles className="w-12 h-12 text-white/10" />
           </div>
         )}
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/10 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent pointer-events-none" />
         <div className="absolute bottom-0 left-0 right-0 p-5">
-          <p className="text-white font-semibold text-xl leading-snug truncate">
+          <p className="text-white font-bold text-xl leading-snug truncate drop-shadow-md">
             {outfit.name}
           </p>
           {outfit.vibe && (
-            <p className="text-white/50 text-sm mt-0.5 truncate">
+            <p className="text-white/70 text-[10px] font-semibold tracking-widest mt-1 truncate uppercase">
               {outfit.vibe}
             </p>
           )}
@@ -180,18 +183,18 @@ function WardrobeContent({
       </div>
 
       {outfit.reason && (
-        <p className="text-white/35 text-xs line-clamp-2 px-0.5 shrink-0">
+        <p className="text-white/50 text-sm line-clamp-2 px-1 shrink-0 font-medium leading-relaxed">
           {outfit.reason}
         </p>
       )}
 
       {outfit.garments.length > 0 && (
-        <div className="flex gap-2.5 overflow-x-auto shrink-0 pb-0.5 scrollbar-hidden">
+        <div className="flex gap-3 overflow-x-auto shrink-0 pb-1 scrollbar-hidden px-1">
           {outfit.garments.slice(0, 8).map((g) => (
             <div
               key={g.id}
               title={g.name}
-              className="shrink-0 w-14 rounded-xl overflow-hidden bg-white/3 border border-white/10"
+              className="shrink-0 w-16 rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors"
               style={{ aspectRatio: "3/4" }}
             >
               <CardImage src={g.imageUrl} alt={g.name} />
@@ -201,16 +204,16 @@ function WardrobeContent({
       )}
 
       {outfits.length > 1 && (
-        <div className="flex justify-center gap-1.5 shrink-0">
+        <div className="flex justify-center gap-2 shrink-0 pt-1">
           {outfits.slice(0, 6).map((_, i) => (
             <button
               key={i}
               onClick={() => setIndex(i)}
               aria-label={`Show outfit ${i + 1}`}
-              className={`rounded-full transition-all duration-200 ${
+              className={`rounded-full transition-all duration-300 ${
                 i === index
-                  ? "w-5 h-1.5 bg-white/60"
-                  : "w-1.5 h-1.5 bg-white/20 hover:bg-white/35"
+                  ? "w-6 h-1.5 bg-white/80 shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                  : "w-1.5 h-1.5 bg-white/20 hover:bg-white/50"
               }`}
             />
           ))}
@@ -220,106 +223,32 @@ function WardrobeContent({
   );
 }
 
-function MapContent({ data, wide }: { data: MapTileData; wide?: boolean }) {
-  const pin = (size: number) => (
-    <div
-      className="relative rounded-2xl overflow-hidden flex items-center justify-center shrink-0"
-      style={{
-        height: size,
-        width: size,
-        background:
-          "radial-gradient(ellipse at 35% 45%, rgba(96,140,255,0.14), transparent 70%)",
-        border: "1px solid rgba(255,255,255,0.05)",
-      }}
-    >
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <MapPin
-          className="text-blue-300 drop-shadow-lg"
-          style={{ width: size * 0.28, height: size * 0.28 }}
-        />
-      </motion.div>
-      <motion.div
-        className="absolute bottom-3 w-6 h-0.5 rounded-full bg-blue-400/25"
-        animate={{ scaleX: [1, 0.6, 1], opacity: [0.5, 0.2, 0.5] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <span className="absolute top-2 right-3 text-[10px] text-white/20 font-mono">
-        {data.lat.toFixed(3)}, {data.lng.toFixed(3)}
-      </span>
-    </div>
-  );
-
-  const stopList = data.stops && data.stops.length > 1 && (
-    <div className="space-y-1.5 border-t border-white/5 pt-3 overflow-y-auto">
-      {data.stops.slice(0, wide ? 6 : 5).map((s, i, arr) => (
-        <div key={`${s.name}-${i}`} className="flex items-start gap-3">
-          <div className="flex flex-col items-center shrink-0 mt-1">
-            <div className="w-2 h-2 rounded-full bg-blue-400/70" />
-            {i < arr.length - 1 && (
-              <div className="w-px h-3 bg-white/10 mt-0.5" />
-            )}
-          </div>
-          <span className="text-white/45 text-sm truncate">{s.name}</span>
-        </div>
-      ))}
-    </div>
-  );
-
-  if (wide) {
-    return (
-      <div className="flex gap-5 h-full">
-        {pin(180)}
-        <div className="flex flex-col gap-3 flex-1 min-w-0 justify-start pt-1">
-          <div>
-            <p className="text-white text-xl font-bold truncate">{data.name}</p>
-            {data.address && (
-              <p className="text-white/35 text-sm truncate mt-0.5">
-                {data.address}
-              </p>
-            )}
-          </div>
-          {stopList}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3 h-full">
-      {pin(100)}
-      <div className="shrink-0">
-        <p className="text-white text-base font-semibold truncate">
-          {data.name}
-        </p>
-        {data.address && (
-          <p className="text-white/35 text-sm truncate mt-0.5">
-            {data.address}
-          </p>
-        )}
-      </div>
-      {stopList}
-    </div>
-  );
-}
-
 function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
   if (!items.length) return <EmptyTile text="No fashion pieces yet." />;
 
   return (
-    <div className="grid grid-cols-4 gap-2.5 overflow-hidden">
+    <div className="grid grid-cols-4 gap-3 overflow-hidden relative z-10">
       {items.slice(0, 8).map((item) => (
         <div
           key={item.id}
-          className="min-w-0 rounded-2xl overflow-hidden bg-white/3 border border-white/10"
+          className="min-w-0 rounded-2xl overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group/item"
         >
-          <div className="bg-white/2" style={{ aspectRatio: "3/4" }}>
-            <CardImage src={item.imageUrl} alt={item.name} />
+          <div
+            className="bg-white/[0.03] overflow-hidden"
+            style={{ aspectRatio: "3/4" }}
+          >
+            <img
+              src={proxied(item.imageUrl)}
+              alt={item.name}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.opacity = "0.15";
+              }}
+            />
           </div>
-          <div className="px-2 py-1.5">
-            <p className="text-white/75 text-[11px] font-medium truncate">
+          <div className="px-2.5 py-2">
+            <p className="text-white/80 text-[11px] font-semibold truncate tracking-wide">
               {item.name}
             </p>
           </div>
@@ -331,19 +260,29 @@ function GarmentsContent({ items }: { items: GarmentTileItem[] }) {
 
 function CosmeticsStrip({ items }: { items: CosmeticTileItem[] }) {
   return (
-    <div className="grid grid-cols-3 gap-3 overflow-hidden content-start">
+    <div className="grid grid-cols-3 gap-4 overflow-hidden content-start relative z-10">
       {items.slice(0, 6).map((c) => (
         <div
           key={c.id}
-          className="min-w-0 flex flex-col rounded-2xl overflow-hidden bg-white/3 border border-white/10"
+          className="min-w-0 flex flex-col rounded-2xl overflow-hidden bg-white/5 border border-white/10 hover:border-white/30 transition-colors group/item"
         >
-          <div className="h-[112px] bg-white/2">
-            <CardImage src={c.imageUrl} alt={c.name} />
+          <div className="h-[120px] bg-white/[0.03] overflow-hidden">
+            <img
+              src={proxied(c.imageUrl)}
+              alt={c.name}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.opacity = "0.15";
+              }}
+            />
           </div>
-          <div className="px-2.5 py-2 shrink-0">
-            <p className="text-white text-xs font-medium truncate">{c.name}</p>
+          <div className="px-3 py-2.5 shrink-0 bg-black/20">
+            <p className="text-white/90 text-[13px] font-bold truncate drop-shadow-sm">
+              {c.name}
+            </p>
             {c.brand && (
-              <p className="text-white/50 text-[11px] truncate capitalize">
+              <p className="text-white/50 text-[10px] font-semibold uppercase tracking-widest truncate mt-0.5">
                 {c.brand}
               </p>
             )}
@@ -360,24 +299,33 @@ function Tile({
   state,
   children,
   className,
+  delay = 0,
 }: {
   icon: React.ElementType;
   label: string;
   state: TileState<unknown>;
   children: React.ReactNode;
   className?: string;
+  delay?: number;
 }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
       className={[
-        "glass-card-strong neon-border-white rounded-3xl flex flex-col p-5 min-h-0 overflow-hidden",
+        "glass-card-strong neon-border-white rounded-[2rem] flex flex-col p-6 min-h-0 overflow-hidden relative group",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
+      {/* Premium Glass Glare Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-white/[0.01] to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
       <TileHeader icon={icon} label={label} />
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col relative z-10">
         {state.status === "loading" ? (
           <TileSkeleton />
         ) : state.status === "error" ? (
@@ -386,7 +334,7 @@ function Tile({
           children
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -394,7 +342,6 @@ export function OverviewGrid() {
   const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
   const cosmetics = useOverviewStore((s) => s.cosmetics);
-  const map = useOverviewStore((s) => s.map);
 
   const garmentItems = garments.data?.length
     ? garments.data
@@ -412,20 +359,24 @@ export function OverviewGrid() {
   };
 
   return (
-    <div className="grid grid-cols-2 grid-rows-2 gap-3 flex-1 min-h-0">
-      <Tile icon={ShoppingBag} label="Fashion" state={garmentsState}>
+    <div className="grid grid-cols-2 grid-rows-2 gap-5 flex-1 min-h-0 p-2">
+      <Tile
+        icon={ShoppingBag}
+        label="Fashion Pieces"
+        state={garmentsState}
+        className="col-span-1"
+        delay={0.1}
+      >
         <GarmentsContent items={garmentItems} />
       </Tile>
 
-      <Tile icon={MapPin} label="Map" state={map}>
-        {map.data ? (
-          <MapContent data={map.data} />
-        ) : (
-          <EmptyTile text="No map destination yet." />
-        )}
-      </Tile>
-
-      <Tile icon={Sparkles} label="Cosmetics" state={cosmetics}>
+      <Tile
+        icon={Sparkles}
+        label="Skin Routine"
+        state={cosmetics}
+        className="col-span-1"
+        delay={0.2}
+      >
         {cosmetics.data?.length ? (
           <CosmeticsStrip items={cosmetics.data} />
         ) : (
@@ -433,9 +384,15 @@ export function OverviewGrid() {
         )}
       </Tile>
 
-      <Tile icon={WandSparkles} label="Outfits" state={wardrobeState}>
+      <Tile
+        icon={WandSparkles}
+        label="AI Wardrobe Planner"
+        state={wardrobeState}
+        className="col-span-2"
+        delay={0.3}
+      >
         {outfits.data?.length ? (
-          <WardrobeContent outfits={outfits.data} />
+          <WardrobeContent outfits={outfits.data} wide />
         ) : (
           <EmptyTile text="No outfits yet." />
         )}

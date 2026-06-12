@@ -34,7 +34,6 @@ import {
   adaptGarmentData,
   adaptRemoteOutfitsToTiles,
   adaptCosmeticsData,
-  adaptMapsData,
   adaptOutlineToTiles,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
@@ -49,7 +48,6 @@ type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
   response?: {
     garment_data?: unknown;
-    maps_data?: unknown[];
     cosmetics_data?: unknown;
   };
 };
@@ -87,7 +85,6 @@ async function requestGarmentsWithFreshSession(
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const emptyMap = useOverviewStore((s) => s.emptyMap);
   const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
@@ -95,9 +92,6 @@ export default function OverviewPage() {
   const startCosmetics = useOverviewStore((s) => s.startCosmetics);
   const setCosmetics = useOverviewStore((s) => s.setCosmetics);
   const setSkinAnalysis = useOverviewStore((s) => s.setSkinAnalysis);
-  const startMap = useOverviewStore((s) => s.startMap);
-  const setMap = useOverviewStore((s) => s.setMap);
-  const failMap = useOverviewStore((s) => s.failMap);
 
   const greeting = useOverviewStore((s) => s.greeting);
   const overviewFashionSnapshot = useMirrorStore(
@@ -105,10 +99,6 @@ export default function OverviewPage() {
   );
   const overviewCosmeticsSnapshot = useMirrorStore(
     (s) => s.overviewCosmeticsSnapshot,
-  );
-  const overviewMapSnapshot = useMirrorStore((s) => s.overviewMapSnapshot);
-  const setOverviewMapSnapshot = useMirrorStore(
-    (s) => s.setOverviewMapSnapshot,
   );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
@@ -128,28 +118,18 @@ export default function OverviewPage() {
   const cosmeticsLoading = useOverviewStore(
     (s) => s.cosmetics.status === "loading",
   );
-  const mapLoading = useOverviewStore((s) => s.map.status === "loading");
 
   const isLoading =
-    hydrating ||
-    garmentsLoading ||
-    outfitsLoading ||
-    cosmeticsLoading ||
-    mapLoading;
+    hydrating || garmentsLoading || outfitsLoading || cosmeticsLoading;
 
   // True when we arrived here from /ai-assistant carrying a spoken prompt —
   // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
   const handoffFiredRef = useRef(false);
 
-  // ── no longer reset the grid whenever a fresh session lands here ──
-  // because we route here from /ai-assistant and need to preserve the data we just caught.
-
   // ── hybrid hydration: reflect the persisted Outline on arrival ──
   // Overview is a downstream dashboard, so on mount we fill the tiles from the
   // user's saved Outline. Live ChatWonder updates overwrite these afterward.
-  // Map stays user-driven; do not hydrate route destinations from the outline
-  // because that can surface stale trips before the user opens Maps.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -180,14 +160,6 @@ export default function OverviewPage() {
 
   const router = useRouter();
 
-  const commitMap = useCallback(
-    (data: Parameters<typeof setMap>[0]) => {
-      setMap(data);
-      setOverviewMapSnapshot(data);
-    },
-    [setMap, setOverviewMapSnapshot],
-  );
-
   useEffect(() => {
     if (handoffFiredRef.current) return;
 
@@ -209,13 +181,9 @@ export default function OverviewPage() {
       setCosmetics(cosmetics);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
     }
-
-    if (overviewMapSnapshot) setMap(overviewMapSnapshot);
-    else emptyMap();
   }, [
     overviewFashionSnapshot,
     overviewCosmeticsSnapshot,
-    overviewMapSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
     skinAnalysisResult?.recommendations,
@@ -223,8 +191,6 @@ export default function OverviewPage() {
     setOutfits,
     setCosmetics,
     setSkinAnalysis,
-    setMap,
-    emptyMap,
   ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
@@ -251,11 +217,8 @@ export default function OverviewPage() {
 
       const cosmetics = adaptCosmeticsData(response?.cosmetics_data);
       if (cosmetics.length) setCosmetics(cosmetics);
-
-      const m = adaptMapsData(response?.maps_data?.[0]);
-      if (m) commitMap(m);
     },
-    [setGarments, setOutfits, setCosmetics, commitMap],
+    [setGarments, setOutfits, setCosmetics],
   );
 
   useVoice(pageContext, handleVoiceAction);
@@ -272,18 +235,10 @@ export default function OverviewPage() {
           const { results } = await mapService.geocode(destination);
           const place = results[0];
           if (place) {
-            commitMap({
-              name: place.name || destination,
-              address: place.address,
-              lat: place.lat,
-              lng: place.lng,
-            });
             locationCtx = { lat: place.lat, lng: place.lng };
-          } else {
-            emptyMap();
           }
-        } catch (err) {
-          failMap(err instanceof Error ? err.message : "Map lookup failed");
+        } catch {
+          console.warn("Geocoding failed for weather resolution");
         }
       }
 
@@ -335,36 +290,36 @@ export default function OverviewPage() {
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));
         }
-
-        const mapPayload = Array.isArray(response.maps_data)
-          ? response.maps_data[0]
-          : response.maps_data;
-        const m = adaptMapsData(mapPayload);
-        if (m) commitMap(m);
-        else if (!destination) emptyMap();
       } catch {
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
-        if (!destination) emptyMap();
       }
     },
-    [emptyMap, failMap, setGarments, commitMap, setOutfits, setCosmetics],
+    [setGarments, setOutfits, setCosmetics],
   );
 
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
-  useEffect(() => {
-    if (handoffFiredRef.current) return;
+  const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
+  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
 
-    let prompt: string | null = null;
-    try {
-      prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
-      if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
-    } catch {
-      /* sessionStorage unavailable */
+  useEffect(() => {
+    let prompt: string | null = pendingPrompt;
+
+    // Fallback to sessionStorage in case of hard refresh or direct nav
+    if (!prompt) {
+      try {
+        prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
+        if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
+      } catch {
+        /* sessionStorage unavailable */
+      }
     }
+
     if (!prompt) return;
 
+    // Clear it so it doesn't fire again
+    setPendingPrompt(null);
     handoffFiredRef.current = true;
     cameFromAssistantRef.current = true;
 
@@ -373,17 +328,22 @@ export default function OverviewPage() {
     startGarments();
     startOutfits();
     startCosmetics();
-    startMap();
 
     void runOverviewPlan(prompt);
-    // Fire exactly once on mount; weather is best-effort and may still be null.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    pendingPrompt,
+    setPendingPrompt,
+    setGreeting,
+    startGarments,
+    startOutfits,
+    startCosmetics,
+    runOverviewPlan,
+  ]);
 
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <MirrorHeader
-        className="w-full"
+        className="w-full relative z-20"
         style={{
           background: "transparent",
           paddingLeft: "16px",
@@ -393,7 +353,7 @@ export default function OverviewPage() {
       />
 
       {/* Grid */}
-      <div className="m-5 flex-1 min-h-0 flex flex-col">
+      <div className="m-5 flex-1 min-h-0 flex flex-col relative z-10">
         <OverviewGrid />
       </div>
 

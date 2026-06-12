@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useOverviewStore } from "@/modules/overview";
+import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 
 function NavButton({
   label,
@@ -16,6 +17,10 @@ function NavButton({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isActive =
+    pathname === route ||
+    (route !== ROUTES.AI_ASSISTANT && pathname.startsWith(route));
   const touchHandledRef = useRef(false);
   return (
     <button
@@ -33,10 +38,12 @@ function NavButton({
         }
         router.push(route);
       }}
-      className={`pointer-events-auto whitespace-nowrap px-3 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
+      className={`pointer-events-auto whitespace-nowrap px-4 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-all duration-300 ${
         disabled
           ? "text-white/20 cursor-not-allowed"
-          : "text-white/50 hover:text-white/85 hover:bg-white/5 active:bg-white/10"
+          : isActive
+            ? "text-[#4fc3f7] bg-[#4fc3f7]/10 shadow-[0_0_15px_rgba(79,195,247,0.3)] border border-[#4fc3f7]/20"
+            : "text-white/50 hover:text-white/85 hover:bg-white/5 active:bg-white/10 border border-transparent"
       }`}
     >
       {label}
@@ -48,7 +55,7 @@ function NavButton({
  * Fixed bottom nav for the assistant. A single rounded, glassy bar whose center
  * gap holds the shared GlobalVoiceOverlay mic (the raised green control):
  *
- *   [ Fashion · Cosmetics ·  (mic)  · Map · Overview ]
+ *   [ Fashion · Cosmetics ·  (mic)  · Overview ]
  *                LISTENING…
  *
  * Two equal flex-1 sides hug a centered gap so the gap — and the viewport-centered
@@ -58,22 +65,22 @@ function NavButton({
  */
 export default function AssistantNavBar() {
   const { isProcessing, isSpeaking } = useVoiceContext();
+  const assistantIdle = useMirrorStore((s) => s.assistantIdle);
 
   // Overview is disabled until at least one tile has been populated with data.
   const overviewHasData = useOverviewStore(
     (s) =>
       s.outfits.status === "ready" ||
       s.cosmetics.status === "ready" ||
-      s.map.status === "ready" ||
       s.skinAnalysis.status === "ready",
   );
 
-  if (isProcessing || isSpeaking) return null;
+  if (isProcessing || isSpeaking || assistantIdle) return null;
 
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
       <div
-        className="pointer-events-auto relative flex items-center w-[540px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
+        className="pointer-events-auto relative flex items-center w-[640px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
         style={{
           background: "rgba(16,18,24,0.88)",
           border: "1px solid rgba(255,255,255,0.07)",
@@ -84,21 +91,20 @@ export default function AssistantNavBar() {
         }}
       >
         <div className="flex-1 min-w-0 flex items-center justify-around pr-2">
+          <NavButton label="Home" route={ROUTES.AI_ASSISTANT} />
           <NavButton label="Fashion" route={ROUTES.FASHION_CATALOG} />
-          <NavButton
-            label="Cosmetics"
-            route={ROUTES.AI_RECOMMENDATION_COSMETIC}
-          />
         </div>
 
         {/* center gap — the global 64px mic floats here (viewport center);
             kept wide enough that the inner buttons never slide under it */}
         <div className="w-24 shrink-0" aria-hidden />
 
-        {/* right group — mirrors the left so Map keeps the same clearance from
-            the mic that Cosmetics does */}
+        {/* right group */}
         <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
-          <NavButton label="Map" route={ROUTES.MAP} />
+          <NavButton
+            label="Cosmetics"
+            route={ROUTES.AI_RECOMMENDATION_COSMETIC}
+          />
           <NavButton
             label="Overview"
             route={ROUTES.OVERVIEW}

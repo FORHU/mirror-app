@@ -19,6 +19,7 @@ import RestartButton from "@/components/RestartButton";
 import { ProximitySensorMount } from "@/components/ProximitySensorMount";
 import { WalkAwayWatcher } from "@/components/WalkAwayWatcher";
 import { SkinAnalysisTrigger } from "@/components/SkinAnalysisTrigger";
+import AssistantNavBar from "@/components/AssistantNavBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -97,6 +98,7 @@ export default function RootLayout({
                 <ProximitySensorMount>
                   <AuthInitializer>{children}</AuthInitializer>
                   <GlobalVoiceOverlay />
+                  <AssistantNavBar />
                   <RestartButton />
                   <WalkAwayWatcher />
                   <SkinAnalysisTrigger />

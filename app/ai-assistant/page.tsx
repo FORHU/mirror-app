@@ -1,205 +1,88 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
-import {
-  QuickResponseChips,
-  getToday,
-  nextWeekday,
-  type PromptCategory,
-} from "@/components/QuickResponseChips";
-import { useVoice } from "@/modules/shared/voice/useVoice";
-import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
-import AssistantNavBar from "@/components/AssistantNavBar";
-import {
-  useOverviewStore,
-  adaptGarmentData,
-  adaptMapsData,
-} from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
-import { getAssistantChipCategories } from "./categories";
+import { useOverviewStore } from "@/modules/overview";
 import { cn } from "../../modules/shared/utils";
-
-type GarmentRecommendationAction = {
-  type: "GARMENT_RECOMMENDATION";
-  response?: { garment_data?: unknown; maps_data?: unknown };
-};
-type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
 const TAGLINES = [
   "Personalized for every reflection.",
   "Smart style. Seamless discovery.",
   "Designed around you.",
-  "Your world, beautifully understood.",
+  "Your style, beautifully understood.",
   "See more. Discover more. Be more.",
-  "Style. Beauty. Places. Perfectly Connected.",
-  "Discover your look. Discover your world.",
-  "Where beauty meets every destination.",
+  "Style and Beauty. Perfectly Connected.",
+  "Discover your signature look.",
+  "Where beauty meets elegance.",
   "Your guide to style, beauty, and beyond.",
-  "Navigate life beautifully.",
-  "Look Good. Go Anywhere.",
-  "Fashion, Beauty, and Places—All in One Reflection.",
-  "Find Your Style. Find Your Way.",
-  "Curated for your look. Designed for your journey.",
-  "Beauty in every direction.",
+  "Elevate your look beautifully.",
+  "Look Good. Feel Confident.",
+  "Fashion and Beauty—All in One Reflection.",
+  "Find Your Style. Express Yourself.",
+  "Curated for your look. Designed for you.",
+  "Beauty from every angle.",
 ];
 
-const ASSISTANT_GREETINGS = [
-  "Hi there! Looking for an outfit, beauty tips, or places to explore?",
-  "Hello! How can I help with your style today?",
-  "Hey there! Ready to discover your next look?",
-  "Good to see you! What are we styling today?",
-  "Welcome! Need outfit inspiration, beauty advice, or local recommendations?",
-  "Hi! Let's find something that suits your style.",
-  "Hello there! Looking for fashion, cosmetics, or nearby trends?",
-  "Hey! What kind of look are you going for today?",
-  "Welcome! Ready for a style refresh?",
-  "Hi there! What would you like help with: outfits, beauty, or places?",
-  "Hello! Let's create a look you'll love.",
-  "Hey there! Looking for the perfect outfit today?",
-  "Hi! Need help choosing cosmetics that fit your style?",
-  "Welcome! Want recommendations tailored to your preferences?",
-  "Hello! Let's discover your next favorite look.",
-  "Good to see you! What occasion are you dressing for today?",
-  "Hi there! Looking for beauty products that match your needs?",
-  "Hello! Need inspiration for your next outfit?",
-  "Hey! Let's find styles that work for you.",
-  "Welcome! Want help building a complete look?",
-  "Hi! Curious about the latest fashion trends?",
-  "Hello there! Searching for beauty essentials?",
-  "Hey! Need outfit recommendations for an event?",
-  "Welcome! Let's explore looks that fit your vibe.",
-  "Hi there! Looking for something casual, formal, or trendy?",
-  "Hello! Want personalized style suggestions?",
-  "Hey there! Let's find the perfect match for your wardrobe.",
-  "Good to see you! Need help completing your outfit?",
-  "Hi! Looking for cosmetics that complement your features?",
-  "Hello! Ready to elevate your style?",
-  "Welcome! Let's discover new beauty favorites.",
-  "Hey! Need recommendations for your next shopping trip?",
-  "Hi there! What fashion goal can I help with today?",
-  "Hello! Let's put together a look you'll feel confident in.",
-  "Hey there! Searching for beauty inspiration?",
-  "Welcome! Need help choosing between products?",
-  "Hi! Looking for nearby beauty or fashion spots?",
-  "Hello! Want recommendations based on your style preferences?",
-  "Hey! Let's explore fashion, beauty, and lifestyle together.",
-  "Good to see you! What's your style mood today?",
+const SCENARIOS = [
+  {
+    id: "daily",
+    title: "Style me for today",
+    description: "Daily outfit and skincare routine",
+    icon: "🌤️",
+    prompt:
+      "Give me a complete style and wellness briefing for today — outfit and skincare.",
+    gradient: "from-blue-500/20 to-cyan-500/5",
+    border: "border-blue-500/20",
+  },
+  {
+    id: "formal",
+    title: "Special Event",
+    description: "Plan my full look and prep",
+    icon: "🥂",
+    prompt:
+      "I have a special event to attend — plan my full look and skincare prep.",
+    gradient: "from-purple-500/20 to-pink-500/5",
+    border: "border-purple-500/20",
+  },
+  {
+    id: "casual",
+    title: "Casual & Comfy",
+    description: "Relaxed weekend look",
+    icon: "🛋️",
+    prompt: "Build me a casual, comfortable outfit and skincare routine.",
+    gradient: "from-emerald-500/20 to-teal-500/5",
+    border: "border-emerald-500/20",
+  },
+  {
+    id: "office",
+    title: "Office Ready",
+    description: "Professional workwear",
+    icon: "💼",
+    prompt: "Suggest a professional outfit and skincare for work.",
+    gradient: "from-amber-500/20 to-orange-500/5",
+    border: "border-amber-500/20",
+  },
 ];
 
 export default function AIAssistantPage() {
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const voiceStateRef = useRef<string>("idle");
-  const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
-  const startListeningRef = useRef<() => void>(() => {});
-
-  const setGarments = useOverviewStore((s) => s.setGarments);
-  const setOutfits = useOverviewStore((s) => s.setOutfits);
-  const setMap = useOverviewStore((s) => s.setMap);
-  const overviewHasData = useOverviewStore(
-    (s) =>
-      s.garments.status === "ready" ||
-      s.outfits.status === "ready" ||
-      s.map.status === "ready" ||
-      s.cosmetics.status === "ready",
-  );
-  const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const router = useRouter();
   const isPresent = useMirrorStore((s) => s.isPresent);
-
-  const chipCategories = useMemo<PromptCategory[]>(() => {
-    const base = getAssistantChipCategories();
-    if (!overviewHasData) return base;
-    return [
-      ...base,
-      {
-        label: "Overview",
-        icon: "📋",
-        route: ROUTES.OVERVIEW,
-        prompts: [
-          `Give me a complete style and wellness briefing for today, ${getToday()} — outfit, skincare, and where to go.`,
-          `I have a special event this ${nextWeekday(5)} — plan my full look, skincare prep, and route to get there.`,
-          "Show me everything in my current session plan — outfit picks, skincare products, and mapped stops.",
-          "I want to look and feel my best — build me a complete outfit, skincare routine, and destination guide.",
-          "Summarize my skin profile, suggest the best outfit for today, and show me somewhere great to eat nearby.",
-        ],
-      },
-    ];
-  }, [overviewHasData]);
+  const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
-  const [activeGreeting, setActiveGreeting] = useState(ASSISTANT_GREETINGS[0]);
-  const hasGreetedRef = useRef(false);
 
-  const pageContext = useMemo(
-    () => ({
-      route: ROUTES.AI_ASSISTANT,
-      pageName: "AI Assistant",
-      mode: "overview" as const,
-      activeStep: "conversation",
-    }),
-    [],
-  );
-
-  const handleVoiceAction = useCallback(
-    (raw: ChatWonderAction) => {
-      const action = raw as OverviewVoiceAction;
-      if (action.type !== "GARMENT_RECOMMENDATION") return;
-
-      const response = (action as GarmentRecommendationAction).response;
-      const { garments: g, outfits: o } = adaptGarmentData(
-        response?.garment_data,
-      );
-      if (g.length) setGarments(g);
-      if (o.length) setOutfits(o);
-
-      const m = adaptMapsData(response?.maps_data);
-      if (m) setMap(m);
-    },
-    [setGarments, setOutfits, setMap],
-  );
-
-  useVoice(pageContext, handleVoiceAction);
-
-  const {
-    voiceState,
-    transcript,
-    reply,
-    error,
-    isListening,
-    isProcessing,
-    isSpeaking,
-    chatHistory,
-    submitText,
-    startListening,
-    speakText,
-  } = useVoiceContext();
-
-  useEffect(() => {
-    voiceStateRef.current = voiceState;
-  }, [voiceState]);
-
-  useEffect(() => {
-    submitTextRef.current = submitText;
-    startListeningRef.current = startListening;
-  }, [submitText, startListening]);
-
-  // Tell the shared mic to hide while the idle welcome screen is up (so a tap
-  // can't bypass the spoken greeting), and clear the flag on unmount.
+  // Tell the shared layout we're idle so it can hide global elements if needed
   useEffect(() => {
     setAssistantIdle(showIdle);
+    return () => setAssistantIdle(false);
   }, [showIdle, setAssistantIdle]);
-  useEffect(() => () => setAssistantIdle(false), [setAssistantIdle]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, transcript, reply, error]);
 
   // For development convenience: force a session restart on hard-refresh
-  // so F5 acts like a "walk away" event and resets the gender/session.
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       import("@/modules/shared/api/chat-wonder.service").then((m) => {
@@ -208,7 +91,7 @@ export default function AIAssistantPage() {
     }
   }, []);
 
-  // Cycle taglines every 5s while idle screen is visible
+  // Cycle taglines every 4s while idle screen is visible
   useEffect(() => {
     if (!showIdle) return;
     const id = setInterval(
@@ -218,66 +101,28 @@ export default function AIAssistantPage() {
     return () => clearInterval(id);
   }, [showIdle]);
 
-  const chooseGreeting = useCallback(() => {
-    return ASSISTANT_GREETINGS[
-      Math.floor(Math.random() * ASSISTANT_GREETINGS.length)
-    ];
-  }, []);
-
-  const playGreeting = useCallback(
-    (greeting = activeGreeting) => {
-      hasGreetedRef.current = true;
-      setActiveGreeting(greeting);
-      void speakText(greeting).finally(() => {
-        startListeningRef.current();
-      });
-    },
-    [activeGreeting, speakText],
-  );
-
-  const handleWake = useCallback(
-    (shouldSpeak = true) => {
-      if (!showIdle) return;
-      setShowIdle(false);
-
-      if (!hasGreetedRef.current) {
-        const greeting = chooseGreeting();
-        setActiveGreeting(greeting);
-        if (shouldSpeak) playGreeting(greeting);
-      }
-    },
-    [chooseGreeting, playGreeting, showIdle],
-  );
+  const handleWake = useCallback(() => {
+    if (showIdle) setShowIdle(false);
+  }, [showIdle]);
 
   // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- external camera event driving UI state
-    if (isPresent && showIdle) handleWake(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isPresent && showIdle) handleWake();
   }, [isPresent, showIdle, handleWake]);
 
-  const status = isListening
-    ? "Listening"
-    : isProcessing
-      ? "Thinking"
-      : isSpeaking
-        ? "Speaking"
-        : "Idle";
+  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
 
-  const latest = chatHistory[chatHistory.length - 1];
-  const displayUser = transcript || latest?.user || "";
-  const displayReply = error || reply || latest?.assistant || activeGreeting;
+  const handleScenarioClick = useCallback(
+    (prompt: string) => {
+      setPendingPrompt(prompt);
+      router.push(ROUTES.OVERVIEW);
+    },
+    [router, setPendingPrompt],
+  );
 
   return (
-    <div
-      className={cn(
-        "w-screen",
-        "h-screen",
-        "bg-canvas",
-        "flex",
-        "flex-col",
-        "overflow-hidden",
-      )}
-    >
+    <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden relative">
       <MirrorHeader />
 
       <AnimatePresence mode="wait">
@@ -288,57 +133,22 @@ export default function AIAssistantPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={cn(
-              "flex-1",
-              "flex",
-              "flex-col",
-              "items-center",
-              "justify-center",
-              "px-12",
-              "cursor-pointer",
-              "relative",
-            )}
-            onClick={() => handleWake(true)}
+            className="flex-1 flex flex-col items-center justify-center px-12 cursor-pointer relative"
+            onClick={handleWake}
           >
-            {/* 
-              Placeholder Abstract Video Loop 
-              Replace the src with "/background.mp4" when you have your own branded asset
-            */}
+            {/* Background Video Loop */}
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
               autoPlay
               muted
               loop
               playsInline
-              className={cn(
-                "absolute",
-                "inset-0",
-                "w-full",
-                "h-full",
-                "object-cover",
-                "opacity-60",
-                "z-0",
-                "pointer-events-none",
-              )}
+              className="absolute inset-0 w-full h-full object-cover opacity-60 z-0 pointer-events-none"
             />
-            <div
-              className={cn(
-                "absolute",
-                "inset-0",
-                "bg-black/40",
-                "z-0",
-                "pointer-events-none",
-              )}
-            />
+            <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
 
             <div
-              className={cn(
-                "flex",
-                "items-center",
-                "justify-center",
-                "relative",
-                "z-10",
-              )}
+              className="flex items-center justify-center relative z-10"
               style={{ minHeight: "8rem" }}
             >
               <AnimatePresence mode="wait">
@@ -348,13 +158,7 @@ export default function AIAssistantPage() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.6 }}
-                  className={cn(
-                    "text-white",
-                    "font-thin",
-                    "text-center",
-                    "leading-[1.15]",
-                    "tracking-tight",
-                  )}
+                  className="text-white font-thin text-center leading-[1.15] tracking-tight"
                   style={{ fontSize: "clamp(2rem, 6.5vw, 3.75rem)" }}
                 >
                   {TAGLINES[taglineIndex]}
@@ -362,42 +166,15 @@ export default function AIAssistantPage() {
               </AnimatePresence>
             </div>
 
-            <div
-              className={cn(
-                "mt-8",
-                "flex",
-                "flex-col",
-                "items-center",
-                "gap-4",
-                "relative",
-                "z-10",
-              )}
-            >
-              <div className={cn("h-px", "w-12", "bg-white/15")} />
-              <p
-                className={cn(
-                  "text-[10px]",
-                  "uppercase",
-                  "tracking-[0.5em]",
-                  "text-white/30",
-                  "font-light",
-                  "drop-shadow-md",
-                )}
-              >
+            <div className="mt-8 flex flex-col items-center gap-4 relative z-10">
+              <div className="h-px w-12 bg-white/15" />
+              <p className="text-[10px] uppercase tracking-[0.5em] text-white/30 font-light drop-shadow-md">
                 Step closer to begin
               </p>
             </div>
 
             <motion.div
-              className={cn(
-                "mt-10",
-                "flex",
-                "flex-col",
-                "items-center",
-                "gap-3",
-                "relative",
-                "z-10",
-              )}
+              className="mt-10 flex flex-col items-center gap-3 relative z-10"
               animate={{ opacity: [0.4, 0.9, 0.4] }}
               transition={{
                 duration: 2.5,
@@ -405,149 +182,90 @@ export default function AIAssistantPage() {
                 ease: "easeInOut",
               }}
             >
-              <div
-                className={cn("rounded-full", "border", "border-white/20")}
-                style={{ width: 48, height: 48 }}
-              />
-              <p
-                className={cn(
-                  "text-[9px]",
-                  "uppercase",
-                  "tracking-[0.5em]",
-                  "text-white/25",
-                  "font-light",
-                )}
-              >
+              <div className="rounded-full border border-white/20 w-12 h-12 flex items-center justify-center" />
+              <p className="text-[9px] uppercase tracking-[0.5em] text-white/25 font-light">
                 Tap to start
               </p>
             </motion.div>
           </motion.div>
         ) : (
           <motion.main
-            key="assistant"
+            key="hub"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
-            className={cn(
-              "flex-1",
-              "min-h-0",
-              "flex",
-              "flex-col",
-              "px-10",
-              "pt-8",
-              "pb-28",
-            )}
+            className="flex-1 min-h-0 flex flex-col px-10 pt-16 pb-28 relative z-10"
           >
-            {/* conversation — top half */}
-            <div
-              className={cn(
-                "flex-1",
-                "min-h-0",
-                "flex",
-                "flex-col",
-                "justify-center",
-                "max-w-2xl",
-                "mx-auto",
-                "w-full",
-              )}
-            >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={`${displayUser}-${displayReply}-${voiceState}`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.4 }}
-                  className={cn("flex", "flex-col", "gap-8")}
-                >
-                  {displayUser && (
-                    <div className="text-right">
-                      <p
-                        className={cn(
-                          "text-white/25",
-                          "text-[9px]",
-                          "uppercase",
-                          "tracking-[0.4em]",
-                          "font-light",
-                          "mb-2",
-                        )}
-                      >
-                        You said
-                      </p>
-                      <p
-                        className={cn(
-                          "text-white/55",
-                          "text-lg",
-                          "font-light",
-                          "leading-relaxed",
-                        )}
-                      >
-                        {displayUser}
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                    <p
-                      className={cn(
-                        "text-white/25",
-                        "text-[9px]",
-                        "uppercase",
-                        "tracking-[0.4em]",
-                        "font-light",
-                        "mb-2",
-                      )}
-                    >
-                      Mirror
-                    </p>
-                    <p
-                      className={`font-thin leading-[1.4] tracking-tight overflow-y-auto pr-2 ${
-                        error ? "text-red-300/75" : "text-white/90"
-                      }`}
-                      style={{
-                        fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)",
-                        maxHeight: "45vh",
-                      }}
-                    >
-                      {displayReply}
-                    </p>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* ambient state indicator — NOT flex-1 so chips below have room */}
-            <div
-              className={cn(
-                "shrink-0",
-                "flex",
-                "flex-col",
-                "items-center",
-                "justify-center",
-                "gap-3",
-                "py-4",
-              )}
-            >
-              <p
-                className={cn(
-                  "text-white/50",
-                  "text-[10px]",
-                  "uppercase",
-                  "tracking-[0.4em]",
-                  "font-light",
-                )}
+            <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full justify-center">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-center mb-12"
               >
-                {status}
-              </p>
+                <h1 className="text-4xl font-thin text-white mb-3 tracking-tight">
+                  What are we styling today?
+                </h1>
+                <p className="text-white/40 text-sm tracking-wide font-light uppercase">
+                  Select a scenario to generate your look
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="grid grid-cols-2 gap-6 mt-8"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.1 },
+                  },
+                }}
+              >
+                {SCENARIOS.map((scenario) => (
+                  <motion.button
+                    key={scenario.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      show: { opacity: 1, y: 0 },
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleScenarioClick(scenario.prompt)}
+                    className={cn(
+                      "relative group overflow-hidden rounded-[32px] text-left p-8",
+                      "border bg-black/40 backdrop-blur-xl transition-all duration-500",
+                      scenario.border,
+                      "hover:shadow-2xl hover:shadow-white/5",
+                    )}
+                  >
+                    {/* Hover Gradient Background */}
+                    <div
+                      className={cn(
+                        "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+                        scenario.gradient,
+                      )}
+                    />
+
+                    <div className="relative z-10 flex flex-col h-full justify-between">
+                      <div className="text-4xl mb-6 bg-white/5 w-16 h-16 rounded-full flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-colors">
+                        {scenario.icon}
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-light text-white mb-2 tracking-tight group-hover:text-white transition-colors">
+                          {scenario.title}
+                        </h2>
+                        <p className="text-white/50 text-sm font-light">
+                          {scenario.description}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
+              </motion.div>
             </div>
-
-            {/* Quick Response Chips — categorised */}
-            <QuickResponseChips categories={chipCategories} />
-
-            {/* Bottom nav — flanks the shared center-bottom mic:
-                Fashion · Cosmetics · [mic] · Map · Overview */}
-            <AssistantNavBar />
-            <div ref={bottomRef} />
           </motion.main>
         )}
       </AnimatePresence>
