@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type {
   GarmentTileItem,
+  MapTileData,
   OutfitTileItem,
   CosmeticTileItem,
   SkinAnalysisTileItem,
@@ -30,6 +31,7 @@ interface OverviewState {
 
   garments: TileState<GarmentTileItem[]>;
   outfits: TileState<OutfitTileItem[]>;
+  map: TileState<MapTileData>;
   cosmetics: TileState<CosmeticTileItem[]>;
   skinAnalysis: TileState<SkinAnalysisTileItem>;
 
@@ -63,6 +65,7 @@ const initial = {
   greeting: null as string | null,
   garments: idle<GarmentTileItem[]>(),
   outfits: idle<OutfitTileItem[]>(),
+  map: idle<MapTileData>(),
   cosmetics: idle<CosmeticTileItem[]>(),
   skinAnalysis: idle<SkinAnalysisTileItem>(),
   pendingPrompt: null as string | null,

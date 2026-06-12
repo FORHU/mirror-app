@@ -39,6 +39,16 @@ export interface CosmeticTileItem {
   brand?: string;
 }
 
+export interface MapTileData {
+  /** Primary destination / first stop label. */
+  name: string;
+  address?: string;
+  lat: number;
+  lng: number;
+  /** Multi-stop itinerary, when ChatWonder resolved several events. */
+  stops?: { name: string; lat: number; lng: number }[];
+}
+
 export interface SkinAnalysisTileItem {
   skinType: string;
   skinTone: string | null;
