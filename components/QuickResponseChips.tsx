@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { ROUTES } from "@/navigation";
-import { MAP_PROMPT_KEY } from "@/modules/map";
 import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
 import type { WeatherData } from "@/modules/shared/hooks/useWeather";
@@ -97,7 +96,6 @@ export function QuickResponseChips({
     : (prompts ?? []);
 
   const HANDOFF_ROUTES: Record<string, string> = {
-    [ROUTES.MAP]: MAP_PROMPT_KEY,
     [ROUTES.AI_RECOMMENDATION_FASHION]: FASHION_PROMPT_KEY,
     [ROUTES.AI_RECOMMENDATION_COSMETIC]: COSMETIC_PROMPT_KEY,
   };
