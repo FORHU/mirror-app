@@ -28,14 +28,14 @@ function StandaloneDetailsPane({
       key={item.id}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center text-center gap-10 px-6 pt-8 pb-28 transition-all duration-300 w-full h-full justify-center"
+      className="flex flex-col items-center text-center gap-5 px-6 pt-8 pb-28 transition-all duration-300 w-full h-full justify-center"
     >
       <div className="relative flex-1 min-h-0 w-full flex items-center justify-center">
         {item.imageUrl ? (
           <img
             src={proxied(item.imageUrl)}
             alt={item.name}
-            className="w-full h-full object-contain drop-shadow-[0_40px_60px_rgba(0,0,0,0.4)] relative z-10"
+            className="w-full h-full object-contain object-bottom drop-shadow-[0_40px_60px_rgba(0,0,0,0.4)] relative z-10"
           />
         ) : (
           <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
