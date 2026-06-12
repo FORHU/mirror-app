@@ -518,22 +518,18 @@ export default function VirtualMirrorV2() {
   );
 
   const handleChipSelect = useCallback(
-    async (prompt: string) => {
-      setIsChipLoading(true);
-      try {
-        const response = await chatWonderService.message({
-          input: `[stylist] ${prompt}`,
-          pageMode: "garment",
-        });
-        const query = response.garment_data?.query;
-        const params = new URLSearchParams(query ?? "");
-        if (!params.has("limit")) params.set("limit", "4");
-        router.push(`/ai-recommendation-fashion?${params.toString()}`);
-      } catch {
-        router.push("/ai-recommendation-fashion?limit=4");
-      } finally {
-        setIsChipLoading(false);
-      }
+    (prompt: string) => {
+      const lower = prompt.toLowerCase();
+      let metaCategory = "";
+      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
+      else if (/streetwear|trendy|stylish/i.test(lower)) metaCategory = "Streetwear";
+      else if (/formal|professional/i.test(lower)) metaCategory = "Formal";
+      else if (/athleisure|weekend|comfortable/i.test(lower)) metaCategory = "Athleisure";
+      else if (/casual|everyday/i.test(lower)) metaCategory = "Casual";
+      const params = new URLSearchParams();
+      if (metaCategory) params.set("metaCategory", metaCategory);
+      params.set("limit", "4");
+      router.push(`/ai-recommendation-fashion?${params.toString()}`);
     },
     [router],
   );
