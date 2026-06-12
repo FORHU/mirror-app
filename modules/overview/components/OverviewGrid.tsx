@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, ShoppingBag, Sparkles, WandSparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
@@ -459,11 +459,6 @@ export function OverviewGrid() {
   const skinAnalysis = useOverviewStore((s) => s.skinAnalysis);
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-
-  // Automatically reset the selected item when new data streams in (e.g., from a new session)
-  useEffect(() => {
-    setSelectedItemId(null);
-  }, [garments.data, cosmetics.data]);
 
   const garmentItems = garments.data?.length
     ? garments.data
