@@ -852,6 +852,9 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setReply("Generating answer...");
           setVoiceState("processing");
 
+          const pendingCategory = useMirrorStore.getState().pendingCategory;
+          if (pendingCategory) useMirrorStore.getState().setPendingCategory(null);
+
           let aiResponse;
           try {
             aiResponse = await chatWonderService.message(
@@ -875,6 +878,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                         useMirrorStore.getState().skinAnalysisResult,
                     }
                   : {}),
+                ...(pendingCategory ? { category: pendingCategory } : {}),
               },
               // We speak a curated snippet below — silence the service's AudioQueue
               // so the streamed audio and the snippet don't overlap (dual voice).
@@ -890,7 +894,14 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           }
 
           const stylistTarget = aiResponse.stylist_data?.target_url;
-          const needsNavigation = stylistTarget && stylistTarget !== pathname;
+          // Never navigate back to /ai-assistant from a feature page that is
+          // already handling the request in garment/cosmetics mode — ChatWonder
+          // can mistakenly route there for ambiguous queries, but the user is
+          // clearly already in a feature context.
+          const needsNavigation =
+            stylistTarget &&
+            stylistTarget !== pathname &&
+            stylistTarget !== ROUTES.AI_ASSISTANT;
 
           if (needsNavigation) {
             if (aiResponse.garment_data) {
