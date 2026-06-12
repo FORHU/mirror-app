@@ -19,18 +19,23 @@ const proxied = (url: string) =>
 function TileHeader({
   icon: Icon,
   label,
+  rightContent,
 }: {
   icon: React.ElementType;
   label: string;
+  rightContent?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 pb-3 shrink-0 relative z-10">
-      <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/10">
-        <Icon className="w-5 h-5 text-white/90" strokeWidth={1.5} />
+    <div className="flex items-center justify-between pb-3 relative z-10 w-full">
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/10">
+          <Icon className="w-5 h-5 text-white/90" strokeWidth={1.5} />
+        </div>
+        <span className="text-white/60 text-[11px] font-bold uppercase tracking-[0.2em]">
+          {label}
+        </span>
       </div>
-      <span className="text-white/60 text-[11px] font-bold uppercase tracking-[0.2em]">
-        {label}
-      </span>
+      {rightContent}
     </div>
   );
 }
@@ -300,6 +305,7 @@ function Tile({
   children,
   className,
   delay = 0,
+  rightContent,
 }: {
   icon: React.ElementType;
   label: string;
@@ -307,6 +313,7 @@ function Tile({
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  rightContent?: React.ReactNode;
 }) {
   return (
     <motion.div
@@ -324,7 +331,7 @@ function Tile({
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-white/[0.01] to-transparent pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-      <TileHeader icon={icon} label={label} />
+      <TileHeader icon={icon} label={label} rightContent={rightContent} />
       <div className="flex-1 min-h-0 flex flex-col relative z-10">
         {state.status === "loading" ? (
           <TileSkeleton />
@@ -342,6 +349,7 @@ export function OverviewGrid() {
   const garments = useOverviewStore((s) => s.garments);
   const outfits = useOverviewStore((s) => s.outfits);
   const cosmetics = useOverviewStore((s) => s.cosmetics);
+  const skinAnalysis = useOverviewStore((s) => s.skinAnalysis);
 
   const garmentItems = garments.data?.length
     ? garments.data
@@ -376,6 +384,13 @@ export function OverviewGrid() {
         state={cosmetics}
         className="col-span-1"
         delay={0.2}
+        rightContent={
+          skinAnalysis.data?.skinType && (
+            <div className="px-2.5 py-1 rounded-lg bg-white/10 text-white/90 text-[10px] font-bold uppercase tracking-wider border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+              {skinAnalysis.data.skinType}
+            </div>
+          )
+        }
       >
         {cosmetics.data?.length ? (
           <CosmeticsStrip items={cosmetics.data} />
