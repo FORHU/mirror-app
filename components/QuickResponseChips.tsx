@@ -94,7 +94,9 @@ export function QuickResponseChips({
       // Chips with a destination route bypass ChatWonder on the source page.
       // Write the prompt to the destination's handoff key so it processes the
       // query itself once mounted (with voiceState idle and location loaded).
-      try { sessionStorage.setItem(HANDOFF_ROUTES[route], prompt); } catch {}
+      try {
+        sessionStorage.setItem(HANDOFF_ROUTES[route], prompt);
+      } catch {}
       router.push(route);
       return;
     }

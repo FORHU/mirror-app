@@ -84,7 +84,6 @@ export default function MapPage() {
     if (!prompt) return;
     sessionStorage.removeItem(MAP_PROMPT_KEY);
     handoffPromptRef.current = prompt;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -102,7 +101,8 @@ export default function MapPage() {
   // At this point homeLocation is in the map store, so geocoding will use it
   // as a proximity hint and setItineraryStops will route from the right origin.
   useEffect(() => {
-    if (homeLocationStatus === "idle" || homeLocationStatus === "loading") return;
+    if (homeLocationStatus === "idle" || homeLocationStatus === "loading")
+      return;
     if (handoffFiredRef.current || !handoffPromptRef.current) return;
     handoffFiredRef.current = true;
     const prompt = handoffPromptRef.current;
