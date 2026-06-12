@@ -1126,7 +1126,10 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 /* prompt handoff is best-effort */
               }
             }
-            if (resolvedTarget === ROUTES.AI_RECOMMENDATION_FASHION) {
+            if (
+              resolvedTarget === ROUTES.AI_RECOMMENDATION_FASHION &&
+              !res.garment_data
+            ) {
               try {
                 sessionStorage.setItem(FASHION_PROMPT_KEY, t);
               } catch {
