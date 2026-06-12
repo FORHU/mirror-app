@@ -50,6 +50,14 @@ export function useWeather() {
   );
 
   useEffect(() => {
+    function getTimeOfDay(): string {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 12) return "Morning";
+      if (h >= 12 && h < 17) return "Afternoon";
+      if (h >= 17 && h < 21) return "Evening";
+      return "Night";
+    }
+
     function normalizeWeather(raw: unknown, fallbackCity = "---"): WeatherData {
       const d =
         raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -79,7 +87,7 @@ export function useWeather() {
           fetch(`/api/weather?lat=${lat}&lon=${lon}`)
             .then((r) => r.json())
             .then((d) => setWeather(normalizeWeather(d)))
-            .catch(() => setWeather({ temp: null, code: 0, city: "---" })),
+            .catch(() => setWeather({ temp: null, code: 0, city: "---", condition: getTimeOfDay() })),
         )
         .finally(() => setLoading(false));
     }
@@ -88,7 +96,7 @@ export function useWeather() {
       fetch("/api/weather")
         .then((r) => r.json())
         .then((d) => setWeather(normalizeWeather(d)))
-        .catch(() => setWeather({ temp: null, code: 0, city: "---" }))
+        .catch(() => setWeather({ temp: null, code: 0, city: "---", condition: getTimeOfDay() }))
         .finally(() => setLoading(false));
     }
 
