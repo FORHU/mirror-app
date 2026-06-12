@@ -48,10 +48,10 @@ function NavButton({
  * Fixed bottom nav for the assistant. A single rounded, glassy bar whose center
  * gap holds the shared GlobalVoiceOverlay mic (the raised green control):
  *
- *   [ Fashion · Cosmetics ·  (mic)  · Map · Overview ]
+ *   [ Fashion · Cosmetics ·  (mic)  · Overview ]
  *                LISTENING…
  *
- * Two equal flex-1 sides hug a centered gap so the gap — and the viewport-centered
+ * Two flex-1 sides hug a centered gap so the gap — and the viewport-centered
  * mic floating in it — stays dead-center regardless of button widths. The bar
  * hides while the mic morphs into its wide waveform (processing/speaking) so the
  * two never collide.
@@ -64,7 +64,6 @@ export default function AssistantNavBar() {
     (s) =>
       s.outfits.status === "ready" ||
       s.cosmetics.status === "ready" ||
-      s.map.status === "ready" ||
       s.skinAnalysis.status === "ready",
   );
 
@@ -95,10 +94,7 @@ export default function AssistantNavBar() {
             kept wide enough that the inner buttons never slide under it */}
         <div className="w-24 shrink-0" aria-hidden />
 
-        {/* right group — mirrors the left so Map keeps the same clearance from
-            the mic that Cosmetics does */}
         <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
-          <NavButton label="Map" route={ROUTES.MAP} />
           <NavButton
             label="Overview"
             route={ROUTES.OVERVIEW}
