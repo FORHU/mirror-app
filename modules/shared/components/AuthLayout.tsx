@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Globe, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { cn } from "@/modules/shared/utils";
 
 interface AuthLayoutProps {
@@ -86,10 +86,6 @@ export function AuthLayout({
           </div>
 
           <div className="flex items-center gap-8 text-sm font-bold text-text-quaternary">
-            <button className="flex items-center gap-2 hover:text-brand-light transition-colors">
-              <Globe className="w-4 h-4" />
-              English (US)
-            </button>
             <Link
               href="/help"
               className="hover:text-brand-light transition-colors"
