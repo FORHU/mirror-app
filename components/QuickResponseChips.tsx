@@ -62,12 +62,18 @@ interface QuickResponseChipsProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-function withWeather(prompt: string, weather: WeatherData | null | undefined): string {
+function withWeather(
+  prompt: string,
+  weather: WeatherData | null | undefined,
+): string {
   if (!weather) return prompt;
   const parts: string[] = [];
   if (weather.temp !== null) parts.push(`${weather.temp}°C`);
   if (weather.condition) parts.push(weather.condition);
-  const detail = parts.length > 0 ? `${parts.join(", ")} in ${weather.city}` : `in ${weather.city}`;
+  const detail =
+    parts.length > 0
+      ? `${parts.join(", ")} in ${weather.city}`
+      : `in ${weather.city}`;
   return `${prompt} Current weather: ${detail}.`;
 }
 
@@ -102,7 +108,9 @@ export function QuickResponseChips({
 
   const handleTap = (prompt: string) => {
     onPromptSelect?.();
-    const enriched = activeCategory?.noWeather ? prompt : withWeather(prompt, weather);
+    const enriched = activeCategory?.noWeather
+      ? prompt
+      : withWeather(prompt, weather);
     const route = activeCategory?.route;
     if (route && HANDOFF_ROUTES[route]) {
       // Chips with a destination route bypass ChatWonder on the source page.

@@ -331,7 +331,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current = null;
   }, []);
 
-
   // Tear down the mic stream/graph and stop collecting frames. Safe to call
   // when nothing is recording. (Refs are stable, so no deps needed.)
   const stopMicCapture = useCallback(() => {
@@ -431,9 +430,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         let target: string | null = null;
         let assistantReply: string | null = null;
 
-        if (
-          /\b(fashion|outfit|outfits|style|clothing|wardrobe)\b/.test(lc)
-        ) {
+        if (/\b(fashion|outfit|outfits|style|clothing|wardrobe)\b/.test(lc)) {
           target = ROUTES.AI_RECOMMENDATION_FASHION;
           assistantReply = "Opening fashion recommendations.";
         } else if (
@@ -1210,12 +1207,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         setVoiceState("idle");
       }
     },
-    [
-      pathname,
-      router,
-      stopPlayback,
-      speakText,
-    ],
+    [pathname, router, stopPlayback, speakText],
   );
 
   const submitAudio = useCallback(
