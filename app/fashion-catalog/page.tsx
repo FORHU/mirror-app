@@ -19,6 +19,7 @@ import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { QuickResponseChips, getToday } from "@/components/QuickResponseChips";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
@@ -87,6 +88,7 @@ function filterOutfitsByGender(
 }
 
 export default function FashionCatalog() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
@@ -917,6 +919,7 @@ export default function FashionCatalog() {
           <div className="pointer-events-auto w-full flex justify-center">
             <PromptFloater
               onSelect={handlePromptSelect}
+              weather={weather}
               prompts={[
                 "Formal outfit — top, bottom, shoes, and bag.",
                 "Business look that feels confident and professional.",

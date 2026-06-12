@@ -20,6 +20,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -169,6 +170,7 @@ function ExpandableSuggestion({ text }: { text: string }) {
 }
 
 export default function CosmeticRecommendationPage() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
@@ -579,6 +581,7 @@ export default function CosmeticRecommendationPage() {
       <PromptFloater
         prompts={PROMPT_SUGGESTIONS}
         onSelect={handleSuggestionSelect}
+        weather={weather}
       />
     </div>
   );

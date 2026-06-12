@@ -22,6 +22,7 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { getAssistantChipCategories } from "./categories";
 import { cn } from "../../modules/shared/utils";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
@@ -91,6 +92,7 @@ const ASSISTANT_GREETINGS = [
 ];
 
 export default function AIAssistantPage() {
+  const { weather } = useWeather();
   const bottomRef = useRef<HTMLDivElement>(null);
   const voiceStateRef = useRef<string>("idle");
   const submitTextRef = useRef<(text: string) => Promise<void>>(async () => {});
@@ -542,7 +544,7 @@ export default function AIAssistantPage() {
             </div>
 
             {/* Quick Response Chips — categorised */}
-            <QuickResponseChips categories={chipCategories} />
+            <QuickResponseChips categories={chipCategories} weather={weather} />
 
             {/* Bottom nav — flanks the shared center-bottom mic:
                 Fashion · Cosmetics · [mic] · Map · Overview */}

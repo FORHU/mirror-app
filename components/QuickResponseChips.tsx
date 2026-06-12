@@ -8,6 +8,7 @@ import { ROUTES } from "@/navigation";
 import { MAP_PROMPT_KEY } from "@/modules/map";
 import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
 import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import type { WeatherData } from "@/modules/shared/hooks/useWeather";
 
 // ── Date helpers — computed at render time so prompts always carry today's date ──
 
@@ -54,9 +55,20 @@ interface QuickResponseChipsProps {
   /** Override default submitText — when provided, skips ChatWonder entirely */
   onSelect?: (prompt: string) => void;
   activePrompt?: string;
+  /** When provided, appends current weather context to every prompt before submission */
+  weather?: WeatherData | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+
+function withWeather(prompt: string, weather: WeatherData | null | undefined): string {
+  if (!weather) return prompt;
+  const parts: string[] = [];
+  if (weather.temp !== null) parts.push(`${weather.temp}°C`);
+  if (weather.condition) parts.push(weather.condition);
+  const detail = parts.length > 0 ? `${parts.join(", ")} in ${weather.city}` : `in ${weather.city}`;
+  return `${prompt} Current weather: ${detail}.`;
+}
 
 export function QuickResponseChips({
   prompts,
@@ -65,6 +77,7 @@ export function QuickResponseChips({
   onPromptSelect,
   onSelect,
   activePrompt,
+  weather,
 }: QuickResponseChipsProps) {
   const { isListening, isProcessing, isSpeaking, submitText } =
     useVoiceContext();
@@ -89,21 +102,22 @@ export function QuickResponseChips({
 
   const handleTap = (prompt: string) => {
     onPromptSelect?.();
+    const enriched = withWeather(prompt, weather);
     const route = activeCategory?.route;
     if (route && HANDOFF_ROUTES[route]) {
       // Chips with a destination route bypass ChatWonder on the source page.
       // Write the prompt to the destination's handoff key so it processes the
       // query itself once mounted (with voiceState idle and location loaded).
       try {
-        sessionStorage.setItem(HANDOFF_ROUTES[route], prompt);
+        sessionStorage.setItem(HANDOFF_ROUTES[route], enriched);
       } catch {}
       router.push(route);
       return;
     }
     if (onSelect) {
-      onSelect(prompt);
+      onSelect(enriched);
     } else {
-      void submitText(prompt);
+      void submitText(enriched);
     }
     if (route) router.push(route);
   };
