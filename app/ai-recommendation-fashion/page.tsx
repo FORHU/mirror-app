@@ -44,6 +44,7 @@ export default function VirtualMirrorV2() {
   const isLoading = isProcessing;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
@@ -654,6 +655,18 @@ export default function VirtualMirrorV2() {
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Consume garment data from the chat/voice path when already on this page
+  // (VoiceProvider/ChatWonderProvider set chatGarmentData instead of navigating).
+  useEffect(() => {
+    if (!chatGarmentData) return;
+    useMirrorStore.getState().setChatGarmentData(null);
+    Promise.resolve().then(() =>
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse),
+    );
+  }, [chatGarmentData, handleAiComplete]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).

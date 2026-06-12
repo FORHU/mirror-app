@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -15,12 +16,23 @@ function NavButton({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const touchHandledRef = useRef(false);
   return (
     <button
       type="button"
       disabled={disabled}
-      onTouchStart={() => !disabled && router.push(route)}
-      onClick={() => !disabled && router.push(route)}
+      onTouchStart={() => {
+        if (disabled) return;
+        touchHandledRef.current = true;
+        router.push(route);
+      }}
+      onClick={() => {
+        if (disabled || touchHandledRef.current) {
+          touchHandledRef.current = false;
+          return;
+        }
+        router.push(route);
+      }}
       className={`pointer-events-auto whitespace-nowrap px-3 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
         disabled
           ? "text-white/20 cursor-not-allowed"
@@ -73,7 +85,10 @@ export default function AssistantNavBar() {
       >
         <div className="flex-1 min-w-0 flex items-center justify-around pr-2">
           <NavButton label="Fashion" route={ROUTES.FASHION_CATALOG} />
-          <NavButton label="Cosmetics" route={ROUTES.COSMETIC_PRODUCTS} />
+          <NavButton
+            label="Cosmetics"
+            route={ROUTES.AI_RECOMMENDATION_COSMETIC}
+          />
         </div>
 
         {/* center gap — the global 64px mic floats here (viewport center);
