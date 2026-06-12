@@ -267,8 +267,16 @@ export default function OverviewPage() {
           const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
-          setGarments(garments);
-          setOutfits(outfits);
+          
+          if (garments.length > 0 || outfits.length > 0) {
+            setGarments(garments);
+            setOutfits(outfits);
+          } else {
+            // Fallback: If DB search yields nothing, use the LLM's generated sets (if any)
+            const fallback = adaptGarmentData({ ...rawGarmentData, query: undefined });
+            setGarments(fallback.garments);
+            setOutfits(fallback.outfits);
+          }
         } else {
           const { garments, outfits } = adaptGarmentData(response.garment_data);
           setGarments(garments);
