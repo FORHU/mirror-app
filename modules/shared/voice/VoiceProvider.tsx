@@ -1008,7 +1008,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 await executeAction(
                   guard.action,
                   router,
-                  pathname,
                   onActionRef.current ?? undefined,
                 );
                 r = SYSTEM_RESPONSES.defaultOpen;
