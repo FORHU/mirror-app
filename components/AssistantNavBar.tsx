@@ -103,7 +103,7 @@ export default function AssistantNavBar() {
         <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
           <NavButton
             label="Cosmetics"
-            route={ROUTES.AI_RECOMMENDATION_COSMETIC}
+            route={ROUTES.COSMETIC_PRODUCTS}
           />
           <NavButton
             label="Overview"
