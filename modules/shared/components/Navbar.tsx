@@ -46,7 +46,7 @@ export const Navbar = () => {
           <rect width="7" height="5" x="3" y="16" rx="1" />
         </svg>
       ),
-      onClick: () => router.push(ROUTES.WELCOME),
+      onClick: () => router.push(ROUTES.AI_ASSISTANT),
     },
     {
       id: "settings",
@@ -67,7 +67,7 @@ export const Navbar = () => {
           <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      onClick: () => router.push(ROUTES.WELCOME),
+      onClick: () => router.push(ROUTES.AI_ASSISTANT),
     },
   ];
 

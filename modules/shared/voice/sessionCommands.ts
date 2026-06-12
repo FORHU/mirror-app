@@ -60,6 +60,7 @@ export async function performRestart(router: AppRouterInstance) {
     skinCaptureUrl: null,
     overviewFashionSnapshot: null,
     overviewCosmeticsSnapshot: null,
+    overviewMapSnapshot: null,
     chatNavPending: false,
     chatStreamingText: "",
     chatGarmentData: null,
@@ -68,7 +69,7 @@ export async function performRestart(router: AppRouterInstance) {
     isChatOpen: false,
   });
 
-  router.push(ROUTES.WELCOME);
+  router.push(ROUTES.AI_ASSISTANT);
 }
 
 /**
@@ -100,7 +101,7 @@ export async function handleStylistTarget(
 ): Promise<void> {
   if (!target) return;
   if (target === "back") {
-    router.back();
+    router.push(ROUTES.AI_ASSISTANT);
   } else if (target === "restart") {
     await performRestart(router);
   } else if (target === "refresh") {

@@ -512,7 +512,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
 
     // On arrival at the Attract screen, kill any in-flight audio and start a
     // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
-    if (pathname === ROUTES.WELCOME) {
+    if (pathname === ROUTES.AI_ASSISTANT) {
       stopPlayback();
       stopMicCapture();
       queueMicrotask(() => setVoiceState("idle"));
@@ -3373,7 +3373,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
       setVoiceState("processing");
 
       try {
-        if (pathname.startsWith(ROUTES.WELCOME)) {
+        if (pathname.startsWith(ROUTES.AI_ASSISTANT)) {
           await handleAIAssistantText(t);
           return;
         }
