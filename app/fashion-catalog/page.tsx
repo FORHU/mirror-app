@@ -8,10 +8,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
@@ -527,28 +524,24 @@ export default function FashionCatalog() {
   );
 
   const handlePromptSelect = useCallback(
-    async (prompt: string) => {
-      setIsChipLoading(true);
-      try {
-        const response = await chatWonderService.message({
-          input: `[stylist] ${prompt}`,
-          pageMode: "garment",
-        });
-        const query = response.garment_data?.query ?? "";
-        const params = new URLSearchParams(query);
-        if (!params.has("limit")) params.set("limit", "4");
-
-        const fetchedOutfits = await outfitService.getByQuery(
-          params.toString(),
-        );
-        if (fetchedOutfits && fetchedOutfits.length > 0) {
-          router.push(`/ai-recommendation-fashion?${params.toString()}`);
-        }
-      } catch {
-        // Do nothing on error
-      } finally {
-        setIsChipLoading(false);
-      }
+    (prompt: string) => {
+      const lower = prompt.toLowerCase();
+      let metaCategory = "";
+      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
+      else if (/streetwear/i.test(lower)) metaCategory = "Streetwear";
+      else if (/athleisure/i.test(lower)) metaCategory = "Athleisure";
+      else if (/activewear/i.test(lower)) metaCategory = "Activewear";
+      else if (/sportswear/i.test(lower)) metaCategory = "Sportswear";
+      else if (/winterwear/i.test(lower)) metaCategory = "Winterwear";
+      else if (/summerwear/i.test(lower)) metaCategory = "Summerwear";
+      else if (/springwear/i.test(lower)) metaCategory = "Springwear";
+      else if (/business/i.test(lower)) metaCategory = "Business";
+      else if (/formal/i.test(lower)) metaCategory = "Formal";
+      else if (/casual/i.test(lower)) metaCategory = "Casual";
+      const params = new URLSearchParams();
+      if (metaCategory) params.set("metaCategory", metaCategory);
+      params.set("limit", "100");
+      router.push(`/ai-recommendation-fashion?${params.toString()}`);
     },
     [router],
   );

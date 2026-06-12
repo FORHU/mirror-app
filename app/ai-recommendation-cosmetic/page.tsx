@@ -19,7 +19,6 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -293,33 +292,20 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    async (prompt: string) => {
+    (_prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      try {
-        const response = await chatWonderService.message({
-          input: `[cosmetics] ${prompt}`,
-          pageMode: "cosmetics",
-          skinAnalysis: skinAnalysisResult,
-          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
-        });
-        if (response.message) {
-          useMirrorStore.getState().setAiSuggestion(response.message);
-        }
-        if (response.cosmetics_data) {
-          handleAiComplete(response.cosmetics_data);
-        }
-      } catch (err) {
-        console.error("[cosmetics-suggestion]", err);
-      } finally {
-        setIsHandoffLoading(false);
-      }
+      const params = new URLSearchParams();
+      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+      if (skinCat) params.set("metaCategory", skinCat);
+      params.set("limit", "10");
+      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
     },
-    [handleAiComplete, skinAnalysisResult],
+    [router, skinAnalysisResult],
   );
 
   useEffect(() => {
