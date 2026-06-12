@@ -366,52 +366,73 @@ export function OverviewGrid() {
     error: garments.error,
   };
 
+  const showGarments =
+    garmentsState.status === "loading" ||
+    garmentsState.status === "error" ||
+    garmentItems.length > 0;
+
+  const showCosmetics =
+    cosmetics.status === "loading" ||
+    cosmetics.status === "error" ||
+    (cosmetics.data && cosmetics.data.length > 0);
+
+  const showWardrobe =
+    wardrobeState.status === "loading" ||
+    wardrobeState.status === "error" ||
+    (outfits.data && outfits.data.length > 0);
+
   return (
     <div className="grid grid-cols-2 grid-rows-2 gap-5 flex-1 min-h-0 p-2">
-      <Tile
-        icon={ShoppingBag}
-        label="Fashion Pieces"
-        state={garmentsState}
-        className="col-span-1"
-        delay={0.1}
-      >
-        <GarmentsContent items={garmentItems} />
-      </Tile>
+      {showGarments && (
+        <Tile
+          icon={ShoppingBag}
+          label="Fashion Pieces"
+          state={garmentsState}
+          className="col-span-1"
+          delay={0.1}
+        >
+          <GarmentsContent items={garmentItems} />
+        </Tile>
+      )}
 
-      <Tile
-        icon={Sparkles}
-        label="Skin Routine"
-        state={cosmetics}
-        className="col-span-1"
-        delay={0.2}
-        rightContent={
-          skinAnalysis.data?.skinType && (
-            <div className="px-2.5 py-1 rounded-lg bg-white/10 text-white/90 text-[10px] font-bold uppercase tracking-wider border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)]">
-              {skinAnalysis.data.skinType}
-            </div>
-          )
-        }
-      >
-        {cosmetics.data?.length ? (
-          <CosmeticsStrip items={cosmetics.data} />
-        ) : (
-          <EmptyTile text="No cosmetic picks yet." />
-        )}
-      </Tile>
+      {showCosmetics && (
+        <Tile
+          icon={Sparkles}
+          label="Skin Routine"
+          state={cosmetics}
+          className="col-span-1"
+          delay={0.2}
+          rightContent={
+            skinAnalysis.data?.skinType && (
+              <div className="px-2.5 py-1 rounded-lg bg-white/10 text-white/90 text-[10px] font-bold uppercase tracking-wider border border-white/10 shadow-[0_0_10px_rgba(255,255,255,0.05)]">
+                {skinAnalysis.data.skinType}
+              </div>
+            )
+          }
+        >
+          {cosmetics.data?.length ? (
+            <CosmeticsStrip items={cosmetics.data} />
+          ) : (
+            <EmptyTile text="No cosmetic picks yet." />
+          )}
+        </Tile>
+      )}
 
-      <Tile
-        icon={WandSparkles}
-        label="AI Wardrobe Planner"
-        state={wardrobeState}
-        className="col-span-2"
-        delay={0.3}
-      >
-        {outfits.data?.length ? (
-          <WardrobeContent outfits={outfits.data} wide />
-        ) : (
-          <EmptyTile text="No outfits yet." />
-        )}
-      </Tile>
+      {showWardrobe && (
+        <Tile
+          icon={WandSparkles}
+          label="AI Wardrobe Planner"
+          state={wardrobeState}
+          className="col-span-2"
+          delay={0.3}
+        >
+          {outfits.data?.length ? (
+            <WardrobeContent outfits={outfits.data} wide />
+          ) : (
+            <EmptyTile text="No outfits yet." />
+          )}
+        </Tile>
+      )}
     </div>
   );
 }
