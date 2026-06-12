@@ -278,7 +278,10 @@ export default function CosmeticRecommendationPage() {
 
       if (action.type === "GARMENT_RECOMMENDATION") {
         const response = action.response as {
-          cosmetics_data?: { query?: string; recommendations?: unknown[] } | null;
+          cosmetics_data?: {
+            query?: string;
+            recommendations?: unknown[];
+          } | null;
         } | null;
         if (response?.cosmetics_data) {
           handleAiComplete(response.cosmetics_data);

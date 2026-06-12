@@ -12,10 +12,7 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -43,8 +40,7 @@ export default function VirtualMirrorV2() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isProcessing, submitText } = useVoiceContext();
-  const [isChipLoading, setIsChipLoading] = useState(false);
-  const isLoading = isProcessing || isChipLoading;
+  const isLoading = isProcessing;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
   useEffect(() => {
@@ -522,9 +518,11 @@ export default function VirtualMirrorV2() {
       const lower = prompt.toLowerCase();
       let metaCategory = "";
       if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
-      else if (/streetwear|trendy|stylish/i.test(lower)) metaCategory = "Streetwear";
+      else if (/streetwear|trendy|stylish/i.test(lower))
+        metaCategory = "Streetwear";
       else if (/formal|professional/i.test(lower)) metaCategory = "Formal";
-      else if (/athleisure|weekend|comfortable/i.test(lower)) metaCategory = "Athleisure";
+      else if (/athleisure|weekend|comfortable/i.test(lower))
+        metaCategory = "Athleisure";
       else if (/casual|everyday/i.test(lower)) metaCategory = "Casual";
       const params = new URLSearchParams();
       if (metaCategory) params.set("metaCategory", metaCategory);

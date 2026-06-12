@@ -265,13 +265,13 @@ export default function CosmeticProductsPage() {
     const recommendations = recommendationPool(filtered)
       .slice(0, 10)
       .map((product, index) => ({
-      id: `catalog-${skinType.toLowerCase()}-${product.id}`,
-      rank: index + 1,
-      score: Math.max(0.7, 1 - index * 0.03),
-      reason:
-        getProductExplanation(product) ??
-        `Recommended for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
-      cosmeticProduct: product,
+        id: `catalog-${skinType.toLowerCase()}-${product.id}`,
+        rank: index + 1,
+        score: Math.max(0.7, 1 - index * 0.03),
+        reason:
+          getProductExplanation(product) ??
+          `Recommended for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
+        cosmeticProduct: product,
       }));
     const result: SkinAnalysis = {
       id: `catalog-evaluation-${skinType.toLowerCase()}`,
@@ -371,7 +371,8 @@ export default function CosmeticProductsPage() {
             background: "transparent",
             border: "1.5px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
-            cursor: loading || filtered.length === 0 ? "not-allowed" : "pointer",
+            cursor:
+              loading || filtered.length === 0 ? "not-allowed" : "pointer",
           }}
         >
           <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
