@@ -248,7 +248,6 @@ export default function AIAssistantPage() {
 
   // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- external camera event driving UI state
     if (isPresent && showIdle) handleWake(true);
   }, [isPresent, showIdle, handleWake]);
 
