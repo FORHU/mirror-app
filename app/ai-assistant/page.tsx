@@ -82,13 +82,16 @@ export default function AIAssistantPage() {
     return () => setAssistantIdle(false);
   }, [showIdle, setAssistantIdle]);
 
-  // For development convenience: force a session restart on hard-refresh
+  // Dev console helper: call window.__resetSession() to restart ChatWonder manually
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      import("@/modules/shared/api/chat-wonder.service").then((m) => {
-        m.chatWonderService.restart().catch(() => {});
-      });
-    }
+    if (process.env.NODE_ENV !== "development") return;
+    import("@/modules/shared/api/chat-wonder.service").then((m) => {
+      (window as Window & { __resetSession?: () => void }).__resetSession = () =>
+        m.chatWonderService.restart().then(() => console.info("[dev] Session reset"));
+    });
+    return () => {
+      delete (window as Window & { __resetSession?: () => void }).__resetSession;
+    };
   }, []);
 
   // Cycle taglines every 4s while idle screen is visible

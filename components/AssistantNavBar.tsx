@@ -6,6 +6,7 @@ import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useOverviewStore } from "@/modules/overview";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import RestartButton from "@/components/RestartButton";
 
 function NavButton({
   label,
@@ -79,6 +80,9 @@ export default function AssistantNavBar() {
 
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
+      <div className="absolute left-4 bottom-0 pointer-events-auto">
+        <RestartButton />
+      </div>
       <div
         className="pointer-events-auto relative flex items-center w-[640px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
         style={{
