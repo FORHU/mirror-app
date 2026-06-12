@@ -12,6 +12,7 @@ import {
   cosmeticsService,
   type SkinRecommendation,
 } from "@/modules/shared/api/cosmetics.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
@@ -137,6 +138,35 @@ const PROMPT_SUGGESTIONS = [
   "Suggest a calming evening routine.",
   "How do I improve my skin texture and glow?",
 ];
+
+/** Collapsed AI suggestion banner: tap to expand into a scrollable panel.
+ *  Mount with `key={text}` so a new suggestion always starts collapsed. */
+function ExpandableSuggestion({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full text-left tap-highlight-none focus:outline-none"
+    >
+      <p
+        className={`text-[14px] text-white/58 italic leading-relaxed font-light ${
+          expanded ? "max-h-[32vh] overflow-y-auto pr-2" : "line-clamp-4"
+        }`}
+        // The page root sets touchAction: "none"; re-enable vertical pan so the
+        // expanded text is touch-scrollable on the mirror.
+        style={expanded ? { touchAction: "pan-y" } : undefined}
+      >
+        &quot;{text}&quot;
+      </p>
+      {text.length > 240 && (
+        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/35">
+          {expanded ? "Tap to collapse" : "Tap to read more"}
+        </span>
+      )}
+    </button>
+  );
+}
 
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
@@ -319,20 +349,39 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (_prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      const params = new URLSearchParams();
-      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
-      if (skinCat) params.set("metaCategory", skinCat);
-      params.set("limit", "10");
-      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+        });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+        // Fallback: fetch the skin-type catalog so the chip still shows products.
+        const params = new URLSearchParams();
+        const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+        if (skinCat) params.set("metaCategory", skinCat);
+        params.set("limit", "10");
+        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [router, skinAnalysisResult],
+    [handleAiComplete, router, skinAnalysisResult],
   );
 
   useEffect(() => {
@@ -489,10 +538,8 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             {aiSuggestion && (
-              <div className="mt-6 px-5 shrink-0">
-                <p className="text-[14px] text-white/58 italic leading-relaxed font-light">
-                  &quot;{aiSuggestion}&quot;
-                </p>
+              <div className="mt-6 px-5 shrink-0 w-full">
+                <ExpandableSuggestion key={aiSuggestion} text={aiSuggestion} />
               </div>
             )}
           </div>
