@@ -1128,12 +1128,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             return;
           }
 
-          if (aiResponse.cosmetics_data) {
-            useMirrorStore
-              .getState()
-              .setPendingCosmeticsData(aiResponse.cosmetics_data);
-          }
-
           const stylistTarget = aiResponse.stylist_data?.target_url;
           const needsNavigation = stylistTarget && stylistTarget !== pathname;
 
@@ -1142,6 +1136,11 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
               useMirrorStore
                 .getState()
                 .setPendingGarmentData(aiResponse.garment_data);
+            }
+            if (aiResponse.cosmetics_data) {
+              useMirrorStore
+                .getState()
+                .setChatCosmeticsData(aiResponse.cosmetics_data);
             }
             if (
               stylistTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&
@@ -3121,7 +3120,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
             if (res.cosmetics_data) {
               useMirrorStore
                 .getState()
-                .setPendingCosmeticsData(res.cosmetics_data);
+                .setChatCosmeticsData(res.cosmetics_data);
             }
             if (
               resolvedTarget === ROUTES.AI_RECOMMENDATION_COSMETIC &&

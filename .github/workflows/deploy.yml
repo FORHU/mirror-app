@@ -26,7 +26,7 @@ jobs:
   deploy:
     name: Build, Push & Deploy (production)
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: ec2-user-latest
+    runs-on: ubuntu-latest
     environment: production
 
     permissions:
@@ -125,6 +125,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,AWS_REGION
           command_timeout: 20m
           script: |
             set -e

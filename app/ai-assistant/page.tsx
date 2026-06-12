@@ -24,7 +24,7 @@ import { ASSISTANT_CHIP_CATEGORIES } from "./categories";
 
 type GarmentRecommendationAction = {
   type: "GARMENT_RECOMMENDATION";
-  response?: { garment_data?: unknown; maps_data?: unknown[] };
+  response?: { garment_data?: unknown; maps_data?: unknown };
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
@@ -143,7 +143,7 @@ export default function AIAssistantPage() {
       if (g.length) setGarments(g);
       if (o.length) setOutfits(o);
 
-      const m = adaptMapsData(response?.maps_data?.[0]);
+      const m = adaptMapsData(response?.maps_data);
       if (m) setMap(m);
     },
     [setGarments, setOutfits, setMap],

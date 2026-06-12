@@ -108,7 +108,6 @@ export default function FashionCatalog() {
     setMicBusy(isLoading);
     return () => setMicBusy(false);
   }, [isLoading, setMicBusy]);
-
   const [activeMainCategory, setActiveMainCategory] = useState<string>("All");
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
@@ -583,7 +582,6 @@ export default function FashionCatalog() {
             if (fetched && fetched.length > 0) {
               router.push(`/ai-recommendation-fashion?${params.toString()}`);
             } else {
-              // No matches — don't leave the user staring at an unchanged page.
               void speakText(
                 "I couldn't find outfits for that. Want to try another style?",
               );
