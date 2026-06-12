@@ -139,6 +139,35 @@ const PROMPT_SUGGESTIONS = [
   "How do I improve my skin texture and glow?",
 ];
 
+/** Collapsed AI suggestion banner: tap to expand into a scrollable panel.
+ *  Mount with `key={text}` so a new suggestion always starts collapsed. */
+function ExpandableSuggestion({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full text-left tap-highlight-none focus:outline-none"
+    >
+      <p
+        className={`text-[14px] text-white/58 italic leading-relaxed font-light ${
+          expanded ? "max-h-[32vh] overflow-y-auto pr-2" : "line-clamp-4"
+        }`}
+        // The page root sets touchAction: "none"; re-enable vertical pan so the
+        // expanded text is touch-scrollable on the mirror.
+        style={expanded ? { touchAction: "pan-y" } : undefined}
+      >
+        &quot;{text}&quot;
+      </p>
+      {text.length > 240 && (
+        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/35">
+          {expanded ? "Tap to collapse" : "Tap to read more"}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function CosmeticRecommendationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -509,10 +538,8 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             {aiSuggestion && (
-              <div className="mt-6 px-5 shrink-0">
-                <p className="text-[14px] text-white/58 italic leading-relaxed font-light">
-                  &quot;{aiSuggestion}&quot;
-                </p>
+              <div className="mt-6 px-5 shrink-0 w-full">
+                <ExpandableSuggestion key={aiSuggestion} text={aiSuggestion} />
               </div>
             )}
           </div>
