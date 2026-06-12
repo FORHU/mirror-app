@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
@@ -108,24 +108,28 @@ function recommendationPool(items: CosmeticProduct[]) {
   return mixed.length ? mixed : items;
 }
 
-function ProductCard({
+const ProductCard = memo(function ProductCard({
   product,
   selected,
   onSelect,
 }: {
   product: CosmeticProduct;
   selected: boolean;
-  onSelect: () => void;
+  onSelect: (productId: string) => void;
 }) {
+  const handleSelect = useCallback(() => {
+    onSelect(product.id);
+  }, [onSelect, product.id]);
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={onSelect}
+      onClick={handleSelect}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelect();
+          handleSelect();
         }
       }}
       className="flex flex-col items-center rounded-xl overflow-hidden tap-highlight-none focus:outline-none"
@@ -190,9 +194,10 @@ function ProductCard({
       </div>
     </div>
   );
-}
+});
+ProductCard.displayName = "ProductCard";
 
-function SkeletonCard() {
+const SkeletonCard = memo(function SkeletonCard() {
   return (
     <div
       className="animate-pulse rounded-xl bg-white/[0.04]"
@@ -204,7 +209,8 @@ function SkeletonCard() {
       }}
     />
   );
-}
+});
+SkeletonCard.displayName = "SkeletonCard";
 
 export default function CosmeticProductsPage() {
   const router = useRouter();
@@ -215,6 +221,17 @@ export default function CosmeticProductsPage() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null,
   );
+
+  const handleProductSelect = useCallback((productId: string) => {
+    setSelectedProductId((current) =>
+      current === productId ? null : productId,
+    );
+  }, []);
+
+  const handleSkinTypeSelect = useCallback((key: SkinTypeKey) => {
+    setSkinType(key);
+    setSelectedProductId(null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,7 +274,7 @@ export default function CosmeticProductsPage() {
     return [left, right];
   }, [filtered]);
 
-  const handleEvaluateSkin = () => {
+  const handleEvaluateSkin = useCallback(() => {
     const evaluation = {
       success: true,
       skin_type: skinType,
@@ -293,7 +310,7 @@ export default function CosmeticProductsPage() {
         `Skin evaluation complete: ${SKIN_TYPE_FILTERS[skinType].label} skin.`,
       );
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
-  };
+  }, [filtered, router, skinType]);
 
   return (
     <div
@@ -324,10 +341,7 @@ export default function CosmeticProductsPage() {
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  setSkinType(key);
-                  setSelectedProductId(null);
-                }}
+                onClick={() => handleSkinTypeSelect(key)}
                 aria-pressed={active}
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
                 style={{
@@ -413,11 +427,7 @@ export default function CosmeticProductsPage() {
                     key={p.id}
                     product={p}
                     selected={selectedProductId === p.id}
-                    onSelect={() =>
-                      setSelectedProductId((current) =>
-                        current === p.id ? null : p.id,
-                      )
-                    }
+                    onSelect={handleProductSelect}
                   />
                 ))}
               </MarqueeColumn>
@@ -489,11 +499,7 @@ export default function CosmeticProductsPage() {
                     key={p.id}
                     product={p}
                     selected={selectedProductId === p.id}
-                    onSelect={() =>
-                      setSelectedProductId((current) =>
-                        current === p.id ? null : p.id,
-                      )
-                    }
+                    onSelect={handleProductSelect}
                   />
                 ))}
               </MarqueeColumn>

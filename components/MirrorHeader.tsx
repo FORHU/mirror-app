@@ -13,7 +13,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 function ClockDisplay() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
+    setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
