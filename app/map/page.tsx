@@ -102,7 +102,8 @@ export default function MapPage() {
   // At this point homeLocation is in the map store, so geocoding will use it
   // as a proximity hint and setItineraryStops will route from the right origin.
   useEffect(() => {
-    if (homeLocationStatus === "idle" || homeLocationStatus === "loading") return;
+    if (homeLocationStatus === "idle" || homeLocationStatus === "loading")
+      return;
     if (handoffFiredRef.current || !handoffPromptRef.current) return;
     handoffFiredRef.current = true;
     const prompt = handoffPromptRef.current;
