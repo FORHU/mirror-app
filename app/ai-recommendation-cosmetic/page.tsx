@@ -7,7 +7,10 @@ import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
-import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import {
+  COSMETIC_EVALUATE_KEY,
+  COSMETIC_PROMPT_KEY,
+} from "@/modules/cosmetics/constants";
 import {
   cosmeticsService,
   type SkinRecommendation,
@@ -180,6 +183,7 @@ export default function CosmeticRecommendationPage() {
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const handoffStartedRef = useRef(false);
+  const evaluateStartedRef = useRef(false);
   const [isHandoffLoading, setIsHandoffLoading] = useState(() =>
     typeof window !== "undefined"
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
@@ -256,6 +260,52 @@ export default function CosmeticRecommendationPage() {
     useMirrorStore.getState().setChatCosmeticsData(null);
     Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
+
+  // On-mount auto-call triggered by the "Evaluate Your Skin" button.
+  // Fires once per evaluate click (guarded by sessionStorage flag + ref).
+  useEffect(() => {
+    if (evaluateStartedRef.current) return;
+    if (!sessionStorage.getItem(COSMETIC_EVALUATE_KEY)) return;
+
+    const skinAnalysis = useMirrorStore.getState().skinAnalysisResult;
+    if (!skinAnalysis) {
+      sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
+      return;
+    }
+
+    evaluateStartedRef.current = true;
+    sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
+    setIsHandoffLoading(true);
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    useMirrorStore.getState().setChatCosmeticsData(null);
+
+    const skinType = skinAnalysis.skinType?.toLowerCase() ?? "my";
+    const concerns = skinAnalysis.concerns?.join(", ");
+    const input = `[stylist] Recommend cosmetic products for ${skinType} skin${concerns ? ` with concerns: ${concerns}` : ""}.`;
+
+    chatWonderService
+      .message({
+        input,
+        pageMode: "cosmetics",
+        skinAnalysis,
+        sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+      })
+      .then((response) => {
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      })
+      .catch((err) => {
+        console.error("[cosmetics-evaluate]", err);
+      })
+      .finally(() => {
+        setIsHandoffLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount; reads store snapshot directly
 
   // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
   // New format sends { query } instead of { recommendations } — route it through
