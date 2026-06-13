@@ -46,8 +46,9 @@ function StandaloneDetailsPane({
 
       <div className="max-w-md shrink-0">
         <div className="text-[11px] text-white/45 uppercase tracking-[0.24em] mb-1.5 font-semibold">
-          {("brand" in item ? item.brand : (item as GarmentTileItem).category) ||
-            "Curated Selection"}
+          {("brand" in item
+            ? item.brand
+            : (item as GarmentTileItem).category) || "Curated Selection"}
         </div>
         <h2 className="text-3xl font-light leading-tight text-white/90">
           {item.name}
@@ -358,7 +359,10 @@ function CosmeticsStrip({
                   alt={c.name}
                   loading="lazy"
                   className="w-full h-full object-contain transition-transform duration-500 group-hover/item:scale-105"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.15"; }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.opacity =
+                      "0.15";
+                  }}
                 />
               </div>
               <div className="shrink-0 px-2 py-1.5 bg-black/30">
@@ -380,13 +384,20 @@ function CosmeticsStrip({
                   alt={c.name}
                   loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-110"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.15"; }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.opacity =
+                      "0.15";
+                  }}
                 />
               </div>
               <div className="px-3 py-2.5 shrink-0 bg-black/20">
-                <p className="text-white/90 text-[13px] font-bold truncate drop-shadow-sm">{c.name}</p>
+                <p className="text-white/90 text-[13px] font-bold truncate drop-shadow-sm">
+                  {c.name}
+                </p>
                 {c.brand && (
-                  <p className="text-white/50 text-[10px] mt-0.5 font-semibold uppercase tracking-widest truncate">{c.brand}</p>
+                  <p className="text-white/50 text-[10px] mt-0.5 font-semibold uppercase tracking-widest truncate">
+                    {c.brand}
+                  </p>
                 )}
               </div>
             </>

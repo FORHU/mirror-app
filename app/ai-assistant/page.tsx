@@ -86,11 +86,15 @@ export default function AIAssistantPage() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
     import("@/modules/shared/api/chat-wonder.service").then((m) => {
-      (window as Window & { __resetSession?: () => void }).__resetSession = () =>
-        m.chatWonderService.restart().then(() => console.info("[dev] Session reset"));
+      (window as Window & { __resetSession?: () => void }).__resetSession =
+        () =>
+          m.chatWonderService
+            .restart()
+            .then(() => console.info("[dev] Session reset"));
     });
     return () => {
-      delete (window as Window & { __resetSession?: () => void }).__resetSession;
+      delete (window as Window & { __resetSession?: () => void })
+        .__resetSession;
     };
   }, []);
 
