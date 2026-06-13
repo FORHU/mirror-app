@@ -114,8 +114,8 @@ export default function AIAssistantPage() {
 
   // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    if (isPresent && showIdle) handleWake();
-  }, [isPresent, showIdle, handleWake]);
+    if (isPresent && showIdle) queueMicrotask(() => setShowIdle(false));
+  }, [isPresent, showIdle]);
 
   const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
 
