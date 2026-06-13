@@ -1,18 +1,14 @@
 "use client";
 
 /**
- * /overview — the camera-driven "session dashboard".
+ * /overview — the session dashboard.
  *
- * Flow:
- *  1. The eMeet camera runs in the background (no visible frame). `useFaceTracker`
- *     watches for a face with the native FaceDetector.
- *  2. On detection we greet the user (on-screen + TTS) and silently kick off a
- *     background skin analysis (capture → upload → analyze → Socket.io result),
- *     which fills the Cosmetics tile.
- *  3. The user then speaks an intent ("I have a dinner in Baguio tonight"). The
- *     global voice mic routes it through ChatWonder, whose tools (garments,
- *     skin, location, weather) stream back and populate the remaining tiles.
- *  4. Until each tool's data arrives, its tile shows a skeleton.
+ * Data sources (in priority order):
+ *  1. Outline hydration — getOrCreate() ensures an outline always exists.
+ *     If the user visited fashion or cosmetics, the outline already has that
+ *     department's data and tiles fill immediately.
+ *  2. Handoff prompt from /ai-assistant → ChatWonder live request → overwrites tiles.
+ *  3. Snapshots from prior pages (fashion / cosmetics) in the mirror store.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -130,8 +126,8 @@ export default function OverviewPage() {
     let cancelled = false;
     (async () => {
       try {
-        const outline = await outlineService.getActive();
-        if (cancelled || !outline) return;
+        const outline = await outlineService.getOrCreate();
+        if (cancelled) return;
         const { garments, outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
         // Skip overwriting tiles the handoff already set to "loading" — letting
