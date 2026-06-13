@@ -213,7 +213,6 @@ const COLUMN_SCROLL_STYLE = {
   overflowY: "auto" as const,
   touchAction: "pan-y" as const,
   scrollbarWidth: "none" as const,
-  WebkitOverflowScrolling: "touch",
 };
 
 export default function CosmeticProductsPage() {
