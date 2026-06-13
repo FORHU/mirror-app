@@ -66,12 +66,15 @@ export default function FashionCatalog() {
 
   const [activeMainCategory, setActiveMainCategory] = useState("All");
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
-  const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(null);
+  const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
-  const selectedOutfit = selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+  const selectedOutfit =
+    selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
 
   const [leftOutfits, rightOutfits] = (() => {
     const left: { outfit: RemoteOutfit; idx: number }[] = [];
@@ -262,7 +265,8 @@ export default function FashionCatalog() {
       {activeMainCategory !== "All" && !isLoading && outfits.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">
           <p className="text-white/40 text-sm font-light leading-relaxed tracking-wide">
-            There is no outfit currently out in our drawer for the current weather and condition.
+            There is no outfit currently out in our drawer for the current
+            weather and condition.
           </p>
         </div>
       )}
@@ -274,7 +278,11 @@ export default function FashionCatalog() {
             className="h-full flex flex-col p-2 gap-2 min-h-0"
             style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={false} gap={6} style={{ touchAction: "pan-y" }}>
+            <MarqueeColumn
+              loop={false}
+              gap={6}
+              style={{ touchAction: "pan-y" }}
+            >
               {leftOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
@@ -318,7 +326,11 @@ export default function FashionCatalog() {
                       src={selectedOutfit.file.fileUrl}
                       alt={selectedOutfit.name}
                       draggable={false}
-                      style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                      }}
                     />
                   ) : (
                     <span className="text-white/25 text-xs uppercase tracking-[0.18em]">
@@ -374,10 +386,20 @@ export default function FashionCatalog() {
                           <img
                             src={g.imageUrl}
                             alt={g.name}
-                            style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.85 }}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              opacity: 0.85,
+                            }}
                           />
                         ) : (
-                          <span style={{ color: "rgba(255,255,255,0.2)", fontSize: "9px" }}>
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.2)",
+                              fontSize: "9px",
+                            }}
+                          >
                             No IMG
                           </span>
                         )}
@@ -391,13 +413,33 @@ export default function FashionCatalog() {
                           gap: "4px",
                         }}
                       >
-                        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        <span
+                          style={{
+                            color: "rgba(255,255,255,0.4)",
+                            fontSize: "9px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                          }}
+                        >
                           {g.layerLevel ?? g.garmentType[0]}
                         </span>
-                        <span style={{ color: "white", fontSize: "12px", fontWeight: 600, lineHeight: 1.3 }}>
+                        <span
+                          style={{
+                            color: "white",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            lineHeight: 1.3,
+                          }}
+                        >
                           {g.name}
                         </span>
-                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1.4 }}>
+                        <span
+                          style={{
+                            color: "rgba(255,255,255,0.45)",
+                            fontSize: "11px",
+                            lineHeight: 1.4,
+                          }}
+                        >
                           {g.description}
                         </span>
                       </div>
@@ -413,7 +455,11 @@ export default function FashionCatalog() {
             className="h-full flex flex-col p-2 gap-2 min-h-0"
             style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={false} gap={6} style={{ touchAction: "pan-y" }}>
+            <MarqueeColumn
+              loop={false}
+              gap={6}
+              style={{ touchAction: "pan-y" }}
+            >
               {rightOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
@@ -433,7 +479,9 @@ export default function FashionCatalog() {
                 className="tap-highlight-none focus:outline-none disabled:opacity-25 transition-opacity"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
-                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">← Prev</span>
+                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">
+                  ← Prev
+                </span>
               </button>
               <span className="text-white/35 text-[11px] tracking-[0.2em] uppercase tabular-nums">
                 Page {page + 1}
@@ -445,7 +493,9 @@ export default function FashionCatalog() {
                 className="tap-highlight-none focus:outline-none disabled:opacity-25 transition-opacity"
                 style={{ WebkitTapHighlightColor: "transparent" }}
               >
-                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">Next →</span>
+                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">
+                  Next →
+                </span>
               </button>
             </div>
           )}

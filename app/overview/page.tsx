@@ -1,18 +1,14 @@
 "use client";
 
 /**
- * /overview — the camera-driven "session dashboard".
+ * /overview — the session dashboard.
  *
- * Flow:
- *  1. The eMeet camera runs in the background (no visible frame). `useFaceTracker`
- *     watches for a face with the native FaceDetector.
- *  2. On detection we greet the user (on-screen + TTS) and silently kick off a
- *     background skin analysis (capture → upload → analyze → Socket.io result),
- *     which fills the Cosmetics tile.
- *  3. The user then speaks an intent ("I have a dinner in Baguio tonight"). The
- *     global voice mic routes it through ChatWonder, whose tools (garments,
- *     skin, location, weather) stream back and populate the remaining tiles.
- *  4. Until each tool's data arrives, its tile shows a skeleton.
+ * Data sources (in priority order):
+ *  1. Outline hydration — getOrCreate() ensures an outline always exists.
+ *     If the user visited fashion or cosmetics, the outline already has that
+ *     department's data and tiles fill immediately.
+ *  2. Handoff prompt from /ai-assistant → ChatWonder live request → overwrites tiles.
+ *  3. Snapshots from prior pages (fashion / cosmetics) in the mirror store.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -79,7 +75,6 @@ async function requestGarmentsWithFreshSession(
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
@@ -130,17 +125,22 @@ export default function OverviewPage() {
     let cancelled = false;
     (async () => {
       try {
-        const outline = await outlineService.getActive();
-        if (cancelled || !outline) return;
-        const { garments, outfits, cosmetics, skinAnalysis } =
+        const outline = await outlineService.getOrCreate();
+        if (cancelled) return;
+        const { outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
         // Skip overwriting tiles the handoff already set to "loading" — letting
         // outline data flip them to "ready" here hides the overlay while the AI
         // call is still running, flashing stale data on screen for several seconds.
         if (!handoffFiredRef.current) {
-          if (garments.length) setGarments(garments);
-          if (outfits.length) setOutfits(outfits);
-          if (cosmetics.length) setCosmetics(cosmetics);
+          // Only fill tiles that are still idle — if ai-assistant already started
+          // a fetch (status "loading"), leave them alone so the in-flight request
+          // fills them without a stale-data flash.
+          const st = useOverviewStore.getState();
+          if (outfits.length && st.outfits.status === "idle")
+            setOutfits(outfits);
+          if (cosmetics.length && st.cosmetics.status === "idle")
+            setCosmetics(cosmetics);
         }
         if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {
@@ -152,7 +152,7 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
+  }, [setOutfits, setCosmetics, setSkinAnalysis]);
 
   const router = useRouter();
 
@@ -284,6 +284,18 @@ export default function OverviewPage() {
     [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
   );
 
+  // ── redirect to AI Assistant when there's nothing to show ──
+  // Fires once, after the outline hydration resolves. If the outline came back
+  // empty AND there's no in-flight handoff, the store is all-idle — redirect so
+  // the user doesn't stare at a blank page.
+  useEffect(() => {
+    if (hydrating) return;
+    const s = useOverviewStore.getState();
+    if (s.pendingPrompt) return;
+    if (s.outfits.status !== "idle" || s.cosmetics.status !== "idle") return;
+    router.replace(ROUTES.AI_ASSISTANT);
+  }, [hydrating, router]);
+
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
   const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
   const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
@@ -303,23 +315,23 @@ export default function OverviewPage() {
 
     if (!prompt) return;
 
-    // Clear it so it doesn't fire again
     setPendingPrompt(null);
     handoffFiredRef.current = true;
     cameFromAssistantRef.current = true;
 
-    // Show the tiles as actively loading (skeletons) while the tools resolve.
-    setGreeting("Pulling that together for you…");
-    startGarments();
-    startOutfits();
-    startCosmetics();
-
-    void runOverviewPlan(prompt);
+    // Normal path: ai-assistant already started the fetch and set tiles to
+    // "loading" — just let it finish. Hard-refresh path: the store was cleared
+    // so tiles are idle; re-run the plan from here as a fallback.
+    if (useOverviewStore.getState().outfits.status === "idle") {
+      setGreeting("Pulling that together for you…");
+      startOutfits();
+      startCosmetics();
+      void runOverviewPlan(prompt);
+    }
   }, [
     pendingPrompt,
     setPendingPrompt,
     setGreeting,
-    startGarments,
     startOutfits,
     startCosmetics,
     runOverviewPlan,

@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useOverviewStore } from "@/modules/overview";
+import {
+  useOverviewStore,
+  adaptRemoteOutfitsToTiles,
+  adaptCosmeticsData,
+} from "@/modules/overview";
+import { outfitService } from "@/modules/shared/api/outfit.service";
+import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
 import { cn } from "../../modules/shared/utils";
 
 const TAGLINES = [
@@ -33,8 +39,7 @@ const SCENARIOS = [
     title: "Style me for today",
     description: "Daily outfit and skincare routine",
     icon: "🌤️",
-    prompt:
-      "Give me a complete style and wellness briefing for today — outfit and skincare.",
+    metaCategory: "Casual",
     gradient: "from-blue-500/20 to-cyan-500/5",
     border: "border-blue-500/20",
   },
@@ -43,8 +48,7 @@ const SCENARIOS = [
     title: "Special Event",
     description: "Plan my full look and prep",
     icon: "🥂",
-    prompt:
-      "I have a special event to attend — plan my full look and skincare prep.",
+    metaCategory: "Formal",
     gradient: "from-purple-500/20 to-pink-500/5",
     border: "border-purple-500/20",
   },
@@ -53,7 +57,7 @@ const SCENARIOS = [
     title: "Casual & Comfy",
     description: "Relaxed weekend look",
     icon: "🛋️",
-    prompt: "Build me a casual, comfortable outfit and skincare routine.",
+    metaCategory: "Athleisure",
     gradient: "from-emerald-500/20 to-teal-500/5",
     border: "border-emerald-500/20",
   },
@@ -62,7 +66,7 @@ const SCENARIOS = [
     title: "Office Ready",
     description: "Professional workwear",
     icon: "💼",
-    prompt: "Suggest a professional outfit and skincare for work.",
+    metaCategory: "SmartCasual",
     gradient: "from-amber-500/20 to-orange-500/5",
     border: "border-amber-500/20",
   },
@@ -72,6 +76,7 @@ export default function AIAssistantPage() {
   const router = useRouter();
   const isPresent = useMirrorStore((s) => s.isPresent);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -117,14 +122,45 @@ export default function AIAssistantPage() {
     if (isPresent && showIdle) queueMicrotask(() => setShowIdle(false));
   }, [isPresent, showIdle]);
 
-  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
-
   const handleScenarioClick = useCallback(
-    (prompt: string) => {
-      setPendingPrompt(prompt);
+    (scenario: (typeof SCENARIOS)[number]) => {
+      const store = useOverviewStore.getState();
+      store.setGreeting("Pulling that together for you…");
+      store.startOutfits();
+      store.startCosmetics();
+      store.setPendingPrompt(scenario.title);
       router.push(ROUTES.OVERVIEW);
+
+      void (async () => {
+        try {
+          // Fashion: same query path as the fashion recommendation page chip taps
+          const fashionParams = new URLSearchParams();
+          fashionParams.set("metaCategory", scenario.metaCategory);
+          fashionParams.set("limit", "4");
+
+          // Cosmetics: query by skin type if available, same path as cosmetics page
+          const cosmeticsParams = new URLSearchParams();
+          const skinType = skinAnalysisResult?.skinType?.toLowerCase();
+          if (skinType) cosmeticsParams.set("metaCategory", skinType);
+          cosmeticsParams.set("limit", "10");
+
+          const [fetchedOutfits, fetchedProducts] = await Promise.all([
+            outfitService.getByQuery(fashionParams.toString()),
+            cosmeticsService.getByQuery(cosmeticsParams.toString()),
+          ]);
+
+          const fashion = adaptRemoteOutfitsToTiles(fetchedOutfits);
+          const s = useOverviewStore.getState();
+          s.setOutfits(fashion.outfits);
+          s.setCosmetics(adaptCosmeticsData(fetchedProducts));
+        } catch {
+          const s = useOverviewStore.getState();
+          s.setOutfits([]);
+          s.setCosmetics([]);
+        }
+      })();
     },
-    [router, setPendingPrompt],
+    [router, skinAnalysisResult],
   );
 
   return (
@@ -239,7 +275,7 @@ export default function AIAssistantPage() {
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleScenarioClick(scenario.prompt)}
+                    onClick={() => handleScenarioClick(scenario)}
                     className={cn(
                       "relative group overflow-hidden rounded-[32px] text-left p-8",
                       "border bg-black/40 backdrop-blur-xl transition-all duration-500",
