@@ -9,6 +9,7 @@ import {
   type SkinAnalysis,
 } from "@/modules/shared/api/cosmetics.service";
 import {
+  COSMETIC_EVALUATE_KEY,
   SKIN_TYPE_FILTERS,
   matchesSkinType,
   type SkinTypeKey,
@@ -304,11 +305,7 @@ export default function CosmeticProductsPage() {
     useMirrorStore.getState().setPendingCosmeticsData(null);
     useMirrorStore.getState().setChatCosmeticsData(null);
     useMirrorStore.getState().setSkinAnalysisResult(result);
-    useMirrorStore
-      .getState()
-      .setAiSuggestion(
-        `Skin evaluation complete: ${SKIN_TYPE_FILTERS[skinType].label} skin.`,
-      );
+    sessionStorage.setItem(COSMETIC_EVALUATE_KEY, "1");
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
   }, [filtered, router, skinType]);
 
