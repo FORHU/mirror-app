@@ -20,6 +20,11 @@ import { ROUTES } from "@/navigation";
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 const API_LIMIT = 100;
 
+// Module-level cache — survives navigation within the same browser session
+let _cachedProducts: CosmeticProduct[] = [];
+let _cachedHasMore = true;
+let _cachedNextPage = 2;
+
 type CosmeticMetadata = Record<string, unknown> | null | undefined;
 
 function firstText(...values: unknown[]) {
@@ -219,11 +224,12 @@ const COLUMN_SCROLL_STYLE = {
 export default function CosmeticProductsPage() {
   const router = useRouter();
 
-  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>([]);
-  const [isLoadingFirst, setIsLoadingFirst] = useState(true);
+  const hasCached = _cachedProducts.length > 0;
+  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>(() => _cachedProducts);
+  const [isLoadingFirst, setIsLoadingFirst] = useState(!hasCached);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [nextPage, setNextPage] = useState(2);
-  const [hasMore, setHasMore] = useState(true);
+  const [nextPage, setNextPage] = useState(() => _cachedNextPage);
+  const [hasMore, setHasMore] = useState(() => _cachedHasMore);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -232,13 +238,17 @@ export default function CosmeticProductsPage() {
     null,
   );
 
-  // Load page 1 on mount
+  // Load page 1 on mount — skipped if cache already has data
   useEffect(() => {
+    if (hasCached) return;
     let cancelled = false;
     cosmeticsService
       .getPage(1, API_LIMIT)
       .then((first) => {
         if (cancelled) return;
+        _cachedProducts = first.items;
+        _cachedHasMore = first.hasMore;
+        _cachedNextPage = 2;
         setApiProducts(first.items);
         setHasMore(first.hasMore);
         setIsLoadingFirst(false);
@@ -252,7 +262,7 @@ export default function CosmeticProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [hasCached]);
 
   // Load next page when sentinel scrolls into view
   useEffect(() => {
@@ -280,7 +290,11 @@ export default function CosmeticProductsPage() {
         if (cancelled) return;
         setApiProducts((prev) => {
           const ids = new Set(prev.map((p) => p.id));
-          return [...prev, ...next.items.filter((p) => !ids.has(p.id))];
+          const merged = [...prev, ...next.items.filter((p) => !ids.has(p.id))];
+          _cachedProducts = merged;
+          _cachedHasMore = next.hasMore;
+          _cachedNextPage = nextPage;
+          return merged;
         });
         setHasMore(next.hasMore);
         setIsLoadingMore(false);
