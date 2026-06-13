@@ -282,6 +282,18 @@ export default function OverviewPage() {
     [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
   );
 
+  // ── redirect to AI Assistant when there's nothing to show ──
+  // Fires once, after the outline hydration resolves. If the outline came back
+  // empty AND there's no in-flight handoff, the store is all-idle — redirect so
+  // the user doesn't stare at a blank page.
+  useEffect(() => {
+    if (hydrating) return;
+    const s = useOverviewStore.getState();
+    if (s.pendingPrompt) return;
+    if (s.outfits.status !== "idle" || s.cosmetics.status !== "idle") return;
+    router.replace(ROUTES.AI_ASSISTANT);
+  }, [hydrating, router]);
+
   // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
   const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
   const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);

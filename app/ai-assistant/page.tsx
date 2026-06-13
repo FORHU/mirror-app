@@ -8,14 +8,11 @@ import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import {
   useOverviewStore,
-  adaptGarmentData,
   adaptRemoteOutfitsToTiles,
   adaptCosmeticsData,
 } from "@/modules/overview";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import { outfitService } from "@/modules/shared/api/outfit.service";
 import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
-import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { cn } from "../../modules/shared/utils";
 
 const TAGLINES = [
@@ -42,18 +39,7 @@ const SCENARIOS = [
     title: "Style me for today",
     description: "Daily outfit and skincare routine",
     icon: "🌤️",
-    prompts: [
-      "Give me a complete style and wellness briefing for today — outfit and skincare.",
-      "What should I wear and how should I prep my skin for today?",
-      "Style me for today — outfit recommendation and a matching skincare routine.",
-      "Plan my look and skincare for today based on the weather.",
-      "Give me today's complete style guide — from outfit to skincare.",
-      "What's my best outfit and skincare routine for today?",
-      "Help me put together a full look for today, including skincare.",
-      "Today's style brief: recommend an outfit and a quick skincare routine.",
-      "Dress me for today and suggest the right skincare for the conditions.",
-      "Create a full daily look for me — clothes and skin routine included.",
-    ],
+    metaCategory: "Casual",
     gradient: "from-blue-500/20 to-cyan-500/5",
     border: "border-blue-500/20",
   },
@@ -62,18 +48,7 @@ const SCENARIOS = [
     title: "Special Event",
     description: "Plan my full look and prep",
     icon: "🥂",
-    prompts: [
-      "I have a special event to attend — plan my full look and skincare prep.",
-      "Help me dress for a special occasion with a complete outfit and skin prep.",
-      "I'm attending a special event — suggest a standout look and skincare routine.",
-      "Plan an elegant look for my upcoming event, including skincare preparation.",
-      "I need an outfit and skin prep for a special occasion — make it memorable.",
-      "Style me for a special event — from outfit to pre-event skincare.",
-      "Give me a full event look: the perfect outfit and a glowing skincare routine.",
-      "I have a special occasion — what should I wear and how should I prep my skin?",
-      "Create a polished event outfit and skincare plan for my upcoming occasion.",
-      "I'm going to a special event — dress me to impress with the right skincare too.",
-    ],
+    metaCategory: "Formal",
     gradient: "from-purple-500/20 to-pink-500/5",
     border: "border-purple-500/20",
   },
@@ -82,18 +57,7 @@ const SCENARIOS = [
     title: "Casual & Comfy",
     description: "Relaxed weekend look",
     icon: "🛋️",
-    prompts: [
-      "Build me a casual, comfortable outfit and skincare routine.",
-      "I want a relaxed, cozy look for today — outfit and easy skincare.",
-      "Style me for a chill day — casual outfit and a simple skincare routine.",
-      "Give me a laid-back weekend look with a matching skincare routine.",
-      "I need a comfortable outfit and low-maintenance skincare for a relaxed day.",
-      "Create an effortless casual look for me with a basic skincare routine.",
-      "Style me comfortably — easygoing outfit and a minimalist skincare routine.",
-      "What's a great casual look and skincare routine for a relaxed day at home?",
-      "I'm keeping it chill today — suggest a comfy outfit and simple skincare.",
-      "Put together a soft, cozy outfit and a gentle skincare routine for my day off.",
-    ],
+    metaCategory: "Athleisure",
     gradient: "from-emerald-500/20 to-teal-500/5",
     border: "border-emerald-500/20",
   },
@@ -102,18 +66,7 @@ const SCENARIOS = [
     title: "Office Ready",
     description: "Professional workwear",
     icon: "💼",
-    prompts: [
-      "Suggest a professional outfit and skincare for work.",
-      "Help me dress for the office — polished outfit and work-appropriate skincare.",
-      "I need a sharp workwear look and a professional skincare routine for the office.",
-      "What should I wear to work today, and what's the right skincare routine?",
-      "Plan my office look — business-appropriate outfit and a clean skincare routine.",
-      "Style me for a productive workday — professional attire and neat skincare.",
-      "Give me a work-ready outfit and a quick morning skincare routine.",
-      "I have meetings today — suggest a confident look and professional skincare.",
-      "Create a polished office look and skincare routine for my workday.",
-      "Dress me for success at work with the right outfit and skincare approach.",
-    ],
+    metaCategory: "SmartCasual",
     gradient: "from-amber-500/20 to-orange-500/5",
     border: "border-amber-500/20",
   },
@@ -124,7 +77,6 @@ export default function AIAssistantPage() {
   const isPresent = useMirrorStore((s) => s.isPresent);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
-  const { weather } = useWeather();
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -171,120 +123,36 @@ export default function AIAssistantPage() {
   }, [isPresent, showIdle]);
 
   const handleScenarioClick = useCallback(
-    (prompt: string) => {
-      // Pre-fill the overview store so tiles show loading skeletons immediately
-      // and outline hydration is blocked while the real data is in flight.
+    (scenario: (typeof SCENARIOS)[number]) => {
       const store = useOverviewStore.getState();
       store.setGreeting("Pulling that together for you…");
       store.startOutfits();
       store.startCosmetics();
-      store.setPendingPrompt(prompt);
-
+      store.setPendingPrompt(scenario.title);
       router.push(ROUTES.OVERVIEW);
 
-      // Fetch fashion + cosmetics in the background.
-      // Strategy: one primary "overview" call that should return both domains.
-      // If either is missing, fire a targeted fallback call for that domain only.
       void (async () => {
-        const call = async (
-          payload: Parameters<typeof chatWonderService.message>[0],
-        ) => {
-          try {
-            return await chatWonderService.message(payload);
-          } catch (err) {
-            if (err instanceof Error && err.message.includes("HTTP 409")) {
-              await chatWonderService.restart();
-              return chatWonderService.message(payload);
-            }
-            throw err;
-          }
-        };
-
         try {
-          // Primary call — expects both garment_data and cosmetics_data back
-          const primary = await call({
-            input: `[stylist] Plan: ${prompt}`,
-            pageMode: "overview" as const,
-            ...(weather
-              ? { weather: weather as unknown as Record<string, unknown> }
-              : {}),
-            ...(skinAnalysisResult ? { skinAnalysis: skinAnalysisResult } : {}),
-          });
+          // Fashion: same query path as the fashion recommendation page chip taps
+          const fashionParams = new URLSearchParams();
+          fashionParams.set("metaCategory", scenario.metaCategory);
+          fashionParams.set("limit", "4");
 
-          // If a domain is missing, fire a targeted fallback for that domain only
-          let rawGarmentData = primary.garment_data as Record<
-            string,
-            unknown
-          > | null;
-          if (!rawGarmentData) {
-            const fallback = await call({
-              input: `[stylist] Outfit: ${prompt}`,
-              pageMode: "garment" as const,
-              ...(weather
-                ? { weather: weather as unknown as Record<string, unknown> }
-                : {}),
-            });
-            rawGarmentData = fallback.garment_data as Record<
-              string,
-              unknown
-            > | null;
-          }
+          // Cosmetics: query by skin type if available, same path as cosmetics page
+          const cosmeticsParams = new URLSearchParams();
+          const skinType = skinAnalysisResult?.skinType?.toLowerCase();
+          if (skinType) cosmeticsParams.set("metaCategory", skinType);
+          cosmeticsParams.set("limit", "10");
 
-          let rawCosmeticsData = primary.cosmetics_data as Record<
-            string,
-            unknown
-          > | null;
-          if (!rawCosmeticsData) {
-            const fallback = await call({
-              input: `[stylist] Skincare: ${prompt}`,
-              pageMode: "cosmetics" as const,
-              ...(skinAnalysisResult
-                ? { skinAnalysis: skinAnalysisResult }
-                : {}),
-            });
-            rawCosmeticsData = fallback.cosmetics_data as Record<
-              string,
-              unknown
-            > | null;
-          }
-
-          const garmentQuery =
-            typeof rawGarmentData?.query === "string"
-              ? rawGarmentData.query
-              : null;
-          const cosmeticsQuery =
-            typeof rawCosmeticsData?.query === "string"
-              ? rawCosmeticsData.query
-              : null;
-
-          // Both DB fetches run in parallel once we have the queries
-          const fashionFetch = (async () => {
-            if (garmentQuery) {
-              const fetched = await outfitService.getByQuery(garmentQuery);
-              const result = adaptRemoteOutfitsToTiles(fetched);
-              if (result.garments.length > 0 || result.outfits.length > 0)
-                return result;
-              return adaptGarmentData({ ...rawGarmentData, query: undefined });
-            }
-            return adaptGarmentData(rawGarmentData);
-          })();
-
-          const cosmeticsFetch = (async () => {
-            if (cosmeticsQuery) {
-              const fetched = await cosmeticsService.getByQuery(cosmeticsQuery);
-              return adaptCosmeticsData(fetched);
-            }
-            return adaptCosmeticsData(rawCosmeticsData);
-          })();
-
-          const [fashion, cosmetics] = await Promise.all([
-            fashionFetch,
-            cosmeticsFetch,
+          const [fetchedOutfits, fetchedProducts] = await Promise.all([
+            outfitService.getByQuery(fashionParams.toString()),
+            cosmeticsService.getByQuery(cosmeticsParams.toString()),
           ]);
 
+          const fashion = adaptRemoteOutfitsToTiles(fetchedOutfits);
           const s = useOverviewStore.getState();
           s.setOutfits(fashion.outfits);
-          s.setCosmetics(cosmetics);
+          s.setCosmetics(adaptCosmeticsData(fetchedProducts));
         } catch {
           const s = useOverviewStore.getState();
           s.setOutfits([]);
@@ -292,7 +160,7 @@ export default function AIAssistantPage() {
         }
       })();
     },
-    [router, weather, skinAnalysisResult],
+    [router, skinAnalysisResult],
   );
 
   return (
@@ -407,7 +275,7 @@ export default function AIAssistantPage() {
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleScenarioClick(scenario.prompts[Math.floor(Math.random() * scenario.prompts.length)])}
+                    onClick={() => handleScenarioClick(scenario)}
                     className={cn(
                       "relative group overflow-hidden rounded-[32px] text-left p-8",
                       "border bg-black/40 backdrop-blur-xl transition-all duration-500",
