@@ -275,7 +275,7 @@ export default function CosmeticRecommendationPage() {
 
     evaluateStartedRef.current = true;
     sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
-    setIsHandoffLoading(true);
+    queueMicrotask(() => setIsHandoffLoading(true));
     useMirrorStore.getState().setPendingCosmeticsData(null);
     useMirrorStore.getState().setChatCosmeticsData(null);
 
