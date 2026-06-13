@@ -25,6 +25,7 @@ import { getToday } from "@/components/QuickResponseChips";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
+import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
@@ -58,6 +59,7 @@ export default function VirtualMirrorV2() {
   );
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -372,6 +374,7 @@ export default function VirtualMirrorV2() {
             setBagsPage(0);
             setOutfits(fetchedOutfits);
             setOutfitPage(0);
+            setHasFetched(true);
           })
           .catch(console.error);
         return;
@@ -491,6 +494,7 @@ export default function VirtualMirrorV2() {
         });
       setOutfits(newAiOutfits);
       setOutfitPage(0);
+      setHasFetched(true);
     },
     [
       setTopsBase,
@@ -514,6 +518,7 @@ export default function VirtualMirrorV2() {
       setSelectedBottom,
       setSelectedShoe,
       setSelectedOutfitIdx,
+      setHasFetched,
     ],
   );
 
@@ -775,6 +780,12 @@ export default function VirtualMirrorV2() {
 
   const hasRecommendations = outfits.length > 0;
 
+  useEffect(() => {
+    if (!hasFetched || isLoading || hasRecommendations) return;
+    const t = setTimeout(() => router.replace("/fashion-catalog"), 3000);
+    return () => clearTimeout(t);
+  }, [hasFetched, isLoading, hasRecommendations, router]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
       <ChatNavLoader />
@@ -811,6 +822,9 @@ export default function VirtualMirrorV2() {
 
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
+
+      {/* Idle state — no fetch started yet */}
+      {!isLoading && !hasFetched && <OutfitImageCarousel />}
 
       <div className="flex flex-1" style={{ height: "546px" }}>
         {/* Left panel — recommended outfit list */}
@@ -1122,6 +1136,16 @@ export default function VirtualMirrorV2() {
                   label="Style tip"
                   className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
                 />
+              )}
+
+              {/* No results — brief notice before redirect */}
+              {!isLoading && hasFetched && !hasRecommendations && (
+                <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">
+                  <p className="text-white/40 text-sm font-light leading-relaxed tracking-wide">
+                    There is no outfit currently out in our drawer for the
+                    current weather and condition.
+                  </p>
+                </div>
               )}
 
               {/* Garment slot cards */}
