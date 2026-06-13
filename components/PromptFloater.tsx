@@ -34,8 +34,8 @@ export function PromptFloater({
   onSelect,
   weather,
 }: PromptFloaterProps) {
-  const { isListening, isProcessing, isSpeaking } = useVoiceContext();
-  const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const { isProcessing, isSpeaking } = useVoiceContext();
+  const isIdle = !isProcessing && !isSpeaking;
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

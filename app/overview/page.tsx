@@ -25,9 +25,6 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
-import { mapService } from "@/modules/map/services/map.service";
-import { extractLocationFromTranscript } from "@/modules/map/utils/chatWonderMapUtils";
-
 import {
   OverviewGrid,
   useOverviewStore,
@@ -57,25 +54,14 @@ type GarmentRecommendationAction = {
 };
 type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
 
-type OverviewLocationContext = { lat: number; lng: number };
-
 async function requestGarmentsWithFreshSession(
   input: string,
-  location?: OverviewLocationContext | null,
   weather?: Record<string, unknown> | null,
   skinAnalysis?: SkinAnalysis | null,
 ) {
   const payload = {
     input,
     pageMode: "overview" as const,
-    ...(location
-      ? {
-          location: {
-            lat: location.lat.toString(),
-            lng: location.lng.toString(),
-          },
-        }
-      : {}),
     ...(weather ? { weather } : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
   };
@@ -235,33 +221,9 @@ export default function OverviewPage() {
 
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
-      const destination = extractLocationFromTranscript(prompt);
-      // Location for weather: prefer the geocoded destination, fall back to the
-      // user's current GPS position. The backend resolves weather from location.
-      let locationCtx: OverviewLocationContext | null = null;
-
-      if (destination) {
-        try {
-          const { results } = await mapService.geocode(destination);
-          const place = results[0];
-          if (place) {
-            locationCtx = { lat: place.lat, lng: place.lng };
-          }
-        } catch {
-          console.warn("Geocoding failed for weather resolution");
-        }
-      }
-
       try {
         const response = await requestGarmentsWithFreshSession(
-          [
-            "[stylist]",
-            `Plan: ${prompt}`,
-            destination ? `Destination: ${destination}.` : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-          locationCtx,
+          `[stylist] Plan: ${prompt}`,
           weather as Record<string, unknown> | null,
           skinAnalysisResult,
         );

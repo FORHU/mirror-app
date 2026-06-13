@@ -275,7 +275,7 @@ export default function CosmeticRecommendationPage() {
 
     evaluateStartedRef.current = true;
     sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
-    setIsHandoffLoading(true);
+    queueMicrotask(() => setIsHandoffLoading(true));
     useMirrorStore.getState().setPendingCosmeticsData(null);
     useMirrorStore.getState().setChatCosmeticsData(null);
 
@@ -304,7 +304,7 @@ export default function CosmeticRecommendationPage() {
       .finally(() => {
         setIsHandoffLoading(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount; reads store snapshot directly
 
   // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
