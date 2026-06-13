@@ -55,12 +55,16 @@ export default function FashionCatalog() {
 
   const setPendingCategory = useMirrorStore((s) => s.setPendingCategory);
   const updateUser = useAuthStore((state) => state.updateUser);
+  const storedGender = useAuthStore((s): "All" | "MALE" | "FEMALE" => {
+    const g = s.user?.gender?.toUpperCase();
+    return g === "MALE" || g === "FEMALE" ? g : "All";
+  });
 
   const [activeMainCategory, setActiveMainCategory] = useState("All");
   const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
-    "All",
+    storedGender,
   );
-  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">("All");
+  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">(storedGender);
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
@@ -111,17 +115,40 @@ export default function FashionCatalog() {
     [buildQuery],
   );
 
+  const localGenderChangeRef = useRef(false);
+
   const handleGenderChange = useCallback(
     (gender: "All" | "MALE" | "FEMALE") => {
+      localGenderChangeRef.current = true;
       activeGenderRef.current = gender;
       setActiveGender(gender);
-      if (gender !== "All") updateUser({ gender });
+      updateUser({ gender: gender !== "All" ? gender : undefined });
       setPage(0);
       if (!currentSearch) return;
       queueMicrotask(() => void doFetch(currentSearch, 0));
     },
     [currentSearch, doFetch, updateUser],
   );
+
+  // Sync filter when storedGender changes externally (e.g. from ai-assistant).
+  // Skip on mount (useState already seeded from storedGender) and skip when
+  // the change came from our own pills (handleGenderChange already fetched).
+  const storedGenderInitRef = useRef(true);
+  useEffect(() => {
+    if (storedGenderInitRef.current) {
+      storedGenderInitRef.current = false;
+      return;
+    }
+    if (localGenderChangeRef.current) {
+      localGenderChangeRef.current = false;
+      return;
+    }
+    activeGenderRef.current = storedGender;
+    setActiveGender(storedGender);
+    setPage(0);
+    if (!currentSearch) return;
+    queueMicrotask(() => void doFetch(currentSearch, 0));
+  }, [storedGender, currentSearch, doFetch]);
 
   // Reset to page 0 and fetch when URL (category) changes
   const lastSearchRef = useRef<string | null>(null);

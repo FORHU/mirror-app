@@ -6,13 +6,8 @@ import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import {
-  useOverviewStore,
-  adaptRemoteOutfitsToTiles,
-  adaptCosmeticsData,
-} from "@/modules/overview";
-import { outfitService } from "@/modules/shared/api/outfit.service";
-import { cosmeticsService } from "@/modules/shared/api/cosmetics.service";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { useOverviewStore } from "@/modules/overview";
 import { cn } from "../../modules/shared/utils";
 
 const TAGLINES = [
@@ -76,10 +71,16 @@ export default function AIAssistantPage() {
   const router = useRouter();
   const isPresent = useMirrorStore((s) => s.isPresent);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
-  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
+  const updateUser = useAuthStore((s) => s.updateUser);
 
   const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
+  const [activeGender, setActiveGender] = useState<"MALE" | "FEMALE" | null>(
+    null,
+  );
+  const [pendingScenario, setPendingScenario] = useState<
+    (typeof SCENARIOS)[number] | null
+  >(null);
 
   // Tell the shared layout we're idle so it can hide global elements if needed
   useEffect(() => {
@@ -122,46 +123,49 @@ export default function AIAssistantPage() {
     if (isPresent && showIdle) queueMicrotask(() => setShowIdle(false));
   }, [isPresent, showIdle]);
 
-  const handleScenarioClick = useCallback(
-    (scenario: (typeof SCENARIOS)[number]) => {
+  const runScenario = useCallback(
+    (
+      scenario: (typeof SCENARIOS)[number],
+      gender: "MALE" | "FEMALE" | null,
+    ) => {
+      const genderLabel =
+        gender === "MALE"
+          ? " for male"
+          : gender === "FEMALE"
+            ? " for female"
+            : "";
+      const prompt = `Recommend a ${scenario.metaCategory.toLowerCase()} outfit${genderLabel} suited to the current weather and conditions. Also suggest matching skincare and beauty products.`;
       const store = useOverviewStore.getState();
       store.setGreeting("Pulling that together for you…");
-      store.startOutfits();
-      store.startCosmetics();
-      store.setPendingPrompt(scenario.title);
+      store.setPendingPrompt(prompt);
       router.push(ROUTES.OVERVIEW);
-
-      void (async () => {
-        try {
-          // Fashion: same query path as the fashion recommendation page chip taps
-          const fashionParams = new URLSearchParams();
-          fashionParams.set("metaCategory", scenario.metaCategory);
-          fashionParams.set("limit", "4");
-
-          // Cosmetics: query by skin type if available, same path as cosmetics page
-          const cosmeticsParams = new URLSearchParams();
-          const skinType = skinAnalysisResult?.skinType?.toLowerCase();
-          if (skinType) cosmeticsParams.set("metaCategory", skinType);
-          cosmeticsParams.set("limit", "10");
-
-          const [fetchedOutfits, fetchedProducts] = await Promise.all([
-            outfitService.getByQuery(fashionParams.toString()),
-            cosmeticsService.getByQuery(cosmeticsParams.toString()),
-          ]);
-
-          const fashion = adaptRemoteOutfitsToTiles(fetchedOutfits);
-          const s = useOverviewStore.getState();
-          s.setOutfits(fashion.outfits);
-          s.setCosmetics(adaptCosmeticsData(fetchedProducts));
-        } catch {
-          const s = useOverviewStore.getState();
-          s.setOutfits([]);
-          s.setCosmetics([]);
-        }
-      })();
     },
-    [router, skinAnalysisResult],
+    [router],
   );
+
+  const handleScenarioClick = useCallback(
+    (scenario: (typeof SCENARIOS)[number]) => {
+      setPendingScenario(scenario);
+    },
+    [],
+  );
+
+  const handleGenderConfirm = useCallback(
+    (gender: "MALE" | "FEMALE") => {
+      setActiveGender(gender);
+      updateUser({ gender });
+      const scenario = pendingScenario;
+      setPendingScenario(null);
+      if (scenario) runScenario(scenario, gender);
+    },
+    [pendingScenario, runScenario, updateUser],
+  );
+
+  const handleGenderSkip = useCallback(() => {
+    const scenario = pendingScenario;
+    setPendingScenario(null);
+    if (scenario) runScenario(scenario, activeGender);
+  }, [pendingScenario, runScenario, activeGender]);
 
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden relative">
@@ -309,6 +313,78 @@ export default function AIAssistantPage() {
               </motion.div>
             </div>
           </motion.main>
+        )}
+      </AnimatePresence>
+
+      {/* Gender selection dialog */}
+      <AnimatePresence>
+        {pendingScenario && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{
+              background: "rgba(0,0,0,0.72)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 8 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+              className="flex flex-col items-center gap-8 px-10 py-12 rounded-3xl"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                backdropFilter: "blur(20px)",
+                minWidth: "320px",
+              }}
+            >
+              <div className="flex flex-col items-center gap-2 text-center">
+                <p className="text-white/40 text-xs uppercase tracking-[0.3em]">
+                  {pendingScenario.icon} {pendingScenario.title}
+                </p>
+                <h2 className="text-3xl font-thin text-white tracking-tight">
+                  Who are we styling?
+                </h2>
+              </div>
+
+              <div className="flex gap-4 w-full">
+                {(["MALE", "FEMALE"] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => handleGenderConfirm(g)}
+                    className="flex-1 py-4 rounded-2xl text-base font-light tracking-wide transition-all duration-200"
+                    style={{
+                      background:
+                        activeGender === g
+                          ? "rgba(255,255,255,0.18)"
+                          : "rgba(255,255,255,0.06)",
+                      border:
+                        activeGender === g
+                          ? "1px solid rgba(255,255,255,0.35)"
+                          : "1px solid rgba(255,255,255,0.1)",
+                      color: "white",
+                    }}
+                  >
+                    {g === "MALE" ? "Male" : "Female"}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGenderSkip}
+                className="text-white/30 text-xs uppercase tracking-[0.25em] hover:text-white/55 transition-colors"
+              >
+                Skip
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
