@@ -75,7 +75,6 @@ async function requestGarmentsWithFreshSession(
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const startGarments = useOverviewStore((s) => s.startGarments);
   const setGarments = useOverviewStore((s) => s.setGarments);
   const startOutfits = useOverviewStore((s) => s.startOutfits);
   const setOutfits = useOverviewStore((s) => s.setOutfits);
@@ -128,15 +127,18 @@ export default function OverviewPage() {
       try {
         const outline = await outlineService.getOrCreate();
         if (cancelled) return;
-        const { garments, outfits, cosmetics, skinAnalysis } =
+        const { outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
         // Skip overwriting tiles the handoff already set to "loading" — letting
         // outline data flip them to "ready" here hides the overlay while the AI
         // call is still running, flashing stale data on screen for several seconds.
         if (!handoffFiredRef.current) {
-          if (garments.length) setGarments(garments);
-          if (outfits.length) setOutfits(outfits);
-          if (cosmetics.length) setCosmetics(cosmetics);
+          // Only fill tiles that are still idle — if ai-assistant already started
+          // a fetch (status "loading"), leave them alone so the in-flight request
+          // fills them without a stale-data flash.
+          const st = useOverviewStore.getState();
+          if (outfits.length && st.outfits.status === "idle") setOutfits(outfits);
+          if (cosmetics.length && st.cosmetics.status === "idle") setCosmetics(cosmetics);
         }
         if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {
@@ -148,7 +150,7 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [setGarments, setOutfits, setCosmetics, setSkinAnalysis]);
+  }, [setOutfits, setCosmetics, setSkinAnalysis]);
 
   const router = useRouter();
 
@@ -299,23 +301,23 @@ export default function OverviewPage() {
 
     if (!prompt) return;
 
-    // Clear it so it doesn't fire again
     setPendingPrompt(null);
     handoffFiredRef.current = true;
     cameFromAssistantRef.current = true;
 
-    // Show the tiles as actively loading (skeletons) while the tools resolve.
-    setGreeting("Pulling that together for you…");
-    startGarments();
-    startOutfits();
-    startCosmetics();
-
-    void runOverviewPlan(prompt);
+    // Normal path: ai-assistant already started the fetch and set tiles to
+    // "loading" — just let it finish. Hard-refresh path: the store was cleared
+    // so tiles are idle; re-run the plan from here as a fallback.
+    if (useOverviewStore.getState().outfits.status === "idle") {
+      setGreeting("Pulling that together for you…");
+      startOutfits();
+      startCosmetics();
+      void runOverviewPlan(prompt);
+    }
   }, [
     pendingPrompt,
     setPendingPrompt,
     setGreeting,
-    startGarments,
     startOutfits,
     startCosmetics,
     runOverviewPlan,
