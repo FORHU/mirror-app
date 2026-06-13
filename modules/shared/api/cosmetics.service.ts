@@ -76,6 +76,16 @@ export const cosmeticsService = {
     return all;
   },
 
+  getByIds: async (ids: string[]): Promise<unknown[]> => {
+    const res = await api.post<StandardResponse<unknown[]>>(
+      "/api/mirror/cosmetic-products/batch",
+      { ids },
+    );
+    if (!res.ok)
+      throw new Error(res.problem ?? "Failed to fetch cosmetic products by id");
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  },
+
   uploadCapture: async (
     dataUrl: string,
   ): Promise<{ id: string; fileUrl: string }> => {

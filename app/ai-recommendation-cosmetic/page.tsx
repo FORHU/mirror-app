@@ -202,8 +202,21 @@ export default function CosmeticRecommendationPage() {
   );
 
   const handleAiComplete = useCallback(
-    (data: { query?: string; recommendations?: unknown[] } | null) => {
+    (data: { ids?: string[]; query?: string; recommendations?: unknown[] } | null) => {
       if (!data) return;
+      if (data.ids?.length) {
+        setIsHandoffLoading(true);
+        setSelectedId(null);
+        cosmeticsService
+          .getByIds(data.ids)
+          .then((products) => {
+            useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
+            setSelectedId(null);
+          })
+          .catch((err) => console.error("[cosmetics-batch]", err))
+          .finally(() => setIsHandoffLoading(false));
+        return;
+      }
       if (data.query) {
         const params = new URLSearchParams(data.query);
         if (!params.has("limit")) params.set("limit", "10");
