@@ -18,6 +18,8 @@ import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { normalizeGender } from "@/modules/fashion/constants";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
@@ -92,6 +94,7 @@ export default function OverviewPage() {
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
+  const userGender = useAuthStore((s) => s.user?.gender);
 
   const { weather } = useWeather();
 
@@ -238,7 +241,10 @@ export default function OverviewPage() {
             : null;
 
         if (garmentQuery) {
-          const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
+          const gq = new URLSearchParams(garmentQuery);
+          const gender = normalizeGender(userGender);
+          if (gender && !gq.has("metaGender")) gq.set("metaGender", gender);
+          const fetchedOutfits = await outfitService.getByQuery(gq.toString());
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
 
@@ -281,7 +287,14 @@ export default function OverviewPage() {
         setCosmetics([]);
       }
     },
-    [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
+    [
+      setGarments,
+      setOutfits,
+      setCosmetics,
+      weather,
+      skinAnalysisResult,
+      userGender,
+    ],
   );
 
   // ── redirect to AI Assistant when there's nothing to show ──

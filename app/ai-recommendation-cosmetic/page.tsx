@@ -1,6 +1,7 @@
 "use client";
 
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -178,6 +179,22 @@ export default function CosmeticRecommendationPage() {
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const lastSearchParamsRef = useRef<string | null>(null);
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
+    "All",
+  );
+  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">("All");
+
+  const handleGenderChange = useCallback(
+    (gender: "All" | "MALE" | "FEMALE") => {
+      activeGenderRef.current = gender;
+      setActiveGender(gender);
+      if (gender !== "All") updateUser({ gender });
+      // Reset so the URL params effect re-fires with the new gender
+      lastSearchParamsRef.current = null;
+    },
+    [updateUser],
+  );
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
@@ -202,7 +219,13 @@ export default function CosmeticRecommendationPage() {
   );
 
   const handleAiComplete = useCallback(
-    (data: { ids?: string[]; query?: string; recommendations?: unknown[] } | null) => {
+    (
+      data: {
+        ids?: string[];
+        query?: string;
+        recommendations?: unknown[];
+      } | null,
+    ) => {
       if (!data) return;
       if (data.ids?.length) {
         setIsHandoffLoading(true);
@@ -210,7 +233,9 @@ export default function CosmeticRecommendationPage() {
         cosmeticsService
           .getByIds(data.ids)
           .then((products) => {
-            useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
+            useMirrorStore
+              .getState()
+              .setPendingCosmeticsData({ recommendations: products });
             setSelectedId(null);
           })
           .catch((err) => console.error("[cosmetics-batch]", err))
@@ -238,6 +263,8 @@ export default function CosmeticRecommendationPage() {
     let cancelled = false;
     const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "6");
+    if (activeGenderRef.current !== "All")
+      params.set("metaGender", activeGenderRef.current);
     const queryStr = params.toString();
     Promise.resolve()
       .then(() => {
@@ -491,6 +518,38 @@ export default function CosmeticRecommendationPage() {
         style={{ background: "transparent" }}
         onBack={() => router.back()}
       />
+
+      {/* Gender filter */}
+      <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
+        {(["All", "MALE", "FEMALE"] as const).map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => handleGenderChange(g)}
+            style={{
+              padding: "3px 14px",
+              borderRadius: "999px",
+              fontSize: "11px",
+              fontWeight: activeGender === g ? 600 : 400,
+              letterSpacing: "0.06em",
+              color: activeGender === g ? "white" : "rgba(255,255,255,0.45)",
+              background:
+                activeGender === g
+                  ? "rgba(255,255,255,0.15)"
+                  : "rgba(255,255,255,0.04)",
+              border:
+                activeGender === g
+                  ? "1px solid rgba(255,255,255,0.3)"
+                  : "1px solid rgba(255,255,255,0.08)",
+              transition: "all 0.15s ease",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+          </button>
+        ))}
+      </div>
 
       {/* Main 3 Column Layout */}
       <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-20 gap-7">

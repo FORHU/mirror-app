@@ -11,6 +11,8 @@ import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 interface OutfitImageCarouselProps {
   /** Auto-advance interval in ms. */
   intervalMs?: number;
+  /** When set, only outfits matching this gender are fetched. */
+  gender?: "All" | "MALE" | "FEMALE";
 }
 
 /** How many outfits per fetched batch (one batch = one stepper run). */
@@ -34,6 +36,7 @@ function shuffle<T>(arr: T[]): T[] {
  */
 export function OutfitImageCarousel({
   intervalMs = 4500,
+  gender,
 }: OutfitImageCarouselProps) {
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [idx, setIdx] = useState(0);
@@ -44,20 +47,38 @@ export function OutfitImageCarousel({
   // Fetch one page of outfits with images, in random order.
   const fetchBatch = useCallback(
     async (page: number): Promise<RemoteOutfit[]> => {
-      const data = await outfitService
-        .getAll(page, BATCH)
-        .catch(() => [] as RemoteOutfit[]);
+      let data: RemoteOutfit[];
+      if (gender && gender !== "All") {
+        const qs = new URLSearchParams({
+          page: String(page),
+          limit: String(BATCH),
+          metaGender: gender,
+        }).toString();
+        data = await outfitService
+          .getByQuery(qs)
+          .catch(() => [] as RemoteOutfit[]);
+      } else {
+        data = await outfitService
+          .getAll(page, BATCH)
+          .catch(() => [] as RemoteOutfit[]);
+      }
       return shuffle(data.filter((o) => o.file?.fileUrl));
     },
-    [],
+    [gender],
   );
 
-  // Initial batch.
+  // Initial batch — reset fully when gender changes.
   useEffect(() => {
     let cancelled = false;
+    pageRef.current = 1;
+    nextBatchRef.current = null;
+    fetchingRef.current = false;
+    queueMicrotask(() => {
+      setOutfits([]);
+      setIdx(0);
+    });
     fetchBatch(1).then((b) => {
       if (cancelled) return;
-      pageRef.current = 1;
       setOutfits(b);
     });
     return () => {

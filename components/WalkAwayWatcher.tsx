@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
 
-const WALK_AWAY_DELAY_MS = 1000;
+const WALK_AWAY_DELAY_MS = 5000;
 
 /**
  * Watches isPresent in the global store. When the user was detected
