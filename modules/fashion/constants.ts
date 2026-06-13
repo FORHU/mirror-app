@@ -1,5 +1,13 @@
 export const FASHION_PROMPT_KEY = "mirror_fashion_prompt";
 
+export function normalizeGender(value: unknown): "MALE" | "FEMALE" | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim().toUpperCase();
+  if (["MALE", "MAN", "MEN", "M"].includes(v)) return "MALE";
+  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(v)) return "FEMALE";
+  return null;
+}
+
 export const FASHION_DEFAULT_RECOMMENDATION_PROMPT =
   "Recommend an outfit based on my current weather and location.";
 

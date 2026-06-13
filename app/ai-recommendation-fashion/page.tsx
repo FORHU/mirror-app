@@ -15,6 +15,7 @@ import {
 import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -25,7 +26,6 @@ import { getToday } from "@/components/QuickResponseChips";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
-import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import {
   GarmentSelectionPanel,
   type GarmentSlotConfig,
@@ -35,6 +35,7 @@ import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import {
   FASHION_QUOTES,
   FASHION_PROMPT_KEY,
+  normalizeGender,
 } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
@@ -47,6 +48,7 @@ export default function VirtualMirrorV2() {
   const isLoading = isProcessing;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const userGender = useAuthStore((s) => s.user?.gender);
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   useEffect(() => {
     setAssistantIdle(isLoading);
@@ -162,7 +164,7 @@ export default function VirtualMirrorV2() {
 
   const bottomsPageSize = 6;
   const shoesPageSize = 6;
-  const accessoryPageSize = 6;
+  const accessoryPageSize = 2;
   const topsLayerPageSize = 2;
 
   const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
@@ -524,21 +526,9 @@ export default function VirtualMirrorV2() {
 
   const handleChipSelect = useCallback(
     (prompt: string) => {
-      const lower = prompt.toLowerCase();
-      let metaCategory = "";
-      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
-      else if (/streetwear|trendy|stylish/i.test(lower))
-        metaCategory = "Streetwear";
-      else if (/formal|professional/i.test(lower)) metaCategory = "Formal";
-      else if (/athleisure|weekend|comfortable/i.test(lower))
-        metaCategory = "Athleisure";
-      else if (/casual|everyday/i.test(lower)) metaCategory = "Casual";
-      const params = new URLSearchParams();
-      if (metaCategory) params.set("metaCategory", metaCategory);
-      params.set("limit", "4");
-      router.push(`/ai-recommendation-fashion?${params.toString()}`);
+      void submitText(prompt);
     },
-    [router],
+    [submitText],
   );
 
   const fashionPageContext = useMemo(
@@ -622,8 +612,7 @@ export default function VirtualMirrorV2() {
     if (lastSearchParamsRef.current === currentSearch) return;
     lastSearchParamsRef.current = currentSearch;
 
-    // Do not auto-fetch if there are no query parameters. This leaves
-    // the outfits array empty so the idle OutfitImageCarousel can display.
+    // Do not auto-fetch if there are no query parameters — leave idle state showing.
     if (!currentSearch) {
       queueMicrotask(() => setOutfits([]));
       return;
@@ -631,6 +620,8 @@ export default function VirtualMirrorV2() {
 
     const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "4");
+    const gender = normalizeGender(userGender);
+    if (gender && !params.has("metaGender")) params.set("metaGender", gender);
     queueMicrotask(() =>
       handleAiComplete({
         garment_data: { query: params.toString() },
@@ -770,7 +761,7 @@ export default function VirtualMirrorV2() {
       totalPages: 1,
       onPageChange: () => undefined,
       selectedId: selectedBag?.id,
-      columns: 3,
+      columns: 2,
       loading: catalogLoading,
       emptyMessage: catalogLoading
         ? "Loading Accessories"
@@ -787,7 +778,7 @@ export default function VirtualMirrorV2() {
   }, [hasFetched, isLoading, hasRecommendations, router]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
+    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col pb-24">
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
@@ -824,9 +815,15 @@ export default function VirtualMirrorV2() {
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
       {/* Idle state — no fetch started yet */}
-      {!isLoading && !hasFetched && <OutfitImageCarousel />}
+      {!isLoading && !hasFetched && (
+        <QuoteCarousel
+          quotes={FASHION_QUOTES}
+          label="Style tip"
+          className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-22 text-center"
+        />
+      )}
 
-      <div className="flex flex-1" style={{ height: "546px" }}>
+      <div className="flex flex-1 min-h-0">
         {/* Left panel — recommended outfit list */}
         {hasRecommendations && !isLoading && (
           <OutfitListPanel

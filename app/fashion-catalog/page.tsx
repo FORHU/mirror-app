@@ -48,23 +48,19 @@ const CATEGORY_MAP: Record<string, string[]> = {
 
 const PAGE_SIZE = 20;
 
-function normalizeGender(value: unknown): "MALE" | "FEMALE" | null {
-  if (typeof value !== "string") return null;
-  const v = value.trim().toUpperCase();
-  if (["MALE", "MAN", "MEN", "M"].includes(v)) return "MALE";
-  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(v)) return "FEMALE";
-  return null;
-}
-
 export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
 
   const setPendingCategory = useMirrorStore((s) => s.setPendingCategory);
-  const userGender = useAuthStore((state) => state.user?.gender);
+  const updateUser = useAuthStore((state) => state.updateUser);
 
   const [activeMainCategory, setActiveMainCategory] = useState("All");
+  const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
+    "All",
+  );
+  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">("All");
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
@@ -86,17 +82,15 @@ export default function FashionCatalog() {
   })();
 
   // Build query with backend gender filter + pagination
-  const buildQuery = useCallback(
-    (baseQuery: string, pageNum: number) => {
-      const params = new URLSearchParams(baseQuery);
-      params.set("limit", String(PAGE_SIZE));
-      params.set("page", String(pageNum + 1)); // API is 1-indexed
-      const gender = normalizeGender(userGender);
-      if (gender) params.set("gender", gender);
-      return params.toString();
-    },
-    [userGender],
-  );
+  const buildQuery = useCallback((baseQuery: string, pageNum: number) => {
+    const params = new URLSearchParams(baseQuery);
+    params.set("limit", String(PAGE_SIZE));
+    params.set("page", String(pageNum + 1)); // API is 1-indexed
+    if (activeGenderRef.current !== "All") {
+      params.set("metaGender", activeGenderRef.current);
+    }
+    return params.toString();
+  }, []);
 
   const doFetch = useCallback(
     async (baseQuery: string, pageNum: number) => {
@@ -117,6 +111,18 @@ export default function FashionCatalog() {
     [buildQuery],
   );
 
+  const handleGenderChange = useCallback(
+    (gender: "All" | "MALE" | "FEMALE") => {
+      activeGenderRef.current = gender;
+      setActiveGender(gender);
+      if (gender !== "All") updateUser({ gender });
+      setPage(0);
+      if (!currentSearch) return;
+      queueMicrotask(() => void doFetch(currentSearch, 0));
+    },
+    [currentSearch, doFetch, updateUser],
+  );
+
   // Reset to page 0 and fetch when URL (category) changes
   const lastSearchRef = useRef<string | null>(null);
   useEffect(() => {
@@ -128,8 +134,7 @@ export default function FashionCatalog() {
       return;
     }
     queueMicrotask(() => void doFetch(currentSearch, 0));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSearch]);
+  }, [currentSearch, doFetch]);
 
   // Fetch when page changes (same category, different page)
   const prevPageRef = useRef(0);
@@ -138,20 +143,29 @@ export default function FashionCatalog() {
     prevPageRef.current = page;
     if (!currentSearch) return;
     queueMicrotask(() => void doFetch(currentSearch, page));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, currentSearch, doFetch]);
 
   const handleRecommendationsClick = useCallback(() => {
     const metaCategory = searchParams.get("metaCategory");
     const category = metaCategory ? `metaCategory=${metaCategory}` : "ALL";
     setPendingCategory(category);
     const prompts = FASHION_CATEGORY_PROMPTS[activeMainCategory];
-    const prompt = prompts
+    let prompt = prompts
       ? prompts[Math.floor(Math.random() * prompts.length)]
       : FASHION_DEFAULT_RECOMMENDATION_PROMPT;
+    if (activeGender !== "All") {
+      const label = activeGender === "MALE" ? "male" : "female";
+      prompt = `${prompt} Please recommend ${label} outfits only.`;
+    }
     sessionStorage.setItem(FASHION_PROMPT_KEY, prompt);
     router.push("/ai-recommendation-fashion");
-  }, [searchParams, setPendingCategory, router, activeMainCategory]);
+  }, [
+    searchParams,
+    setPendingCategory,
+    router,
+    activeMainCategory,
+    activeGender,
+  ]);
 
   const handleChipSelect = useCallback(
     (prompt: string) => {
@@ -229,13 +243,14 @@ export default function FashionCatalog() {
 
       <MirrorHeader onBack={() => router.back()} />
 
-      {/* Category filter tabs */}
+      {/* Category filter tabs + gender filter */}
       {!isLoading && (
         <div
           style={{
             display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
             alignItems: "center",
+            gap: "6px",
             padding: "6px 16px",
             flexShrink: 0,
           }}
@@ -245,7 +260,39 @@ export default function FashionCatalog() {
             prompts={MAIN_CATEGORIES}
             activePrompt={activeMainCategory}
             className="relative z-40"
+            chipClassName="text-sm px-4 py-1.5"
           />
+          <div className="flex items-center gap-2">
+            {(["All", "MALE", "FEMALE"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => handleGenderChange(g)}
+                style={{
+                  padding: "3px 14px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: activeGender === g ? 600 : 400,
+                  letterSpacing: "0.06em",
+                  color:
+                    activeGender === g ? "white" : "rgba(255,255,255,0.45)",
+                  background:
+                    activeGender === g
+                      ? "rgba(255,255,255,0.15)"
+                      : "rgba(255,255,255,0.04)",
+                  border:
+                    activeGender === g
+                      ? "1px solid rgba(255,255,255,0.3)"
+                      : "1px solid rgba(255,255,255,0.08)",
+                  transition: "all 0.15s ease",
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -260,7 +307,9 @@ export default function FashionCatalog() {
         />
       )}
 
-      {activeMainCategory === "All" && !isLoading && <OutfitImageCarousel />}
+      {activeMainCategory === "All" && !isLoading && (
+        <OutfitImageCarousel gender={activeGender} />
+      )}
 
       {activeMainCategory !== "All" && !isLoading && outfits.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">

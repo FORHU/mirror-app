@@ -52,6 +52,8 @@ interface QuickResponseChipsProps {
   /** Categorised mode — renders tab selectors above the chips */
   categories?: PromptCategory[];
   className?: string;
+  /** Extra classes applied to each individual chip button */
+  chipClassName?: string;
   onPromptSelect?: () => void;
   /** Override default submitText — when provided, skips ChatWonder entirely */
   onSelect?: (prompt: string) => void;
@@ -81,6 +83,7 @@ export function QuickResponseChips({
   prompts,
   categories,
   className,
+  chipClassName,
   onPromptSelect,
   onSelect,
   activePrompt,
@@ -223,7 +226,7 @@ export function QuickResponseChips({
                     prompt === activePrompt
                       ? "bg-white text-black border-white"
                       : "text-white/70 border border-white/10 active:bg-white/10 hover:text-white/90 hover:border-white/20"
-                  }`}
+                  } ${chipClassName ?? ""}`}
                   style={{
                     background:
                       prompt === activePrompt

@@ -225,7 +225,9 @@ export default function CosmeticProductsPage() {
   const router = useRouter();
 
   const hasCached = _cachedProducts.length > 0;
-  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>(() => _cachedProducts);
+  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>(
+    () => _cachedProducts,
+  );
   const [isLoadingFirst, setIsLoadingFirst] = useState(!hasCached);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [nextPage, setNextPage] = useState(() => _cachedNextPage);
