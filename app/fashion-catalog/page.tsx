@@ -506,13 +506,18 @@ export default function FashionCatalog() {
     ],
   );
 
-  const setPendingCategory = useMirrorStoreInstance((s) => s.setPendingCategory);
+  const setPendingCategory = useMirrorStoreInstance(
+    (s) => s.setPendingCategory,
+  );
 
   const handleRecommendationsClick = useCallback(() => {
     const metaCategory = searchParams.get("metaCategory");
     const category = metaCategory ? `metaCategory=${metaCategory}` : "ALL";
     setPendingCategory(category);
-    sessionStorage.setItem(FASHION_PROMPT_KEY, FASHION_DEFAULT_RECOMMENDATION_PROMPT);
+    sessionStorage.setItem(
+      FASHION_PROMPT_KEY,
+      FASHION_DEFAULT_RECOMMENDATION_PROMPT,
+    );
     router.push("/ai-recommendation-fashion");
   }, [searchParams, setPendingCategory, router]);
 

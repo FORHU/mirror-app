@@ -48,32 +48,23 @@ export const cosmeticsService = {
     return items;
   },
 
-  // Full product catalog; skin-type filtering happens on the frontend
-  // (see modules/cosmetics/constants.ts SKIN_TYPE_FILTERS).
-  // The endpoint is paginated, so we walk every page until a short page
-  // signals the end (a missing-pagination backend returns everything in one).
-  getAllProducts: async (): Promise<CosmeticProduct[]> => {
-    const limit = 100;
-    const maxPages = 50; // safety valve against a backend that ignores paging
-    const all: CosmeticProduct[] = [];
-    for (let page = 1; page <= maxPages; page++) {
-      const res = await api.get<
-        StandardResponse<{ items: CosmeticProduct[] } | CosmeticProduct[]>
-      >(`/api/mirror/cosmetic-products?page=${page}&limit=${limit}`);
-      if (!res.ok) {
-        throw new Error(res.problem ?? "Failed to fetch cosmetic products");
-      }
-      const data = res.data?.data;
-      const items = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-          ? data.items
-          : null;
-      if (items === null) throw new Error("Unexpected response shape");
-      all.push(...items);
-      if (items.length < limit) break;
-    }
-    return all;
+  getPage: async (
+    page: number,
+    limit = 100,
+  ): Promise<{ items: CosmeticProduct[]; hasMore: boolean }> => {
+    const res = await api.get<
+      StandardResponse<{ items: CosmeticProduct[] } | CosmeticProduct[]>
+    >(`/api/mirror/cosmetic-products?page=${page}&limit=${limit}`);
+    if (!res.ok)
+      throw new Error(res.problem ?? "Failed to fetch cosmetic products");
+    const data = res.data?.data;
+    const items = Array.isArray(data)
+      ? data
+      : Array.isArray((data as { items?: CosmeticProduct[] })?.items)
+        ? (data as { items: CosmeticProduct[] }).items
+        : null;
+    if (items === null) throw new Error("Unexpected response shape");
+    return { items, hasMore: items.length >= limit };
   },
 
   uploadCapture: async (
