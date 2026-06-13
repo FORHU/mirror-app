@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
@@ -221,49 +221,77 @@ export default function CosmeticProductsPage() {
 
   const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>([]);
   const [isLoadingFirst, setIsLoadingFirst] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null,
   );
 
-  // Load page 1 immediately, then stream remaining pages in the background.
+  // Load page 1 on mount
   useEffect(() => {
     let cancelled = false;
-
-    async function loadAll() {
-      try {
-        const first = await cosmeticsService.getPage(1, API_LIMIT);
+    cosmeticsService
+      .getPage(1, API_LIMIT)
+      .then((first) => {
         if (cancelled) return;
         setApiProducts(first.items);
+        setHasMore(first.hasMore);
         setIsLoadingFirst(false);
-
-        let page = 2;
-        let more = first.hasMore;
-        while (more && !cancelled) {
-          const next = await cosmeticsService.getPage(page, API_LIMIT);
-          if (cancelled) return;
-          setApiProducts((prev) => {
-            const ids = new Set(prev.map((p) => p.id));
-            return [...prev, ...next.items.filter((p) => !ids.has(p.id))];
-          });
-          more = next.hasMore;
-          page++;
-        }
-      } catch (e) {
+      })
+      .catch((e) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to load products");
           setIsLoadingFirst(false);
         }
-      }
-    }
-
-    loadAll();
+      });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Load next page when sentinel scrolls into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || isLoadingMore || isLoadingFirst) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        setIsLoadingMore(true);
+        setNextPage((p) => p + 1);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, isLoadingFirst]);
+
+  // Fetch when nextPage advances past 2
+  useEffect(() => {
+    if (nextPage < 3 || isLoadingFirst) return;
+    let cancelled = false;
+    cosmeticsService
+      .getPage(nextPage - 1, API_LIMIT)
+      .then((next) => {
+        if (cancelled) return;
+        setApiProducts((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          return [...prev, ...next.items.filter((p) => !ids.has(p.id))];
+        });
+        setHasMore(next.hasMore);
+        setIsLoadingMore(false);
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoadingMore(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [nextPage, isLoadingFirst]);
 
   const filtered = useMemo(
     () => apiProducts.filter((p) => matchesSkinType(p, skinType)),
@@ -503,6 +531,16 @@ export default function CosmeticProductsPage() {
                     onSelect={handleProductSelect}
                   />
                 ))}
+            {/* Sentinel — triggers next page load when scrolled into view */}
+            {hasMore && !isLoadingFirst && (
+              <div ref={sentinelRef} style={{ height: 1, flexShrink: 0 }}>
+                {isLoadingMore && (
+                  <div className="text-white/20 text-[10px] text-center py-2 uppercase tracking-widest">
+                    Loading…
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

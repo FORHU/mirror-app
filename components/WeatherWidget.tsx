@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 function WeatherIcon({ code, size }: { code: number; size: number }) {
@@ -226,8 +227,10 @@ export default function WeatherWidget({
   iconSize?: number;
 }) {
   const { weather, loading } = useWeather();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div
         className="flex items-center gap-2 px-1"

@@ -1142,11 +1142,11 @@ export default function VirtualMirrorV2() {
               {!isLoading && hasFetched && !hasRecommendations && (
                 <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">
                   <p className="text-white/40 text-sm font-light leading-relaxed tracking-wide">
-                    There is no outfit currently out in our drawer for the current weather and condition.
+                    There is no outfit currently out in our drawer for the
+                    current weather and condition.
                   </p>
                 </div>
               )}
-
 
               {/* Garment slot cards */}
               {!selectedOutfit && !isLoading && (
