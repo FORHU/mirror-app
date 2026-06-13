@@ -1,4 +1,5 @@
 export const COSMETIC_PROMPT_KEY = "mirror_cosmetic_prompt";
+export const COSMETIC_EVALUATE_KEY = "mirror_cosmetic_evaluate";
 
 export type SkinTypeKey = "OILY" | "DRY" | "NORMAL" | "SENSITIVE";
 
