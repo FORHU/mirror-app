@@ -806,7 +806,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           setVoiceState("processing");
 
           const pendingCategory = useMirrorStore.getState().pendingCategory;
-          if (pendingCategory) useMirrorStore.getState().setPendingCategory(null);
+          if (pendingCategory)
+            useMirrorStore.getState().setPendingCategory(null);
 
           let aiResponse;
           try {
