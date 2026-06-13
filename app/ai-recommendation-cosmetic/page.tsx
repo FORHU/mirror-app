@@ -219,7 +219,7 @@ export default function CosmeticRecommendationPage() {
       }
       if (data.query) {
         const params = new URLSearchParams(data.query);
-        if (!params.has("limit")) params.set("limit", "10");
+        if (!params.has("limit")) params.set("limit", "6");
         router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
         return;
       }
@@ -237,7 +237,7 @@ export default function CosmeticRecommendationPage() {
 
     let cancelled = false;
     const params = new URLSearchParams(currentSearch);
-    if (!params.has("limit")) params.set("limit", "10");
+    if (!params.has("limit")) params.set("limit", "6");
     const queryStr = params.toString();
     Promise.resolve()
       .then(() => {
@@ -369,9 +369,9 @@ export default function CosmeticRecommendationPage() {
       .setOverviewCosmeticsSnapshot(adaptCosmeticsData(sortedRecs));
   }, [sortedRecs]);
 
-  // The design requests 10 items total, split 5 on left, 5 on right.
-  const leftColRecs = useMemo(() => sortedRecs.slice(0, 5), [sortedRecs]);
-  const rightColRecs = useMemo(() => sortedRecs.slice(5, 10), [sortedRecs]);
+  // 6 items total, split 3 on left, 3 on right.
+  const leftColRecs = useMemo(() => sortedRecs.slice(0, 3), [sortedRecs]);
+  const rightColRecs = useMemo(() => sortedRecs.slice(3, 6), [sortedRecs]);
 
   // Derive the active recommendation during render (defaults to the top rank)
   // instead of syncing it via an effect, which triggers cascading renders.
@@ -427,6 +427,7 @@ export default function CosmeticRecommendationPage() {
           pageMode: "cosmetics",
           skinAnalysis: skinAnalysisResult,
           sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+          set: 6,
         });
         if (response.message) {
           useMirrorStore.getState().setAiSuggestion(response.message);
@@ -498,7 +499,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             pagedItems={leftColRecs}
             loading={showRecommendationSkeletons}
-            pageSize={5}
+            pageSize={3}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={handleRecommendationSelect}
@@ -610,12 +611,12 @@ export default function CosmeticRecommendationPage() {
           </div>
         </div>
 
-        {/* Right Column - Recommendations 6-10 */}
+        {/* Right Column - Recommendations 4-6 */}
         <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
             pagedItems={rightColRecs}
             loading={showRecommendationSkeletons}
-            pageSize={5}
+            pageSize={3}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={handleRecommendationSelect}
