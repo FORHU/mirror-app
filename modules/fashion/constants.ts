@@ -3,6 +3,27 @@ export const FASHION_PROMPT_KEY = "mirror_fashion_prompt";
 export const FASHION_DEFAULT_RECOMMENDATION_PROMPT =
   "Recommend an outfit based on my current weather and location.";
 
+export const FASHION_CATEGORY_PROMPTS: Partial<Record<string, string[]>> = {
+  Casual: [
+    "I'm looking for casual outfit recommendations. Suggest something relaxed and everyday that fits the current weather.",
+    "Give me casual outfit ideas — comfortable, laid-back styles suited to today's conditions.",
+    "Recommend a casual look I can wear today. Keep it relaxed and weather-appropriate.",
+    "I want casual fashion recommendations. What casual outfits work best for today's weather?",
+  ],
+  Formal: [
+    "I'm looking for formal outfit recommendations. Suggest something polished and professional for today's weather.",
+    "Give me formal outfit ideas — elegant and refined styles suited to the current conditions.",
+    "Recommend a formal look I can wear today. Something sophisticated and weather-appropriate.",
+    "I want formal fashion recommendations. What formal outfits work best for today's weather?",
+  ],
+  Outdoor: [
+    "I'm looking for outdoor outfit recommendations. Suggest something practical and activity-ready for today's weather.",
+    "Give me outdoor outfit ideas — functional and weather-appropriate styles for spending time outside.",
+    "Recommend an outdoor look I can wear today. Something built for the current conditions.",
+    "I want outdoor fashion recommendations. What outfits work best for being outside in today's weather?",
+  ],
+};
+
 /** Style quotes cycled on the fashion loading screen while the AI composes outfits. */
 export const FASHION_QUOTES = [
   {
