@@ -15,7 +15,6 @@ import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { ROUTES, SITEMAP_CONTEXT } from "@/navigation";
-import { concatFrames, float32ToInt16, transcribeAudio } from "./submitAudio";
 import { OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 import { AiEventsOverlay } from "./AiEventsOverlay";
 import { motion, AnimatePresence } from "motion/react";
@@ -54,9 +53,6 @@ import {
 import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 const CHAT_SESSION_KEY = "mirror_chat_session";
-// Safety cap: without VAD the mic only stops on a tap, so auto-stop & submit a
-// runaway recording (user walked away) instead of buffering audio forever.
-const MAX_RECORDING_MS = 45_000;
 const AI_ASSISTANT_WAKE_ONLY =
   /^(?:(?:hey|hay|hi|ok|okay|hello|magic)\s+)?(?:mirror|miror|mira|miro|mere|nero|meera|mirror\s+mirror)$/i;
 
@@ -245,12 +241,8 @@ export interface VoiceContextValue {
   transcript: string;
   reply: string;
   error: string | null;
-  isListening: boolean;
   isProcessing: boolean;
   isSpeaking: boolean;
-  toggle: () => void;
-  startListening: () => void;
-  stopListening: () => void;
   submitText: (text: string) => Promise<void>;
   speakText: (text: string) => Promise<void>;
   registerPage: (
@@ -331,27 +323,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     playbackCtxRef.current = null;
   }, []);
 
-  // Tear down the mic stream/graph and stop collecting frames. Safe to call
-  // when nothing is recording. (Refs are stable, so no deps needed.)
-  const stopMicCapture = useCallback(() => {
-    isRecordingRef.current = false;
-    if (maxRecordingTimerRef.current) {
-      clearTimeout(maxRecordingTimerRef.current);
-      maxRecordingTimerRef.current = null;
-    }
-    try {
-      processorRef.current?.disconnect();
-    } catch {
-      /* already disconnected */
-    }
-    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
-    void audioCtxRef.current?.close().catch(() => {});
-    processorRef.current = null;
-    mediaStreamRef.current = null;
-    audioCtxRef.current = null;
-    speechFramesRef.current = [];
-  }, []);
-
   // Reset pending state on route change
   useEffect(() => {
     confirmationRef.current = createIdleConfirmation();
@@ -360,14 +331,13 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     // fresh chat-wonder session. Auth/gender cleared by their own owners (ADR 0001).
     if (pathname === ROUTES.AI_ASSISTANT) {
       stopPlayback();
-      stopMicCapture();
       queueMicrotask(() => setVoiceState("idle"));
       sessionIdRef.current = undefined;
       sessionStorage.removeItem(CHAT_SESSION_KEY);
       historyRef.current = [];
       queueMicrotask(() => setChatHistory([]));
     }
-  }, [pathname, stopPlayback, stopMicCapture]);
+  }, [pathname, stopPlayback]);
 
   const speakText = useCallback(
     async (text: string): Promise<void> => {
@@ -407,9 +377,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     stopPlayback();
     stopAllAudioQueues();
-    stopMicCapture();
     queueMicrotask(() => setVoiceState("idle"));
-  }, [pathname, stopPlayback, stopMicCapture]);
+  }, [pathname, stopPlayback]);
 
   const handleAIAssistantText = useCallback(
     async (t: string) => {
@@ -620,22 +589,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [router, stopPlayback, speakText],
   );
 
-  // Tap-to-talk mic capture: tap to start recording, tap again to stop & submit.
-  const isRecordingRef = useRef(false);
-  const micInitializingRef = useRef(false);
-  const speechFramesRef = useRef<Float32Array[]>([]);
-  const maxRecordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
-  // Holds the latest stopListening so the max-recording timer can invoke it
-  // without a forward-reference (stopListening is defined further down).
-  const stopListeningRef = useRef<(() => void) | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const submitAudioRef = useRef<
-    ((frames: Float32Array[]) => Promise<void>) | null
-  >(null);
   const processTranscript = useCallback(
     async (t: string) => {
       stopPlayback();
@@ -1224,105 +1177,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [pathname, router, stopPlayback, speakText],
   );
 
-  const submitAudio = useCallback(
-    async (frames: Float32Array[]) => {
-      try {
-        if (frames.length === 0) {
-          setVoiceState("idle");
-          return;
-        }
-
-        const int16 = float32ToInt16(concatFrames(frames));
-        const lang = useMirrorStore.getState().voiceLanguage || "en-US";
-        const token = await resolveAccessToken();
-        const transcript = await transcribeAudio({ int16, lang, token });
-        if (transcript?.trim()) {
-          await processTranscript(transcript.trim());
-        } else {
-          setVoiceState("idle");
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Transcription failed.");
-        setVoiceState("idle");
-      }
-    },
-    [processTranscript],
-  );
-
-  // Keep a stable ref so the mic capture path always calls the latest version
-  useEffect(() => {
-    submitAudioRef.current = submitAudio;
-  }, [submitAudio]);
-
-  const startListening = useCallback(async () => {
-    if (voiceState !== "idle") return;
-    if (micInitializingRef.current) return;
-    micInitializingRef.current = true;
-    setError(null);
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { noiseSuppression: true, echoCancellation: true },
-      });
-
-      // Capture raw 16 kHz PCM straight from the mic. Frames are collected for
-      // as long as isRecordingRef is true — i.e. until the user taps to stop.
-      const audioCtx = new AudioContext({ sampleRate: 16000 });
-      const source = audioCtx.createMediaStreamSource(stream);
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      processor.onaudioprocess = (e: AudioProcessingEvent) => {
-        if (isRecordingRef.current) {
-          speechFramesRef.current.push(
-            new Float32Array(e.inputBuffer.getChannelData(0)),
-          );
-        }
-      };
-      source.connect(processor);
-      processor.connect(audioCtx.destination);
-
-      /* eslint-disable react-hooks/immutability */
-      audioCtxRef.current = audioCtx;
-      processorRef.current = processor;
-      mediaStreamRef.current = stream;
-      speechFramesRef.current = [];
-      isRecordingRef.current = true;
-      micInitializingRef.current = false;
-      // Safety auto-stop: submit whatever was captured if the user never taps.
-      maxRecordingTimerRef.current = setTimeout(() => {
-        stopListeningRef.current?.();
-      }, MAX_RECORDING_MS);
-      /* eslint-enable react-hooks/immutability */
-      setVoiceState("recording");
-    } catch (err) {
-      micInitializingRef.current = false;
-      const msg =
-        err instanceof DOMException && err.name === "NotAllowedError"
-          ? "Microphone access denied."
-          : err instanceof Error
-            ? err.message
-            : "Microphone initialisation failed.";
-      setError(msg);
-    }
-  }, [voiceState]);
-
-  const stopListening = useCallback(async () => {
-    if (!isRecordingRef.current) return;
-    // Grab the captured frames, tear down the mic, then transcribe.
-    const frames = speechFramesRef.current;
-    stopMicCapture();
-    setVoiceState("processing");
-    await submitAudioRef.current?.(frames);
-  }, [stopMicCapture]);
-
-  // Keep the ref current so the max-recording timer always calls the latest one.
-  useEffect(() => {
-    stopListeningRef.current = stopListening;
-  }, [stopListening]);
-
-  // Tap-to-talk: the mic is not continuously armed. The user taps the mic to
-  // start recording and taps again to stop; the captured audio is then
-  // transcribed, processed, spoken, and the mic returns to idle.
-
   const submitText = useCallback(
     async (text: string) => {
       const t = text.trim();
@@ -1350,19 +1204,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     [handleAIAssistantText, pathname, processTranscript, voiceState],
   );
 
-  const toggle = useCallback(() => {
-    if (voiceState === "idle") return startListening();
-    if (voiceState === "recording") return stopListening();
-    if (voiceState === "speaking" || voiceState === "processing") {
-      stopPlayback();
-      stopMicCapture();
-      setTranscript("");
-      setReply("");
-      setError(null);
-      setVoiceState("idle");
-    }
-  }, [voiceState, startListening, stopListening, stopPlayback, stopMicCapture]);
-
   const registerPage = useCallback(
     (ctx: PageContext, onAction: (action: ChatWonderAction) => void) => {
       pageCtxRef.current = ctx;
@@ -1376,7 +1217,6 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
     onActionRef.current = null;
   }, []);
 
-  const isListening = voiceState === "recording";
   const isProcessing = voiceState === "processing";
   const isSpeaking = voiceState === "speaking";
 
@@ -1387,12 +1227,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
         transcript,
         reply,
         error,
-        isListening,
         isProcessing,
         isSpeaking,
-        toggle,
-        startListening,
-        stopListening,
         submitText,
         speakText,
         registerPage,

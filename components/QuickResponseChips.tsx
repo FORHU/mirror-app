@@ -86,9 +86,8 @@ export function QuickResponseChips({
   activePrompt,
   weather,
 }: QuickResponseChipsProps) {
-  const { isListening, isProcessing, isSpeaking, submitText } =
-    useVoiceContext();
-  const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const { isProcessing, isSpeaking, submitText } = useVoiceContext();
+  const isIdle = !isProcessing && !isSpeaking;
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);

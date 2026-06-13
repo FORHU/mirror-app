@@ -14,7 +14,6 @@ import { ThemeProvider } from "@/modules/shared/components/ThemeProvider";
 import { QueryProvider } from "@/modules/shared/providers/QueryProvider";
 import { VoiceProvider } from "@/modules/shared/voice/VoiceProvider";
 import { ChatWonderProvider } from "@/modules/shared/ai/ChatWonderProvider";
-import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
 import { ProximitySensorMount } from "@/components/ProximitySensorMount";
 import { WalkAwayWatcher } from "@/components/WalkAwayWatcher";
 import { SkinAnalysisTrigger } from "@/components/SkinAnalysisTrigger";
@@ -96,7 +95,6 @@ export default function RootLayout({
               <ChatWonderProvider>
                 <ProximitySensorMount>
                   <AuthInitializer>{children}</AuthInitializer>
-                  <GlobalVoiceOverlay />
                   <AssistantNavBar />
                   <WalkAwayWatcher />
                   <SkinAnalysisTrigger />

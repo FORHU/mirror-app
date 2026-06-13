@@ -10,7 +10,6 @@ import type { ChatWonderAction, PageContext } from "../ai/chatwonder.types";
  * Call this once per page to:
  *  - Register the page's context so ChatWonder knows what screen the user is on
  *  - Receive ChatWonder actions targeted at this page via `onAction`
- *  - Access `startListening`, `stopListening`, `isListening`, `transcript`
  *
  * Context and handler are automatically unregistered on unmount.
  */
@@ -34,9 +33,6 @@ export function useVoice(
   }, [pageContext?.route, pageContext?.pageName, pageContext?.activeStep]);
 
   return {
-    isListening: voice.isListening,
     transcript: voice.transcript,
-    startListening: voice.startListening,
-    stopListening: voice.stopListening,
   };
 }
