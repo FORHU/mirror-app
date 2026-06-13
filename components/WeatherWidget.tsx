@@ -228,7 +228,9 @@ export default function WeatherWidget({
 }) {
   const { weather, loading } = useWeather();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { queueMicrotask(() => setMounted(true)); }, []);
+  useEffect(() => {
+    queueMicrotask(() => setMounted(true));
+  }, []);
 
   if (!mounted || loading) {
     return (
