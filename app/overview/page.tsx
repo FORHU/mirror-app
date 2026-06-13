@@ -137,8 +137,10 @@ export default function OverviewPage() {
           // a fetch (status "loading"), leave them alone so the in-flight request
           // fills them without a stale-data flash.
           const st = useOverviewStore.getState();
-          if (outfits.length && st.outfits.status === "idle") setOutfits(outfits);
-          if (cosmetics.length && st.cosmetics.status === "idle") setCosmetics(cosmetics);
+          if (outfits.length && st.outfits.status === "idle")
+            setOutfits(outfits);
+          if (cosmetics.length && st.cosmetics.status === "idle")
+            setCosmetics(cosmetics);
         }
         if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {

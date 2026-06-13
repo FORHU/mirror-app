@@ -6,11 +6,7 @@ import { useState } from "react";
 import { AlertCircle, Sparkles, WandSparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { useOverviewStore } from "../store/useOverviewStore";
-import type {
-  CosmeticTileItem,
-  OutfitTileItem,
-  TileState,
-} from "../types";
+import type { CosmeticTileItem, OutfitTileItem, TileState } from "../types";
 
 const proxied = (url: string) =>
   `/api/proxy-image?url=${encodeURIComponent(url)}`;
@@ -213,21 +209,6 @@ function EmptyTile({ text }: { text: string }) {
     </div>
   );
 }
-
-function CardImage({ src, alt }: { src: string; alt: string }) {
-  return (
-    <img
-      src={proxied(src)}
-      alt={alt}
-      loading="lazy"
-      className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).style.opacity = "0.15";
-      }}
-    />
-  );
-}
-
 
 function CosmeticsStrip({
   items,
