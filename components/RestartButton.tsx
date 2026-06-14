@@ -32,7 +32,7 @@ export default function RestartButton() {
       onClick={handleClick}
       className="text-white/25 text-[9px] px-3 py-1.5 border border-white/10 rounded-lg uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
     >
-      New Session
+      Restart
     </button>
   );
 }
