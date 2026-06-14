@@ -15,9 +15,10 @@ const nextConfig = {
     "@aws-sdk/client-polly",
   ],
   allowedDevOrigins: [
-    "localhost:3000",
-    "192.168.100.9:3000",
-    "192.168.1.31:3000",
+    "mirror-app-dev-1.forhu.ai",
+    "mirror-app-dev-2.forhu.ai",
+    "mirror1.forhu.ai",
+    "mirror2.forhu.ai",
   ],
   async rewrites() {
     return [
