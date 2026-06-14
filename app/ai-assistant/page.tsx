@@ -9,6 +9,7 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useOverviewStore } from "@/modules/overview";
 import { cn } from "../../modules/shared/utils";
+import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 
 const TAGLINES = [
   "Personalized for every reflection.",
@@ -37,6 +38,11 @@ const SCENARIOS = [
     metaCategory: "Casual",
     gradient: "from-blue-500/20 to-cyan-500/5",
     border: "border-blue-500/20",
+    prompts: [
+      "Style me for today! Give me a casual, relaxed look and matching skincare.",
+      "What should I wear today? I want a comfortable daily outfit and some beauty product recommendations.",
+      "Put together a casual daily look for me, along with a simple skincare routine.",
+    ],
   },
   {
     id: "formal",
@@ -46,6 +52,11 @@ const SCENARIOS = [
     metaCategory: "Formal",
     gradient: "from-purple-500/20 to-pink-500/5",
     border: "border-purple-500/20",
+    prompts: [
+      "I'm going to a special event! Recommend a stunning formal outfit and a prep routine.",
+      "Plan my full formal look for a big event tonight, including beauty and skincare.",
+      "I need an elegant formal outfit and some matching cosmetics to get ready for a special occasion.",
+    ],
   },
   {
     id: "casual",
@@ -55,6 +66,11 @@ const SCENARIOS = [
     metaCategory: "Athleisure",
     gradient: "from-emerald-500/20 to-teal-500/5",
     border: "border-emerald-500/20",
+    prompts: [
+      "I just want to be cozy. Recommend a comfortable athleisure outfit and some relaxing skincare.",
+      "Give me a relaxed weekend look using athleisure wear, plus some beauty recommendations.",
+      "Style me in a comfy athleisure fit for lounging, and suggest some light skincare.",
+    ],
   },
   {
     id: "office",
@@ -64,6 +80,54 @@ const SCENARIOS = [
     metaCategory: "SmartCasual",
     gradient: "from-amber-500/20 to-orange-500/5",
     border: "border-amber-500/20",
+    prompts: [
+      "I need a professional Smart Casual outfit for the office today, along with work-appropriate beauty products.",
+      "Style me for work! Recommend a smart casual office outfit and a fresh skincare routine.",
+      "Put together an office-ready smart casual look for me and suggest some matching cosmetics.",
+    ],
+  },
+];
+
+const MOCK_PROFILES: SkinAnalysis[] = [
+  {
+    skinType: "OILY",
+    concerns: ["acne-prone", "brightening"],
+    hydrationPct: 42,
+    oilinessPct: 78,
+    skinTone: "medium",
+    id: "mock_skin_oily",
+    routineTip: "Use lightweight, oil-free formulas.",
+    recommendations: [],
+  },
+  {
+    skinType: "DRY",
+    concerns: ["flakiness", "fine lines"],
+    hydrationPct: 24,
+    oilinessPct: 15,
+    skinTone: "light",
+    id: "mock_skin_dry",
+    routineTip: "Prioritize rich, hydrating creams.",
+    recommendations: [],
+  },
+  {
+    skinType: "NORMAL",
+    concerns: ["maintenance", "dullness"],
+    hydrationPct: 65,
+    oilinessPct: 45,
+    skinTone: "tan",
+    id: "mock_skin_normal",
+    routineTip: "Maintain balance with gentle cleansing.",
+    recommendations: [],
+  },
+  {
+    skinType: "SENSITIVE",
+    concerns: ["redness", "soothing"],
+    hydrationPct: 55,
+    oilinessPct: 30,
+    skinTone: "fair",
+    id: "mock_skin_sensitive",
+    routineTip: "Avoid harsh fragrances and exfoliants.",
+    recommendations: [],
   },
 ];
 
@@ -128,16 +192,20 @@ export default function AIAssistantPage() {
       scenario: (typeof SCENARIOS)[number],
       gender: "MALE" | "FEMALE" | null,
     ) => {
-      const genderLabel =
-        gender === "MALE"
-          ? " for male"
-          : gender === "FEMALE"
-            ? " for female"
-            : "";
-      const prompt = `Recommend a ${scenario.metaCategory.toLowerCase()} outfit${genderLabel} suited to the current weather and conditions. Also suggest matching skincare and beauty products.`;
       const store = useOverviewStore.getState();
       store.setGreeting("Pulling that together for you…");
-      store.setPendingPrompt(prompt);
+      store.setPendingPrompt("[stylist]");
+      store.setPendingCategory("metaCategory=" + scenario.metaCategory);
+      store.setPendingGender(gender);
+
+      // Globally mock skin analysis if the camera hasn't populated it yet
+      const mirrorStore = useMirrorStore.getState();
+      if (!mirrorStore.skinAnalysisResult) {
+        const randomProfile =
+          MOCK_PROFILES[Math.floor(Math.random() * MOCK_PROFILES.length)];
+        mirrorStore.setSkinAnalysisResult(randomProfile);
+      }
+
       router.push(ROUTES.OVERVIEW);
     },
     [router],

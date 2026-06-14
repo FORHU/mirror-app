@@ -37,13 +37,10 @@ export function performRefresh() {
  * local voice session + chat history on arrival.
  */
 export async function performRestart(router: AppRouterInstance) {
-  // Server: null gender + new ChatWonder session, and soft-delete the Outline.
-  await Promise.allSettled([
-    chatWonderService.restart(),
-    outlineService.reset(),
-  ]);
+  // 1. Instantly navigate back to the landing page for immediate UI feedback
+  router.push(ROUTES.AI_ASSISTANT);
 
-  // Local: drop gender and any derived UI state.
+  // 2. Local: drop gender and any derived UI state immediately
   try {
     sessionStorage.removeItem("mirror_gender");
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
@@ -74,7 +71,12 @@ export async function performRestart(router: AppRouterInstance) {
     isChatOpen: false,
   });
 
-  router.push(ROUTES.AI_ASSISTANT);
+  // 3. Server: null gender + new ChatWonder session, and soft-delete the Outline in the background.
+  // We don't await this so the user isn't blocked by network latency.
+  Promise.allSettled([
+    chatWonderService.restart(),
+    outlineService.reset(),
+  ]).catch(() => {});
 }
 
 /**

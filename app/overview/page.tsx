@@ -20,109 +20,48 @@ import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import {
   OverviewGrid,
   useOverviewStore,
-  adaptGarmentData,
-  adaptRemoteOutfitsToTiles,
-  adaptCosmeticsData,
   adaptOutlineToTiles,
+  adaptGarmentData,
+  adaptCosmeticsData,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
-import { outfitService } from "@/modules/shared/api/outfit.service";
-import {
-  cosmeticsService,
-  type SkinAnalysis,
-} from "@/modules/shared/api/cosmetics.service";
 import { outlineService } from "@/modules/shared/api/outline.service";
 import MirrorHeader from "@/components/MirrorHeader";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
-
-// The voice pipeline emits this extended action (not part of the base union)
-// when a garment recommendation resolves; narrow against it safely.
-type GarmentRecommendationAction = {
-  type: "GARMENT_RECOMMENDATION";
-  response?: {
-    garment_data?: unknown;
-    cosmetics_data?: unknown;
-  };
-};
-type OverviewVoiceAction = ChatWonderAction | GarmentRecommendationAction;
-
-async function requestGarmentsWithFreshSession(
-  input: string,
-  weather?: Record<string, unknown> | null,
-  skinAnalysis?: SkinAnalysis | null,
-) {
-  const payload = {
-    input,
-    pageMode: "garment" as const,
-    set: 6,
-    ...(weather ? { weather } : {}),
-    ...(skinAnalysis ? { skinAnalysis } : {}),
-  };
-  try {
-    return await chatWonderService.message(payload);
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("HTTP 409")) {
-      await chatWonderService.restart();
-      return chatWonderService.message(payload);
-    }
-    throw err;
-  }
-}
+import { useOutfitsQuery, useCosmeticsQuery } from "./queries";
 
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
   const setGreeting = useOverviewStore((s) => s.setGreeting);
-  const setGarments = useOverviewStore((s) => s.setGarments);
-  const startOutfits = useOverviewStore((s) => s.startOutfits);
-  const setOutfits = useOverviewStore((s) => s.setOutfits);
-  const startCosmetics = useOverviewStore((s) => s.startCosmetics);
-  const setCosmetics = useOverviewStore((s) => s.setCosmetics);
+  const greeting = useOverviewStore((s) => s.greeting);
   const setSkinAnalysis = useOverviewStore((s) => s.setSkinAnalysis);
 
-  const greeting = useOverviewStore((s) => s.greeting);
+  // We only need the snapshots for initial hydration
   const overviewFashionSnapshot = useMirrorStore(
     (s) => s.overviewFashionSnapshot,
   );
   const overviewCosmeticsSnapshot = useMirrorStore(
     (s) => s.overviewCosmeticsSnapshot,
   );
-  const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
-  const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
-  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
+  const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
+  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
+  const category = useOverviewStore((s) => s.pendingCategory);
+
   const { weather } = useWeather();
+  const router = useRouter();
 
-  // Explicit gate for the full-screen loader: true while the initial Outline
-  // hydration is in flight (so we don't flash empty tiles before data arrives),
-  // and while any tile is actively resolving a live request.
   const [hydrating, setHydrating] = useState(true);
+  const [activePrompt, setActivePrompt] = useState<string | null>(null);
 
-  const garmentsLoading = useOverviewStore(
-    (s) => s.garments.status === "loading",
-  );
-  const outfitsLoading = useOverviewStore(
-    (s) => s.outfits.status === "loading",
-  );
-  const cosmeticsLoading = useOverviewStore(
-    (s) => s.cosmetics.status === "loading",
-  );
-
-  const isLoading =
-    hydrating || garmentsLoading || outfitsLoading || cosmeticsLoading;
-
-  // True when we arrived here from /ai-assistant carrying a spoken prompt —
-  // suppresses the face-detection greeting (the assistant already greeted).
   const cameFromAssistantRef = useRef(false);
   const handoffFiredRef = useRef(false);
 
   // ── hybrid hydration: reflect the persisted Outline on arrival ──
-  // Overview is a downstream dashboard, so on mount we fill the tiles from the
-  // user's saved Outline. Live ChatWonder updates overwrite these afterward.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -131,23 +70,20 @@ export default function OverviewPage() {
         if (cancelled) return;
         const { outfits, cosmetics, skinAnalysis } =
           adaptOutlineToTiles(outline);
-        // Skip overwriting tiles the handoff already set to "loading" — letting
-        // outline data flip them to "ready" here hides the overlay while the AI
-        // call is still running, flashing stale data on screen for several seconds.
+
         if (!handoffFiredRef.current) {
-          // Only fill tiles that are still idle — if ai-assistant already started
-          // a fetch (status "loading"), leave them alone so the in-flight request
-          // fills them without a stale-data flash.
-          const st = useOverviewStore.getState();
-          if (outfits.length && st.outfits.status === "idle") {
-            setOutfits(outfits);
+          if (outfits.length) {
+            useMirrorStore
+              .getState()
+              .setOverviewFashionSnapshot({ garments: [], outfits });
           }
-          if (cosmetics.length && st.cosmetics.status === "idle")
-            setCosmetics(cosmetics);
+          if (cosmetics.length) {
+            useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
+          }
         }
         if (skinAnalysis) setSkinAnalysis(skinAnalysis);
       } catch {
-        /* hydration is best-effort; live updates still populate the tiles */
+        /* best-effort */
       } finally {
         if (!cancelled) setHydrating(false);
       }
@@ -155,100 +91,88 @@ export default function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [setOutfits, setCosmetics, setSkinAnalysis]);
+  }, [setSkinAnalysis]);
 
-  const router = useRouter();
+  // ── handoff from /ai-assistant ──
+  useEffect(() => {
+    let prompt = pendingPrompt;
+    if (!prompt) {
+      try {
+        prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
+        if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
+      } catch {}
+    }
+    if (prompt) {
+      let finalPrompt = prompt;
+      if (prompt.startsWith("__SILENT__:")) {
+        finalPrompt = prompt.replace("__SILENT__:", "");
+      }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActivePrompt(finalPrompt);
+      setPendingPrompt(null);
+      handoffFiredRef.current = true;
+      cameFromAssistantRef.current = true;
+      setGreeting("Pulling that together for you…");
+    }
+  }, [pendingPrompt, setPendingPrompt, setGreeting]);
+
+  // ── React Query Fetching ──
+  const outfitsQuery = useOutfitsQuery(
+    activePrompt,
+    weather as unknown as Record<string, unknown>,
+    category,
+  );
+  const cosmeticsQuery = useCosmeticsQuery(
+    activePrompt,
+    weather as unknown as Record<string, unknown>,
+    skinAnalysisResult,
+  );
+
+  const isLoading =
+    hydrating || outfitsQuery.isFetching || cosmeticsQuery.isFetching;
+
+  // Sync back to store for global snapshots
+  useEffect(() => {
+    if (outfitsQuery.data) {
+      useMirrorStore.getState().setOverviewFashionSnapshot(outfitsQuery.data);
+    }
+  }, [outfitsQuery.data]);
 
   useEffect(() => {
-    if (handoffFiredRef.current) return;
-
-    let hasFashionSnapshot = false;
-    if (overviewFashionSnapshot?.garments.length) {
-      setGarments(overviewFashionSnapshot.garments);
-      hasFashionSnapshot = true;
+    if (cosmeticsQuery.data) {
+      useMirrorStore
+        .getState()
+        .setOverviewCosmeticsSnapshot(cosmeticsQuery.data);
     }
-    if (overviewFashionSnapshot?.outfits.length) {
-      setOutfits(overviewFashionSnapshot.outfits);
-      hasFashionSnapshot = true;
-    }
+  }, [cosmeticsQuery.data]);
 
-    if (!hasFashionSnapshot && chatGarmentData) {
-      if (typeof chatGarmentData === "object" && "query" in chatGarmentData) {
-        const query = (chatGarmentData as unknown as Record<string, unknown>)
-          .query as string;
-        if (query) {
-          outfitService
-            .getByQuery(query)
-            .then((fetchedOutfits) => {
-              const { garments, outfits } =
-                adaptRemoteOutfitsToTiles(fetchedOutfits);
-              if (garments.length) setGarments(garments);
-              if (outfits.length) setOutfits(outfits);
-              useMirrorStore
-                .getState()
-                .setOverviewFashionSnapshot({ garments, outfits });
-            })
-            .catch((err) => console.error("[overview] getByQuery error:", err));
-        }
-      } else {
-        const { garments, outfits } = adaptGarmentData(chatGarmentData);
-        if (garments.length) setGarments(garments);
-        if (outfits.length) setOutfits(outfits);
-        useMirrorStore
-          .getState()
-          .setOverviewFashionSnapshot({ garments, outfits });
-      }
-    }
-
-    if (overviewCosmeticsSnapshot?.length) {
-      setCosmetics(overviewCosmeticsSnapshot);
+  // ── redirect to AI Assistant when there's nothing to show ──
+  useEffect(() => {
+    if (hydrating) return;
+    if (activePrompt) return;
+    if (outfitsQuery.isFetching || cosmeticsQuery.isFetching) return;
+    if (outfitsQuery.data?.outfits?.length || cosmeticsQuery.data?.length)
       return;
-    }
-
-    const source = pendingCosmeticsData ?? chatCosmeticsData;
     if (
-      source &&
-      typeof source === "object" &&
-      "ids" in source &&
-      Array.isArray((source as Record<string, unknown>).ids)
-    ) {
-      const ids = (source as Record<string, unknown>).ids as string[];
-      if (ids.length > 0) {
-        cosmeticsService
-          .getByIds(ids)
-          .then((fetchedProducts) => {
-            const adapted = adaptCosmeticsData(fetchedProducts);
-            if (adapted.length) {
-              setCosmetics(adapted);
-              useMirrorStore.getState().setOverviewCosmeticsSnapshot(adapted);
-            }
-          })
-          .catch((err) => console.error("[overview] getByIds error:", err));
-        return;
-      }
-    }
+      overviewFashionSnapshot?.outfits?.length ||
+      overviewCosmeticsSnapshot?.length
+    )
+      return;
 
-    const cosmetics = adaptCosmeticsData(
-      source ?? skinAnalysisResult?.recommendations ?? [],
-    );
-    if (cosmetics.length) {
-      setCosmetics(cosmetics);
-      useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
-    }
+    router.replace(ROUTES.AI_ASSISTANT);
   }, [
+    hydrating,
+    router,
+    activePrompt,
+    outfitsQuery.isFetching,
+    cosmeticsQuery.isFetching,
+    outfitsQuery.data,
+    cosmeticsQuery.data,
     overviewFashionSnapshot,
     overviewCosmeticsSnapshot,
-    pendingCosmeticsData,
-    chatCosmeticsData,
-    chatGarmentData,
-    skinAnalysisResult?.recommendations,
-    setGarments,
-    setOutfits,
-    setCosmetics,
-    setSkinAnalysis,
   ]);
 
-  // ── voice → ChatWonder tool results (global mic registers to this page) ──
+  // ── voice → ChatWonder tool results ──
   const pageContext = useMemo(
     () => ({
       route: ROUTES.OVERVIEW,
@@ -258,155 +182,95 @@ export default function OverviewPage() {
     [],
   );
 
-  const handleVoiceAction = useCallback(
-    (raw: ChatWonderAction) => {
-      const action = raw as OverviewVoiceAction;
+  // Create query-based state for OverviewGrid props
+  // Use React Query data if we fetched it, otherwise fall back to the snapshot (for direct navigation without a new prompt)
+  const outfitsState = useMemo(() => {
+    const data = outfitsQuery.data ||
+      overviewFashionSnapshot || { garments: [], outfits: [] };
+    const hasData = data.outfits.length > 0 || data.garments.length > 0;
+    return {
+      status: outfitsQuery.isFetching
+        ? "loading"
+        : outfitsQuery.isError
+          ? "error"
+          : hasData
+            ? "ready"
+            : "idle",
+      data,
+      error: outfitsQuery.error?.message ?? null,
+    } as const;
+  }, [
+    outfitsQuery.isFetching,
+    outfitsQuery.isError,
+    outfitsQuery.error,
+    outfitsQuery.data,
+    overviewFashionSnapshot,
+  ]);
+
+  const cosmeticsState = useMemo(() => {
+    const data = cosmeticsQuery.data || overviewCosmeticsSnapshot || [];
+    const hasData = data.length > 0;
+    return {
+      status: cosmeticsQuery.isFetching
+        ? "loading"
+        : cosmeticsQuery.isError
+          ? "error"
+          : hasData
+            ? "ready"
+            : "idle",
+      data,
+      error: cosmeticsQuery.error?.message ?? null,
+    } as const;
+  }, [
+    cosmeticsQuery.isFetching,
+    cosmeticsQuery.isError,
+    cosmeticsQuery.error,
+    cosmeticsQuery.data,
+    overviewCosmeticsSnapshot,
+  ]);
+
+  const skinAnalysisState = useMemo(
+    () => ({
+      status: "idle" as const,
+      data:
+        useOverviewStore.getState().skinAnalysis.data ||
+        (skinAnalysisResult
+          ? { ...skinAnalysisResult, imageUrl: null }
+          : null) ||
+        null,
+      error: null,
+    }),
+    [skinAnalysisResult],
+  );
+
+  useVoice(
+    pageContext,
+    useCallback((raw: ChatWonderAction) => {
+      const action = raw as ChatWonderAction & {
+        type: string;
+        response?: { garment_data?: unknown; cosmetics_data?: unknown };
+      };
       if (action.type !== "GARMENT_RECOMMENDATION") return;
 
-      const response = (action as GarmentRecommendationAction).response;
-      // Preserve semantics: a turn that doesn't mention a section leaves that
-      // tile as-is (don't stomp hydrated/earlier data with an empty result).
-      const { garments, outfits } = adaptGarmentData(response?.garment_data);
-      if (garments.length) setGarments(garments);
-      if (outfits.length) setOutfits(outfits);
+      const response = action.response;
 
-      const cosmetics = adaptCosmeticsData(response?.cosmetics_data);
-      if (cosmetics.length) setCosmetics(cosmetics);
-    },
-    [setGarments, setOutfits, setCosmetics],
-  );
-
-  useVoice(pageContext, handleVoiceAction);
-
-  const runOverviewPlan = useCallback(
-    async (prompt: string) => {
-      try {
-        console.log("[overview] runOverviewPlan →", prompt);
-        const response = await requestGarmentsWithFreshSession(
-          `[stylist] Plan: ${prompt}`,
-          weather as Record<string, unknown> | null,
-          skinAnalysisResult,
-        );
-        console.log("[overview] ChatWonder response →", response);
-
-        const rawGarmentData = response.garment_data as Record<
-          string,
-          unknown
-        > | null;
-        const garmentQuery =
-          typeof rawGarmentData?.query === "string"
-            ? rawGarmentData.query
-            : null;
-
-        console.log("[overview] garmentQuery →", garmentQuery);
-
-        if (garmentQuery) {
-          console.log("[overview] fetching outfits →", garmentQuery);
-          const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
-          console.log("[overview] fetchedOutfits →", fetchedOutfits.length);
-          const { garments, outfits } =
-            adaptRemoteOutfitsToTiles(fetchedOutfits);
-          console.log(
-            "[overview] tiles → garments:",
-            garments.length,
-            "outfits:",
-            outfits.length,
-          );
-          setGarments(garments);
-          setOutfits(outfits);
-        } else {
-          const { garments, outfits } = adaptGarmentData(response.garment_data);
-          setGarments(garments);
-          setOutfits(outfits);
+      if (response?.garment_data) {
+        const { garments, outfits } = adaptGarmentData(response.garment_data);
+        if (garments.length || outfits.length) {
+          useMirrorStore
+            .getState()
+            .setOverviewFashionSnapshot({ garments, outfits });
         }
+      }
 
-        const rawCosmeticsData = response.cosmetics_data as Record<
-          string,
-          unknown
-        > | null;
-        console.log("[overview] cosmetics_data →", rawCosmeticsData);
-        const cosmeticsIds = Array.isArray(rawCosmeticsData?.ids)
-          ? (rawCosmeticsData.ids as string[])
-          : null;
-        const cosmeticsQuery =
-          typeof rawCosmeticsData?.query === "string"
-            ? rawCosmeticsData.query
-            : null;
-        if (cosmeticsIds?.length) {
-          const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds);
-          setCosmetics(adaptCosmeticsData(fetchedProducts));
-        } else if (cosmeticsQuery) {
-          const cq = new URLSearchParams(cosmeticsQuery);
-          if (!cq.has("limit")) cq.set("limit", "6");
-          const fetchedProducts = await cosmeticsService.getByQuery(
-            cq.toString(),
-          );
-          setCosmetics(adaptCosmeticsData(fetchedProducts));
-        } else {
-          setCosmetics(adaptCosmeticsData(response.cosmetics_data));
+      if (response?.cosmetics_data) {
+        const cosmetics = adaptCosmeticsData(response.cosmetics_data);
+        if (cosmetics.length) {
+          useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
         }
-      } catch (err) {
-        console.error("[overview] runOverviewPlan error →", err);
-        setGarments([]);
-        setOutfits([]);
-        setCosmetics([]);
       }
-    },
-    [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
+    }, []),
   );
-
-  // ── redirect to AI Assistant when there's nothing to show ──
-  // Fires once, after the outline hydration resolves. If the outline came back
-  // empty AND there's no in-flight handoff, the store is all-idle — redirect so
-  // the user doesn't stare at a blank page.
-  useEffect(() => {
-    if (hydrating) return;
-    const s = useOverviewStore.getState();
-    if (s.pendingPrompt) return;
-    if (s.outfits.status !== "idle" || s.cosmetics.status !== "idle") return;
-    router.replace(ROUTES.AI_ASSISTANT);
-  }, [hydrating, router]);
-
-  // ── handoff from /ai-assistant: run overview tools for the carried prompt ──
-  const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
-  const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
-
-  useEffect(() => {
-    let prompt: string | null = pendingPrompt;
-
-    // Fallback to sessionStorage in case of hard refresh or direct nav
-    if (!prompt) {
-      try {
-        prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
-        if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
-      } catch {
-        /* sessionStorage unavailable */
-      }
-    }
-
-    if (!prompt) return;
-
-    setPendingPrompt(null);
-    handoffFiredRef.current = true;
-    cameFromAssistantRef.current = true;
-
-    // Normal path: ai-assistant already started the fetch and set tiles to
-    // "loading" — just let it finish. Any other status (idle = first visit /
-    // hard-refresh, ready = returning with a new prompt) should re-run the plan.
-    if (useOverviewStore.getState().outfits.status !== "loading") {
-      setGreeting("Pulling that together for you…");
-      startOutfits();
-      startCosmetics();
-      void runOverviewPlan(prompt);
-    }
-  }, [
-    pendingPrompt,
-    setPendingPrompt,
-    setGreeting,
-    startOutfits,
-    startCosmetics,
-    runOverviewPlan,
-  ]);
 
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
@@ -422,7 +286,11 @@ export default function OverviewPage() {
 
       {/* Grid */}
       <div className="m-5 flex-1 min-h-0 flex flex-col relative z-10 pb-24">
-        <OverviewGrid />
+        <OverviewGrid
+          outfits={outfitsState}
+          cosmetics={cosmeticsState}
+          skinAnalysis={skinAnalysisState}
+        />
       </div>
 
       {/* Full-screen video loader overlay when resolving data */}
@@ -455,6 +323,16 @@ export default function OverviewPage() {
                 {greeting}
               </motion.h1>
             )}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative z-10 mt-8 flex items-center justify-center gap-3"
+            >
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce" />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -57,6 +57,12 @@ interface OverviewState {
   pendingPrompt: string | null;
   setPendingPrompt: (prompt: string | null) => void;
 
+  pendingCategory: string | null;
+  setPendingCategory: (category: string | null) => void;
+
+  pendingGender: "MALE" | "FEMALE" | null;
+  setPendingGender: (gender: "MALE" | "FEMALE" | null) => void;
+
   reset: () => void;
 }
 
@@ -69,6 +75,8 @@ const initial = {
   cosmetics: idle<CosmeticTileItem[]>(),
   skinAnalysis: idle<SkinAnalysisTileItem>(),
   pendingPrompt: null as string | null,
+  pendingCategory: null as string | null,
+  pendingGender: null as "MALE" | "FEMALE" | null,
 };
 
 export const useOverviewStore = create<OverviewState>((set) => ({
@@ -125,6 +133,8 @@ export const useOverviewStore = create<OverviewState>((set) => ({
   failMap: (error) => set({ map: { status: "error", data: null, error } }),
 
   setPendingPrompt: (prompt) => set({ pendingPrompt: prompt }),
+  setPendingCategory: (category) => set({ pendingCategory: category }),
+  setPendingGender: (gender) => set({ pendingGender: gender }),
 
   reset: () => set({ ...initial }),
 }));
