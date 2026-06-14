@@ -318,6 +318,57 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
     }
   }
 
+  // The outline's own outfit master list — populated by persistOutlineOutfits on
+  // every ChatWonder garment turn. Read these first (most-recent recommendation).
+  const topLevelOutfits =
+    outline && Array.isArray(outline.outfits) ? outline.outfits : [];
+
+  for (const rawOutfit of topLevelOutfits) {
+    const outfit = asRecord(rawOutfit);
+    if (!outfit) continue;
+
+    const outfitId = str(outfit.id);
+    if (!outfitId || seenOutfit.has(outfitId)) continue;
+
+    const outfitGarments: GarmentTileItem[] = [];
+    const seenInOutfit = new Set<string>();
+    const items = Array.isArray(outfit.items) ? outfit.items : [];
+    for (const rawItem of items) {
+      const item = asRecord(rawItem);
+      const garment = item && asRecord(item.garment);
+      if (!garment) continue;
+      const id = str(garment.id);
+      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
+      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      seenInOutfit.add(id);
+      const category = Array.isArray(garment.category)
+        ? str(garment.category[0])
+        : str(garment.category);
+      const g: GarmentTileItem = {
+        id,
+        name: str(garment.name) || "Garment",
+        imageUrl,
+        category: category || undefined,
+      };
+      outfitGarments.push(g);
+      if (!seenGarment.has(id)) {
+        seenGarment.add(id);
+        garments.push(g);
+      }
+    }
+
+    const outfitImage = fileUrlOf(outfit.file) || str(outfit.imageUrl);
+    if (!outfitImage && !outfitGarments.length) continue;
+    seenOutfit.add(outfitId);
+    outfits.push({
+      id: outfitId,
+      name: str(outfit.name) || `Look ${outfits.length + 1}`,
+      imageUrl: outfitImage,
+      reason: str(outfit.description) || undefined,
+      garments: outfitGarments,
+    });
+  }
+
   for (const rawEvent of events) {
     const event = asRecord(rawEvent);
     if (!event) continue;

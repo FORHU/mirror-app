@@ -18,8 +18,6 @@ import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { normalizeGender } from "@/modules/fashion/constants";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
@@ -59,7 +57,8 @@ async function requestGarmentsWithFreshSession(
 ) {
   const payload = {
     input,
-    pageMode: "overview" as const,
+    pageMode: "garment" as const,
+    set: 6,
     ...(weather ? { weather } : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
   };
@@ -94,7 +93,6 @@ export default function OverviewPage() {
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
-  const userGender = useAuthStore((s) => s.user?.gender);
 
   const { weather } = useWeather();
 
@@ -140,8 +138,9 @@ export default function OverviewPage() {
           // a fetch (status "loading"), leave them alone so the in-flight request
           // fills them without a stale-data flash.
           const st = useOverviewStore.getState();
-          if (outfits.length && st.outfits.status === "idle")
+          if (outfits.length && st.outfits.status === "idle") {
             setOutfits(outfits);
+          }
           if (cosmetics.length && st.cosmetics.status === "idle")
             setCosmetics(cosmetics);
         }
@@ -225,11 +224,13 @@ export default function OverviewPage() {
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
       try {
+        console.log("[overview] runOverviewPlan →", prompt);
         const response = await requestGarmentsWithFreshSession(
           `[stylist] Plan: ${prompt}`,
           weather as Record<string, unknown> | null,
           skinAnalysisResult,
         );
+        console.log("[overview] ChatWonder response →", response);
 
         const rawGarmentData = response.garment_data as Record<
           string,
@@ -240,26 +241,22 @@ export default function OverviewPage() {
             ? rawGarmentData.query
             : null;
 
+        console.log("[overview] garmentQuery →", garmentQuery);
+
         if (garmentQuery) {
-          const gq = new URLSearchParams(garmentQuery);
-          const gender = normalizeGender(userGender);
-          if (gender && !gq.has("metaGender")) gq.set("metaGender", gender);
-          const fetchedOutfits = await outfitService.getByQuery(gq.toString());
+          console.log("[overview] fetching outfits →", garmentQuery);
+          const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
+          console.log("[overview] fetchedOutfits →", fetchedOutfits.length);
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
-
-          if (garments.length > 0 || outfits.length > 0) {
-            setGarments(garments);
-            setOutfits(outfits);
-          } else {
-            // Fallback: If DB search yields nothing, use the LLM's generated sets (if any)
-            const fallback = adaptGarmentData({
-              ...rawGarmentData,
-              query: undefined,
-            });
-            setGarments(fallback.garments);
-            setOutfits(fallback.outfits);
-          }
+          console.log(
+            "[overview] tiles → garments:",
+            garments.length,
+            "outfits:",
+            outfits.length,
+          );
+          setGarments(garments);
+          setOutfits(outfits);
         } else {
           const { garments, outfits } = adaptGarmentData(response.garment_data);
           setGarments(garments);
@@ -270,18 +267,29 @@ export default function OverviewPage() {
           string,
           unknown
         > | null;
+        console.log("[overview] cosmetics_data →", rawCosmeticsData);
+        const cosmeticsIds = Array.isArray(rawCosmeticsData?.ids)
+          ? (rawCosmeticsData.ids as string[])
+          : null;
         const cosmeticsQuery =
           typeof rawCosmeticsData?.query === "string"
             ? rawCosmeticsData.query
             : null;
-        if (cosmeticsQuery) {
-          const fetchedProducts =
-            await cosmeticsService.getByQuery(cosmeticsQuery);
+        if (cosmeticsIds?.length) {
+          const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds);
+          setCosmetics(adaptCosmeticsData(fetchedProducts));
+        } else if (cosmeticsQuery) {
+          const cq = new URLSearchParams(cosmeticsQuery);
+          if (!cq.has("limit")) cq.set("limit", "6");
+          const fetchedProducts = await cosmeticsService.getByQuery(
+            cq.toString(),
+          );
           setCosmetics(adaptCosmeticsData(fetchedProducts));
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));
         }
-      } catch {
+      } catch (err) {
+        console.error("[overview] runOverviewPlan error →", err);
         setGarments([]);
         setOutfits([]);
         setCosmetics([]);
@@ -293,7 +301,6 @@ export default function OverviewPage() {
       setCosmetics,
       weather,
       skinAnalysisResult,
-      userGender,
     ],
   );
 
@@ -333,9 +340,9 @@ export default function OverviewPage() {
     cameFromAssistantRef.current = true;
 
     // Normal path: ai-assistant already started the fetch and set tiles to
-    // "loading" — just let it finish. Hard-refresh path: the store was cleared
-    // so tiles are idle; re-run the plan from here as a fallback.
-    if (useOverviewStore.getState().outfits.status === "idle") {
+    // "loading" — just let it finish. Any other status (idle = first visit /
+    // hard-refresh, ready = returning with a new prompt) should re-run the plan.
+    if (useOverviewStore.getState().outfits.status !== "loading") {
       setGreeting("Pulling that together for you…");
       startOutfits();
       startCosmetics();
@@ -377,7 +384,7 @@ export default function OverviewPage() {
               opacity: 0,
               transition: { duration: 0.5, ease: "easeInOut" },
             }}
-            className="fixed inset-0 z-[9999] bg-canvas flex flex-col items-center justify-center overflow-hidden"
+            className="fixed inset-0 z-9999 bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
               src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"

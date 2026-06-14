@@ -376,7 +376,7 @@ export function OverviewGrid() {
   }
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full flex-1 min-h-0">
       {/* Left 25% — Outfit list */}
       <Tile
         icon={WandSparkles}

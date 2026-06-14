@@ -9,6 +9,8 @@ import {
 } from "@/modules/shared/api/outfit.service";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
+import { authService } from "@/modules/shared/api/auth.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -65,13 +67,13 @@ export default function FashionCatalog() {
     storedGender,
   );
   const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">(storedGender);
+  const [isUpdatingGender, setIsUpdatingGender] = useState(false);
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
 
   const selectedOutfit =
     selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
@@ -104,7 +106,6 @@ export default function FashionCatalog() {
           buildQuery(baseQuery, pageNum),
         );
         setOutfits(fetched);
-        setHasMore(fetched.length >= PAGE_SIZE);
         setSelectedOutfitIdx(null);
       } catch (err) {
         console.error("[fashion-catalog]", err);
@@ -124,6 +125,11 @@ export default function FashionCatalog() {
       setActiveGender(gender);
       updateUser({ gender: gender !== "All" ? gender : undefined });
       setPage(0);
+      setIsUpdatingGender(true);
+      Promise.allSettled([
+        authService.updateProfile({ gender: gender !== "All" ? gender : null }),
+        chatWonderService.restart(),
+      ]).finally(() => setIsUpdatingGender(false));
       if (!currentSearch) return;
       queueMicrotask(() => void doFetch(currentSearch, 0));
     },
@@ -294,6 +300,7 @@ export default function FashionCatalog() {
               <button
                 key={g}
                 type="button"
+                disabled={isUpdatingGender}
                 onClick={() => handleGenderChange(g)}
                 style={{
                   padding: "3px 14px",
@@ -312,7 +319,8 @@ export default function FashionCatalog() {
                       ? "1px solid rgba(255,255,255,0.3)"
                       : "1px solid rgba(255,255,255,0.08)",
                   transition: "all 0.15s ease",
-                  cursor: "pointer",
+                  cursor: isUpdatingGender ? "not-allowed" : "pointer",
+                  opacity: isUpdatingGender ? 0.4 : 1,
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
@@ -545,46 +553,18 @@ export default function FashionCatalog() {
       {/* Bottom action row */}
       {!isLoading && (
         <div className="absolute bottom-25 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
-          {/* Pagination */}
-          {activeMainCategory !== "All" && outfits.length > 0 && (
-            <div className="pointer-events-auto flex items-center gap-6">
-              <button
-                type="button"
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-                className="tap-highlight-none focus:outline-none disabled:opacity-25 transition-opacity"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">
-                  ← Prev
-                </span>
-              </button>
-              <span className="text-white/35 text-[11px] tracking-[0.2em] uppercase tabular-nums">
-                Page {page + 1}
-              </span>
-              <button
-                type="button"
-                disabled={!hasMore}
-                onClick={() => setPage((p) => p + 1)}
-                className="tap-highlight-none focus:outline-none disabled:opacity-25 transition-opacity"
-                style={{ WebkitTapHighlightColor: "transparent" }}
-              >
-                <span className="text-white/60 uppercase tracking-[0.2em] text-[11px]">
-                  Next →
-                </span>
-              </button>
-            </div>
-          )}
-
           {/* Recommendations button */}
           <div className="pointer-events-auto">
             <button
               onClick={handleRecommendationsClick}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white"
+              disabled={isUpdatingGender}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white transition-opacity"
               style={{
                 background: "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.25)",
                 backdropFilter: "blur(12px)",
+                opacity: isUpdatingGender ? 0.4 : 1,
+                cursor: isUpdatingGender ? "not-allowed" : "pointer",
               }}
             >
               Recommendations
