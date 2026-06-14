@@ -11,21 +11,17 @@
  *  3. Snapshots from prior pages (fashion / cosmetics) in the mirror store.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useVoice } from "@/modules/shared/voice/useVoice";
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import {
   OverviewGrid,
   useOverviewStore,
   adaptOutlineToTiles,
-  adaptGarmentData,
-  adaptCosmeticsData,
   OVERVIEW_PROMPT_KEY,
 } from "@/modules/overview";
 import { outlineService } from "@/modules/shared/api/outline.service";
@@ -174,16 +170,6 @@ export default function OverviewPage() {
     overviewCosmeticsSnapshot,
   ]);
 
-  // ── voice → ChatWonder tool results ──
-  const pageContext = useMemo(
-    () => ({
-      route: ROUTES.OVERVIEW,
-      pageName: "Overview",
-      mode: "overview" as const,
-    }),
-    [],
-  );
-
   // Create query-based state for OverviewGrid props
   // Use React Query data if we fetched it, otherwise fall back to the snapshot (for direct navigation without a new prompt)
   const outfitsState = useMemo(() => {
@@ -245,35 +231,6 @@ export default function OverviewPage() {
     [skinAnalysisResult],
   );
 
-  useVoice(
-    pageContext,
-    useCallback((raw: ChatWonderAction) => {
-      const action = raw as ChatWonderAction & {
-        type: string;
-        response?: { garment_data?: unknown; cosmetics_data?: unknown };
-      };
-      if (action.type !== "GARMENT_RECOMMENDATION") return;
-
-      const response = action.response;
-
-      if (response?.garment_data) {
-        const { garments, outfits } = adaptGarmentData(response.garment_data);
-        if (garments.length || outfits.length) {
-          useMirrorStore
-            .getState()
-            .setOverviewFashionSnapshot({ garments, outfits });
-        }
-      }
-
-      if (response?.cosmetics_data) {
-        const cosmetics = adaptCosmeticsData(response.cosmetics_data);
-        if (cosmetics.length) {
-          useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
-        }
-      }
-    }, []),
-  );
-
   return (
     <div className="w-screen h-screen bg-canvas flex flex-col overflow-hidden">
       <MirrorHeader
@@ -308,12 +265,15 @@ export default function OverviewPage() {
             className="fixed inset-0 z-9999 bg-canvas flex flex-col items-center justify-center overflow-hidden"
           >
             <video
-              src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
               autoPlay
               muted
               loop
+              playsInline
               className="absolute inset-0 w-full h-full object-cover opacity-60"
-            />
+            >
+              <source src="https://d1bdogktone6hj.cloudfront.net/uploads/loading.mp4" type="video/mp4" />
+              <source src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+            </video>
             {greeting && (
               <motion.h1
                 key="greeting"

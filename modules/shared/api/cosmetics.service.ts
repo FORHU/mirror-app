@@ -10,6 +10,15 @@ export interface CosmeticProduct {
   tags: string[];
   benefits: string[];
   fileUrl: { fileUrl: string } | null;
+  details: string | null;
+  metaData: Record<string, unknown> | null;
+  hexColor: string | null;
+  priceAmount: number | null;
+  priceUnit: string | null;
+  spf: number | null;
+  waterproof: boolean;
+  hydrating: boolean;
+  oilFree: boolean;
 }
 
 export interface SkinRecommendation {
