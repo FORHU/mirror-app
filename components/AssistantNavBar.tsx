@@ -78,17 +78,16 @@ export default function AssistantNavBar() {
 
   if (isProcessing || isSpeaking || assistantIdle) {
     return (
-      <div className="fixed bottom-4 left-4 z-[9990] pointer-events-auto">
-        <RestartButton />
+      <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center pointer-events-none">
+        <div className="pointer-events-auto">
+          <RestartButton />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">
-      <div className="absolute left-4 bottom-0 pointer-events-auto">
-        <RestartButton />
-      </div>
       <div
         className="pointer-events-auto relative flex items-center w-[640px] max-w-[calc(100vw-2rem)] h-20 px-5 rounded-[34px]"
         style={{
@@ -105,9 +104,10 @@ export default function AssistantNavBar() {
           <NavButton label="Fashion" route={ROUTES.FASHION_CATALOG} />
         </div>
 
-        {/* center gap — the global 64px mic floats here (viewport center);
-            kept wide enough that the inner buttons never slide under it */}
-        <div className="w-24 shrink-0" aria-hidden />
+        {/* center — Restart sits here; the global mic floats above it */}
+        <div className="w-24 shrink-0 flex items-center justify-center">
+          <RestartButton />
+        </div>
 
         {/* right group */}
         <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
