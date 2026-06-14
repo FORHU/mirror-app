@@ -92,6 +92,7 @@ export default function OverviewPage() {
   );
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
+  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   const { weather } = useWeather();
@@ -161,20 +162,75 @@ export default function OverviewPage() {
   useEffect(() => {
     if (handoffFiredRef.current) return;
 
+    let hasFashionSnapshot = false;
     if (overviewFashionSnapshot?.garments.length) {
       setGarments(overviewFashionSnapshot.garments);
+      hasFashionSnapshot = true;
     }
     if (overviewFashionSnapshot?.outfits.length) {
       setOutfits(overviewFashionSnapshot.outfits);
+      hasFashionSnapshot = true;
     }
-    const cosmetics = overviewCosmeticsSnapshot?.length
-      ? overviewCosmeticsSnapshot
-      : adaptCosmeticsData(
-          pendingCosmeticsData ??
-            chatCosmeticsData ??
-            skinAnalysisResult?.recommendations ??
-            [],
-        );
+
+    if (!hasFashionSnapshot && chatGarmentData) {
+      if (typeof chatGarmentData === "object" && "query" in chatGarmentData) {
+        const query = (chatGarmentData as unknown as Record<string, unknown>)
+          .query as string;
+        if (query) {
+          outfitService
+            .getByQuery(query)
+            .then((fetchedOutfits) => {
+              const { garments, outfits } =
+                adaptRemoteOutfitsToTiles(fetchedOutfits);
+              if (garments.length) setGarments(garments);
+              if (outfits.length) setOutfits(outfits);
+              useMirrorStore
+                .getState()
+                .setOverviewFashionSnapshot({ garments, outfits });
+            })
+            .catch((err) => console.error("[overview] getByQuery error:", err));
+        }
+      } else {
+        const { garments, outfits } = adaptGarmentData(chatGarmentData);
+        if (garments.length) setGarments(garments);
+        if (outfits.length) setOutfits(outfits);
+        useMirrorStore
+          .getState()
+          .setOverviewFashionSnapshot({ garments, outfits });
+      }
+    }
+
+    if (overviewCosmeticsSnapshot?.length) {
+      setCosmetics(overviewCosmeticsSnapshot);
+      return;
+    }
+
+    const source = pendingCosmeticsData ?? chatCosmeticsData;
+    if (
+      source &&
+      typeof source === "object" &&
+      "ids" in source &&
+      Array.isArray((source as Record<string, unknown>).ids)
+    ) {
+      const ids = (source as Record<string, unknown>).ids as string[];
+      if (ids.length > 0) {
+        cosmeticsService
+          .getByIds(ids)
+          .then((fetchedProducts) => {
+            const adapted = adaptCosmeticsData(fetchedProducts);
+            if (adapted.length) {
+              setCosmetics(adapted);
+              useMirrorStore.getState().setOverviewCosmeticsSnapshot(adapted);
+            }
+          })
+          .catch((err) => console.error("[overview] getByIds error:", err));
+        return;
+      }
+    }
+
+    const cosmetics = adaptCosmeticsData(
+      source ?? skinAnalysisResult?.recommendations ?? [],
+    );
     if (cosmetics.length) {
       setCosmetics(cosmetics);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
@@ -184,6 +240,7 @@ export default function OverviewPage() {
     overviewCosmeticsSnapshot,
     pendingCosmeticsData,
     chatCosmeticsData,
+    chatGarmentData,
     skinAnalysisResult?.recommendations,
     setGarments,
     setOutfits,
@@ -295,13 +352,7 @@ export default function OverviewPage() {
         setCosmetics([]);
       }
     },
-    [
-      setGarments,
-      setOutfits,
-      setCosmetics,
-      weather,
-      skinAnalysisResult,
-    ],
+    [setGarments, setOutfits, setCosmetics, weather, skinAnalysisResult],
   );
 
   // ── redirect to AI Assistant when there's nothing to show ──

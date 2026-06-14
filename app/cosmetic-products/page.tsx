@@ -20,11 +20,6 @@ import { ROUTES } from "@/navigation";
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 const API_LIMIT = 100;
 
-// Module-level cache — survives navigation within the same browser session
-let _cachedProducts: CosmeticProduct[] = [];
-let _cachedHasMore = true;
-let _cachedNextPage = 2;
-
 type CosmeticMetadata = Record<string, unknown> | null | undefined;
 
 function firstText(...values: unknown[]) {
@@ -224,14 +219,11 @@ const COLUMN_SCROLL_STYLE = {
 export default function CosmeticProductsPage() {
   const router = useRouter();
 
-  const hasCached = _cachedProducts.length > 0;
-  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>(
-    () => _cachedProducts,
-  );
-  const [isLoadingFirst, setIsLoadingFirst] = useState(!hasCached);
+  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>([]);
+  const [isLoadingFirst, setIsLoadingFirst] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [nextPage, setNextPage] = useState(() => _cachedNextPage);
-  const [hasMore, setHasMore] = useState(() => _cachedHasMore);
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -240,17 +232,13 @@ export default function CosmeticProductsPage() {
     null,
   );
 
-  // Load page 1 on mount — skipped if cache already has data
+  // Load page 1 on mount
   useEffect(() => {
-    if (hasCached) return;
     let cancelled = false;
     cosmeticsService
       .getPage(1, API_LIMIT)
       .then((first) => {
         if (cancelled) return;
-        _cachedProducts = first.items;
-        _cachedHasMore = first.hasMore;
-        _cachedNextPage = 2;
         setApiProducts(first.items);
         setHasMore(first.hasMore);
         setIsLoadingFirst(false);
@@ -264,7 +252,7 @@ export default function CosmeticProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, [hasCached]);
+  }, []);
 
   // Load next page when sentinel scrolls into view
   useEffect(() => {
@@ -292,11 +280,7 @@ export default function CosmeticProductsPage() {
         if (cancelled) return;
         setApiProducts((prev) => {
           const ids = new Set(prev.map((p) => p.id));
-          const merged = [...prev, ...next.items.filter((p) => !ids.has(p.id))];
-          _cachedProducts = merged;
-          _cachedHasMore = next.hasMore;
-          _cachedNextPage = nextPage;
-          return merged;
+          return [...prev, ...next.items.filter((p) => !ids.has(p.id))];
         });
         setHasMore(next.hasMore);
         setIsLoadingMore(false);
@@ -336,9 +320,39 @@ export default function CosmeticProductsPage() {
     setSelectedProductId(null);
   }, []);
 
-  const handleProductSelect = useCallback((productId: string) => {
-    setSelectedProductId((curr) => (curr === productId ? null : productId));
-  }, []);
+  const handleProductSelect = useCallback(
+    (productId: string) => {
+      setSelectedProductId((curr) => {
+        const isDeselecting = curr === productId;
+        const store = useMirrorStore.getState();
+        const currentSnapshot = store.overviewCosmeticsSnapshot || [];
+
+        if (isDeselecting) {
+          // Remove from overview if deselected
+          const newSnapshot = currentSnapshot.filter((c) => c.id !== productId);
+          store.setOverviewCosmeticsSnapshot(
+            newSnapshot.length > 0 ? newSnapshot : null,
+          );
+        } else {
+          // Add to overview if not already there
+          const product = apiProducts.find((p) => p.id === productId);
+          if (product && !currentSnapshot.find((c) => c.id === product.id)) {
+            store.setOverviewCosmeticsSnapshot([
+              ...currentSnapshot,
+              {
+                id: product.id,
+                name: product.name,
+                imageUrl: product.fileUrl?.fileUrl ?? "",
+                brand: product.brand ?? undefined,
+              },
+            ]);
+          }
+        }
+        return isDeselecting ? null : productId;
+      });
+    },
+    [apiProducts],
+  );
 
   const handleEvaluateSkin = useCallback(() => {
     const recommendations = recommendationPool(filtered)
