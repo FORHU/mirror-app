@@ -76,7 +76,13 @@ export default function AssistantNavBar() {
       s.skinAnalysis.status === "ready",
   );
 
-  if (isProcessing || isSpeaking || assistantIdle) return null;
+  if (isProcessing || isSpeaking || assistantIdle) {
+    return (
+      <div className="fixed bottom-4 left-4 z-[9990] pointer-events-auto">
+        <RestartButton />
+      </div>
+    );
+  }
 
   return (
     <div className="fixed bottom-4 inset-x-0 z-[9990] flex justify-center px-6 pointer-events-none">

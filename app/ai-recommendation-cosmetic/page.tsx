@@ -219,13 +219,7 @@ export default function CosmeticRecommendationPage() {
   );
 
   const handleAiComplete = useCallback(
-    (
-      data: {
-        ids?: string[];
-        query?: string;
-        recommendations?: unknown[];
-      } | null,
-    ) => {
+    (data: { ids?: string[]; recommendations?: unknown[] } | null) => {
       if (!data) return;
       if (data.ids?.length) {
         setIsHandoffLoading(true);
@@ -233,25 +227,17 @@ export default function CosmeticRecommendationPage() {
         cosmeticsService
           .getByIds(data.ids)
           .then((products) => {
-            useMirrorStore
-              .getState()
-              .setPendingCosmeticsData({ recommendations: products });
+            useMirrorStore.getState().setPendingCosmeticsData({ recommendations: products });
             setSelectedId(null);
           })
           .catch((err) => console.error("[cosmetics-batch]", err))
           .finally(() => setIsHandoffLoading(false));
         return;
       }
-      if (data.query) {
-        const params = new URLSearchParams(data.query);
-        if (!params.has("limit")) params.set("limit", "6");
-        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
-        return;
-      }
       useMirrorStore.getState().setPendingCosmeticsData(data);
       setSelectedId(null);
     },
-    [router],
+    [],
   );
 
   // URL params flow — mirrors fashion: when query params change, fetch from DB.
@@ -293,10 +279,7 @@ export default function CosmeticRecommendationPage() {
   // Consume cosmetics data from the chat-path nav_early flow (ChatWonderProvider).
   useEffect(() => {
     if (!chatCosmeticsData) return;
-    const data = chatCosmeticsData as {
-      query?: string;
-      recommendations?: unknown[];
-    };
+    const data = chatCosmeticsData as { ids?: string[]; recommendations?: unknown[] };
     useMirrorStore.getState().setChatCosmeticsData(null);
     Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
@@ -347,15 +330,14 @@ export default function CosmeticRecommendationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally runs once on mount; reads store snapshot directly
 
-  // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
-  // New format sends { query } instead of { recommendations } — route it through
-  // handleAiComplete so the URL params effect fetches the real products.
+  // Route { ids } through handleAiComplete — { recommendations } is handled
+  // inline by the rawRecs useMemo below.
   useEffect(() => {
     if (!pendingCosmeticsData) return;
-    const d = pendingCosmeticsData as { query?: string };
-    if (typeof d.query !== "string") return;
+    const d = pendingCosmeticsData as { ids?: string[] };
+    if (!d.ids?.length) return;
     useMirrorStore.getState().setPendingCosmeticsData(null);
-    queueMicrotask(() => handleAiComplete({ query: d.query as string }));
+    queueMicrotask(() => handleAiComplete(d));
   }, [pendingCosmeticsData, handleAiComplete]);
 
   const rawRecs = useMemo(() => {
@@ -424,10 +406,7 @@ export default function CosmeticRecommendationPage() {
 
       if (action.type === "GARMENT_RECOMMENDATION") {
         const response = action.response as {
-          cosmetics_data?: {
-            query?: string;
-            recommendations?: unknown[];
-          } | null;
+          cosmetics_data?: { ids?: string[]; recommendations?: unknown[] } | null;
         } | null;
         if (response?.cosmetics_data) {
           handleAiComplete(response.cosmetics_data);

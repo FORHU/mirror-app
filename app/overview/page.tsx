@@ -167,17 +167,31 @@ export default function OverviewPage() {
     if (overviewFashionSnapshot?.outfits.length) {
       setOutfits(overviewFashionSnapshot.outfits);
     }
-    const cosmetics = overviewCosmeticsSnapshot?.length
-      ? overviewCosmeticsSnapshot
-      : adaptCosmeticsData(
-          pendingCosmeticsData ??
-            chatCosmeticsData ??
-            skinAnalysisResult?.recommendations ??
-            [],
-        );
-    if (cosmetics.length) {
-      setCosmetics(cosmetics);
-      useMirrorStore.getState().setOverviewCosmeticsSnapshot(cosmetics);
+
+    // Already-resolved snapshot → fast path, no API call needed.
+    if (overviewCosmeticsSnapshot?.length) {
+      setCosmetics(overviewCosmeticsSnapshot);
+      return;
+    }
+
+    // Backend always sends { ids } — batch-fetch and persist the resolved tiles.
+    const rawCosmetics = pendingCosmeticsData ?? chatCosmeticsData;
+    const rec =
+      rawCosmetics && typeof rawCosmetics === "object"
+        ? (rawCosmetics as Record<string, unknown>)
+        : null;
+    const cosmeticsIds = Array.isArray(rec?.ids) ? (rec.ids as string[]) : null;
+
+    const persist = (tiles: ReturnType<typeof adaptCosmeticsData>) => {
+      if (!tiles.length) return;
+      setCosmetics(tiles);
+      useMirrorStore.getState().setOverviewCosmeticsSnapshot(tiles);
+    };
+
+    if (cosmeticsIds?.length) {
+      cosmeticsService.getByIds(cosmeticsIds).then((data) => persist(adaptCosmeticsData(data))).catch(() => {});
+    } else {
+      persist(adaptCosmeticsData(rawCosmetics ?? skinAnalysisResult?.recommendations ?? []));
     }
   }, [
     overviewFashionSnapshot,
@@ -188,7 +202,6 @@ export default function OverviewPage() {
     setGarments,
     setOutfits,
     setCosmetics,
-    setSkinAnalysis,
   ]);
 
   // ── voice → ChatWonder tool results (global mic registers to this page) ──
@@ -213,8 +226,20 @@ export default function OverviewPage() {
       if (garments.length) setGarments(garments);
       if (outfits.length) setOutfits(outfits);
 
-      const cosmetics = adaptCosmeticsData(response?.cosmetics_data);
-      if (cosmetics.length) setCosmetics(cosmetics);
+      const rawCosmetics = response?.cosmetics_data as Record<string, unknown> | null;
+      const cosmeticsIds = Array.isArray(rawCosmetics?.ids) ? (rawCosmetics.ids as string[]) : null;
+
+      const persistCosmetics = (tiles: ReturnType<typeof adaptCosmeticsData>) => {
+        if (!tiles.length) return;
+        setCosmetics(tiles);
+        useMirrorStore.getState().setOverviewCosmeticsSnapshot(tiles);
+      };
+
+      if (cosmeticsIds?.length) {
+        cosmeticsService.getByIds(cosmeticsIds).then((data) => persistCosmetics(adaptCosmeticsData(data))).catch(() => {});
+      } else {
+        persistCosmetics(adaptCosmeticsData(response?.cosmetics_data));
+      }
     },
     [setGarments, setOutfits, setCosmetics],
   );
@@ -224,13 +249,11 @@ export default function OverviewPage() {
   const runOverviewPlan = useCallback(
     async (prompt: string) => {
       try {
-        console.log("[overview] runOverviewPlan →", prompt);
         const response = await requestGarmentsWithFreshSession(
           `[stylist] Plan: ${prompt}`,
           weather as Record<string, unknown> | null,
           skinAnalysisResult,
         );
-        console.log("[overview] ChatWonder response →", response);
 
         const rawGarmentData = response.garment_data as Record<
           string,
@@ -241,20 +264,10 @@ export default function OverviewPage() {
             ? rawGarmentData.query
             : null;
 
-        console.log("[overview] garmentQuery →", garmentQuery);
-
         if (garmentQuery) {
-          console.log("[overview] fetching outfits →", garmentQuery);
           const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
-          console.log("[overview] fetchedOutfits →", fetchedOutfits.length);
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
-          console.log(
-            "[overview] tiles → garments:",
-            garments.length,
-            "outfits:",
-            outfits.length,
-          );
           setGarments(garments);
           setOutfits(outfits);
         } else {
@@ -263,27 +276,12 @@ export default function OverviewPage() {
           setOutfits(outfits);
         }
 
-        const rawCosmeticsData = response.cosmetics_data as Record<
-          string,
-          unknown
-        > | null;
-        console.log("[overview] cosmetics_data →", rawCosmeticsData);
+        const rawCosmeticsData = response.cosmetics_data as Record<string, unknown> | null;
         const cosmeticsIds = Array.isArray(rawCosmeticsData?.ids)
           ? (rawCosmeticsData.ids as string[])
           : null;
-        const cosmeticsQuery =
-          typeof rawCosmeticsData?.query === "string"
-            ? rawCosmeticsData.query
-            : null;
         if (cosmeticsIds?.length) {
           const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds);
-          setCosmetics(adaptCosmeticsData(fetchedProducts));
-        } else if (cosmeticsQuery) {
-          const cq = new URLSearchParams(cosmeticsQuery);
-          if (!cq.has("limit")) cq.set("limit", "6");
-          const fetchedProducts = await cosmeticsService.getByQuery(
-            cq.toString(),
-          );
           setCosmetics(adaptCosmeticsData(fetchedProducts));
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));
