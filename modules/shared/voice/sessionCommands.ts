@@ -7,6 +7,9 @@ import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
 import { useOverviewStore } from "@/modules/overview";
 import { ROUTES, isKnownRoute } from "@/navigation";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import { OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 
 /**
  * The three session "R-commands" (see ADR 0001) are driven by the external
@@ -43,6 +46,9 @@ export async function performRestart(router: AppRouterInstance) {
   // Local: drop gender and any derived UI state.
   try {
     sessionStorage.removeItem("mirror_gender");
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
+    sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
   } catch {
     /* sessionStorage may be unavailable */
   }
