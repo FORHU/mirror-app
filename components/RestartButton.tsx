@@ -1,18 +1,18 @@
 "use client";
 
-import { useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
 
 export default function RestartButton() {
-  const pendingRef = useRef(false);
+  const [isPending, setIsPending] = useState(false);
   const router = useRouter();
 
   const handleAction = () => {
-    if (pendingRef.current) return;
-    pendingRef.current = true;
+    if (isPending) return;
+    setIsPending(true);
     performRestart(router).finally(() => {
-      pendingRef.current = false;
+      setIsPending(false);
     });
   };
 
@@ -30,9 +30,17 @@ export default function RestartButton() {
       type="button"
       onTouchStart={handleTouchStart}
       onClick={handleClick}
-      className="text-white/25 text-[9px] px-3 py-1.5 border border-white/10 rounded-lg uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
+      disabled={isPending}
+      className={`text-[9px] px-3 py-1.5 border rounded-lg uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 ${
+        isPending
+          ? "border-white/30 text-white/70 bg-white/10"
+          : "border-white/10 text-white/25 hover:bg-white/5 active:scale-95"
+      }`}
     >
-      Restart
+      {isPending && (
+        <div className="w-2.5 h-2.5 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+      )}
+      {isPending ? "Restarting..." : "Restart"}
     </button>
   );
 }

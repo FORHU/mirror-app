@@ -64,7 +64,7 @@ export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
       if (!rec) continue;
       const id = str(rec.id);
       const imageUrl = str(rec.imageUrl);
-      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      if (!id || seenInOutfit.has(id)) continue;
       seenInOutfit.add(id);
       const category = Array.isArray(rec.category)
         ? str(rec.category[0])
@@ -191,8 +191,8 @@ export function adaptRemoteOutfitsToTiles(raw: unknown): GarmentAdaptResult {
       const garment = item && asRecord(item.garment);
       if (!garment) continue;
       const id = str(garment.id);
-      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
-      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file) || "";
+      if (!id || seenInOutfit.has(id)) continue;
       seenInOutfit.add(id);
       const category = Array.isArray(garment.category)
         ? str(garment.category[0])

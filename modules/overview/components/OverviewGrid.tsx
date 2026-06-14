@@ -5,8 +5,13 @@
 import { useState } from "react";
 import { AlertCircle, Sparkles, WandSparkles } from "lucide-react";
 import { motion } from "motion/react";
-import { useOverviewStore } from "../store/useOverviewStore";
-import type { CosmeticTileItem, OutfitTileItem, TileState } from "../types";
+import type {
+  CosmeticTileItem,
+  GarmentTileItem,
+  OutfitTileItem,
+  SkinAnalysisTileItem,
+  TileState,
+} from "../types";
 
 const proxied = (url: string) =>
   `/api/proxy-image?url=${encodeURIComponent(url)}`;
@@ -121,16 +126,24 @@ function OutfitDetailPane({ outfit }: { outfit: OutfitTileItem | null }) {
                 className="rounded-xl overflow-hidden bg-white/5 border border-white/10"
                 style={{ aspectRatio: "3/4" }}
               >
-                <img
-                  src={proxied(g.imageUrl)}
-                  alt={g.name}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.opacity =
-                      "0.15";
-                  }}
-                />
+                {g.imageUrl ? (
+                  <img
+                    src={proxied(g.imageUrl)}
+                    alt={g.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.opacity =
+                        "0.15";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center p-1 text-center bg-black/40">
+                    <span className="text-white/20 text-[8px] uppercase tracking-widest leading-tight">
+                      No Image
+                    </span>
+                  </div>
+                )}
               </div>
               <p className="text-white/60 text-[9px] truncate text-center px-0.5 font-medium">
                 {g.name}
@@ -347,16 +360,31 @@ function Tile({
   );
 }
 
-export function OverviewGrid() {
-  const outfits = useOverviewStore((s) => s.outfits);
-  const cosmetics = useOverviewStore((s) => s.cosmetics);
-  const skinAnalysis = useOverviewStore((s) => s.skinAnalysis);
-
+export function OverviewGrid({
+  outfits,
+  cosmetics,
+  skinAnalysis,
+}: {
+  outfits: TileState<
+    | { outfits: OutfitTileItem[]; garments: GarmentTileItem[] }
+    | OutfitTileItem[]
+  >;
+  cosmetics: TileState<CosmeticTileItem[]>;
+  skinAnalysis: TileState<SkinAnalysisTileItem>;
+}) {
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
 
-  const outfitList = outfits.data ?? [];
+  const outfitList = Array.isArray(outfits.data)
+    ? outfits.data
+    : outfits.data &&
+        "outfits" in outfits.data &&
+        Array.isArray(outfits.data.outfits)
+      ? outfits.data.outfits
+      : [];
   const selectedOutfit =
-    outfitList.find((o) => o.id === selectedOutfitId) ?? outfitList[0] ?? null;
+    outfitList.find((o: OutfitTileItem) => o.id === selectedOutfitId) ??
+    outfitList[0] ??
+    null;
 
   const outfitsState: TileState<boolean> = {
     status: outfits.status,
