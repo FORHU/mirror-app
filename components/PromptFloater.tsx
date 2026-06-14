@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, X } from "lucide-react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { QuickResponseChips, type PromptCategory } from "./QuickResponseChips";
+import type { WeatherData } from "@/modules/shared/hooks/useWeather";
 
 interface PromptFloaterProps {
   prompts?: string[];
@@ -15,6 +16,8 @@ interface PromptFloaterProps {
   direction?: "above" | "below";
   /** Override default submitText — when provided, skips ChatWonder entirely */
   onSelect?: (prompt: string) => void;
+  /** When provided, appends current weather context to every prompt before submission */
+  weather?: WeatherData | null;
 }
 
 /**
@@ -29,9 +32,10 @@ export function PromptFloater({
   className,
   direction = "above",
   onSelect,
+  weather,
 }: PromptFloaterProps) {
-  const { isListening, isProcessing, isSpeaking } = useVoiceContext();
-  const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const { isProcessing, isSpeaking } = useVoiceContext();
+  const isIdle = !isProcessing && !isSpeaking;
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -90,6 +94,7 @@ export function PromptFloater({
                 categories={categories}
                 onPromptSelect={() => setOpen(false)}
                 onSelect={onSelect}
+                weather={weather}
               />
             </div>
           </motion.div>

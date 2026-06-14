@@ -14,8 +14,10 @@ import { ThemeProvider } from "@/modules/shared/components/ThemeProvider";
 import { QueryProvider } from "@/modules/shared/providers/QueryProvider";
 import { VoiceProvider } from "@/modules/shared/voice/VoiceProvider";
 import { ChatWonderProvider } from "@/modules/shared/ai/ChatWonderProvider";
-import GlobalVoiceOverlay from "@/components/GlobalVoiceOverlay";
-import RestartButton from "@/components/RestartButton";
+import { ProximitySensorMount } from "@/components/ProximitySensorMount";
+import { WalkAwayWatcher } from "@/components/WalkAwayWatcher";
+import { SkinAnalysisTrigger } from "@/components/SkinAnalysisTrigger";
+import AssistantNavBar from "@/components/AssistantNavBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -91,9 +93,12 @@ export default function RootLayout({
           <QueryProvider>
             <VoiceProvider>
               <ChatWonderProvider>
-                <AuthInitializer>{children}</AuthInitializer>
-                <GlobalVoiceOverlay />
-                <RestartButton />
+                <ProximitySensorMount>
+                  <AuthInitializer>{children}</AuthInitializer>
+                  <AssistantNavBar />
+                  <WalkAwayWatcher />
+                  <SkinAnalysisTrigger />
+                </ProximitySensorMount>
               </ChatWonderProvider>
             </VoiceProvider>
           </QueryProvider>

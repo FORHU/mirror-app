@@ -4,9 +4,12 @@ import { outlineService } from "@/modules/shared/api/outline.service";
 import { useOutlineStore } from "@/modules/shared/store/useOutlineStore";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { useMapStore } from "@/modules/map/store/useMapStore";
 import { useCalendarStore } from "@/modules/shared/store/useCalendarStore";
+import { useOverviewStore } from "@/modules/overview";
 import { ROUTES, isKnownRoute } from "@/navigation";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import { OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 
 /**
  * The three session "R-commands" (see ADR 0001) are driven by the external
@@ -34,15 +37,15 @@ export function performRefresh() {
  * local voice session + chat history on arrival.
  */
 export async function performRestart(router: AppRouterInstance) {
-  // Server: null gender + new ChatWonder session, and soft-delete the Outline.
-  await Promise.allSettled([
-    chatWonderService.restart(),
-    outlineService.reset(),
-  ]);
+  // 1. Instantly navigate back to the landing page for immediate UI feedback
+  router.push(ROUTES.AI_ASSISTANT);
 
-  // Local: drop gender and any derived UI state.
+  // 2. Local: drop gender and any derived UI state immediately
   try {
     sessionStorage.removeItem("mirror_gender");
+    sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
+    sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
   } catch {
     /* sessionStorage may be unavailable */
   }
@@ -50,7 +53,7 @@ export async function performRestart(router: AppRouterInstance) {
   if (user) useAuthStore.setState({ user: { ...user, gender: undefined } });
 
   useOutlineStore.getState().reset();
-  useMapStore.getState().clearRoute();
+  useOverviewStore.getState().reset();
   useCalendarStore.getState().clearEvents();
   useMirrorStore.setState({
     aiSuggestion: null,
@@ -68,7 +71,12 @@ export async function performRestart(router: AppRouterInstance) {
     isChatOpen: false,
   });
 
-  router.push(ROUTES.WELCOME);
+  // 3. Server: null gender + new ChatWonder session, and soft-delete the Outline in the background.
+  // We don't await this so the user isn't blocked by network latency.
+  Promise.allSettled([
+    chatWonderService.restart(),
+    outlineService.reset(),
+  ]).catch(() => {});
 }
 
 /**
@@ -77,14 +85,8 @@ export async function performRestart(router: AppRouterInstance) {
  * on-screen state isn't cleared here (the persisted rows are); the map route is.
  */
 export async function performReset(pathname: string) {
-  const scope: "fashion" | "itinerary" | null = pathname.includes("fashion")
-    ? "fashion"
-    : pathname.startsWith("/map")
-      ? "itinerary"
-      : null;
-  if (!scope) return;
-  await outlineService.reset(scope);
-  if (scope === "itinerary") useMapStore.getState().clearRoute();
+  if (!pathname.includes("fashion")) return;
+  await outlineService.reset("fashion");
 }
 
 /**
@@ -100,7 +102,7 @@ export async function handleStylistTarget(
 ): Promise<void> {
   if (!target) return;
   if (target === "back") {
-    router.back();
+    router.push(ROUTES.AI_ASSISTANT);
   } else if (target === "restart") {
     await performRestart(router);
   } else if (target === "refresh") {

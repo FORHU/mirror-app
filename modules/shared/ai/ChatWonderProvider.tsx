@@ -49,6 +49,16 @@ export function ChatWonderProvider({
     }
   }, [stream.messages]);
 
+  // Safety net: the nav loader is raised in onNavEarly and only lowered in
+  // onComplete. If the stream ends via an `error` event or a network abort,
+  // onComplete never fires and the loader would hang forever. Clearing it
+  // whenever streaming stops guarantees the loader can't outlive the stream.
+  useEffect(() => {
+    if (!stream.isStreaming) {
+      useMirrorStore.getState().setChatNavPending(false);
+    }
+  }, [stream.isStreaming]);
+
   const sendMessage = useCallback(
     (text: string, options?: SendMessageOptions) => {
       return stream.sendMessage(text, {

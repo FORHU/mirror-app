@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useMapStore } from "@/modules/map/store/useMapStore";
-import type { PendingEvent } from "@/modules/shared/ai/chatwonder.types";
 import {
   chatWonderService,
   resolveAccessToken,
@@ -13,14 +11,6 @@ import { SITEMAP_CONTEXT } from "@/navigation";
 import { handleStylistTarget } from "@/modules/shared/voice/sessionCommands";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { AudioQueue } from "@/modules/shared/voice/audioQueue";
-
-interface ItineraryMap {
-  destination?: string;
-  lat?: number;
-  lng?: number;
-  address?: string;
-  placeId?: string;
-}
 
 export interface ChatMessage {
   id: string;
@@ -54,7 +44,7 @@ export interface ChatWonderCompletePayload {
 
 export interface SendMessageOptions {
   conversationId?: string;
-  mode?: "garments" | "cosmetics" | "overview" | "map" | "default";
+  mode?: "garments" | "cosmetics" | "overview" | "default";
   weather?: unknown;
   /**
    * Optional: fires once when the stream's `complete` event arrives, carrying
@@ -134,9 +124,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
       try {
         const token = await resolveAccessToken();
         let finalInput = text;
-        if (options?.mode === "map") {
-          finalInput = `[stylist] ${text}`;
-        } else if (options?.mode === "garments") {
+        if (options?.mode === "garments") {
           finalInput = `[stylist] ${text}`;
         } else if (options?.mode === "cosmetics") {
           finalInput = `[stylist] ${text}`;
@@ -150,43 +138,31 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         }
         audioQueueRef.current = new AudioQueue();
 
+        const pendingCategory = useMirrorStore.getState().pendingCategory;
+        if (pendingCategory) {
+          useMirrorStore.getState().setPendingCategory(null);
+        }
+
         const payload: Record<string, unknown> = {
           input: finalInput,
           conversationId: options?.conversationId,
           voice: true,
           kioskId,
           sitemap_context: SITEMAP_CONTEXT,
+          ...(pendingCategory ? { category: pendingCategory } : {}),
         };
 
         if (
           options?.mode === "garments" ||
           options?.mode === "cosmetics" ||
-          options?.mode === "overview" ||
-          options?.mode === "map"
+          options?.mode === "overview"
         ) {
           payload.weather = options?.weather ?? null;
-          payload.location =
-            useMapStore.getState().userLocation ??
-            useMapStore.getState().homeLocation ??
-            null;
+          payload.location = null;
         }
 
         if (options?.mode === "cosmetics" || options?.mode === "overview") {
           payload.skin_analysis = useMirrorStore.getState().skinAnalysisResult;
-        }
-
-        // For map mode, also send the current session state so the backend can
-        // answer route-aware queries ("how far?", "add a stop", "near me", etc.)
-        if (options?.mode === "map") {
-          const ms = useMapStore.getState();
-          payload.map_context = {
-            userLocation: ms.userLocation ?? ms.homeLocation ?? null,
-            selectedDestination: ms.selectedDestination ?? null,
-            itineraryStops: ms.itineraryStops ?? [],
-            isRouteActive: !!ms.activeRoute,
-            routeDistance: ms.activeRoute ? (ms.routeDistance ?? null) : null,
-            routeDuration: ms.activeRoute ? (ms.routeDuration ?? null) : null,
-          };
         }
 
         const response = await fetch("/api/mirror/chat-wonder/message", {
@@ -272,71 +248,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
                     nav: parsed.nav ?? parsed.nav_data ?? null,
                   } as ChatWonderCompletePayload;
 
-                  // Surface the full structured payload (tool results) to any
-                  // opt-in consumer before we run the built-in map handling.
                   options?.onComplete?.(completePayload);
-
-                  const {
-                    clearPendingEvents,
-                    setPendingEvents,
-                    setDestination,
-                    setItineraryStops,
-                  } = useMapStore.getState();
-
-                  clearPendingEvents();
-
-                  type ParsedEvent = {
-                    eventName?: string;
-                    eventType?: string;
-                    timeLabel?: string;
-                    map?: ItineraryMap;
-                  };
-                  const responseEvents = Array.isArray(parsed.events)
-                    ? (parsed.events as ParsedEvent[])
-                    : [];
-                  const resolved = responseEvents.filter(
-                    (e) =>
-                      typeof e?.map?.lat === "number" &&
-                      typeof e?.map?.lng === "number",
-                  );
-                  const incomplete = responseEvents.filter(
-                    (e) =>
-                      !(
-                        typeof e?.map?.lat === "number" &&
-                        typeof e?.map?.lng === "number"
-                      ),
-                  );
-
-                  if (incomplete.length > 0) {
-                    setPendingEvents(
-                      incomplete.map(
-                        (e): PendingEvent => ({
-                          eventName: e.eventName ?? "event",
-                          eventType: e.eventType ?? "general",
-                          timeLabel: e.timeLabel ?? "",
-                          missingFields: [
-                            ...(!e.timeLabel ? (["time"] as const) : []),
-                            "location" as const,
-                          ],
-                        }),
-                      ),
-                    );
-                  }
-
-                  if (incomplete.length === 0 && resolved.length > 0) {
-                    const stops = resolved.map((e) => ({
-                      name: e.map!.destination ?? "Destination",
-                      lat: e.map!.lat as number,
-                      lng: e.map!.lng as number,
-                      address: e.map!.address,
-                      placeId: e.map!.placeId,
-                    }));
-                    if (stops.length === 1) {
-                      setDestination(stops[0]);
-                    } else {
-                      setItineraryStops(stops);
-                    }
-                  }
 
                   // Handle AI-driven page navigation via [STYLIST] block
                   const stylistData = (parsed.stylist ??

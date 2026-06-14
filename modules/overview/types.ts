@@ -19,6 +19,11 @@ export interface GarmentTileItem {
   name: string;
   imageUrl: string;
   category?: string;
+  description?: string;
+  garmentType?: string[];
+  silhouette?: string;
+  fittingSlot?: string[];
+  layerLevel?: string;
 }
 
 export interface OutfitTileItem {
@@ -30,6 +35,10 @@ export interface OutfitTileItem {
   /** The garments that make up this look. Mirrors the persisted shape
    *  (outfit.items[].garment) and the live shape (set.recommendations[]). */
   garments: GarmentTileItem[];
+  metaTags?: string[];
+  silhouette?: string;
+  garmentType?: string[];
+  category?: string[];
 }
 
 export interface CosmeticTileItem {
@@ -37,6 +46,20 @@ export interface CosmeticTileItem {
   name: string;
   imageUrl: string;
   brand?: string;
+  category?: string;
+  type?: string;
+  tags?: string[];
+  benefits?: string[];
+  details?: string;
+  reason?: string;
+  metaData?: Record<string, unknown>;
+  hexColor?: string;
+  priceAmount?: number;
+  priceUnit?: string;
+  spf?: number;
+  waterproof?: boolean;
+  hydrating?: boolean;
+  oilFree?: boolean;
 }
 
 export interface MapTileData {

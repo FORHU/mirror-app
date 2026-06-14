@@ -2,7 +2,6 @@ import { api } from "@/modules/shared/api/api-client";
 import { getStorageData } from "@/modules/shared/utils/storage";
 import { ACCESS_TOKEN } from "@/modules/shared/constants/storage-keys";
 import { SITEMAP_CONTEXT } from "@/navigation";
-import { AudioQueue } from "@/modules/shared/voice/audioQueue";
 import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 
 const API_BASE_URL =
@@ -28,6 +27,11 @@ export interface ChatWonderMessageRequest {
   skinAnalysis?: SkinAnalysis | null;
   /** Current page mode — tells the backend which parameters to forward and which intent tag to use. */
   pageMode?: "garment" | "cosmetics" | "map" | "overview" | null;
+  /** Fashion category filter forwarded from the catalog page (e.g. "metaCategory=Winterwear,Summerwear" or "ALL"). */
+  category?: string;
+  /** Number of cosmetic product IDs to return. */
+  set?: number;
+  gender?: string | null;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -252,10 +256,14 @@ async function sendMessageOnce(
   const body: Record<string, unknown> = { input: request.input };
   if (request.location) body.location = request.location;
   if (request.weather) body.weather = request.weather;
-  if (request.voice) body.voice = request.voice;
+  // Universally disable voice per user request
+  body.voice = false;
   if (request.lang) body.lang = request.lang;
   if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
   if (request.pageMode) body.page_mode = request.pageMode;
+  if (request.category) body.category = request.category;
+  if (request.set !== undefined) body.set = request.set;
+  if (request.gender) body.gender = request.gender;
   body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
   const signal = options?.signal;
@@ -273,7 +281,7 @@ async function sendMessageOnce(
 
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-  const audioQueue = options?.silent ? null : new AudioQueue();
+  // Globally disable AudioQueue
   let finalData: ChatWonderMessageResponse | null = null;
 
   if (res.body) {
@@ -317,7 +325,7 @@ async function sendMessageOnce(
                 options?.onAudioChunk?.();
               } catch {}
             }
-            audioQueue?.enqueue(parsed.audioBase64);
+            // audio disabled
           } else if (parsed.type === "chunk") {
             // Stream textual chunks to the caller if provided
             try {
@@ -330,7 +338,7 @@ async function sendMessageOnce(
           } else if (parsed.type === "complete") {
             finalData = parsed as unknown as ChatWonderMessageResponse;
           } else if (parsed.type === "error") {
-            audioQueue?.stop();
+            // audio disabled
             if (parsed.code === "session_expired") {
               throw new Error("Session expired. Please resend your message.");
             }

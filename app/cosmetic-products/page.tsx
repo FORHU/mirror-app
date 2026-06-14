@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import MirrorHeader from "@/components/MirrorHeader";
 import {
@@ -9,15 +9,16 @@ import {
   type SkinAnalysis,
 } from "@/modules/shared/api/cosmetics.service";
 import {
+  COSMETIC_EVALUATE_KEY,
   SKIN_TYPE_FILTERS,
   matchesSkinType,
   type SkinTypeKey,
 } from "@/modules/cosmetics/constants";
-import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
+const API_LIMIT = 100;
 
 type CosmeticMetadata = Record<string, unknown> | null | undefined;
 
@@ -78,7 +79,6 @@ function getProductExplanation(product: CosmeticProduct) {
   if (category && skinVerdict) {
     return `It has a ${prettyText(skinVerdict)} skin-type match.`;
   }
-  if (category) return null;
   return null;
 }
 
@@ -136,7 +136,6 @@ const ProductCard = memo(function ProductCard({
       style={{
         width: "100%",
         flex: "0 0 auto",
-        scrollSnapAlign: "start",
         WebkitTapHighlightColor: "transparent",
         cursor: "pointer",
         border: selected
@@ -205,59 +204,109 @@ const SkeletonCard = memo(function SkeletonCard() {
         width: "100%",
         height: "clamp(180px, 24vh, 320px)",
         flex: "0 0 auto",
-        scrollSnapAlign: "start",
       }}
     />
   );
 });
 SkeletonCard.displayName = "SkeletonCard";
 
+const COLUMN_SCROLL_STYLE = {
+  overflowY: "auto" as const,
+  touchAction: "pan-y" as const,
+  scrollbarWidth: "none" as const,
+};
+
 export default function CosmeticProductsPage() {
   const router = useRouter();
-  const [products, setProducts] = useState<CosmeticProduct[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>([]);
+  const [isLoadingFirst, setIsLoadingFirst] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null,
   );
 
-  const handleProductSelect = useCallback((productId: string) => {
-    setSelectedProductId((current) =>
-      current === productId ? null : productId,
-    );
-  }, []);
-
-  const handleSkinTypeSelect = useCallback((key: SkinTypeKey) => {
-    setSkinType(key);
-    setSelectedProductId(null);
-  }, []);
-
+  // Load page 1 on mount
   useEffect(() => {
     let cancelled = false;
     cosmeticsService
-      .getAllProducts()
-      .then((items) => {
+      .getPage(1, API_LIMIT)
+      .then((first) => {
         if (cancelled) return;
-        setProducts(items);
-        setError(null);
+        setApiProducts(first.items);
+        setHasMore(first.hasMore);
+        setIsLoadingFirst(false);
       })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load products");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load products");
+          setIsLoadingFirst(false);
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Load next page when sentinel scrolls into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore || isLoadingMore || isLoadingFirst) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        setIsLoadingMore(true);
+        setNextPage((p) => p + 1);
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, isLoadingFirst]);
+
+  // Fetch when nextPage advances past 2
+  useEffect(() => {
+    if (nextPage < 3 || isLoadingFirst) return;
+    let cancelled = false;
+    cosmeticsService
+      .getPage(nextPage - 1, API_LIMIT)
+      .then((next) => {
+        if (cancelled) return;
+        setApiProducts((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          return [...prev, ...next.items.filter((p) => !ids.has(p.id))];
+        });
+        setHasMore(next.hasMore);
+        setIsLoadingMore(false);
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoadingMore(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [nextPage, isLoadingFirst]);
+
   const filtered = useMemo(
-    () => products.filter((p) => matchesSkinType(p, skinType)),
-    [products, skinType],
+    () => apiProducts.filter((p) => matchesSkinType(p, skinType)),
+    [apiProducts, skinType],
   );
+
+  const leftItems = useMemo(
+    () => filtered.filter((_, i) => i % 2 === 0),
+    [filtered],
+  );
+  const rightItems = useMemo(
+    () => filtered.filter((_, i) => i % 2 !== 0),
+    [filtered],
+  );
+
   const selectedProduct = useMemo(
     () => filtered.find((p) => p.id === selectedProductId) ?? null,
     [filtered, selectedProductId],
@@ -266,19 +315,46 @@ export default function CosmeticProductsPage() {
     ? getProductExplanation(selectedProduct)
     : null;
 
-  // Alternate products between the two side columns.
-  const [leftItems, rightItems] = useMemo(() => {
-    const left: CosmeticProduct[] = [];
-    const right: CosmeticProduct[] = [];
-    filtered.forEach((p, i) => (i % 2 === 0 ? left : right).push(p));
-    return [left, right];
-  }, [filtered]);
+  const handleSkinTypeSelect = useCallback((key: SkinTypeKey) => {
+    setSkinType(key);
+    setSelectedProductId(null);
+  }, []);
+
+  const handleProductSelect = useCallback(
+    (productId: string) => {
+      setSelectedProductId((curr) => {
+        const isDeselecting = curr === productId;
+        const store = useMirrorStore.getState();
+        const currentSnapshot = store.overviewCosmeticsSnapshot || [];
+
+        if (isDeselecting) {
+          // Remove from overview if deselected
+          const newSnapshot = currentSnapshot.filter((c) => c.id !== productId);
+          store.setOverviewCosmeticsSnapshot(
+            newSnapshot.length > 0 ? newSnapshot : null,
+          );
+        } else {
+          // Add to overview if not already there
+          const product = apiProducts.find((p) => p.id === productId);
+          if (product && !currentSnapshot.find((c) => c.id === product.id)) {
+            store.setOverviewCosmeticsSnapshot([
+              ...currentSnapshot,
+              {
+                id: product.id,
+                name: product.name,
+                imageUrl: product.fileUrl?.fileUrl ?? "",
+                brand: product.brand ?? undefined,
+              },
+            ]);
+          }
+        }
+        return isDeselecting ? null : productId;
+      });
+    },
+    [apiProducts],
+  );
 
   const handleEvaluateSkin = useCallback(() => {
-    const evaluation = {
-      success: true,
-      skin_type: skinType,
-    };
     const recommendations = recommendationPool(filtered)
       .slice(0, 10)
       .map((product, index) => ({
@@ -292,7 +368,7 @@ export default function CosmeticProductsPage() {
       }));
     const result: SkinAnalysis = {
       id: `catalog-evaluation-${skinType.toLowerCase()}`,
-      skinType: evaluation.skin_type,
+      skinType: skinType,
       skinTone: null,
       hydrationPct: skinType === "DRY" ? 32 : skinType === "OILY" ? 68 : 52,
       oilinessPct: skinType === "OILY" ? 78 : skinType === "DRY" ? 24 : 48,
@@ -304,13 +380,11 @@ export default function CosmeticProductsPage() {
     useMirrorStore.getState().setPendingCosmeticsData(null);
     useMirrorStore.getState().setChatCosmeticsData(null);
     useMirrorStore.getState().setSkinAnalysisResult(result);
-    useMirrorStore
-      .getState()
-      .setAiSuggestion(
-        `Skin evaluation complete: ${SKIN_TYPE_FILTERS[skinType].label} skin.`,
-      );
+    sessionStorage.setItem(COSMETIC_EVALUATE_KEY, "1");
     router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
   }, [filtered, router, skinType]);
+
+  const isInitialLoading = isLoadingFirst && apiProducts.length === 0;
 
   return (
     <div
@@ -327,7 +401,7 @@ export default function CosmeticProductsPage() {
       />
 
       <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-10 gap-6">
-        {/* Skin type selector — single horizontal row, scales with viewport */}
+        {/* Skin type tabs */}
         <div
           className="grid grid-cols-4 w-full"
           style={{
@@ -377,7 +451,7 @@ export default function CosmeticProductsPage() {
         <button
           type="button"
           onClick={handleEvaluateSkin}
-          disabled={loading || filtered.length === 0}
+          disabled={isInitialLoading || filtered.length === 0}
           className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             WebkitTapHighlightColor: "transparent",
@@ -386,7 +460,9 @@ export default function CosmeticProductsPage() {
             border: "1.5px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
             cursor:
-              loading || filtered.length === 0 ? "not-allowed" : "pointer",
+              isInitialLoading || filtered.length === 0
+                ? "not-allowed"
+                : "pointer",
           }}
         >
           <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
@@ -395,34 +471,25 @@ export default function CosmeticProductsPage() {
         </button>
 
         <div className="text-white/45 text-[11px] tracking-[0.24em] uppercase text-center">
-          {loading
-            ? "Loading products"
-            : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
+          {isInitialLoading
+            ? "Loading products…"
+            : error
+              ? error
+              : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
         </div>
 
-        {/* Side columns — swipe up/down; center stays transparent (mirror shows through) */}
+        {/* Product columns */}
         <div className="w-full flex-1 min-h-0 flex px-2">
+          {/* Left column */}
           <div
-            className="h-full min-h-0"
-            style={{ flex: "0 0 28%", minWidth: 0 }}
+            className="h-full min-h-0 flex flex-col gap-3"
+            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
-            {loading ? (
-              <div className="flex flex-col" style={{ gap: 14 }}>
-                {Array.from({ length: 3 }).map((_, i) => (
+            {isInitialLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
                   <SkeletonCard key={i} />
-                ))}
-              </div>
-            ) : error ? (
-              <div className="text-white/35 text-xs text-center pt-4">
-                {error}
-              </div>
-            ) : (
-              <MarqueeColumn
-                key={`left-${skinType}`}
-                loop={false}
-                style={{ scrollSnapType: "y mandatory" }}
-              >
-                {leftItems.map((p) => (
+                ))
+              : leftItems.map((p) => (
                   <ProductCard
                     key={p.id}
                     product={p}
@@ -430,10 +497,9 @@ export default function CosmeticProductsPage() {
                     onSelect={handleProductSelect}
                   />
                 ))}
-              </MarqueeColumn>
-            )}
           </div>
 
+          {/* Center — selected product detail */}
           <div
             className="h-full min-h-0 flex items-center justify-center px-6"
             style={{ flex: 1, minWidth: 0 }}
@@ -478,23 +544,16 @@ export default function CosmeticProductsPage() {
             )}
           </div>
 
+          {/* Right column */}
           <div
-            className="h-full min-h-0"
-            style={{ flex: "0 0 28%", minWidth: 0 }}
+            className="h-full min-h-0 flex flex-col gap-3"
+            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
-            {loading ? (
-              <div className="flex flex-col" style={{ gap: 14 }}>
-                {Array.from({ length: 3 }).map((_, i) => (
+            {isInitialLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
                   <SkeletonCard key={i} />
-                ))}
-              </div>
-            ) : !error && rightItems.length === 0 ? null : (
-              <MarqueeColumn
-                key={`right-${skinType}`}
-                loop={false}
-                style={{ scrollSnapType: "y mandatory" }}
-              >
-                {rightItems.map((p) => (
+                ))
+              : rightItems.map((p) => (
                   <ProductCard
                     key={p.id}
                     product={p}
@@ -502,7 +561,15 @@ export default function CosmeticProductsPage() {
                     onSelect={handleProductSelect}
                   />
                 ))}
-              </MarqueeColumn>
+            {/* Sentinel — triggers next page load when scrolled into view */}
+            {hasMore && !isLoadingFirst && (
+              <div ref={sentinelRef} style={{ height: 1, flexShrink: 0 }}>
+                {isLoadingMore && (
+                  <div className="text-white/20 text-[10px] text-center py-2 uppercase tracking-widest">
+                    Loading…
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

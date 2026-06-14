@@ -4,6 +4,10 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+import { ROUTES } from "@/navigation";
+import { FASHION_PROMPT_KEY } from "@/modules/fashion/constants";
+import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import type { WeatherData } from "@/modules/shared/hooks/useWeather";
 
 // ── Date helpers — computed at render time so prompts always carry today's date ──
 
@@ -38,6 +42,8 @@ export interface PromptCategory {
   prompts: string[];
   /** If set, navigates to this route when a chip in this category is tapped */
   route?: string;
+  /** If true, weather context is not appended to prompts in this category */
+  noWeather?: boolean;
 }
 
 interface QuickResponseChipsProps {
@@ -46,25 +52,45 @@ interface QuickResponseChipsProps {
   /** Categorised mode — renders tab selectors above the chips */
   categories?: PromptCategory[];
   className?: string;
+  /** Extra classes applied to each individual chip button */
+  chipClassName?: string;
   onPromptSelect?: () => void;
   /** Override default submitText — when provided, skips ChatWonder entirely */
   onSelect?: (prompt: string) => void;
   activePrompt?: string;
+  /** When provided, appends current weather context to every prompt before submission */
+  weather?: WeatherData | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
+
+function withWeather(
+  prompt: string,
+  weather: WeatherData | null | undefined,
+): string {
+  if (!weather) return prompt;
+  const parts: string[] = [];
+  if (weather.temp !== null) parts.push(`${weather.temp}°C`);
+  if (weather.condition) parts.push(weather.condition);
+  const detail =
+    parts.length > 0
+      ? `${parts.join(", ")} in ${weather.city}`
+      : `in ${weather.city}`;
+  return `${prompt} Current weather: ${detail}.`;
+}
 
 export function QuickResponseChips({
   prompts,
   categories,
   className,
+  chipClassName,
   onPromptSelect,
   onSelect,
   activePrompt,
+  weather,
 }: QuickResponseChipsProps) {
-  const { isListening, isProcessing, isSpeaking, submitText } =
-    useVoiceContext();
-  const isIdle = !isListening && !isProcessing && !isSpeaking;
+  const { isProcessing, isSpeaking, submitText } = useVoiceContext();
+  const isIdle = !isProcessing && !isSpeaking;
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -77,14 +103,33 @@ export function QuickResponseChips({
     ? activeCategory.prompts
     : (prompts ?? []);
 
+  const HANDOFF_ROUTES: Record<string, string> = {
+    [ROUTES.AI_RECOMMENDATION_FASHION]: FASHION_PROMPT_KEY,
+    [ROUTES.AI_RECOMMENDATION_COSMETIC]: COSMETIC_PROMPT_KEY,
+  };
+
   const handleTap = (prompt: string) => {
     onPromptSelect?.();
-    if (onSelect) {
-      onSelect(prompt);
-    } else {
-      void submitText(prompt);
+    const enriched = activeCategory?.noWeather
+      ? prompt
+      : withWeather(prompt, weather);
+    const route = activeCategory?.route;
+    if (route && HANDOFF_ROUTES[route]) {
+      // Chips with a destination route bypass ChatWonder on the source page.
+      // Write the prompt to the destination's handoff key so it processes the
+      // query itself once mounted (with voiceState idle and location loaded).
+      try {
+        sessionStorage.setItem(HANDOFF_ROUTES[route], enriched);
+      } catch {}
+      router.push(route);
+      return;
     }
-    if (activeCategory?.route) router.push(activeCategory.route);
+    if (onSelect) {
+      onSelect(enriched);
+    } else {
+      void submitText(enriched);
+    }
+    if (route) router.push(route);
   };
 
   return (
@@ -181,7 +226,7 @@ export function QuickResponseChips({
                     prompt === activePrompt
                       ? "bg-white text-black border-white"
                       : "text-white/70 border border-white/10 active:bg-white/10 hover:text-white/90 hover:border-white/20"
-                  }`}
+                  } ${chipClassName ?? ""}`}
                   style={{
                     background:
                       prompt === activePrompt

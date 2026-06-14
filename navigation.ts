@@ -1,10 +1,9 @@
 export const ROUTES = {
-  WELCOME: "/ai-assistant",
+  AI_ASSISTANT: "/ai-assistant",
   AI_RECOMMENDATION_FASHION: "/ai-recommendation-fashion",
   FASHION_CATALOG: "/fashion-catalog",
   AI_RECOMMENDATION_COSMETIC: "/ai-recommendation-cosmetic",
   COSMETIC_PRODUCTS: "/cosmetic-products",
-  MAP: "/map",
   OVERVIEW: "/overview",
 } as const;
 
@@ -16,7 +15,14 @@ export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];
  * `[STYLIST]` block (which uses its own route list); `sitemap_context` only feeds
  * the legacy `[NAV_DATA]` fallback.
  */
-export const SITEMAP_CONTEXT: string[] = Object.values(ROUTES);
+export const SITEMAP_CONTEXT: string[] = [
+  `${ROUTES.AI_ASSISTANT} (home / AI assistant)`,
+  `${ROUTES.AI_RECOMMENDATION_FASHION} (fashion outfit recommendations)`,
+  `${ROUTES.FASHION_CATALOG} (fashion catalog browse)`,
+  `${ROUTES.AI_RECOMMENDATION_COSMETIC} (skincare & cosmetics AI)`,
+  `${ROUTES.COSMETIC_PRODUCTS} (cosmetics products browse)`,
+  `${ROUTES.OVERVIEW} (combined overview of all recommendations)`,
+];
 
 const ROUTE_VALUES = new Set<string>(Object.values(ROUTES));
 

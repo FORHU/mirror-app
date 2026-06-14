@@ -1,39 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
-import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 
 export default function RestartButton() {
+  const [isPending, setIsPending] = useState(false);
   const router = useRouter();
-  const pendingRef = useRef(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-
-  const refreshSessionId = () => {
-    chatWonderService
-      .getCurrentSessionId()
-      .then(setSessionId)
-      .catch(() => setSessionId(null));
-  };
-
-  useEffect(() => {
-    refreshSessionId();
-  }, []);
+  const queryClient = useQueryClient();
 
   const handleAction = () => {
-    if (pendingRef.current) return;
-    pendingRef.current = true;
-    performRestart(router)
-      .catch(() => {})
-      .finally(() => {
-        pendingRef.current = false;
-        refreshSessionId();
-      });
+    if (isPending) return;
+    setIsPending(true);
+    // Clear all cached responses so the next scenario starts completely fresh
+    queryClient.removeQueries({ queryKey: ["chatWonder"] });
+    performRestart(router).finally(() => {
+      setIsPending(false);
+    });
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevents the browser from firing the synthetic click
+    e.preventDefault();
     handleAction();
   };
 
@@ -42,20 +30,21 @@ export default function RestartButton() {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2">
-      <button
-        type="button"
-        onTouchStart={handleTouchStart}
-        onClick={handleClick}
-        className="text-white/25 text-[9px] px-3 py-1.5 border border-white/10 rounded-lg uppercase tracking-widest transition-all hover:bg-white/5 active:scale-95 cursor-pointer"
-      >
-        New Session
-      </button>
-      {sessionId && (
-        <span className="text-white/20 text-[9px] tracking-wider select-text">
-          {sessionId}
-        </span>
+    <button
+      type="button"
+      onTouchStart={handleTouchStart}
+      onClick={handleClick}
+      disabled={isPending}
+      className={`text-[9px] px-3 py-1.5 border rounded-lg uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 ${
+        isPending
+          ? "border-white/30 text-white/70 bg-white/10"
+          : "border-white/10 text-white/25 hover:bg-white/5 active:scale-95"
+      }`}
+    >
+      {isPending && (
+        <div className="w-2.5 h-2.5 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
       )}
-    </div>
+      {isPending ? "Restarting..." : "Restart"}
+    </button>
   );
 }

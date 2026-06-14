@@ -1,7 +1,6 @@
 import type {
   CosmeticTileItem,
   GarmentTileItem,
-  MapTileData,
   OutfitTileItem,
   SkinAnalysisTileItem,
 } from "./types";
@@ -65,16 +64,27 @@ export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
       if (!rec) continue;
       const id = str(rec.id);
       const imageUrl = str(rec.imageUrl);
-      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      if (!id || seenInOutfit.has(id)) continue;
       seenInOutfit.add(id);
       const category = Array.isArray(rec.category)
         ? str(rec.category[0])
         : str(rec.category);
+      const garmentType = Array.isArray(rec.garmentType)
+        ? (rec.garmentType as unknown[]).map(str).filter(Boolean)
+        : [];
+      const fittingSlot = Array.isArray(rec.fittingSlot)
+        ? (rec.fittingSlot as unknown[]).map(str).filter(Boolean)
+        : [];
       const g: GarmentTileItem = {
         id,
         name: str(rec.name) || "Garment",
         imageUrl,
         category: category || undefined,
+        description: str(rec.description) || undefined,
+        garmentType: garmentType.length ? garmentType : undefined,
+        silhouette: str(rec.silhouette) || undefined,
+        fittingSlot: fittingSlot.length ? fittingSlot : undefined,
+        layerLevel: str(rec.layerLevel) || undefined,
       };
       outfitGarments.push(g);
       if (!seen.has(id)) {
@@ -129,11 +139,41 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
         str(asRecord(rec.fileUrl)?.fileUrl);
       if (!id || !imageUrl || seen.has(id)) continue;
       seen.add(id);
+      const src = product ?? rec;
+      const tags = Array.isArray(src.tags)
+        ? (src.tags as unknown[]).map(str).filter(Boolean)
+        : [];
+      const benefits = Array.isArray(src.benefits)
+        ? (src.benefits as unknown[]).map(str).filter(Boolean)
+        : [];
+      const priceAmt =
+        typeof src.priceAmount === "number"
+          ? src.priceAmount
+          : typeof src.priceAmount === "string"
+            ? parseFloat(src.priceAmount as string)
+            : undefined;
       items.push({
         id,
-        name: str(product?.name) || str(rec.name) || "Cosmetic Product",
+        name: str(src.name) || "Cosmetic Product",
         imageUrl,
-        brand: str(product?.brand) || str(rec.brand) || undefined,
+        brand: str(src.brand) || undefined,
+        category: str(src.category) || undefined,
+        type: str(src.type) || undefined,
+        tags: tags.length ? tags : undefined,
+        benefits: benefits.length ? benefits : undefined,
+        details: str(src.details) || undefined,
+        reason: str(rec.reason) || undefined,
+        metaData:
+          src.metaData && typeof src.metaData === "object"
+            ? (src.metaData as Record<string, unknown>)
+            : undefined,
+        hexColor: str(src.hexColor) || undefined,
+        priceAmount: Number.isFinite(priceAmt) ? priceAmt : undefined,
+        priceUnit: str(src.priceUnit) || undefined,
+        spf: typeof src.spf === "number" ? src.spf : undefined,
+        waterproof: src.waterproof === true || undefined,
+        hydrating: src.hydrating === true || undefined,
+        oilFree: src.oilFree === true || undefined,
       });
     }
   };
@@ -152,35 +192,6 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
   }
 
   return items;
-}
-
-/** ChatWonderMapsData (or a maps_data[0] entry) → a single map tile. */
-export function adaptMapsData(raw: unknown): MapTileData | null {
-  const data = asRecord(raw);
-  if (!data) return null;
-
-  const lat = num(data.lat);
-  const lng = num(data.lng);
-  if (lat === null || lng === null) return null;
-
-  const places = Array.isArray(data.places) ? data.places : [];
-  const stops = places
-    .map((p) => {
-      const place = asRecord(p);
-      if (!place) return null;
-      const pLat = num(place.lat);
-      const pLng = num(place.lng);
-      if (pLat === null || pLng === null) return null;
-      return { name: str(place.name) || "Place", lat: pLat, lng: pLng };
-    })
-    .filter((s): s is { name: string; lat: number; lng: number } => s !== null);
-
-  return {
-    name: str(data.location_label) || str(data.query) || "Destination",
-    lat,
-    lng,
-    stops: stops.length ? stops : undefined,
-  };
 }
 
 /** SkinAnalysis payloads from the shared mirror store -> skin profile tile. */
@@ -221,17 +232,26 @@ export function adaptRemoteOutfitsToTiles(raw: unknown): GarmentAdaptResult {
       const garment = item && asRecord(item.garment);
       if (!garment) continue;
       const id = str(garment.id);
-      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
-      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file) || "";
+      if (!id || seenInOutfit.has(id)) continue;
       seenInOutfit.add(id);
       const category = Array.isArray(garment.category)
         ? str(garment.category[0])
         : str(garment.category);
+      const garmentType = Array.isArray(garment.garmentType)
+        ? (garment.garmentType as unknown[]).map(str).filter(Boolean)
+        : [];
+      const fittingSlot = item?.slot ? [str(item.slot)] : [];
       const tile: GarmentTileItem = {
         id,
         name: str(garment.name) || "Garment",
         imageUrl,
         category: category || undefined,
+        description: str(garment.description) || undefined,
+        garmentType: garmentType.length ? garmentType : undefined,
+        silhouette: str(garment.silhouette) || undefined,
+        fittingSlot: fittingSlot.length ? fittingSlot : undefined,
+        layerLevel: str(garment.layerLevel) || undefined,
       };
       outfitGarments.push(tile);
       if (!seenGarment.has(id)) {
@@ -242,12 +262,26 @@ export function adaptRemoteOutfitsToTiles(raw: unknown): GarmentAdaptResult {
 
     const outfitImage = fileUrlOf(outfit.file) || str(outfit.imageUrl);
     if (!outfitImage && !outfitGarments.length) continue;
+    const meta = asRecord(outfit.metaData);
+    const metaTags = Array.isArray(meta?.tags)
+      ? (meta.tags as unknown[]).map(str).filter(Boolean)
+      : [];
+    const garmentType = Array.isArray(meta?.garmentType)
+      ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+      : [];
+    const category = Array.isArray(meta?.category)
+      ? (meta.category as unknown[]).map(str).filter(Boolean)
+      : [];
     outfits.push({
       id: outfitId,
       name: str(outfit.name) || `Look ${outfits.length + 1}`,
       imageUrl: outfitImage,
       reason: str(outfit.description) || undefined,
       garments: outfitGarments,
+      metaTags: metaTags.length ? metaTags : undefined,
+      silhouette: str(meta?.silhouette) || undefined,
+      garmentType: garmentType.length ? garmentType : undefined,
+      category: category.length ? category : undefined,
     });
   }
 
@@ -303,11 +337,33 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
     const imageUrl = product ? fileUrlOf(product.fileUrl) : "";
     if (!id || !imageUrl || seenCosmetic.has(id)) continue;
     seenCosmetic.add(id);
+    const src = product ?? rec;
+    const tags = Array.isArray(src?.tags)
+      ? (src.tags as unknown[]).map(str).filter(Boolean)
+      : [];
+    const benefits = Array.isArray(src?.benefits)
+      ? (src.benefits as unknown[]).map(str).filter(Boolean)
+      : [];
     cosmetics.push({
       id,
-      name: (product && str(product.name)) || "Cosmetic Product",
+      name: str(src?.name) || "Cosmetic Product",
       imageUrl,
-      brand: (product && str(product.brand)) || undefined,
+      brand: str(src?.brand) || undefined,
+      category: str(src?.category) || undefined,
+      type: str(src?.type) || undefined,
+      tags: tags.length ? tags : undefined,
+      benefits: benefits.length ? benefits : undefined,
+      details: str(src?.details) || undefined,
+      reason: str(rec.reason) || undefined,
+      metaData:
+        src?.metaData && typeof src.metaData === "object"
+          ? (src.metaData as Record<string, unknown>)
+          : undefined,
+      hexColor: str(src?.hexColor) || undefined,
+      spf: typeof src?.spf === "number" ? (src.spf as number) : undefined,
+      waterproof: src?.waterproof === true || undefined,
+      hydrating: src?.hydrating === true || undefined,
+      oilFree: src?.oilFree === true || undefined,
     });
   }
 
@@ -339,13 +395,109 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
       const imageUrl = product ? fileUrlOf(product.fileUrl) : "";
       if (!id || !imageUrl || seenCosmetic.has(id)) continue;
       seenCosmetic.add(id);
+      const src = product ?? rec;
+      const tags = Array.isArray(src?.tags)
+        ? (src.tags as unknown[]).map(str).filter(Boolean)
+        : [];
+      const benefits = Array.isArray(src?.benefits)
+        ? (src.benefits as unknown[]).map(str).filter(Boolean)
+        : [];
       cosmetics.push({
         id,
-        name: (product && str(product.name)) || "Cosmetic Product",
+        name: str(src?.name) || "Cosmetic Product",
         imageUrl,
-        brand: (product && str(product.brand)) || undefined,
+        brand: str(src?.brand) || undefined,
+        category: str(src?.category) || undefined,
+        type: str(src?.type) || undefined,
+        tags: tags.length ? tags : undefined,
+        benefits: benefits.length ? benefits : undefined,
+        details: str(src?.details) || undefined,
+        reason: str(rec.reason) || undefined,
+        metaData:
+          src?.metaData && typeof src.metaData === "object"
+            ? (src.metaData as Record<string, unknown>)
+            : undefined,
+        hexColor: str(src?.hexColor) || undefined,
+        spf: typeof src?.spf === "number" ? (src.spf as number) : undefined,
+        waterproof: src?.waterproof === true || undefined,
+        hydrating: src?.hydrating === true || undefined,
+        oilFree: src?.oilFree === true || undefined,
       });
     }
+  }
+
+  // The outline's own outfit master list — populated by persistOutlineOutfits on
+  // every ChatWonder garment turn. Read these first (most-recent recommendation).
+  const topLevelOutfits =
+    outline && Array.isArray(outline.outfits) ? outline.outfits : [];
+
+  for (const rawOutfit of topLevelOutfits) {
+    const outfit = asRecord(rawOutfit);
+    if (!outfit) continue;
+
+    const outfitId = str(outfit.id);
+    if (!outfitId || seenOutfit.has(outfitId)) continue;
+
+    const outfitGarments: GarmentTileItem[] = [];
+    const seenInOutfit = new Set<string>();
+    const items = Array.isArray(outfit.items) ? outfit.items : [];
+    for (const rawItem of items) {
+      const item = asRecord(rawItem);
+      const garment = item && asRecord(item.garment);
+      if (!garment) continue;
+      const id = str(garment.id);
+      const imageUrl = str(garment.imageUrl) || fileUrlOf(garment.file);
+      if (!id || !imageUrl || seenInOutfit.has(id)) continue;
+      seenInOutfit.add(id);
+      const category = Array.isArray(garment.category)
+        ? str(garment.category[0])
+        : str(garment.category);
+      const garmentType = Array.isArray(garment.garmentType)
+        ? (garment.garmentType as unknown[]).map(str).filter(Boolean)
+        : [];
+      const fittingSlot = item?.slot ? [str(item.slot)] : [];
+      const g: GarmentTileItem = {
+        id,
+        name: str(garment.name) || "Garment",
+        imageUrl,
+        category: category || undefined,
+        description: str(garment.description) || undefined,
+        garmentType: garmentType.length ? garmentType : undefined,
+        silhouette: str(garment.silhouette) || undefined,
+        fittingSlot: fittingSlot.length ? fittingSlot : undefined,
+        layerLevel: str(garment.layerLevel) || undefined,
+      };
+      outfitGarments.push(g);
+      if (!seenGarment.has(id)) {
+        seenGarment.add(id);
+        garments.push(g);
+      }
+    }
+
+    const outfitImage = fileUrlOf(outfit.file) || str(outfit.imageUrl);
+    if (!outfitImage && !outfitGarments.length) continue;
+    seenOutfit.add(outfitId);
+    const meta = asRecord(outfit.metaData);
+    const metaTags = Array.isArray(meta?.tags)
+      ? (meta.tags as unknown[]).map(str).filter(Boolean)
+      : [];
+    const garmentType = Array.isArray(meta?.garmentType)
+      ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+      : [];
+    const category = Array.isArray(meta?.category)
+      ? (meta.category as unknown[]).map(str).filter(Boolean)
+      : [];
+    outfits.push({
+      id: outfitId,
+      name: str(outfit.name) || `Look ${outfits.length + 1}`,
+      imageUrl: outfitImage,
+      reason: str(outfit.description) || undefined,
+      garments: outfitGarments,
+      metaTags: metaTags.length ? metaTags : undefined,
+      silhouette: str(meta?.silhouette) || undefined,
+      garmentType: garmentType.length ? garmentType : undefined,
+      category: category.length ? category : undefined,
+    });
   }
 
   for (const rawEvent of events) {
@@ -376,11 +528,20 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
         const category = Array.isArray(garment.category)
           ? str(garment.category[0])
           : str(garment.category);
+        const garmentType = Array.isArray(garment.garmentType)
+          ? (garment.garmentType as unknown[]).map(str).filter(Boolean)
+          : [];
+        const fittingSlot = item?.slot ? [str(item.slot)] : [];
         const g: GarmentTileItem = {
           id,
           name: str(garment.name) || "Garment",
           imageUrl,
           category: category || undefined,
+          description: str(garment.description) || undefined,
+          garmentType: garmentType.length ? garmentType : undefined,
+          silhouette: str(garment.silhouette) || undefined,
+          fittingSlot: fittingSlot.length ? fittingSlot : undefined,
+          layerLevel: str(garment.layerLevel) || undefined,
         };
         outfitGarments.push(g);
         if (!seenGarment.has(id)) {
@@ -393,12 +554,26 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
       const outfitImage = fileUrlOf(outfit.file);
       if (!outfitImage && !outfitGarments.length) continue;
       seenOutfit.add(outfitId);
+      const meta = asRecord(outfit.metaData);
+      const metaTags = Array.isArray(meta?.tags)
+        ? (meta.tags as unknown[]).map(str).filter(Boolean)
+        : [];
+      const garmentType = Array.isArray(meta?.garmentType)
+        ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+        : [];
+      const category = Array.isArray(meta?.category)
+        ? (meta.category as unknown[]).map(str).filter(Boolean)
+        : [];
       outfits.push({
         id: outfitId,
         name: str(outfit.name) || `Look ${outfits.length + 1}`,
         imageUrl: outfitImage,
         reason: str(outfit.description) || undefined,
         garments: outfitGarments,
+        metaTags: metaTags.length ? metaTags : undefined,
+        silhouette: str(meta?.silhouette) || undefined,
+        garmentType: garmentType.length ? garmentType : undefined,
+        category: category.length ? category : undefined,
       });
     }
   }

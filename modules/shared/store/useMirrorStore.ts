@@ -80,6 +80,9 @@ interface MirrorState {
   /** Last map tile data shown on the map page, for /overview mini card. */
   overviewMapSnapshot: MapTileData | null;
   setOverviewMapSnapshot: (data: MapTileData | null) => void;
+  /** Category filter forwarded from /fashion-catalog to the next API call. Consumed once by sendMessage. */
+  pendingCategory: string | null;
+  setPendingCategory: (category: string | null) => void;
   clearChatNav: () => void;
 }
 
@@ -127,6 +130,8 @@ export const useMirrorStore = create<MirrorState>()(
         set({ overviewCosmeticsSnapshot: data }),
       overviewMapSnapshot: null,
       setOverviewMapSnapshot: (data) => set({ overviewMapSnapshot: data }),
+      pendingCategory: null,
+      setPendingCategory: (category) => set({ pendingCategory: category }),
       clearChatNav: () =>
         set({
           chatNavPending: false,

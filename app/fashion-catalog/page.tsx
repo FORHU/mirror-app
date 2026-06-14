@@ -1,31 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
-import type { RemoteGarment } from "@/modules/shared/api/garment.service";
 import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
-import { useVoice } from "@/modules/shared/voice/useVoice";
-import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+import { authService } from "@/modules/shared/api/auth.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
-import { PromptFloater } from "@/components/PromptFloater";
-import { QuickResponseChips, getToday } from "@/components/QuickResponseChips";
-import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
+import { QuickResponseChips } from "@/components/QuickResponseChips";
 import { OutfitImageCarousel } from "@/modules/fashion/components/OutfitImageCarousel";
 import { MarqueeColumn } from "@/modules/shared/components/MarqueeColumn";
-
-import type { SwapSlot } from "@/modules/fashion/types";
-import { FASHION_QUOTES } from "@/modules/fashion/constants";
-import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
+import {
+  FASHION_QUOTES,
+  FASHION_PROMPT_KEY,
+  FASHION_DEFAULT_RECOMMENDATION_PROMPT,
+  FASHION_CATEGORY_PROMPTS,
+} from "@/modules/fashion/constants";
 
 const MAIN_CATEGORIES = ["All", "Casual", "Formal", "Outdoor"];
 const CATEGORY_MAP: Record<string, string[]> = {
@@ -51,126 +50,185 @@ const CATEGORY_MAP: Record<string, string[]> = {
   Formal: ["Formal", "Business", "SmartCasual", "Luxury", "Uniform"],
 };
 
-type GenderFilter = "MALE" | "FEMALE";
-
-function normalizeGender(value: unknown): GenderFilter | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().toUpperCase();
-  if (["MALE", "MAN", "MEN", "M"].includes(normalized)) return "MALE";
-  if (["FEMALE", "WOMAN", "WOMEN", "F"].includes(normalized)) return "FEMALE";
-  return null;
-}
-
-function collectGenderValues(value: unknown): GenderFilter[] {
-  if (Array.isArray(value)) return value.flatMap(collectGenderValues);
-  const gender = normalizeGender(value);
-  return gender ? [gender] : [];
-}
-
-function filterOutfitsByGender(
-  items: RemoteOutfit[],
-  gender: GenderFilter | null,
-) {
-  if (!gender) return items;
-  return items.filter((outfit) => {
-    const meta = outfit.metaData;
-    const genders = [
-      ...collectGenderValues(meta?.gender),
-      ...collectGenderValues(meta?.targetGender),
-      ...collectGenderValues(meta?.genders),
-      ...outfit.items.flatMap((item) =>
-        collectGenderValues(item.garment.gender),
-      ),
-    ];
-    return genders.length === 0 || genders.includes(gender);
-  });
-}
+const PAGE_SIZE = 20;
 
 export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
-  const { speakText } = useVoiceContext();
-  const setMicBusy = useMirrorStore((s) => s.setMicBusy);
-  const userGender = useAuthStore((state) => state.user?.gender);
-  const genderFilter = useMemo(() => normalizeGender(userGender), [userGender]);
-  const [isChipLoading, setIsChipLoading] = useState(false);
-  const isLoading = isChipLoading;
+  const queryClient = useQueryClient();
 
-  // Disable the shared mic while this page is fetching, and always release the
-  // flag on unmount so the mic isn't left stuck-disabled after navigating away.
-  useEffect(() => {
-    setMicBusy(isLoading);
-    return () => setMicBusy(false);
-  }, [isLoading, setMicBusy]);
-  const [activeMainCategory, setActiveMainCategory] = useState<string>("All");
+  const setPendingCategory = useMirrorStore((s) => s.setPendingCategory);
+  const updateUser = useAuthStore((state) => state.updateUser);
+  const storedGender = useAuthStore((s): "All" | "MALE" | "FEMALE" => {
+    const g = s.user?.gender?.toUpperCase();
+    return g === "MALE" || g === "FEMALE" ? g : "All";
+  });
 
+  const [activeMainCategory, setActiveMainCategory] = useState("All");
+  const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
+    storedGender,
+  );
+  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">(storedGender);
+  const [isUpdatingGender, setIsUpdatingGender] = useState(false);
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
-  const [selectedBag, setSelectedBag] = useState<RemoteGarment | null>(null);
-  const [selectedTopBase, setSelectedTopBase] = useState<RemoteGarment | null>(
-    null,
-  );
-  const [selectedTopMid, setSelectedTopMid] = useState<RemoteGarment | null>(
-    null,
-  );
-  const [selectedTopOuter, setSelectedTopOuter] =
-    useState<RemoteGarment | null>(null);
-  const [selectedBottom, setSelectedBottom] = useState<RemoteGarment | null>(
-    null,
-  );
-  const [selectedShoe, setSelectedShoe] = useState<RemoteGarment | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(0);
 
-  const canvasRef = useRef<OutfitPreviewCanvasHandle>(null);
+  const selectedOutfit =
+    selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
 
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const [swapSlot] = useState<SwapSlot | null>(null);
-  const [swapItemId] = useState<string | null>(null);
-  const [outfitOverrides, setOutfitOverrides] = useState<
-    Record<string, RemoteGarment>
-  >({});
-  const outfitModified = Object.keys(outfitOverrides).length > 0;
-
-  const clearSlots = useCallback(() => {
-    setSelectedBag(null);
-    setSelectedTopBase(null);
-    setSelectedTopMid(null);
-    setSelectedTopOuter(null);
-    setSelectedBottom(null);
-    setSelectedShoe(null);
-  }, []);
-
-  const selectOutfit = useCallback(
-    (idx: number | null) => {
-      setSelectedOutfitIdx(idx);
-      clearSlots();
-      setOutfitOverrides({});
-    },
-    [clearSlots],
-  );
-
-  const outfitPageSize = 8;
-  const [, setOutfitPage] = useState(0);
-
-  // All outfits split across the two auto-scrolling side columns
-  // (even index → left, odd → right). `idx` stays the global index into
-  // `outfits` so selection keeps working.
-  const [leftOutfits, rightOutfits] = useMemo(() => {
+  const [leftOutfits, rightOutfits] = (() => {
     const left: { outfit: RemoteOutfit; idx: number }[] = [];
     const right: { outfit: RemoteOutfit; idx: number }[] = [];
     outfits.forEach((outfit, idx) =>
       (idx % 2 === 0 ? left : right).push({ outfit, idx }),
     );
     return [left, right];
-  }, [outfits]);
-  const selectedOutfit =
-    selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+  })();
 
-  // Card used by both marquee side columns; fixed height since the columns
-  // drift continuously instead of fitting a 4-row page.
+  // Build query with backend gender filter + pagination
+  const buildQuery = useCallback((baseQuery: string, pageNum: number) => {
+    const params = new URLSearchParams(baseQuery);
+    params.set("limit", String(PAGE_SIZE));
+    params.set("page", String(pageNum + 1)); // API is 1-indexed
+    if (activeGenderRef.current !== "All") {
+      params.set("metaGender", activeGenderRef.current);
+    }
+    return params.toString();
+  }, []);
+
+  const doFetch = useCallback(
+    async (baseQuery: string, pageNum: number) => {
+      setIsLoading(true);
+      try {
+        const fetched = await outfitService.getByQuery(
+          buildQuery(baseQuery, pageNum),
+        );
+        setOutfits(fetched);
+        setSelectedOutfitIdx(null);
+      } catch (err) {
+        console.error("[fashion-catalog]", err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [buildQuery],
+  );
+
+  const localGenderChangeRef = useRef(false);
+
+  const handleGenderChange = useCallback(
+    (gender: "All" | "MALE" | "FEMALE") => {
+      localGenderChangeRef.current = true;
+      activeGenderRef.current = gender;
+      setActiveGender(gender);
+      updateUser({ gender: gender !== "All" ? gender : undefined });
+
+      // Keep overview store in sync
+      const genderStr = gender === "All" ? null : gender;
+      useOverviewStore.getState().setPendingGender(genderStr);
+
+      // Clear all cached responses
+      queryClient.removeQueries({ queryKey: ["chatWonder"] });
+
+      setPage(0);
+      setIsUpdatingGender(true);
+      Promise.allSettled([
+        authService.updateProfile({ gender: gender !== "All" ? gender : null }),
+        chatWonderService.restart(),
+      ]).finally(() => setIsUpdatingGender(false));
+      if (!currentSearch) return;
+      queueMicrotask(() => void doFetch(currentSearch, 0));
+    },
+    [currentSearch, doFetch, updateUser, queryClient],
+  );
+
+  // Sync filter when storedGender changes externally (e.g. from ai-assistant).
+  // Skip on mount (useState already seeded from storedGender) and skip when
+  // the change came from our own pills (handleGenderChange already fetched).
+  const storedGenderInitRef = useRef(true);
+  useEffect(() => {
+    if (storedGenderInitRef.current) {
+      storedGenderInitRef.current = false;
+      return;
+    }
+    if (localGenderChangeRef.current) {
+      localGenderChangeRef.current = false;
+      return;
+    }
+    activeGenderRef.current = storedGender;
+    setActiveGender(storedGender);
+    setPage(0);
+    if (!currentSearch) return;
+    queueMicrotask(() => void doFetch(currentSearch, 0));
+  }, [storedGender, currentSearch, doFetch]);
+
+  // Reset to page 0 and fetch when URL (category) changes
+  const lastSearchRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastSearchRef.current === currentSearch) return;
+    lastSearchRef.current = currentSearch;
+    setPage(0);
+    if (!currentSearch) {
+      queueMicrotask(() => setOutfits([]));
+      return;
+    }
+    queueMicrotask(() => void doFetch(currentSearch, 0));
+  }, [currentSearch, doFetch]);
+
+  // Fetch when page changes (same category, different page)
+  const prevPageRef = useRef(0);
+  useEffect(() => {
+    if (page === prevPageRef.current) return;
+    prevPageRef.current = page;
+    if (!currentSearch) return;
+    queueMicrotask(() => void doFetch(currentSearch, page));
+  }, [page, currentSearch, doFetch]);
+
+  const handleRecommendationsClick = useCallback(() => {
+    const metaCategory = searchParams.get("metaCategory");
+    const category = metaCategory ? `metaCategory=${metaCategory}` : "ALL";
+    setPendingCategory(category);
+    const prompts = FASHION_CATEGORY_PROMPTS[activeMainCategory];
+    let prompt = prompts
+      ? prompts[Math.floor(Math.random() * prompts.length)]
+      : FASHION_DEFAULT_RECOMMENDATION_PROMPT;
+    if (activeGender !== "All") {
+      const label = activeGender === "MALE" ? "male" : "female";
+      prompt = `${prompt} Please recommend ${label} outfits only.`;
+    }
+    sessionStorage.setItem(FASHION_PROMPT_KEY, prompt);
+    router.push("/ai-recommendation-fashion");
+  }, [
+    searchParams,
+    setPendingCategory,
+    router,
+    activeMainCategory,
+    activeGender,
+  ]);
+
+  const handleChipSelect = useCallback(
+    (prompt: string) => {
+      if (prompt === "All") {
+        setActiveMainCategory("All");
+        router.push("/fashion-catalog");
+        return;
+      }
+      if (MAIN_CATEGORIES.includes(prompt)) {
+        setActiveMainCategory(prompt);
+        const sub = CATEGORY_MAP[prompt] ?? [];
+        if (sub.length > 0) {
+          router.push(`/fashion-catalog?metaCategory=${sub.join(",")}`);
+        }
+      }
+    },
+    [router],
+  );
+
   const renderOutfitCard = ({
     outfit,
     idx,
@@ -184,7 +242,7 @@ export default function FashionCatalog() {
       tabIndex={0}
       aria-label={`Outfit ${idx + 1}`}
       onClick={() =>
-        selectedOutfitIdx === idx ? selectOutfit(null) : selectOutfit(idx)
+        setSelectedOutfitIdx(selectedOutfitIdx === idx ? null : idx)
       }
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -223,471 +281,20 @@ export default function FashionCatalog() {
     </div>
   );
 
-  const bottomsPageSize = 6;
-  const shoesPageSize = 6;
-  const accessoryPageSize = 6;
-  const topsLayerPageSize = 2;
-
-  const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
-  const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
-  const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
-
-  const [topsBasePage, setTopsBasePage] = useState(0);
-  const [topsMidPage, setTopsMidPage] = useState(0);
-  const [topsOuterPage, setTopsOuterPage] = useState(0);
-
-  const pagedTopsBase = topsBase.slice(
-    topsBasePage * topsLayerPageSize,
-    (topsBasePage + 1) * topsLayerPageSize,
-  );
-  const pagedTopsMid = topsMid.slice(
-    topsMidPage * topsLayerPageSize,
-    (topsMidPage + 1) * topsLayerPageSize,
-  );
-  const pagedTopsOuter = topsOuter.slice(
-    topsOuterPage * topsLayerPageSize,
-    (topsOuterPage + 1) * topsLayerPageSize,
-  );
-
-  const [shoes, setShoes] = useState<RemoteGarment[]>([]);
-  const [shoesPage, setShoesPage] = useState(0);
-  const pagedShoes = shoes.slice(
-    shoesPage * shoesPageSize,
-    (shoesPage + 1) * shoesPageSize,
-  );
-
-  const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
-  const [bottomsPage, setBottomsPage] = useState(0);
-  const pagedBottoms = bottoms.slice(
-    bottomsPage * bottomsPageSize,
-    (bottomsPage + 1) * bottomsPageSize,
-  );
-
-  const [bags, setBags] = useState<RemoteGarment[]>([]);
-
-  const [bagsPage, setBagsPage] = useState(0);
-  const pagedBags = bags.slice(
-    bagsPage * accessoryPageSize,
-    (bagsPage + 1) * accessoryPageSize,
-  );
-
-  const handleAiComplete = useCallback(
-    (response: ChatWonderMessageResponse) => {
-      setSelectedBag(null);
-      setSelectedTopBase(null);
-      setSelectedTopMid(null);
-      setSelectedTopOuter(null);
-      setSelectedBottom(null);
-      setSelectedShoe(null);
-      setSelectedOutfitIdx(null);
-
-      const rawData = response.garment_data as Record<string, unknown> | null;
-      const query = typeof rawData?.query === "string" ? rawData.query : null;
-
-      if (query) {
-        // New format: ChatWonder sends query params, we fetch real DB outfits
-        outfitService
-          .getByQuery(query)
-          .then((fetchedOutfits) => {
-            const visibleOutfits = filterOutfitsByGender(
-              fetchedOutfits,
-              genderFilter,
-            );
-            const newTopsBase: RemoteGarment[] = [];
-            const newTopsMid: RemoteGarment[] = [];
-            const newTopsOuter: RemoteGarment[] = [];
-            const newBottoms: RemoteGarment[] = [];
-            const newShoes: RemoteGarment[] = [];
-            const newBags: RemoteGarment[] = [];
-            const seen = new Set<string>();
-
-            for (const outfit of visibleOutfits) {
-              for (const item of outfit.items) {
-                const g = item.garment;
-                if (seen.has(g.id)) continue;
-                seen.add(g.id);
-
-                const mapped: RemoteGarment = {
-                  id: g.id,
-                  name: g.name,
-                  description: g.description ?? "",
-                  imageUrl: g.imageUrl,
-                  fittingSlot: g.fittingSlot,
-                  garmentType: g.garmentType,
-                  category: [],
-                  tags: [],
-                  gender: g.gender ?? null,
-                  silhouette: null,
-                  layerLevel: g.layerLevel ?? null,
-                  file: null,
-                };
-
-                if (g.fittingSlot.includes("UpperGarment")) {
-                  const layer = g.layerLevel ?? "BASE";
-                  if (layer === "OUTER") newTopsOuter.push(mapped);
-                  else if (layer === "MID") newTopsMid.push(mapped);
-                  else newTopsBase.push(mapped);
-                } else if (g.fittingSlot.includes("LowerGarment")) {
-                  newBottoms.push(mapped);
-                } else if (g.fittingSlot.includes("FootGarment")) {
-                  newShoes.push(mapped);
-                } else if (g.garmentType.includes("Bag")) {
-                  newBags.push(mapped);
-                }
-              }
-            }
-
-            setTopsBase(newTopsBase);
-            setTopsBasePage(0);
-            setTopsMid(newTopsMid);
-            setTopsMidPage(0);
-            setTopsOuter(newTopsOuter);
-            setTopsOuterPage(0);
-            setBottoms(newBottoms);
-            setBottomsPage(0);
-            setShoes(newShoes);
-            setShoesPage(0);
-            setBags(newBags);
-            setBagsPage(0);
-            setOutfits(visibleOutfits);
-            setOutfitPage(0);
-          })
-          .catch(console.error)
-          .finally(() => setIsChipLoading(false));
-        return;
-      }
-
-      // Legacy format: ChatWonder sends sets[] with inline recommendations
-      type AiItem = {
-        id?: string;
-        name: string;
-        type?: string;
-        description?: string;
-        reason?: string;
-        imageUrl?: string;
-        category?: string | string[];
-        garmentType?: string[];
-        fittingSlot?: string[];
-        layerLevel?: string;
-        gender?: string;
-      };
-
-      const sets = Array.isArray(rawData?.sets)
-        ? (rawData.sets as Record<string, unknown>[])
-        : [];
-      const newTopsBase: RemoteGarment[] = [];
-      const newTopsMid: RemoteGarment[] = [];
-      const newTopsOuter: RemoteGarment[] = [];
-      const newBottoms: RemoteGarment[] = [];
-      const newShoes: RemoteGarment[] = [];
-      const newBags: RemoteGarment[] = [];
-      const seen = new Set<string>();
-
-      const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
-        id: item.id ?? crypto.randomUUID(),
-        name: item.name,
-        description: item.reason ?? item.description ?? "",
-        imageUrl: item.imageUrl ?? "",
-        fittingSlot: [slot],
-        garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-        category: Array.isArray(item.category)
-          ? item.category
-          : item.category
-            ? [item.category]
-            : [],
-        tags: [],
-        gender: normalizeGender(item.gender) ?? null,
-        silhouette: null,
-        layerLevel: item.layerLevel ?? null,
-        file: null,
-      });
-
-      function push(
-        item: AiItem | undefined,
-        bucket: RemoteGarment[],
-        slot: string,
-      ) {
-        if (!item?.id) return;
-        if (seen.has(item.id)) return;
-        seen.add(item.id);
-        bucket.push(toGarment(item, slot));
-      }
-
-      for (const s of sets) {
-        for (const r of (Array.isArray(s.recommendations)
-          ? s.recommendations
-          : []) as AiItem[]) {
-          if (r.fittingSlot?.includes("UpperGarment")) {
-            const layer = r.layerLevel ?? "BASE";
-            if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
-            else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
-            else push(r, newTopsBase, "UpperGarment");
-          }
-          if (r.fittingSlot?.includes("LowerGarment"))
-            push(r, newBottoms, "LowerGarment");
-          if (r.fittingSlot?.includes("FootGarment"))
-            push(r, newShoes, "FootGarment");
-          if (r.garmentType?.includes("Bag"))
-            push(r, newBags, "RightHandAccessory");
-        }
-      }
-      setTopsBase(newTopsBase);
-      setTopsMid(newTopsMid);
-      setTopsOuter(newTopsOuter);
-      setBottoms(newBottoms);
-      setShoes(newShoes);
-      setBags(newBags);
-      setBagsPage(0);
-
-      const seenOutfitIds = new Set<string>();
-      const newAiOutfits: RemoteOutfit[] = sets
-        .filter((s) => s.outfit_imageUrl)
-        .map((s, i) => {
-          const baseId = String(s.outfit_id ?? `outfit-${i}`);
-          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
-          seenOutfitIds.add(id);
-          return {
-            id,
-            name: String(s.outfit_name ?? "Outfit"),
-            description: String(s.reason ?? ""),
-            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
-            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map(
-              (r) => ({
-                id: String(r.id ?? crypto.randomUUID()),
-                slot: String(
-                  (r.fittingSlot as string[])?.[0] ?? "UpperGarment",
-                ),
-                garment: {
-                  id: String(r.id ?? ""),
-                  name: String(r.name ?? ""),
-                  description: String(r.description ?? ""),
-                  imageUrl: String(r.imageUrl ?? ""),
-                  garmentType: (r.garmentType as string[]) ?? [],
-                  fittingSlot: (r.fittingSlot as string[]) ?? [],
-                },
-              }),
-            ),
-            metaData: null,
-          };
-        });
-      setOutfits(newAiOutfits);
-      setOutfitPage(0);
-    },
-    [
-      setTopsBase,
-      setTopsBasePage,
-      setTopsMid,
-      setTopsMidPage,
-      setTopsOuter,
-      setTopsOuterPage,
-      setBottoms,
-      setBottomsPage,
-      setShoes,
-      setShoesPage,
-      setBags,
-      setBagsPage,
-      setOutfits,
-      setOutfitPage,
-      setSelectedBag,
-      setSelectedTopBase,
-      setSelectedTopMid,
-      setSelectedTopOuter,
-      setSelectedBottom,
-      setSelectedShoe,
-      setSelectedOutfitIdx,
-      genderFilter,
-    ],
-  );
-
-  const handleChipSelect = useCallback(
-    (prompt: string) => {
-      if (prompt === "All") {
-        setActiveMainCategory("All");
-        router.push("/fashion-catalog");
-        return;
-      }
-
-      if (MAIN_CATEGORIES.includes(prompt)) {
-        setActiveMainCategory(prompt);
-        const subCategories = CATEGORY_MAP[prompt] || [];
-        if (subCategories.length > 0) {
-          router.push(
-            `/fashion-catalog?metaCategory=${subCategories.join(",")}`,
-          );
-        }
-        return;
-      }
-    },
-    [router],
-  );
-
-  const handlePromptSelect = useCallback(
-    (prompt: string) => {
-      const lower = prompt.toLowerCase();
-      let metaCategory = "";
-      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
-      else if (/streetwear/i.test(lower)) metaCategory = "Streetwear";
-      else if (/athleisure/i.test(lower)) metaCategory = "Athleisure";
-      else if (/activewear/i.test(lower)) metaCategory = "Activewear";
-      else if (/sportswear/i.test(lower)) metaCategory = "Sportswear";
-      else if (/winterwear/i.test(lower)) metaCategory = "Winterwear";
-      else if (/summerwear/i.test(lower)) metaCategory = "Summerwear";
-      else if (/springwear/i.test(lower)) metaCategory = "Springwear";
-      else if (/business/i.test(lower)) metaCategory = "Business";
-      else if (/formal/i.test(lower)) metaCategory = "Formal";
-      else if (/casual/i.test(lower)) metaCategory = "Casual";
-      const params = new URLSearchParams();
-      if (metaCategory) params.set("metaCategory", metaCategory);
-      params.set("limit", "100");
-      router.push(`/ai-recommendation-fashion?${params.toString()}`);
-    },
-    [router],
-  );
-
-  const fashionPageContext = useMemo(
-    () => ({
-      route: "/fashion-catalog",
-      pageName: "Fashion Catalog",
-      mode: "garment" as const,
-    }),
-    [],
-  );
-
-  const handleVoiceAction = useCallback(
-    (action: ChatWonderAction) => {
-      if (action.type === "GARMENT_RECOMMENDATION") {
-        const res = action.response as {
-          garment_data?: Record<string, unknown>;
-        } | null;
-        const query =
-          typeof res?.garment_data?.query === "string"
-            ? res.garment_data.query
-            : "";
-        const params = new URLSearchParams(query);
-        if (!params.has("limit")) params.set("limit", "4");
-
-        outfitService
-          .getByQuery(params.toString())
-          .then((fetched) => {
-            if (fetched && fetched.length > 0) {
-              router.push(`/ai-recommendation-fashion?${params.toString()}`);
-            } else {
-              void speakText(
-                "I couldn't find outfits for that. Want to try another style?",
-              );
-            }
-          })
-          .catch(() => {
-            void speakText(
-              "Sorry, I ran into a problem finding outfits. Please try again.",
-            );
-          });
-        return;
-      }
-      if (action.type === "fashion_select_outfit") {
-        const idx = action.index;
-        if (idx < 0 || idx >= outfits.length) return;
-        setOutfitPage(Math.floor(idx / outfitPageSize));
-        selectOutfit(idx);
-        return;
-      }
-      if (action.type === "fashion_select_garment") {
-        const { slot, index } = action;
-        type SlotEntry = {
-          arr: RemoteGarment[];
-          set: (g: RemoteGarment) => void;
-        };
-        const slotMap: Record<typeof slot, SlotEntry> = {
-          base: { arr: pagedTopsBase, set: setSelectedTopBase },
-          mid: { arr: pagedTopsMid, set: setSelectedTopMid },
-          outer: { arr: pagedTopsOuter, set: setSelectedTopOuter },
-          bottoms: { arr: pagedBottoms, set: setSelectedBottom },
-          shoes: { arr: pagedShoes, set: setSelectedShoe },
-          bags: { arr: pagedBags, set: setSelectedBag },
-        };
-        const target = slotMap[slot];
-        const garment = target.arr[index];
-        if (!garment) return;
-        if (swapSlot === slot && swapItemId) {
-          const id = swapItemId;
-          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
-        } else {
-          target.set(garment);
-          setSelectedOutfitIdx(null);
-        }
-      }
-    },
-    [
-      outfits,
-      outfitPageSize,
-      router,
-      speakText,
-      selectOutfit,
-      pagedTopsBase,
-      pagedTopsMid,
-      pagedTopsOuter,
-      pagedBottoms,
-      pagedShoes,
-      pagedBags,
-      swapSlot,
-      swapItemId,
-      setSelectedTopBase,
-      setSelectedTopMid,
-      setSelectedTopOuter,
-      setSelectedBottom,
-      setSelectedShoe,
-      setSelectedBag,
-      setSelectedOutfitIdx,
-      setOutfitOverrides,
-    ],
-  );
-
-  useVoice(fashionPageContext, handleVoiceAction);
-
-  // Re-fetch whenever URL params change — covers both initial mount and
-  // chip-tap navigation (?metaCategory=Casual&limit=4 etc.).
-  // limit=4 is injected if the caller omitted it.
-  const lastSearchParamsRef = useRef<string | null>(null);
-  useEffect(() => {
-    const currentKey = `${currentSearch}::${genderFilter ?? "ANY"}`;
-    if (lastSearchParamsRef.current === currentKey) return;
-    lastSearchParamsRef.current = currentKey;
-
-    // Do not auto-fetch if there are no query parameters. This leaves
-    // the outfits array empty so the idle OutfitImageCarousel can display.
-    if (!currentSearch) {
-      queueMicrotask(() => setOutfits([]));
-      return;
-    }
-
-    const params = new URLSearchParams(currentSearch);
-    if (!params.has("limit")) params.set("limit", "100"); // fetch all available outfits
-
-    // Directly trigger the AI-complete path which fetches & maps outfits in one shot
-    // Deferred with queueMicrotask to avoid synchronous setState inside an effect body.
-    queueMicrotask(() => {
-      setIsChipLoading(true);
-      handleAiComplete({
-        garment_data: { query: params.toString() },
-      } as ChatWonderMessageResponse);
-    });
-    // setIsChipLoading(false) is called inside handleAiComplete's .finally()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSearch, genderFilter]);
-
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
 
-      {/* Top filter row */}
+      {/* Category filter tabs + gender filter */}
       {!isLoading && (
         <div
           style={{
             display: "flex",
-            justifyContent: "center",
+            flexDirection: "column",
             alignItems: "center",
+            gap: "6px",
             padding: "6px 16px",
             flexShrink: 0,
           }}
@@ -697,52 +304,96 @@ export default function FashionCatalog() {
             prompts={MAIN_CATEGORIES}
             activePrompt={activeMainCategory}
             className="relative z-40"
+            chipClassName="text-sm px-4 py-1.5"
           />
+          <div className="flex items-center gap-2">
+            {(["All", "MALE", "FEMALE"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                disabled={isUpdatingGender}
+                onClick={() => handleGenderChange(g)}
+                style={{
+                  padding: "3px 14px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: activeGender === g ? 600 : 400,
+                  letterSpacing: "0.06em",
+                  color:
+                    activeGender === g ? "white" : "rgba(255,255,255,0.45)",
+                  background:
+                    activeGender === g
+                      ? "rgba(255,255,255,0.15)"
+                      : "rgba(255,255,255,0.04)",
+                  border:
+                    activeGender === g
+                      ? "1px solid rgba(255,255,255,0.3)"
+                      : "1px solid rgba(255,255,255,0.08)",
+                  transition: "all 0.15s ease",
+                  cursor: isUpdatingGender ? "not-allowed" : "pointer",
+                  opacity: isUpdatingGender ? 0.4 : 1,
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
-      {/* Loading state — cycling fashion quotes. Hoisted so it shows for every
-          category, including "All" (which otherwise renders nothing while loading). */}
+      {/* Loading — cycling fashion quotes */}
       {isLoading && (
         <QuoteCarousel
           quotes={FASHION_QUOTES}
           label="Style tip"
-          className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
+          className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-22 text-center"
         />
       )}
 
-      {activeMainCategory === "All" && !isLoading && <OutfitImageCarousel />}
+      {activeMainCategory === "All" && !isLoading && (
+        <OutfitImageCarousel gender={activeGender} />
+      )}
 
-      {activeMainCategory !== "All" && !isLoading && (
+      {activeMainCategory !== "All" && !isLoading && outfits.length === 0 && (
+        <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">
+          <p className="text-white/40 text-sm font-light leading-relaxed tracking-wide">
+            There is no outfit currently out in our drawer for the current
+            weather and condition.
+          </p>
+        </div>
+      )}
+
+      {activeMainCategory !== "All" && !isLoading && outfits.length > 0 && (
         <div className="flex flex-1 min-h-0 w-full">
-          {/* Left panel — outfits 1-4 */}
+          {/* Left column */}
           <div
-            className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
+            className="h-full flex flex-col p-2 gap-2 min-h-0"
             style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={false} gap={6}>
-              {!isLoading && leftOutfits.map(renderOutfitCard)}
+            <MarqueeColumn
+              loop={false}
+              gap={6}
+              style={{ touchAction: "pan-y" }}
+            >
+              {leftOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
 
-          {/* Center panel */}
+          {/* Center — selected outfit detail */}
           <div
             className="h-full flex flex-col items-center overflow-hidden"
             style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
           >
-            {/* Idle Reel removed based on sketch layout */}
-
-            {/* Large selected outfit preview */}
-            {selectedOutfit && !isLoading && (
+            {selectedOutfit && (
               <div
                 style={{
                   flex: 1,
                   minHeight: 0,
                   width: "100%",
-                  padding: "10px 8px 180px",
+                  padding: "10px 8px 176px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
@@ -782,6 +433,7 @@ export default function FashionCatalog() {
                     </span>
                   )}
                 </div>
+
                 <div>
                   <div className="text-white font-semibold text-sm leading-tight">
                     {selectedOutfit.name}
@@ -792,6 +444,7 @@ export default function FashionCatalog() {
                     </div>
                   )}
                 </div>
+
                 {selectedOutfit.items.map((item) => {
                   const g = item.garment;
                   return (
@@ -799,7 +452,6 @@ export default function FashionCatalog() {
                       key={g.id}
                       style={{
                         flex: "0 0 auto",
-                        height: "auto",
                         minHeight: "76px",
                         background: "rgba(255,255,255,0.06)",
                         backdropFilter: "blur(12px)",
@@ -808,7 +460,6 @@ export default function FashionCatalog() {
                         alignItems: "center",
                         padding: "10px",
                         border: "1px solid rgba(255,255,255,0.08)",
-                        overflow: "hidden",
                         gap: "12px",
                       }}
                     >
@@ -854,9 +505,7 @@ export default function FashionCatalog() {
                           minWidth: 0,
                           display: "flex",
                           flexDirection: "column",
-                          justifyContent: "center",
                           gap: "4px",
-                          overflow: "hidden",
                         }}
                       >
                         <span
@@ -865,8 +514,6 @@ export default function FashionCatalog() {
                             fontSize: "9px",
                             textTransform: "uppercase",
                             letterSpacing: "0.08em",
-                            overflow: "hidden",
-                            whiteSpace: "nowrap",
                           }}
                         >
                           {g.layerLevel ?? g.garmentType[0]}
@@ -877,7 +524,6 @@ export default function FashionCatalog() {
                             fontSize: "12px",
                             fontWeight: 600,
                             lineHeight: 1.3,
-                            overflow: "hidden",
                           }}
                         >
                           {g.name}
@@ -899,67 +545,43 @@ export default function FashionCatalog() {
             )}
           </div>
 
-          {/* Right panel — outfits 5-8 */}
+          {/* Right column */}
           <div
-            className="h-full flex flex-col p-2 gap-2 min-h-0 overflow-hidden"
+            className="h-full flex flex-col p-2 gap-2 min-h-0"
             style={{ flex: "0 0 20%", width: "20%" }}
           >
-            <MarqueeColumn loop={false} gap={6}>
-              {!isLoading && rightOutfits.map(renderOutfitCard)}
+            <MarqueeColumn
+              loop={false}
+              gap={6}
+              style={{ touchAction: "pan-y" }}
+            >
+              {rightOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
         </div>
       )}
 
-      {/* Action row — Suggestions, positioned above the mic */}
+      {/* Bottom action row */}
       {!isLoading && (
-        <div className="absolute bottom-[100px] left-0 right-0 z-40 flex flex-col items-center px-4 pointer-events-none">
-          <div className="pointer-events-auto w-full flex justify-center">
-            <PromptFloater
-              onSelect={handlePromptSelect}
-              prompts={[
-                "Formal outfit — top, bottom, shoes, and bag.",
-                "Business look that feels confident and professional.",
-                "Casual outfit for an everyday relaxed day.",
-                `SmartCasual layered outfit for today, ${getToday()}.`,
-                "Streetwear look with a bold statement vibe.",
-                "Athleisure outfit that blends comfort and style.",
-                "Activewear outfit for performance and movement.",
-                "Sportswear outfit suitable for training or activity.",
-                "Winterwear outfit with warm layers and structure.",
-                "Summerwear outfit that stays light and breathable.",
-                "Springwear outfit for transitional weather.",
-                "Autumnwear outfit with cozy layering.",
-                "Rainwear outfit that stays practical and stylish.",
-                "Minimalist outfit with clean lines and neutral tones.",
-                "Luxury-inspired outfit with a refined aesthetic.",
-                "AvantGarde outfit with an experimental fashion edge.",
-                "Vintage-inspired outfit with retro influence.",
-                "Traditional outfit with cultural inspiration.",
-                "Cultural outfit with heritage influence.",
-                "Uniform-inspired structured outfit style.",
-              ]}
-              className="relative z-40"
-              direction="above"
-            />
+        <div className="absolute bottom-25 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
+          {/* Recommendations button */}
+          <div className="pointer-events-auto">
+            <button
+              onClick={handleRecommendationsClick}
+              disabled={isUpdatingGender}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white transition-opacity"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                backdropFilter: "blur(12px)",
+                opacity: isUpdatingGender ? 0.4 : 1,
+                cursor: isUpdatingGender ? "not-allowed" : "pointer",
+              }}
+            >
+              Recommendations
+            </button>
           </div>
         </div>
-      )}
-
-      {showConfirm && (
-        <OutfitPreviewModal
-          outfitModified={outfitModified}
-          activeOutfit={selectedOutfit}
-          outfitOverrides={outfitOverrides}
-          selectedTopBase={selectedTopBase}
-          selectedTopMid={selectedTopMid}
-          selectedTopOuter={selectedTopOuter}
-          selectedBottom={selectedBottom}
-          selectedShoe={selectedShoe}
-          selectedBag={selectedBag}
-          canvasRef={canvasRef}
-          onClose={() => setShowConfirm(false)}
-        />
       )}
     </div>
   );

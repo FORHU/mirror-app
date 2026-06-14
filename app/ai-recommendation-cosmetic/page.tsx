@@ -1,17 +1,22 @@
 "use client";
 
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { CosmeticGrid } from "@/modules/cosmetics/components/CosmeticGrid";
-import { COSMETIC_PROMPT_KEY } from "@/modules/cosmetics/constants";
+import {
+  COSMETIC_EVALUATE_KEY,
+  COSMETIC_PROMPT_KEY,
+} from "@/modules/cosmetics/constants";
 import {
   cosmeticsService,
   type SkinRecommendation,
 } from "@/modules/shared/api/cosmetics.service";
+import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { useSearchParams } from "next/navigation";
 import { adaptCosmeticsData } from "@/modules/overview";
@@ -19,6 +24,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -99,6 +105,15 @@ function normalizeRecommendation(
           ? (rec.benefits as unknown[]).map(String)
           : [],
       fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
+      details: str(product?.details) || null,
+      metaData: product?.metaData && typeof product.metaData === "object" ? (product.metaData as Record<string, unknown>) : null,
+      hexColor: str(product?.hexColor) || null,
+      priceAmount: typeof product?.priceAmount === "number" ? (product.priceAmount as number) : null,
+      priceUnit: str(product?.priceUnit) || null,
+      spf: typeof product?.spf === "number" ? (product.spf as number) : null,
+      waterproof: product?.waterproof === true,
+      hydrating: product?.hydrating === true,
+      oilFree: product?.oilFree === true,
     },
   };
 }
@@ -138,16 +153,63 @@ const PROMPT_SUGGESTIONS = [
   "How do I improve my skin texture and glow?",
 ];
 
+/** Collapsed AI suggestion banner: tap to expand into a scrollable panel.
+ *  Mount with `key={text}` so a new suggestion always starts collapsed. */
+function ExpandableSuggestion({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => setExpanded((v) => !v)}
+      className="w-full text-left tap-highlight-none focus:outline-none"
+    >
+      <p
+        className={`text-[14px] text-white/58 italic leading-relaxed font-light ${
+          expanded ? "max-h-[32vh] overflow-y-auto pr-2" : "line-clamp-4"
+        }`}
+        // The page root sets touchAction: "none"; re-enable vertical pan so the
+        // expanded text is touch-scrollable on the mirror.
+        style={expanded ? { touchAction: "pan-y" } : undefined}
+      >
+        &quot;{text}&quot;
+      </p>
+      {text.length > 240 && (
+        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/35">
+          {expanded ? "Tap to collapse" : "Tap to read more"}
+        </span>
+      )}
+    </button>
+  );
+}
+
 export default function CosmeticRecommendationPage() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const lastSearchParamsRef = useRef<string | null>(null);
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
+    "All",
+  );
+  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">("All");
+
+  const handleGenderChange = useCallback(
+    (gender: "All" | "MALE" | "FEMALE") => {
+      activeGenderRef.current = gender;
+      setActiveGender(gender);
+      if (gender !== "All") updateUser({ gender });
+      // Reset so the URL params effect re-fires with the new gender
+      lastSearchParamsRef.current = null;
+    },
+    [updateUser],
+  );
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const handoffStartedRef = useRef(false);
+  const evaluateStartedRef = useRef(false);
   const [isHandoffLoading, setIsHandoffLoading] = useState(() =>
     typeof window !== "undefined"
       ? Boolean(sessionStorage.getItem(COSMETIC_PROMPT_KEY))
@@ -166,11 +228,32 @@ export default function CosmeticRecommendationPage() {
   );
 
   const handleAiComplete = useCallback(
-    (data: { query?: string; recommendations?: unknown[] } | null) => {
+    (
+      data: {
+        ids?: string[];
+        query?: string;
+        recommendations?: unknown[];
+      } | null,
+    ) => {
       if (!data) return;
+      if (data.ids?.length) {
+        setIsHandoffLoading(true);
+        setSelectedId(null);
+        cosmeticsService
+          .getByIds(data.ids)
+          .then((products) => {
+            useMirrorStore
+              .getState()
+              .setPendingCosmeticsData({ recommendations: products });
+            setSelectedId(null);
+          })
+          .catch((err) => console.error("[cosmetics-batch]", err))
+          .finally(() => setIsHandoffLoading(false));
+        return;
+      }
       if (data.query) {
         const params = new URLSearchParams(data.query);
-        if (!params.has("limit")) params.set("limit", "10");
+        if (!params.has("limit")) params.set("limit", "6");
         router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
         return;
       }
@@ -188,7 +271,9 @@ export default function CosmeticRecommendationPage() {
 
     let cancelled = false;
     const params = new URLSearchParams(currentSearch);
-    if (!params.has("limit")) params.set("limit", "10");
+    if (!params.has("limit")) params.set("limit", "6");
+    if (activeGenderRef.current !== "All")
+      params.set("metaGender", activeGenderRef.current);
     const queryStr = params.toString();
     Promise.resolve()
       .then(() => {
@@ -224,6 +309,52 @@ export default function CosmeticRecommendationPage() {
     useMirrorStore.getState().setChatCosmeticsData(null);
     Promise.resolve().then(() => handleAiComplete(data));
   }, [chatCosmeticsData, handleAiComplete]);
+
+  // On-mount auto-call triggered by the "Evaluate Your Skin" button.
+  // Fires once per evaluate click (guarded by sessionStorage flag + ref).
+  useEffect(() => {
+    if (evaluateStartedRef.current) return;
+    if (!sessionStorage.getItem(COSMETIC_EVALUATE_KEY)) return;
+
+    const skinAnalysis = useMirrorStore.getState().skinAnalysisResult;
+    if (!skinAnalysis) {
+      sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
+      return;
+    }
+
+    evaluateStartedRef.current = true;
+    sessionStorage.removeItem(COSMETIC_EVALUATE_KEY);
+    queueMicrotask(() => setIsHandoffLoading(true));
+    useMirrorStore.getState().setPendingCosmeticsData(null);
+    useMirrorStore.getState().setChatCosmeticsData(null);
+
+    const skinType = skinAnalysis.skinType?.toLowerCase() ?? "my";
+    const concerns = skinAnalysis.concerns?.join(", ");
+    const input = `[stylist] Recommend cosmetic products for ${skinType} skin${concerns ? ` with concerns: ${concerns}` : ""}.`;
+
+    chatWonderService
+      .message({
+        input,
+        pageMode: "cosmetics",
+        skinAnalysis,
+        sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+      })
+      .then((response) => {
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      })
+      .catch((err) => {
+        console.error("[cosmetics-evaluate]", err);
+      })
+      .finally(() => {
+        setIsHandoffLoading(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount; reads store snapshot directly
 
   // Voice path: VoiceProvider stores cosmetics_data in pendingCosmeticsData.
   // New format sends { query } instead of { recommendations } — route it through
@@ -274,9 +405,9 @@ export default function CosmeticRecommendationPage() {
       .setOverviewCosmeticsSnapshot(adaptCosmeticsData(sortedRecs));
   }, [sortedRecs]);
 
-  // The design requests 10 items total, split 5 on left, 5 on right.
-  const leftColRecs = useMemo(() => sortedRecs.slice(0, 5), [sortedRecs]);
-  const rightColRecs = useMemo(() => sortedRecs.slice(5, 10), [sortedRecs]);
+  // 6 items total, split 3 on left, 3 on right.
+  const leftColRecs = useMemo(() => sortedRecs.slice(0, 3), [sortedRecs]);
+  const rightColRecs = useMemo(() => sortedRecs.slice(3, 6), [sortedRecs]);
 
   // Derive the active recommendation during render (defaults to the top rank)
   // instead of syncing it via an effect, which triggers cascading renders.
@@ -319,20 +450,40 @@ export default function CosmeticRecommendationPage() {
   const { submitText, isProcessing, voiceState } = useVoiceContext();
 
   const handleSuggestionSelect = useCallback(
-    (_prompt: string) => {
+    async (prompt: string) => {
       setSelectedId(null);
       setIsHandoffLoading(true);
       useMirrorStore.getState().setPendingCosmeticsData(null);
       useMirrorStore.getState().setChatCosmeticsData(null);
       useMirrorStore.getState().setOverviewCosmeticsSnapshot(null);
       useMirrorStore.getState().clearAiSuggestion();
-      const params = new URLSearchParams();
-      const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
-      if (skinCat) params.set("metaCategory", skinCat);
-      params.set("limit", "10");
-      router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "cosmetics",
+          skinAnalysis: skinAnalysisResult,
+          sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
+          set: 6,
+        });
+        if (response.message) {
+          useMirrorStore.getState().setAiSuggestion(response.message);
+        }
+        if (response.cosmetics_data) {
+          handleAiComplete(response.cosmetics_data);
+        }
+      } catch (err) {
+        console.error("[cosmetics-suggestion]", err);
+        // Fallback: fetch the skin-type catalog so the chip still shows products.
+        const params = new URLSearchParams();
+        const skinCat = skinAnalysisResult?.skinType?.toLowerCase();
+        if (skinCat) params.set("metaCategory", skinCat);
+        params.set("limit", "10");
+        router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
+      } finally {
+        setIsHandoffLoading(false);
+      }
     },
-    [router, skinAnalysisResult],
+    [handleAiComplete, router, skinAnalysisResult],
   );
 
   useEffect(() => {
@@ -377,6 +528,38 @@ export default function CosmeticRecommendationPage() {
         onBack={() => router.back()}
       />
 
+      {/* Gender filter */}
+      <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
+        {(["All", "MALE", "FEMALE"] as const).map((g) => (
+          <button
+            key={g}
+            type="button"
+            onClick={() => handleGenderChange(g)}
+            style={{
+              padding: "3px 14px",
+              borderRadius: "999px",
+              fontSize: "11px",
+              fontWeight: activeGender === g ? 600 : 400,
+              letterSpacing: "0.06em",
+              color: activeGender === g ? "white" : "rgba(255,255,255,0.45)",
+              background:
+                activeGender === g
+                  ? "rgba(255,255,255,0.15)"
+                  : "rgba(255,255,255,0.04)",
+              border:
+                activeGender === g
+                  ? "1px solid rgba(255,255,255,0.3)"
+                  : "1px solid rgba(255,255,255,0.08)",
+              transition: "all 0.15s ease",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+          </button>
+        ))}
+      </div>
+
       {/* Main 3 Column Layout */}
       <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-20 gap-7">
         {/* Left Column - Recommendations 1-5 */}
@@ -384,7 +567,7 @@ export default function CosmeticRecommendationPage() {
           <CosmeticGrid
             pagedItems={leftColRecs}
             loading={showRecommendationSkeletons}
-            pageSize={5}
+            pageSize={3}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={handleRecommendationSelect}
@@ -489,21 +672,19 @@ export default function CosmeticRecommendationPage() {
             </div>
 
             {aiSuggestion && (
-              <div className="mt-6 px-5 shrink-0">
-                <p className="text-[14px] text-white/58 italic leading-relaxed font-light">
-                  &quot;{aiSuggestion}&quot;
-                </p>
+              <div className="mt-6 px-5 shrink-0 w-full">
+                <ExpandableSuggestion key={aiSuggestion} text={aiSuggestion} />
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column - Recommendations 6-10 */}
+        {/* Right Column - Recommendations 4-6 */}
         <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
           <CosmeticGrid
             pagedItems={rightColRecs}
             loading={showRecommendationSkeletons}
-            pageSize={5}
+            pageSize={3}
             columns={1}
             selectedId={selectedRec?.id}
             onSelect={handleRecommendationSelect}
@@ -512,26 +693,10 @@ export default function CosmeticRecommendationPage() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => router.push(ROUTES.COSMETIC_PRODUCTS)}
-        aria-label="Browse products by skin type"
-        className="fixed bottom-4 right-8 z-40 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"
-        style={{
-          background: "rgba(20,20,30,0.85)",
-          border: "1.5px solid rgba(255,255,255,0.15)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-        }}
-      >
-        <span className="text-white/80 text-[11px] font-medium uppercase tracking-[0.18em]">
-          Skin Types
-        </span>
-      </button>
-
       <PromptFloater
         prompts={PROMPT_SUGGESTIONS}
         onSelect={handleSuggestionSelect}
+        weather={weather}
       />
     </div>
   );

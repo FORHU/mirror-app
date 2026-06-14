@@ -32,7 +32,7 @@ The camera-based face detection system (`useProximitySensor`) that determines wh
 
 ### Nav Buttons
 
-Four touch buttons on the Active Screen of the Landing Page that directly navigate (`router.push`) to the four feature pages: Fashion, Cosmetics, Map, Overview. No AI call is made — navigation is instant.
+Three touch buttons on the Active Screen of the Landing Page that directly navigate (`router.push`) to the three feature pages: Fashion, Cosmetics, Overview. No AI call is made — navigation is instant.
 
 ### Quick Response Chips
 
@@ -56,7 +56,7 @@ A background camera capture + AI analysis run silently when the user first arriv
 
 ### Overview Mode
 
-The `/overview` page and `pageMode: "overview"` ChatWonder mode. Populates all four tiles (garments, outfits, cosmetics, map) from a single ChatWonder call. Downstream dashboard — does not greet the user.
+The `/overview` page and `pageMode: "overview"` ChatWonder mode. Populates three tiles (garments, outfits, cosmetics) from a single ChatWonder call. Downstream dashboard — does not greet the user.
 
 ### Garment Mode
 
@@ -65,10 +65,6 @@ The `/overview` page and `pageMode: "overview"` ChatWonder mode. Populates all f
 ### Cosmetics Mode
 
 `pageMode: "cosmetics"` ChatWonder mode used on the Cosmetics page. Uses `buildCatalogContext` to ground recommendations in real product IDs from the DB. Scores products against the user's skin profile.
-
-### Map Mode
-
-`pageMode: "map"` ChatWonder mode used on the Map page. Handles POI queries (`nearbyPOIs`), multi-event itinerary routing (`isMultiEventUtterance`), and directions (Mapbox / ORS).
 
 ### Restart Button
 

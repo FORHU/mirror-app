@@ -12,9 +12,13 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import { type ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import {
+  chatWonderService,
+  type ChatWonderMessageResponse,
+} from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -22,6 +26,7 @@ import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
 import { PromptFloater } from "@/components/PromptFloater";
 import { getToday } from "@/components/QuickResponseChips";
+import { useWeather } from "@/modules/shared/hooks/useWeather";
 import { OutfitPreviewModal } from "@/modules/fashion/components/OutfitPreviewModal";
 import { OutfitListPanel } from "@/modules/fashion/components/OutfitListPanel";
 import {
@@ -37,14 +42,17 @@ import {
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 export default function VirtualMirrorV2() {
+  const { weather } = useWeather();
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const { isProcessing, submitText } = useVoiceContext();
-  const [isChipLoading, _setIsChipLoading] = useState(false);
-  const isLoading = isProcessing || isChipLoading;
+  const [isFetching, setIsFetching] = useState(false);
+  const isLoading = isProcessing || isFetching;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
@@ -56,6 +64,7 @@ export default function VirtualMirrorV2() {
   );
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -158,7 +167,7 @@ export default function VirtualMirrorV2() {
 
   const bottomsPageSize = 6;
   const shoesPageSize = 6;
-  const accessoryPageSize = 6;
+  const accessoryPageSize = 2;
   const topsLayerPageSize = 2;
 
   const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
@@ -370,6 +379,7 @@ export default function VirtualMirrorV2() {
             setBagsPage(0);
             setOutfits(fetchedOutfits);
             setOutfitPage(0);
+            setHasFetched(true);
           })
           .catch(console.error);
         return;
@@ -489,6 +499,7 @@ export default function VirtualMirrorV2() {
         });
       setOutfits(newAiOutfits);
       setOutfitPage(0);
+      setHasFetched(true);
     },
     [
       setTopsBase,
@@ -512,26 +523,35 @@ export default function VirtualMirrorV2() {
       setSelectedBottom,
       setSelectedShoe,
       setSelectedOutfitIdx,
+      setHasFetched,
     ],
   );
 
   const handleChipSelect = useCallback(
-    (prompt: string) => {
-      const lower = prompt.toLowerCase();
-      let metaCategory = "";
-      if (/smart.?casual/i.test(lower)) metaCategory = "SmartCasual";
-      else if (/streetwear|trendy|stylish/i.test(lower))
-        metaCategory = "Streetwear";
-      else if (/formal|professional/i.test(lower)) metaCategory = "Formal";
-      else if (/athleisure|weekend|comfortable/i.test(lower))
-        metaCategory = "Athleisure";
-      else if (/casual|everyday/i.test(lower)) metaCategory = "Casual";
-      const params = new URLSearchParams();
-      if (metaCategory) params.set("metaCategory", metaCategory);
-      params.set("limit", "4");
-      router.push(`/ai-recommendation-fashion?${params.toString()}`);
+    async (prompt: string) => {
+      setIsFetching(true);
+      try {
+        const storeGender = useOverviewStore.getState().pendingGender;
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "garment",
+          set: 6,
+          ...(weather
+            ? { weather: weather as unknown as Record<string, unknown> }
+            : {}),
+          skinAnalysis: skinAnalysisResult,
+          ...(storeGender ? { gender: storeGender } : {}),
+        });
+        if (response.garment_data) {
+          handleAiComplete(response as ChatWonderMessageResponse);
+        }
+      } catch (err) {
+        console.error("[fashion-chip]", err);
+      } finally {
+        setIsFetching(false);
+      }
     },
-    [router],
+    [weather, skinAnalysisResult, handleAiComplete],
   );
 
   const fashionPageContext = useMemo(
@@ -615,8 +635,7 @@ export default function VirtualMirrorV2() {
     if (lastSearchParamsRef.current === currentSearch) return;
     lastSearchParamsRef.current = currentSearch;
 
-    // Do not auto-fetch if there are no query parameters. This leaves
-    // the outfits array empty so the idle OutfitImageCarousel can display.
+    // Do not auto-fetch if there are no query parameters — leave idle state showing.
     if (!currentSearch) {
       queueMicrotask(() => setOutfits([]));
       return;
@@ -655,6 +674,18 @@ export default function VirtualMirrorV2() {
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Consume garment data from the chat/voice path when already on this page
+  // (VoiceProvider/ChatWonderProvider set chatGarmentData instead of navigating).
+  useEffect(() => {
+    if (!chatGarmentData) return;
+    useMirrorStore.getState().setChatGarmentData(null);
+    Promise.resolve().then(() =>
+      handleAiComplete({
+        garment_data: chatGarmentData,
+      } as ChatWonderMessageResponse),
+    );
+  }, [chatGarmentData, handleAiComplete]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
@@ -751,7 +782,7 @@ export default function VirtualMirrorV2() {
       totalPages: 1,
       onPageChange: () => undefined,
       selectedId: selectedBag?.id,
-      columns: 3,
+      columns: 2,
       loading: catalogLoading,
       emptyMessage: catalogLoading
         ? "Loading Accessories"
@@ -761,8 +792,14 @@ export default function VirtualMirrorV2() {
 
   const hasRecommendations = outfits.length > 0;
 
+  useEffect(() => {
+    if (!hasFetched || isLoading || hasRecommendations) return;
+    const t = setTimeout(() => router.replace("/fashion-catalog"), 3000);
+    return () => clearTimeout(t);
+  }, [hasFetched, isLoading, hasRecommendations, router]);
+
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col">
+    <div className="relative w-screen h-screen overflow-hidden bg-canvas flex flex-col pb-24">
       <ChatNavLoader />
 
       <MirrorHeader onBack={() => router.back()} />
@@ -781,6 +818,7 @@ export default function VirtualMirrorV2() {
         >
           <PromptFloater
             onSelect={handleChipSelect}
+            weather={weather}
             prompts={[
               `Style me for today, ${getToday()}.`,
               "Give me a casual everyday look.",
@@ -797,7 +835,16 @@ export default function VirtualMirrorV2() {
       {/* AI Suggestion Banner */}
       <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
 
-      <div className="flex flex-1" style={{ height: "546px" }}>
+      {/* Idle state — no fetch started yet */}
+      {!isLoading && !hasFetched && (
+        <QuoteCarousel
+          quotes={FASHION_QUOTES}
+          label="Style tip"
+          className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-22 text-center"
+        />
+      )}
+
+      <div className="flex flex-1 min-h-0">
         {/* Left panel — recommended outfit list */}
         {hasRecommendations && !isLoading && (
           <OutfitListPanel
@@ -1107,6 +1154,16 @@ export default function VirtualMirrorV2() {
                   label="Style tip"
                   className="flex-1 flex flex-col items-center justify-center px-6 pt-6 pb-[88px] text-center"
                 />
+              )}
+
+              {/* No results — brief notice before redirect */}
+              {!isLoading && hasFetched && !hasRecommendations && (
+                <div className="flex-1 flex flex-col items-center justify-center px-10 text-center">
+                  <p className="text-white/40 text-sm font-light leading-relaxed tracking-wide">
+                    There is no outfit currently out in our drawer for the
+                    current weather and condition.
+                  </p>
+                </div>
               )}
 
               {/* Garment slot cards */}
