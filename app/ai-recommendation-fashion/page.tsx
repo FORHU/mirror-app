@@ -12,10 +12,12 @@ import {
   outfitService,
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
-import type { ChatWonderMessageResponse } from "@/modules/shared/api/chat-wonder.service";
+import {
+  chatWonderService,
+  type ChatWonderMessageResponse,
+} from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -35,7 +37,6 @@ import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import {
   FASHION_QUOTES,
   FASHION_PROMPT_KEY,
-  normalizeGender,
 } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
@@ -45,11 +46,12 @@ export default function VirtualMirrorV2() {
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const { isProcessing, submitText } = useVoiceContext();
-  const isLoading = isProcessing;
+  const [isFetching, setIsFetching] = useState(false);
+  const isLoading = isProcessing || isFetching;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
-  const userGender = useAuthStore((s) => s.user?.gender);
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
@@ -525,10 +527,28 @@ export default function VirtualMirrorV2() {
   );
 
   const handleChipSelect = useCallback(
-    (prompt: string) => {
-      void submitText(prompt);
+    async (prompt: string) => {
+      setIsFetching(true);
+      try {
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "garment",
+          set: 6,
+          ...(weather
+            ? { weather: weather as unknown as Record<string, unknown> }
+            : {}),
+          skinAnalysis: skinAnalysisResult,
+        });
+        if (response.garment_data) {
+          handleAiComplete(response as ChatWonderMessageResponse);
+        }
+      } catch (err) {
+        console.error("[fashion-chip]", err);
+      } finally {
+        setIsFetching(false);
+      }
     },
-    [submitText],
+    [weather, skinAnalysisResult, handleAiComplete],
   );
 
   const fashionPageContext = useMemo(
@@ -620,8 +640,6 @@ export default function VirtualMirrorV2() {
 
     const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "4");
-    const gender = normalizeGender(userGender);
-    if (gender && !params.has("metaGender")) params.set("metaGender", gender);
     queueMicrotask(() =>
       handleAiComplete({
         garment_data: { query: params.toString() },

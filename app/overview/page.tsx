@@ -18,8 +18,6 @@ import "../../styles/glow.css";
 
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { normalizeGender } from "@/modules/fashion/constants";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
@@ -95,7 +93,6 @@ export default function OverviewPage() {
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
-  const userGender = useAuthStore((s) => s.user?.gender);
 
   const { weather } = useWeather();
 
@@ -141,8 +138,9 @@ export default function OverviewPage() {
           // a fetch (status "loading"), leave them alone so the in-flight request
           // fills them without a stale-data flash.
           const st = useOverviewStore.getState();
-          if (outfits.length && st.outfits.status === "idle")
+          if (outfits.length && st.outfits.status === "idle") {
             setOutfits(outfits);
+          }
           if (cosmetics.length && st.cosmetics.status === "idle")
             setCosmetics(cosmetics);
         }
@@ -246,15 +244,17 @@ export default function OverviewPage() {
         console.log("[overview] garmentQuery →", garmentQuery);
 
         if (garmentQuery) {
-          const gq = new URLSearchParams(garmentQuery);
-          const gender = normalizeGender(userGender);
-          if (gender && !gq.has("metaGender")) gq.set("metaGender", gender);
-          console.log("[overview] fetching outfits →", gq.toString());
-          const fetchedOutfits = await outfitService.getByQuery(gq.toString());
+          console.log("[overview] fetching outfits →", garmentQuery);
+          const fetchedOutfits = await outfitService.getByQuery(garmentQuery);
           console.log("[overview] fetchedOutfits →", fetchedOutfits.length);
           const { garments, outfits } =
             adaptRemoteOutfitsToTiles(fetchedOutfits);
-          console.log("[overview] tiles → garments:", garments.length, "outfits:", outfits.length);
+          console.log(
+            "[overview] tiles → garments:",
+            garments.length,
+            "outfits:",
+            outfits.length,
+          );
           setGarments(garments);
           setOutfits(outfits);
         } else {
@@ -281,8 +281,9 @@ export default function OverviewPage() {
         } else if (cosmeticsQuery) {
           const cq = new URLSearchParams(cosmeticsQuery);
           if (!cq.has("limit")) cq.set("limit", "6");
-          const fetchedProducts =
-            await cosmeticsService.getByQuery(cq.toString());
+          const fetchedProducts = await cosmeticsService.getByQuery(
+            cq.toString(),
+          );
           setCosmetics(adaptCosmeticsData(fetchedProducts));
         } else {
           setCosmetics(adaptCosmeticsData(response.cosmetics_data));
@@ -300,7 +301,6 @@ export default function OverviewPage() {
       setCosmetics,
       weather,
       skinAnalysisResult,
-      userGender,
     ],
   );
 
@@ -340,9 +340,9 @@ export default function OverviewPage() {
     cameFromAssistantRef.current = true;
 
     // Normal path: ai-assistant already started the fetch and set tiles to
-    // "loading" — just let it finish. Hard-refresh path: the store was cleared
-    // so tiles are idle; re-run the plan from here as a fallback.
-    if (useOverviewStore.getState().outfits.status === "idle") {
+    // "loading" — just let it finish. Any other status (idle = first visit /
+    // hard-refresh, ready = returning with a new prompt) should re-run the plan.
+    if (useOverviewStore.getState().outfits.status !== "loading") {
       setGreeting("Pulling that together for you…");
       startOutfits();
       startCosmetics();
