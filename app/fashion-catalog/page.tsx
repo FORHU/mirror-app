@@ -11,6 +11,8 @@ import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { authService } from "@/modules/shared/api/auth.service";
 import { chatWonderService } from "@/modules/shared/api/chat-wonder.service";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -54,6 +56,7 @@ export default function FashionCatalog() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
+  const queryClient = useQueryClient();
 
   const setPendingCategory = useMirrorStore((s) => s.setPendingCategory);
   const updateUser = useAuthStore((state) => state.updateUser);
@@ -124,6 +127,14 @@ export default function FashionCatalog() {
       activeGenderRef.current = gender;
       setActiveGender(gender);
       updateUser({ gender: gender !== "All" ? gender : undefined });
+
+      // Keep overview store in sync
+      const genderStr = gender === "All" ? null : gender;
+      useOverviewStore.getState().setPendingGender(genderStr);
+
+      // Clear all cached responses
+      queryClient.removeQueries({ queryKey: ["chatWonder"] });
+
       setPage(0);
       setIsUpdatingGender(true);
       Promise.allSettled([
@@ -133,7 +144,7 @@ export default function FashionCatalog() {
       if (!currentSearch) return;
       queueMicrotask(() => void doFetch(currentSearch, 0));
     },
-    [currentSearch, doFetch, updateUser],
+    [currentSearch, doFetch, updateUser, queryClient],
   );
 
   // Sync filter when storedGender changes externally (e.g. from ai-assistant).

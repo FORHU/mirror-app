@@ -15,6 +15,7 @@ async function fetchOutfitsQuery(
   input: string,
   weather?: Record<string, unknown> | null,
   category?: string | null,
+  gender?: string | null,
 ) {
   // 1. Fetch from ChatWonder
   const payload = {
@@ -24,6 +25,7 @@ async function fetchOutfitsQuery(
     voice: false,
     ...(weather ? { weather } : {}),
     ...(category ? { category } : {}),
+    ...(gender ? { gender } : {}),
   };
 
   let garmentResponse;
@@ -113,12 +115,13 @@ export function useOutfitsQuery(
   prompt: string | null,
   weather?: Record<string, unknown> | null,
   category?: string | null,
+  gender?: string | null,
 ) {
   return useQuery({
-    queryKey: ["chatWonder", "outfits", prompt, category],
+    queryKey: ["chatWonder", "outfits", prompt, category, gender],
     queryFn: () => {
       if (!prompt) throw new Error("No prompt provided");
-      return fetchOutfitsQuery(prompt, weather, category);
+      return fetchOutfitsQuery(prompt, weather, category, gender);
     },
     enabled: !!prompt,
     staleTime: 1000 * 60 * 5, // 5 minutes cache

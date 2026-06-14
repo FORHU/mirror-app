@@ -31,6 +31,7 @@ export interface ChatWonderMessageRequest {
   category?: string;
   /** Number of cosmetic product IDs to return. */
   set?: number;
+  gender?: string | null;
 }
 
 // ─── Response ─────────────────────────────────────────────────────────────────
@@ -262,6 +263,7 @@ async function sendMessageOnce(
   if (request.pageMode) body.page_mode = request.pageMode;
   if (request.category) body.category = request.category;
   if (request.set !== undefined) body.set = request.set;
+  if (request.gender) body.gender = request.gender;
   body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 
   const signal = options?.signal;

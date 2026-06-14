@@ -2,15 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
 
 export default function RestartButton() {
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const handleAction = () => {
     if (isPending) return;
     setIsPending(true);
+    // Clear all cached responses so the next scenario starts completely fresh
+    queryClient.removeQueries({ queryKey: ["chatWonder"] });
     performRestart(router).finally(() => {
       setIsPending(false);
     });
