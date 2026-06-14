@@ -12,39 +12,6 @@ function SectionTitle({ label }: { label: string }) {
   );
 }
 
-function SkeletonCell({ fitRow = false }: { fitRow?: boolean }) {
-  return (
-    <div
-      className={`relative animate-pulse rounded-md overflow-hidden flex flex-col items-center bg-white/[0.025] ${
-        fitRow ? "p-1.5" : "p-2"
-      }`}
-      style={{
-        height: fitRow ? "100%" : undefined,
-        minHeight: 0,
-        aspectRatio: fitRow ? undefined : "1/1",
-        borderRadius: "4px",
-      }}
-    >
-      <div className="absolute top-1 right-1 h-4 w-6 rounded bg-white/10" />
-      <div
-        className={`w-full flex-1 min-h-0 flex items-center justify-center ${
-          fitRow ? "pb-1" : "pb-2"
-        }`}
-      >
-        <div className="h-[72%] w-[48%] rounded bg-white/10" />
-      </div>
-      <div
-        className={`w-full shrink-0 flex flex-col items-center gap-1 ${
-          fitRow ? "min-h-[34px]" : "min-h-[46px]"
-        }`}
-      >
-        <div className="h-2 w-10 rounded bg-white/10" />
-        <div className="h-2 w-20 rounded bg-white/15" />
-        <div className="h-2 w-14 rounded bg-white/10" />
-      </div>
-    </div>
-  );
-}
 
 export interface CosmeticGridProps {
   label?: string;
@@ -85,11 +52,7 @@ export function CosmeticGrid({
           overflowY: fitRows ? "hidden" : "auto",
         }}
       >
-        {loading ? (
-          Array.from({ length: pageSize }).map((_, i) => (
-            <SkeletonCell key={i} fitRow={fitRows} />
-          ))
-        ) : pagedItems.length === 0 ? (
+        {loading ? null : pagedItems.length === 0 ? (
           <div
             style={{
               gridColumn: "1 / -1",

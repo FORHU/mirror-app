@@ -97,11 +97,17 @@ async function fetchCosmeticsQuery(
   const cosmeticsQuery =
     typeof rawCosmeticsData?.query === "string" ? rawCosmeticsData.query : null;
 
-  // 2. Fetch specific items
+  // 2. Fetch specific items — cap at 6 IDs, fall back to query on timeout
   if (cosmeticsIds?.length) {
-    const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds);
-    return adaptCosmeticsData(fetchedProducts);
-  } else if (cosmeticsQuery) {
+    try {
+      const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds.slice(0, 6));
+      return adaptCosmeticsData(fetchedProducts);
+    } catch {
+      // batch timed out or failed — fall through to query / raw fallback
+    }
+  }
+
+  if (cosmeticsQuery) {
     const cq = new URLSearchParams(cosmeticsQuery);
     if (!cq.has("limit")) cq.set("limit", "6");
     const fetchedProducts = await cosmeticsService.getByQuery(cq.toString());

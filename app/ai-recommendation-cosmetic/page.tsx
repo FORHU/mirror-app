@@ -375,7 +375,6 @@ export default function CosmeticRecommendationPage() {
         recommendations?: unknown[];
         sets?: Array<{ recommendations?: unknown[] }>;
       };
-      if (Array.isArray(data)) return data;
       if (Array.isArray(data.recommendations)) return data.recommendations;
       if (Array.isArray(data.sets))
         return data.sets.flatMap(
@@ -504,9 +503,8 @@ export default function CosmeticRecommendationPage() {
       });
   }, [submitText, voiceState]);
 
-  const isLoadingRecommendations =
-    isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
-  const showRecommendationSkeletons = isLoadingRecommendations || isProcessing;
+  const isLoadingRecommendations = isHandoffLoading;
+  const showRecommendationSkeletons = isLoadingRecommendations;
   // Show the cycling quotes whenever the AI is talking (overrides the product /
   // skin-profile view) or while nothing has loaded yet.
   const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
@@ -617,30 +615,30 @@ export default function CosmeticRecommendationPage() {
                 </div>
               ) : !showQuotes && skinAnalysisResult ? (
                 <div className="px-8 py-4 transition-all duration-500">
-                  <h2 className="text-3xl font-light mb-2 text-white/88">
-                    Skin Profile
+                  <h2 className="text-3xl font-light mb-6 text-white/90">
+                    Your Skin
                   </h2>
 
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     <div>
-                      <div className="text-xs text-white/40 uppercase tracking-widest mb-1.5">
-                        Detected Type
+                      <div className="text-[10px] text-white/35 uppercase tracking-widest mb-1">
+                        Skin Type
                       </div>
                       <div className="text-2xl font-light text-white/90 capitalize">
-                        {skinAnalysisResult.skinType} Skin
+                        {skinAnalysisResult.skinType}
                       </div>
                     </div>
 
                     {skinAnalysisResult.concerns.length > 0 && (
                       <div>
-                        <div className="text-xs text-white/40 uppercase tracking-widest mb-3">
-                          Key Concerns
+                        <div className="text-[10px] text-white/35 uppercase tracking-widest mb-2">
+                          Concerns
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {skinAnalysisResult.concerns.map((c) => (
                             <span
                               key={c}
-                              className="px-2.5 py-1 text-white/55 text-xs uppercase font-medium tracking-wider"
+                              className="px-2.5 py-1 rounded-full border border-white/10 text-white/50 text-[11px] uppercase tracking-wider"
                             >
                               {c}
                             </span>
@@ -650,11 +648,11 @@ export default function CosmeticRecommendationPage() {
                     )}
 
                     {skinAnalysisResult.routineTip && (
-                      <div className="mt-8 pt-6">
-                        <div className="text-xs text-white/40 uppercase tracking-widest mb-3 font-semibold">
-                          AI Routine Tip
+                      <div className="pt-4 border-t border-white/8">
+                        <div className="text-[10px] text-white/35 uppercase tracking-widest mb-2">
+                          Routine Tip
                         </div>
-                        <p className="text-base text-white/60 leading-relaxed italic font-light">
+                        <p className="text-sm text-white/55 leading-relaxed italic font-light">
                           &quot;{skinAnalysisResult.routineTip}&quot;
                         </p>
                       </div>
@@ -693,11 +691,13 @@ export default function CosmeticRecommendationPage() {
         </div>
       </div>
 
-      <PromptFloater
-        prompts={PROMPT_SUGGESTIONS}
-        onSelect={handleSuggestionSelect}
-        weather={weather}
-      />
+      {!showRecommendationSkeletons && (
+        <PromptFloater
+          prompts={PROMPT_SUGGESTIONS}
+          onSelect={handleSuggestionSelect}
+          weather={weather}
+        />
+      )}
     </div>
   );
 }
