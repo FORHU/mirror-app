@@ -51,6 +51,7 @@ export default function OverviewPage() {
   const pendingPrompt = useOverviewStore((s) => s.pendingPrompt);
   const setPendingPrompt = useOverviewStore((s) => s.setPendingPrompt);
   const category = useOverviewStore((s) => s.pendingCategory);
+  const gender = useOverviewStore((s) => s.pendingGender);
 
   const { weather } = useWeather();
   const router = useRouter();
@@ -121,6 +122,7 @@ export default function OverviewPage() {
     activePrompt,
     weather as unknown as Record<string, unknown>,
     category,
+    gender,
   );
   const cosmeticsQuery = useCosmeticsQuery(
     activePrompt,

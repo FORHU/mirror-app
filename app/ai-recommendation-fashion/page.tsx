@@ -18,6 +18,7 @@ import {
 } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -530,6 +531,7 @@ export default function VirtualMirrorV2() {
     async (prompt: string) => {
       setIsFetching(true);
       try {
+        const storeGender = useOverviewStore.getState().pendingGender;
         const response = await chatWonderService.message({
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
@@ -538,6 +540,7 @@ export default function VirtualMirrorV2() {
             ? { weather: weather as unknown as Record<string, unknown> }
             : {}),
           skinAnalysis: skinAnalysisResult,
+          ...(storeGender ? { gender: storeGender } : {}),
         });
         if (response.garment_data) {
           handleAiComplete(response as ChatWonderMessageResponse);
