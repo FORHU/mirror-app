@@ -575,6 +575,7 @@ export default function VirtualMirrorV2() {
       setIsFetching(true);
       try {
         const storeGender = useOverviewStore.getState().pendingGender;
+        const skinAnalysisResult = useMirrorStore.getState().skinAnalysisResult;
         const response = await chatWonderService.message({
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
@@ -595,7 +596,7 @@ export default function VirtualMirrorV2() {
         setIsFetching(false);
       }
     },
-    [weather, skinAnalysisResult, handleAiComplete],
+    [weather, handleAiComplete],
   );
 
   const fashionPageContext = useMemo(
