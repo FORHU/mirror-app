@@ -95,17 +95,11 @@ async function fetchCosmeticsQuery(
     string,
     unknown
   > | null;
-  const cosmeticsIds = Array.isArray(rawCosmeticsData?.ids)
-    ? (rawCosmeticsData?.ids as string[])
-    : null;
   const cosmeticsQuery =
     typeof rawCosmeticsData?.query === "string" ? rawCosmeticsData.query : null;
 
-  // 2. Fetch specific items
-  if (cosmeticsIds?.length) {
-    const fetchedProducts = await cosmeticsService.getByIds(cosmeticsIds);
-    return adaptCosmeticsData(fetchedProducts);
-  } else if (cosmeticsQuery) {
+  // 2. Fetch products for the AI-provided query (recommendations come inline).
+  if (cosmeticsQuery) {
     const cq = new URLSearchParams(cosmeticsQuery);
     if (!cq.has("limit")) cq.set("limit", "6");
     const fetchedProducts = await cosmeticsService.getByQuery(cq.toString());
