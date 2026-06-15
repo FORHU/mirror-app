@@ -73,23 +73,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const upstreamContentType = upstream.headers.get("content-type") ?? "";
+  console.log(
+    `[chat-wonder/message proxy] upstream status=${upstream.status} content-type="${upstreamContentType}" url=${API_BASE_URL}/api/mirror/chat-wonder/message`,
+  );
+
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => "");
+    console.error(
+      `[chat-wonder/message proxy] upstream error ${upstream.status}:`,
+      text,
+    );
     return new Response(text || "Upstream error", {
       status: upstream.status,
       headers: { "Content-Type": "application/json" },
     });
   }
 
+  if (!upstreamContentType.includes("text/event-stream")) {
+    console.error(
+      `[chat-wonder/message proxy] upstream returned unexpected content-type "${upstreamContentType}" — expected text/event-stream`,
+    );
+  }
+
   // Pipe the upstream ReadableStream straight to the client.
   // This keeps the connection alive for the full duration of the SSE stream
   // without buffering any data in the Next.js layer.
+  // Note: Connection header is omitted — it is a hop-by-hop header invalid in HTTP/2.
   return new Response(upstream.body, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     },
   });
