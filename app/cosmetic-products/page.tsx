@@ -551,7 +551,9 @@ export default function CosmeticProductsPage() {
         onBack={() => router.back()}
       />
 
-      <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-10 gap-6">
+      {/* pb-32 clears the global fixed AssistantNavBar (bottom-4 + h-20 ≈ 96px)
+          so the last product row / pagination isn't hidden behind the nav. */}
+      <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-32 gap-6">
         {/* Skin type buttons — disabled while a live camera is detected
             (use "Evaluate Your Skin" instead); when no camera is present each
             one triggers a mock evaluation for that skin type. */}
