@@ -1,7 +1,6 @@
 "use client";
 
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
-import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoice } from "@/modules/shared/voice/useVoice";
@@ -106,9 +105,15 @@ function normalizeRecommendation(
           : [],
       fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
       details: str(product?.details) || null,
-      metaData: product?.metaData && typeof product.metaData === "object" ? (product.metaData as Record<string, unknown>) : null,
+      metaData:
+        product?.metaData && typeof product.metaData === "object"
+          ? (product.metaData as Record<string, unknown>)
+          : null,
       hexColor: str(product?.hexColor) || null,
-      priceAmount: typeof product?.priceAmount === "number" ? (product.priceAmount as number) : null,
+      priceAmount:
+        typeof product?.priceAmount === "number"
+          ? (product.priceAmount as number)
+          : null,
       priceUnit: str(product?.priceUnit) || null,
       spf: typeof product?.spf === "number" ? (product.spf as number) : null,
       waterproof: product?.waterproof === true,
@@ -159,22 +164,6 @@ export default function CosmeticRecommendationPage() {
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
   const lastSearchParamsRef = useRef<string | null>(null);
-  const updateUser = useAuthStore((s) => s.updateUser);
-  const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
-    "All",
-  );
-  const activeGenderRef = useRef<"All" | "MALE" | "FEMALE">("All");
-
-  const handleGenderChange = useCallback(
-    (gender: "All" | "MALE" | "FEMALE") => {
-      activeGenderRef.current = gender;
-      setActiveGender(gender);
-      if (gender !== "All") updateUser({ gender });
-      // Reset so the URL params effect re-fires with the new gender
-      lastSearchParamsRef.current = null;
-    },
-    [updateUser],
-  );
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
@@ -226,8 +215,6 @@ export default function CosmeticRecommendationPage() {
     let cancelled = false;
     const params = new URLSearchParams(currentSearch);
     if (!params.has("limit")) params.set("limit", "6");
-    if (activeGenderRef.current !== "All")
-      params.set("metaGender", activeGenderRef.current);
     const queryStr = params.toString();
     Promise.resolve()
       .then(() => {
@@ -290,6 +277,7 @@ export default function CosmeticRecommendationPage() {
       .message({
         input,
         pageMode: "cosmetics",
+        voice: false,
         skinAnalysis,
         sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
       })
@@ -363,12 +351,18 @@ export default function CosmeticRecommendationPage() {
   const leftColRecs = useMemo(() => sortedRecs.slice(0, 3), [sortedRecs]);
   const rightColRecs = useMemo(() => sortedRecs.slice(3, 6), [sortedRecs]);
 
-  // Derive the active recommendation during render (defaults to the top rank)
-  // instead of syncing it via an effect, which triggers cascading renders.
+  // Derive the active recommendation during render. Nothing is selected by
+  // default — the center stays neutral and the side grids grow until the user
+  // explicitly picks a product.
   const selectedRec = useMemo<SkinRecommendation | null>(() => {
-    if (!sortedRecs.length) return null;
-    return sortedRecs.find((rec) => rec.id === selectedId) ?? sortedRecs[0];
+    if (!selectedId || !sortedRecs.length) return null;
+    return sortedRecs.find((rec) => rec.id === selectedId) ?? null;
   }, [selectedId, sortedRecs]);
+
+  // While no product is selected, give the side columns more room so their
+  // product tiles render larger (browse mode). Selecting one collapses the
+  // sides and reveals the enlarged product in the center.
+  const sideColumnWidth = selectedRec ? "30%" : "40%";
 
   const handleRecommendationSelect = useCallback(
     (rec: SkinRecommendation) => setSelectedId(rec.id),
@@ -415,6 +409,7 @@ export default function CosmeticRecommendationPage() {
         const response = await chatWonderService.message({
           input: `[stylist] ${prompt}`,
           pageMode: "cosmetics",
+          voice: false,
           skinAnalysis: skinAnalysisResult,
           sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
           set: 6,
@@ -482,48 +477,21 @@ export default function CosmeticRecommendationPage() {
         onBack={() => router.back()}
       />
 
-      {/* Gender filter */}
-      <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
-        {(["All", "MALE", "FEMALE"] as const).map((g) => (
-          <button
-            key={g}
-            type="button"
-            onClick={() => handleGenderChange(g)}
-            style={{
-              padding: "3px 14px",
-              borderRadius: "999px",
-              fontSize: "11px",
-              fontWeight: activeGender === g ? 600 : 400,
-              letterSpacing: "0.06em",
-              color: activeGender === g ? "white" : "rgba(255,255,255,0.45)",
-              background:
-                activeGender === g
-                  ? "rgba(255,255,255,0.15)"
-                  : "rgba(255,255,255,0.04)",
-              border:
-                activeGender === g
-                  ? "1px solid rgba(255,255,255,0.3)"
-                  : "1px solid rgba(255,255,255,0.08)",
-              transition: "all 0.15s ease",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
-          </button>
-        ))}
-      </div>
-
       {/* Main 3 Column Layout */}
-      <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-20 gap-7">
+      {/* pb clears the global fixed AssistantNavBar (bottom-4 + h-20 ≈ 96px) so
+          the bottom row of product cards isn't covered by the nav. */}
+      <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-32 gap-7">
         {/* Left Column - Recommendations 1-5 */}
-        <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
+        <div
+          className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
+          style={{ width: sideColumnWidth }}
+        >
           <CosmeticGrid
             pagedItems={leftColRecs}
             loading={showRecommendationSkeletons}
             pageSize={3}
             columns={1}
-            selectedId={selectedRec?.id}
+            selectedId={selectedId}
             onSelect={handleRecommendationSelect}
             emptyMessage="No products available."
           />
@@ -582,24 +550,30 @@ export default function CosmeticRecommendationPage() {
         </div>
 
         {/* Right Column - Recommendations 4-6 */}
-        <div className="flex min-h-0 flex-col w-[30%] h-full overflow-hidden">
+        <div
+          className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
+          style={{ width: sideColumnWidth }}
+        >
           <CosmeticGrid
             pagedItems={rightColRecs}
             loading={showRecommendationSkeletons}
             pageSize={3}
             columns={1}
-            selectedId={selectedRec?.id}
+            selectedId={selectedId}
             onSelect={handleRecommendationSelect}
             emptyMessage="No more products"
           />
         </div>
       </div>
 
-      <PromptFloater
-        prompts={PROMPT_SUGGESTIONS}
-        onSelect={handleSuggestionSelect}
-        weather={weather}
-      />
+      {/* Suggestions floater — hidden while recommendations are still loading */}
+      {!showRecommendationSkeletons && (
+        <PromptFloater
+          prompts={PROMPT_SUGGESTIONS}
+          onSelect={handleSuggestionSelect}
+          weather={weather}
+        />
+      )}
     </div>
   );
 }

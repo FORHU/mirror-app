@@ -194,7 +194,9 @@ export default function AIAssistantPage() {
     ) => {
       const store = useOverviewStore.getState();
       store.setGreeting("Pulling that together for you…");
-      store.setPendingPrompt("[stylist]");
+      const randomPrompt =
+        scenario.prompts[Math.floor(Math.random() * scenario.prompts.length)];
+      store.setPendingPrompt(`[stylist] ${randomPrompt}`);
       store.setPendingCategory("metaCategory=" + scenario.metaCategory);
       store.setPendingGender(gender);
 
@@ -397,8 +399,10 @@ export default function AIAssistantPage() {
               background: "rgba(0,0,0,0.72)",
               backdropFilter: "blur(12px)",
             }}
+            onClick={() => setPendingScenario(null)}
           >
             <motion.div
+              onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 8 }}
