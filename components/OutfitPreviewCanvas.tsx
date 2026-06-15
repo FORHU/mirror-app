@@ -318,7 +318,7 @@ const OutfitPreviewCanvas = forwardRef<OutfitPreviewCanvasHandle, Props>(
           width: "100%",
           height: "100%",
           objectFit: "contain",
-          background: "#f8f9fb",
+          background: "transparent",
           borderRadius: "12px",
         }}
       />

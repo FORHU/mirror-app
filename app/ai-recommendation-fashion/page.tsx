@@ -111,8 +111,6 @@ export default function VirtualMirrorV2() {
   function applySwap(g: RemoteGarment) {
     if (!swapItemId) return;
     setOutfitOverrides((prev) => ({ ...prev, [swapItemId]: g }));
-    setSwapSlot(null);
-    setSwapItemId(null);
   }
 
   function cancelSwap() {
@@ -317,6 +315,7 @@ export default function VirtualMirrorV2() {
       const query = typeof rawData?.query === "string" ? rawData.query : null;
 
       if (query) {
+        setIsFetching(true);
         // New format: ChatWonder sends query params, we fetch real DB outfits
         outfitService
           .getByQuery(query)
@@ -380,8 +379,12 @@ export default function VirtualMirrorV2() {
             setOutfits(fetchedOutfits);
             setOutfitPage(0);
             setHasFetched(true);
+            if (fetchedOutfits.length > 0) {
+              setSelectedOutfitIdx(0);
+            }
           })
-          .catch(console.error);
+          .catch(console.error)
+          .finally(() => setIsFetching(false));
         return;
       }
 
@@ -400,7 +403,7 @@ export default function VirtualMirrorV2() {
       };
 
       const sets = Array.isArray(rawData?.sets)
-        ? (rawData.sets as Record<string, unknown>[])
+        ? (rawData?.sets as Record<string, unknown>[])
         : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
@@ -500,6 +503,9 @@ export default function VirtualMirrorV2() {
       setOutfits(newAiOutfits);
       setOutfitPage(0);
       setHasFetched(true);
+      if (newAiOutfits.length > 0) {
+        setSelectedOutfitIdx(0);
+      }
     },
     [
       setTopsBase,
@@ -524,6 +530,7 @@ export default function VirtualMirrorV2() {
       setSelectedShoe,
       setSelectedOutfitIdx,
       setHasFetched,
+      setIsFetching,
     ],
   );
 
@@ -536,6 +543,7 @@ export default function VirtualMirrorV2() {
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
           set: 6,
+          voice: false,
           ...(weather
             ? { weather: weather as unknown as Record<string, unknown> }
             : {}),
@@ -937,13 +945,17 @@ export default function VirtualMirrorV2() {
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
-                      gap: "3px",
+                      alignItems: "center",
+                      textAlign: "center",
+                      gap: "6px",
+                      marginTop: "4px",
+                      marginBottom: "4px",
                     }}
                   >
                     <span
                       style={{
                         color: "white",
-                        fontSize: "13px",
+                        fontSize: "24px",
                         fontWeight: 700,
                         lineHeight: 1.3,
                         overflow: "hidden",
@@ -954,11 +966,11 @@ export default function VirtualMirrorV2() {
                     {selectedOutfit.description && (
                       <span
                         style={{
-                          color: "rgba(255,255,255,0.5)",
-                          fontSize: "9px",
+                          color: "rgba(255,255,255,0.6)",
+                          fontSize: "14px",
                           lineHeight: 1.5,
                           overflow: "hidden",
-                          maxHeight: "2.5em",
+                          maxHeight: "3em",
                         }}
                       >
                         {selectedOutfit.description}
