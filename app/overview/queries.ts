@@ -16,6 +16,7 @@ async function fetchOutfitsQuery(
   weather?: Record<string, unknown> | null,
   category?: string | null,
   gender?: string | null,
+  coords?: { lat: number; lon: number } | null,
 ) {
   // 1. Fetch from ChatWonder
   const payload = {
@@ -26,6 +27,7 @@ async function fetchOutfitsQuery(
     ...(weather ? { weather } : {}),
     ...(category ? { category } : {}),
     ...(gender ? { gender } : {}),
+    ...(coords ? { location: { lat: coords.lat, lng: coords.lon } } : {}),
   };
 
   let garmentResponse;
@@ -64,6 +66,7 @@ async function fetchCosmeticsQuery(
   input: string,
   weather?: Record<string, unknown> | null,
   skinAnalysis?: SkinAnalysis | null,
+  coords?: { lat: number; lon: number } | null,
 ) {
   // 1. Fetch from ChatWonder
   const payload = {
@@ -73,6 +76,7 @@ async function fetchCosmeticsQuery(
     voice: false,
     ...(weather ? { weather } : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
+    ...(coords ? { location: { lat: coords.lat, lng: coords.lon } } : {}),
   };
 
   let cosmeticsResponse;
@@ -116,12 +120,13 @@ export function useOutfitsQuery(
   weather?: Record<string, unknown> | null,
   category?: string | null,
   gender?: string | null,
+  coords?: { lat: number; lon: number } | null,
 ) {
   return useQuery({
     queryKey: ["chatWonder", "outfits", prompt, category, gender],
     queryFn: () => {
       if (!prompt) throw new Error("No prompt provided");
-      return fetchOutfitsQuery(prompt, weather, category, gender);
+      return fetchOutfitsQuery(prompt, weather, category, gender, coords);
     },
     enabled: !!prompt,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
@@ -132,12 +137,13 @@ export function useCosmeticsQuery(
   prompt: string | null,
   weather?: Record<string, unknown> | null,
   skinAnalysis?: SkinAnalysis | null,
+  coords?: { lat: number; lon: number } | null,
 ) {
   return useQuery({
     queryKey: ["chatWonder", "cosmetics", prompt, skinAnalysis],
     queryFn: () => {
       if (!prompt) throw new Error("No prompt provided");
-      return fetchCosmeticsQuery(prompt, weather, skinAnalysis);
+      return fetchCosmeticsQuery(prompt, weather, skinAnalysis, coords);
     },
     enabled: !!prompt,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
