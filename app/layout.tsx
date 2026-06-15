@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import pkg from "../../package.json";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -98,6 +99,9 @@ export default function RootLayout({
                   <AssistantNavBar />
                   <WalkAwayWatcher />
                   <SkinAnalysisTrigger />
+                  <span className="fixed bottom-2 right-2 z-50 text-[10px] text-white/30 pointer-events-none select-none">
+                    v{pkg.version}
+                  </span>
                 </ProximitySensorMount>
               </ChatWonderProvider>
             </VoiceProvider>
