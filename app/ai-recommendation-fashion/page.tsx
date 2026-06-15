@@ -13,10 +13,12 @@ import {
   type RemoteOutfit,
 } from "@/modules/shared/api/outfit.service";
 import {
+  chatWonderService,
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
 import { useVoice } from "@/modules/shared/voice/useVoice";
 import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
@@ -568,6 +570,35 @@ export default function VirtualMirrorV2() {
     ],
   );
 
+  const handleChipSelect = useCallback(
+    async (prompt: string) => {
+      setIsFetching(true);
+      try {
+        const storeGender = useOverviewStore.getState().pendingGender;
+        const skinAnalysisResult = useMirrorStore.getState().skinAnalysisResult;
+        const response = await chatWonderService.message({
+          input: `[stylist] ${prompt}`,
+          pageMode: "garment",
+          set: 6,
+          voice: false,
+          ...(weather
+            ? { weather: weather as unknown as Record<string, unknown> }
+            : {}),
+          skinAnalysis: skinAnalysisResult,
+          ...(storeGender ? { gender: storeGender } : {}),
+        });
+        if (response.garment_data) {
+          await handleAiComplete(response as ChatWonderMessageResponse);
+        }
+      } catch (err) {
+        console.error("[fashion-chip]", err);
+      } finally {
+        setIsFetching(false);
+      }
+    },
+    [weather, handleAiComplete],
+  );
+
   const fashionPageContext = useMemo(
     () => ({
       route: "/ai-recommendation-fashion",
@@ -831,6 +862,7 @@ export default function VirtualMirrorV2() {
           }}
         >
           <PromptFloater
+            onSelect={handleChipSelect}
             weather={weather}
             prompts={[
               `Style me for today, ${getToday()}.`,
@@ -922,7 +954,7 @@ export default function VirtualMirrorV2() {
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",
-                      background: "transparent",
+                      background: "rgba(255,255,255,0.01)",
                     }}
                   >
                     {selectedOutfit.file?.fileUrl ? (

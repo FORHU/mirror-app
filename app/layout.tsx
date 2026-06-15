@@ -98,6 +98,9 @@ export default function RootLayout({
                   <AssistantNavBar />
                   <WalkAwayWatcher />
                   <SkinAnalysisTrigger />
+                  <span className="fixed bottom-2 right-2 z-50 text-[10px] text-white/30 pointer-events-none select-none">
+                    v{process.env.NEXT_PUBLIC_APP_VERSION}
+                  </span>
                 </ProximitySensorMount>
               </ChatWonderProvider>
             </VoiceProvider>

@@ -275,7 +275,6 @@ export default function OverviewPage() {
               muted
               loop
               playsInline
-              aria-hidden="true"
               className="absolute inset-0 w-full h-full object-cover opacity-60"
             >
               <source
