@@ -319,6 +319,40 @@ export default function VirtualMirrorV2() {
         // New format: ChatWonder sends query params, we fetch real DB outfits
         try {
           const fetchedOutfits = await outfitService.getByQuery(query);
+
+          // Category filter based on linked garment categories.
+          // Outfits have no reliable category tag of their own; their garments do.
+          // An outfit passes if the majority of garment category values fall within
+          // the requested category list.
+          const requestedParams = new URLSearchParams(query);
+          const metaCategoryParam = requestedParams.get("metaCategory");
+          const requestedCats = metaCategoryParam
+            ? metaCategoryParam.split(",").map((s) => s.trim()).filter(Boolean)
+            : [];
+          const strictOutfits =
+            requestedCats.length === 0
+              ? fetchedOutfits
+              : fetchedOutfits.filter((outfit) => {
+                  const allCats: string[] = [];
+                  for (const item of outfit.items) {
+                    const g = item.garment as typeof item.garment & {
+                      category?: string | string[];
+                    };
+                    const raw = g.category;
+                    if (Array.isArray(raw)) {
+                      allCats.push(
+                        ...(raw as unknown[]).filter(
+                          (c): c is string => typeof c === "string",
+                        ),
+                      );
+                    } else if (typeof raw === "string" && raw) {
+                      allCats.push(raw);
+                    }
+                  }
+                  if (allCats.length === 0) return true;
+                  return allCats.some((c) => requestedCats.includes(c));
+                });
+
           const newTopsBase: RemoteGarment[] = [];
           const newTopsMid: RemoteGarment[] = [];
           const newTopsOuter: RemoteGarment[] = [];
@@ -327,7 +361,7 @@ export default function VirtualMirrorV2() {
           const newBags: RemoteGarment[] = [];
           const seen = new Set<string>();
 
-          for (const outfit of fetchedOutfits) {
+          for (const outfit of strictOutfits) {
             for (const item of outfit?.items || []) {
               const g = item?.garment;
               if (!g) continue;
@@ -376,10 +410,10 @@ export default function VirtualMirrorV2() {
           setShoesPage(0);
           setBags(newBags);
           setBagsPage(0);
-          setOutfits(fetchedOutfits);
+          setOutfits(strictOutfits);
           setOutfitPage(0);
           setHasFetched(true);
-          if (fetchedOutfits.length > 0) {
+          if (strictOutfits.length > 0) {
             setSelectedOutfitIdx(0);
           }
         } catch (err) {
