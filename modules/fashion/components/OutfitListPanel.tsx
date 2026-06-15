@@ -78,7 +78,6 @@ export function OutfitListPanel({
                         role="button"
                         tabIndex={0}
                         aria-label={`Outfit ${globalIdx + 1}`}
-                        aria-pressed={selectedOutfitIdx === globalIdx}
                         onClick={() => onSelect(globalIdx)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -86,12 +85,11 @@ export function OutfitListPanel({
                             e.currentTarget.click();
                           }
                         }}
-                        className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                         style={{
                           position: "relative",
                           borderRadius: "10px",
                           overflow: "hidden",
-                          background: "transparent",
+                          background: "rgba(255,255,255,0.01)",
                           cursor: "pointer",
                           border:
                             selectedOutfitIdx === globalIdx

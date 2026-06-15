@@ -275,7 +275,6 @@ export default function FashionCatalog() {
       role="button"
       tabIndex={0}
       aria-label={`Outfit ${idx + 1}`}
-      aria-pressed={selectedOutfitIdx === idx}
       onClick={() =>
         setSelectedOutfitIdx(selectedOutfitIdx === idx ? null : idx)
       }
@@ -285,14 +284,13 @@ export default function FashionCatalog() {
           e.currentTarget.click();
         }
       }}
-      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       style={{
         position: "relative",
         height: "clamp(180px, 24vh, 420px)",
         flex: "0 0 auto",
         borderRadius: "10px",
         overflow: "hidden",
-        background: "transparent",
+        background: "rgba(255,255,255,0.01)",
         cursor: "pointer",
         border:
           selectedOutfitIdx === idx
@@ -348,7 +346,6 @@ export default function FashionCatalog() {
                 key={g}
                 type="button"
                 disabled={isUpdatingGender}
-                aria-pressed={activeGender === g}
                 onClick={() => handleGenderChange(g)}
                 style={{
                   padding: "3px 14px",
@@ -391,9 +388,7 @@ export default function FashionCatalog() {
       )}
 
       {activeMainCategory === "All" && !isLoading && (
-        <div className="flex-1 min-h-0">
-          <OutfitImageCarousel gender={activeGender} />
-        </div>
+        <OutfitImageCarousel gender={activeGender} />
       )}
 
       {activeMainCategory !== "All" && !isLoading && outfits.length === 0 && (
@@ -446,7 +441,8 @@ export default function FashionCatalog() {
                     flex: "1 1 auto",
                     minHeight: "min(58vh, 620px)",
                     borderRadius: "14px",
-                    background: "transparent",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.08)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -491,11 +487,13 @@ export default function FashionCatalog() {
                       style={{
                         flex: "0 0 auto",
                         minHeight: "76px",
-                        background: "transparent",
+                        background: "rgba(255,255,255,0.06)",
+                        backdropFilter: "blur(12px)",
                         borderRadius: "12px",
                         display: "flex",
                         alignItems: "center",
                         padding: "10px",
+                        border: "1px solid rgba(255,255,255,0.08)",
                         gap: "12px",
                       }}
                     >

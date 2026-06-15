@@ -32,14 +32,12 @@ function OutfitListPane({
       {outfits.map((outfit) => (
         <button
           key={outfit.id}
-          aria-label={outfit.name}
-          aria-pressed={outfit.id === selectedId}
           onTouchEnd={(e) => {
             e.preventDefault();
             onSelect(outfit.id);
           }}
           onClick={() => onSelect(outfit.id)}
-          className={`flex-1 min-h-0 mb-3 last:mb-0 rounded-2xl overflow-hidden transition-all text-left group/outfit relative focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+          className={`flex-1 min-h-0 mb-3 last:mb-0 rounded-2xl overflow-hidden transition-all text-left group/outfit relative ${
             outfit.id === selectedId
               ? "ring-1 ring-white/30 opacity-100"
               : "opacity-60 hover:opacity-100"
@@ -56,7 +54,7 @@ function OutfitListPane({
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
+            <div className="w-full h-full bg-white/5 flex items-center justify-center">
               <span className="text-white/20 text-xs">No Image</span>
             </div>
           )}
@@ -228,14 +226,13 @@ function OutfitDetailPane({
                 <button
                   key={g.id}
                   type="button"
-                  aria-label={g.name}
-                  aria-pressed={isSelected}
+                  title={g.name}
                   onClick={() => onSelectGarment(isSelected ? null : g.id)}
                   className={`shrink-0 flex flex-col gap-1 transition-all ${isSelected ? "opacity-100 scale-105" : "opacity-50 hover:opacity-80"}`}
                   style={{ width: "72px" }}
                 >
                   <div
-                    className={`rounded-xl overflow-hidden border transition-all ${isSelected ? "border-white/60 ring-1 ring-white/30" : "border-white/10"}`}
+                    className={`rounded-xl overflow-hidden bg-white/5 border transition-all ${isSelected ? "border-white/60 ring-1 ring-white/30" : "border-white/10"}`}
                     style={{ aspectRatio: "3/4" }}
                   >
                     {g.imageUrl ? (
@@ -250,7 +247,7 @@ function OutfitDetailPane({
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center p-1 text-center">
+                      <div className="w-full h-full flex items-center justify-center p-1 text-center bg-black/40">
                         <span className="text-white/20 text-[8px] uppercase tracking-widest leading-tight">
                           No Image
                         </span>
@@ -437,16 +434,14 @@ function CosmeticsStrip({
       {items.slice(0, standalone ? 20 : 6).map((c) => (
         <button
           key={c.id}
-          aria-label={c.name}
-          aria-pressed={standalone ? selectedId === c.id : undefined}
           onTouchEnd={(e) => {
             e.preventDefault();
             onSelect?.(c.id);
           }}
           onClick={() => onSelect?.(c.id)}
-          className={`min-w-0 transition-all group/item text-left overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${
+          className={`min-w-0 transition-all group/item text-left overflow-hidden ${
             standalone
-              ? `flex flex-col flex-1 min-h-0 mb-3 last:mb-0 rounded-2xl overflow-hidden ${selectedId === c.id ? "ring-1 ring-white/30" : "opacity-60 hover:opacity-100"}`
+              ? `flex flex-col flex-1 min-h-0 mb-3 last:mb-0 rounded-2xl overflow-hidden ${selectedId === c.id ? "ring-1 ring-white/30 bg-white/5" : "opacity-60 hover:opacity-100"}`
               : "flex flex-col rounded-2xl bg-white/5 border border-white/10 hover:border-white/30"
           }`}
         >
@@ -602,7 +597,6 @@ export function OverviewGrid({
           muted
           loop
           playsInline
-          aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover opacity-60"
         >
           <source
