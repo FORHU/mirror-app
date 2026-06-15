@@ -194,7 +194,8 @@ export default function AIAssistantPage() {
     ) => {
       const store = useOverviewStore.getState();
       store.setGreeting("Pulling that together for you…");
-      store.setPendingPrompt("[stylist]");
+      const randomPrompt = scenario.prompts[Math.floor(Math.random() * scenario.prompts.length)];
+      store.setPendingPrompt(randomPrompt);
       store.setPendingCategory("metaCategory=" + scenario.metaCategory);
       store.setPendingGender(gender);
 
