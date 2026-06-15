@@ -482,7 +482,8 @@ export default function CosmeticRecommendationPage() {
         onBack={() => router.back()}
       />
 
-      {/* Gender filter */}
+      {/* Gender filter — hidden while recommendations are still loading */}
+      {!showRecommendationSkeletons && (
       <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
         {(["All", "MALE", "FEMALE"] as const).map((g) => (
           <button
@@ -513,6 +514,7 @@ export default function CosmeticRecommendationPage() {
           </button>
         ))}
       </div>
+      )}
 
       {/* Main 3 Column Layout */}
       <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-20 gap-7">
@@ -595,11 +597,14 @@ export default function CosmeticRecommendationPage() {
         </div>
       </div>
 
-      <PromptFloater
-        prompts={PROMPT_SUGGESTIONS}
-        onSelect={handleSuggestionSelect}
-        weather={weather}
-      />
+      {/* Suggestions floater — hidden while recommendations are still loading */}
+      {!showRecommendationSkeletons && (
+        <PromptFloater
+          prompts={PROMPT_SUGGESTIONS}
+          onSelect={handleSuggestionSelect}
+          weather={weather}
+        />
+      )}
     </div>
   );
 }
