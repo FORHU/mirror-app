@@ -139,7 +139,9 @@ export default function OverviewPage() {
   }, [outfitsQuery.data]);
 
   useEffect(() => {
-    if (cosmeticsQuery.data) {
+    // Only overwrite the persisted snapshot with a non-empty result — an empty
+    // array is truthy and would otherwise wipe a good snapshot for good.
+    if (cosmeticsQuery.data?.length) {
       useMirrorStore
         .getState()
         .setOverviewCosmeticsSnapshot(cosmeticsQuery.data);
@@ -198,7 +200,10 @@ export default function OverviewPage() {
   ]);
 
   const cosmeticsState = useMemo(() => {
-    const data = cosmeticsQuery.data || overviewCosmeticsSnapshot || [];
+    const data =
+      (cosmeticsQuery.data?.length ? cosmeticsQuery.data : null) ||
+      overviewCosmeticsSnapshot ||
+      [];
     const hasData = data.length > 0;
     return {
       status: cosmeticsQuery.isFetching
