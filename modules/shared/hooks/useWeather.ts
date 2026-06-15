@@ -141,6 +141,17 @@ async function loadWeather(): Promise<WeatherResult> {
       coords: null,
     };
   }
+  // Env-configured default location (e.g. trade show venue) — avoids server IP geo
+  const envLat = process.env.NEXT_PUBLIC_DEFAULT_LAT;
+  const envLon = process.env.NEXT_PUBLIC_DEFAULT_LON;
+  if (envLat && envLon) {
+    const defaultCoords = { lat: +envLat, lon: +envLon };
+    writeCoords(defaultCoords.lat, defaultCoords.lon);
+    return {
+      weather: await fetchWithCoords(defaultCoords.lat, defaultCoords.lon),
+      coords: defaultCoords,
+    };
+  }
   return { weather: await fetchFromServer(), coords: null }; // last resort: server-side IP geo
 }
 

@@ -5,8 +5,16 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
   .replace(/\/api\/?$/, "")
   .replace(/\/$/, "");
 
+function resolveHostname(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
+    req.headers.get("host")?.split(":")[0] ??
+    req.nextUrl.hostname
+  );
+}
+
 function resolveAccessToken(req: NextRequest) {
-  const hostname = req.nextUrl.hostname;
+  const hostname = resolveHostname(req);
   if (hostname === process.env.NEXT_PUBLIC_DOMAIN2) {
     return process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN ?? null;
   }

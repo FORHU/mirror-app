@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
 
   // Forward auth token from the incoming request if present, otherwise fall
   // back to the kiosk env-var token for the requesting hostname.
-  const hostname = req.nextUrl.hostname;
+  const hostname =
+    req.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
+    req.headers.get("host")?.split(":")[0] ??
+    req.nextUrl.hostname;
   const kioskToken =
     hostname === process.env.NEXT_PUBLIC_DOMAIN2
       ? process.env.NEXT_PUBLIC_USER2_ACCESS_TOKEN

@@ -49,7 +49,7 @@ export default function OverviewPage() {
   const category = useOverviewStore((s) => s.pendingCategory);
   const gender = useOverviewStore((s) => s.pendingGender);
 
-  const { weather } = useWeather();
+  const { weather, coords } = useWeather();
   const router = useRouter();
 
   const [hydrating, setHydrating] = useState(true);
@@ -119,11 +119,13 @@ export default function OverviewPage() {
     weather as unknown as Record<string, unknown>,
     category,
     gender,
+    coords,
   );
   const cosmeticsQuery = useCosmeticsQuery(
     activePrompt,
     weather as unknown as Record<string, unknown>,
     skinAnalysisResult,
+    coords,
   );
 
   const isLoading =
