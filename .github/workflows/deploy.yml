@@ -18,7 +18,7 @@ concurrency:
 
 env:
   ECR_REPOSITORY: mirror-app
-  AWS_REGION: ap-southeast-1
+  AWS_REGION: eu-west-3
   NODE_ENV: production
   IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
 
