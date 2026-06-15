@@ -61,7 +61,7 @@ export function GarmentSelectionPanel({
         width: isOpen ? "25%" : "56px",
         padding: isOpen ? "8px 8px 8px 4px" : "0 6px",
         borderLeft: "1px solid rgba(255,255,255,0.08)",
-        background: isOpen ? "rgba(7,7,12,0.28)" : "rgba(7,7,12,0.18)",
+        background: "transparent",
       }}
     >
       {isOpen ? (
@@ -81,7 +81,7 @@ export function GarmentSelectionPanel({
               gap: 8,
               borderRadius: 8,
               border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(20,20,30,0.72)",
+              background: "transparent",
               color: "rgba(255,255,255,0.82)",
               cursor: "pointer",
             }}
@@ -174,7 +174,7 @@ export function GarmentSelectionPanel({
           style={{
             minHeight: 0,
             border: "1px solid rgba(255,255,255,0.08)",
-            background: "rgba(255,255,255,0.02)",
+            background: "transparent",
             color: "rgba(255,255,255,0.55)",
             cursor: "pointer",
           }}
