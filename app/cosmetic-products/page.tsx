@@ -308,10 +308,9 @@ export default function CosmeticProductsPage() {
     let cancelled = false;
     const md =
       typeof navigator !== "undefined" ? navigator.mediaDevices : null;
-    if (!md?.enumerateDevices) {
-      setHasVideoInput(false);
-      return;
-    }
+    // hasVideoInput defaults to false, so no synchronous setState is needed
+    // here — just bail when the API is unavailable.
+    if (!md?.enumerateDevices) return;
     const check = () => {
       md.enumerateDevices()
         .then((devices) => {
