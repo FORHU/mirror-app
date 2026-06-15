@@ -19,6 +19,8 @@ import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 const API_LIMIT = 100;
+// Products shown per scroll page; the user pages explicitly past this cap.
+const PAGE_SIZE = 20;
 
 type CosmeticMetadata = Record<string, unknown> | null | undefined;
 
@@ -225,7 +227,13 @@ export default function CosmeticProductsPage() {
   const [nextPage, setNextPage] = useState(2);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Client-side pagination over the loaded products (cap PAGE_SIZE per page).
+  const [displayPage, setDisplayPage] = useState(1);
+  // Refs for the two scroll columns so scrolling one mirrors the other.
+  const leftColRef = useRef<HTMLDivElement | null>(null);
+  const rightColRef = useRef<HTMLDivElement | null>(null);
+  const isSyncingScroll = useRef(false);
 
   const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
@@ -253,22 +261,6 @@ export default function CosmeticProductsPage() {
       cancelled = true;
     };
   }, []);
-
-  // Load next page when sentinel scrolls into view
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || !hasMore || isLoadingMore || isLoadingFirst) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting) return;
-        setIsLoadingMore(true);
-        setNextPage((p) => p + 1);
-      },
-      { threshold: 0.1 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, isLoadingFirst]);
 
   // Fetch when nextPage advances past 2
   useEffect(() => {
@@ -298,14 +290,63 @@ export default function CosmeticProductsPage() {
     [apiProducts, skinType],
   );
 
+  const totalLoadedPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const canPrev = displayPage > 1;
+  const canNext = displayPage < totalLoadedPages || hasMore;
+
+  // Only the current page's slice is shown in the scroll columns.
+  const pageItems = useMemo(
+    () => filtered.slice((displayPage - 1) * PAGE_SIZE, displayPage * PAGE_SIZE),
+    [filtered, displayPage],
+  );
+
   const leftItems = useMemo(
-    () => filtered.filter((_, i) => i % 2 === 0),
-    [filtered],
+    () => pageItems.filter((_, i) => i % 2 === 0),
+    [pageItems],
   );
   const rightItems = useMemo(
-    () => filtered.filter((_, i) => i % 2 !== 0),
-    [filtered],
+    () => pageItems.filter((_, i) => i % 2 !== 0),
+    [pageItems],
   );
+
+  const goPrev = useCallback(
+    () => setDisplayPage((p) => Math.max(1, p - 1)),
+    [],
+  );
+
+  // Advance a page, loading another API page first when the upcoming page isn't
+  // fully loaded yet (so "Next" always has products ready).
+  const goNext = useCallback(() => {
+    if (
+      hasMore &&
+      !isLoadingMore &&
+      !isLoadingFirst &&
+      filtered.length < (displayPage + 2) * PAGE_SIZE
+    ) {
+      setIsLoadingMore(true);
+      setNextPage((p) => p + 1);
+    }
+    setDisplayPage((p) => p + 1);
+  }, [hasMore, isLoadingMore, isLoadingFirst, filtered.length, displayPage]);
+
+  // Reset both columns to the top whenever the page changes.
+  useEffect(() => {
+    if (leftColRef.current) leftColRef.current.scrollTop = 0;
+    if (rightColRef.current) rightColRef.current.scrollTop = 0;
+  }, [displayPage]);
+
+  // Mirror one column's scroll position onto the other.
+  const handleColumnScroll = useCallback((source: "left" | "right") => {
+    if (isSyncingScroll.current) return;
+    const src = source === "left" ? leftColRef.current : rightColRef.current;
+    const dst = source === "left" ? rightColRef.current : leftColRef.current;
+    if (!src || !dst) return;
+    isSyncingScroll.current = true;
+    dst.scrollTop = src.scrollTop;
+    requestAnimationFrame(() => {
+      isSyncingScroll.current = false;
+    });
+  }, []);
 
   const selectedProduct = useMemo(
     () => filtered.find((p) => p.id === selectedProductId) ?? null,
@@ -318,6 +359,7 @@ export default function CosmeticProductsPage() {
   const handleSkinTypeSelect = useCallback((key: SkinTypeKey) => {
     setSkinType(key);
     setSelectedProductId(null);
+    setDisplayPage(1);
   }, []);
 
   const handleProductSelect = useCallback(
@@ -482,6 +524,8 @@ export default function CosmeticProductsPage() {
         <div className="w-full flex-1 min-h-0 flex px-2">
           {/* Left column */}
           <div
+            ref={leftColRef}
+            onScroll={() => handleColumnScroll("left")}
             className="h-full min-h-0 flex flex-col gap-3"
             style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
@@ -546,6 +590,8 @@ export default function CosmeticProductsPage() {
 
           {/* Right column */}
           <div
+            ref={rightColRef}
+            onScroll={() => handleColumnScroll("right")}
             className="h-full min-h-0 flex flex-col gap-3"
             style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
@@ -561,18 +607,48 @@ export default function CosmeticProductsPage() {
                     onSelect={handleProductSelect}
                   />
                 ))}
-            {/* Sentinel — triggers next page load when scrolled into view */}
-            {hasMore && !isLoadingFirst && (
-              <div ref={sentinelRef} style={{ height: 1, flexShrink: 0 }}>
-                {isLoadingMore && (
-                  <div className="text-white/20 text-[10px] text-center py-2 uppercase tracking-widest">
-                    Loading…
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Pagination — shown once products load; pages through PAGE_SIZE at a time */}
+        {!isInitialLoading && filtered.length > 0 && (
+          <div className="flex items-center justify-center gap-5 py-3 shrink-0 select-none">
+            <button
+              type="button"
+              onClick={goPrev}
+              disabled={!canPrev}
+              className="px-4 py-1.5 rounded-full text-[11px] uppercase tracking-[0.12em] border transition-opacity disabled:opacity-30"
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                borderColor: "rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.04)",
+                cursor: canPrev ? "pointer" : "default",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              Prev
+            </button>
+            <span className="text-white/55 text-xs tracking-[0.14em]">
+              Page {displayPage}
+              {hasMore || isLoadingMore ? "" : ` / ${totalLoadedPages}`}
+            </span>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!canNext}
+              className="px-4 py-1.5 rounded-full text-[11px] uppercase tracking-[0.12em] border transition-opacity disabled:opacity-30"
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                borderColor: "rgba(255,255,255,0.15)",
+                background: "rgba(255,255,255,0.04)",
+                cursor: canNext ? "pointer" : "default",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              {isLoadingMore && !canPrev ? "Loading…" : "Next"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
