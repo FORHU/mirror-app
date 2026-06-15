@@ -492,36 +492,36 @@ export default function CosmeticRecommendationPage() {
 
       {/* Gender filter — hidden while recommendations are still loading */}
       {!showRecommendationSkeletons && (
-      <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
-        {(["All", "MALE", "FEMALE"] as const).map((g) => (
-          <button
-            key={g}
-            type="button"
-            onClick={() => handleGenderChange(g)}
-            style={{
-              padding: "3px 14px",
-              borderRadius: "999px",
-              fontSize: "11px",
-              fontWeight: activeGender === g ? 600 : 400,
-              letterSpacing: "0.06em",
-              color: activeGender === g ? "white" : "rgba(255,255,255,0.45)",
-              background:
-                activeGender === g
-                  ? "rgba(255,255,255,0.15)"
-                  : "rgba(255,255,255,0.04)",
-              border:
-                activeGender === g
-                  ? "1px solid rgba(255,255,255,0.3)"
-                  : "1px solid rgba(255,255,255,0.08)",
-              transition: "all 0.15s ease",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
-          </button>
-        ))}
-      </div>
+        <div className="flex items-center justify-center gap-2 pb-1 shrink-0">
+          {(["All", "MALE", "FEMALE"] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => handleGenderChange(g)}
+              style={{
+                padding: "3px 14px",
+                borderRadius: "999px",
+                fontSize: "11px",
+                fontWeight: activeGender === g ? 600 : 400,
+                letterSpacing: "0.06em",
+                color: activeGender === g ? "white" : "rgba(255,255,255,0.45)",
+                background:
+                  activeGender === g
+                    ? "rgba(255,255,255,0.15)"
+                    : "rgba(255,255,255,0.04)",
+                border:
+                  activeGender === g
+                    ? "1px solid rgba(255,255,255,0.3)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                transition: "all 0.15s ease",
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Main 3 Column Layout */}
