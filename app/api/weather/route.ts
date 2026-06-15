@@ -40,7 +40,8 @@ async function fetchCoords(): Promise<Coords | null> {
 }
 
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
-  const token = process.env.MAPBOX_TOKEN ?? process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const token =
+    process.env.MAPBOX_TOKEN ?? process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!token) return "Unknown";
   try {
     const d = await fetch(

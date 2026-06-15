@@ -111,8 +111,6 @@ export default function VirtualMirrorV2() {
   function applySwap(g: RemoteGarment) {
     if (!swapItemId) return;
     setOutfitOverrides((prev) => ({ ...prev, [swapItemId]: g }));
-    setSwapSlot(null);
-    setSwapItemId(null);
   }
 
   function cancelSwap() {
@@ -304,7 +302,7 @@ export default function VirtualMirrorV2() {
   }, []);
 
   const handleAiComplete = useCallback(
-    (response: ChatWonderMessageResponse) => {
+    async (response: ChatWonderMessageResponse) => {
       setSelectedBag(null);
       setSelectedTopBase(null);
       setSelectedTopMid(null);
@@ -317,71 +315,79 @@ export default function VirtualMirrorV2() {
       const query = typeof rawData?.query === "string" ? rawData.query : null;
 
       if (query) {
+        setIsFetching(true);
         // New format: ChatWonder sends query params, we fetch real DB outfits
-        outfitService
-          .getByQuery(query)
-          .then((fetchedOutfits) => {
-            const newTopsBase: RemoteGarment[] = [];
-            const newTopsMid: RemoteGarment[] = [];
-            const newTopsOuter: RemoteGarment[] = [];
-            const newBottoms: RemoteGarment[] = [];
-            const newShoes: RemoteGarment[] = [];
-            const newBags: RemoteGarment[] = [];
-            const seen = new Set<string>();
+        try {
+          const fetchedOutfits = await outfitService.getByQuery(query);
+          const newTopsBase: RemoteGarment[] = [];
+          const newTopsMid: RemoteGarment[] = [];
+          const newTopsOuter: RemoteGarment[] = [];
+          const newBottoms: RemoteGarment[] = [];
+          const newShoes: RemoteGarment[] = [];
+          const newBags: RemoteGarment[] = [];
+          const seen = new Set<string>();
 
-            for (const outfit of fetchedOutfits) {
-              for (const item of outfit.items) {
-                const g = item.garment;
-                if (seen.has(g.id)) continue;
-                seen.add(g.id);
+          for (const outfit of fetchedOutfits) {
+            for (const item of outfit?.items || []) {
+              const g = item?.garment;
+              if (!g) continue;
+              if (seen.has(g.id)) continue;
+              seen.add(g.id);
 
-                const mapped: RemoteGarment = {
-                  id: g.id,
-                  name: g.name,
-                  description: g.description ?? "",
-                  imageUrl: g.imageUrl,
-                  fittingSlot: g.fittingSlot,
-                  garmentType: g.garmentType,
-                  category: [],
-                  tags: [],
-                  gender: null,
-                  silhouette: null,
-                  layerLevel: g.layerLevel ?? null,
-                  file: null,
-                };
+              const mapped: RemoteGarment = {
+                id: g.id,
+                name: g.name || "",
+                description: g.description ?? "",
+                imageUrl: g.imageUrl || "",
+                fittingSlot: g.fittingSlot || [],
+                garmentType: g.garmentType || [],
+                category: [],
+                tags: [],
+                gender: null,
+                silhouette: null,
+                layerLevel: g.layerLevel ?? null,
+                file: null,
+              };
 
-                if (g.fittingSlot.includes("UpperGarment")) {
-                  const layer = g.layerLevel ?? "BASE";
-                  if (layer === "OUTER") newTopsOuter.push(mapped);
-                  else if (layer === "MID") newTopsMid.push(mapped);
-                  else newTopsBase.push(mapped);
-                } else if (g.fittingSlot.includes("LowerGarment")) {
-                  newBottoms.push(mapped);
-                } else if (g.fittingSlot.includes("FootGarment")) {
-                  newShoes.push(mapped);
-                } else if (g.garmentType.includes("Bag")) {
-                  newBags.push(mapped);
-                }
+              if (mapped.fittingSlot.includes("UpperGarment")) {
+                const layer = g.layerLevel ?? "BASE";
+                if (layer === "OUTER") newTopsOuter.push(mapped);
+                else if (layer === "MID") newTopsMid.push(mapped);
+                else newTopsBase.push(mapped);
+              } else if (mapped.fittingSlot.includes("LowerGarment")) {
+                newBottoms.push(mapped);
+              } else if (mapped.fittingSlot.includes("FootGarment")) {
+                newShoes.push(mapped);
+              } else if (mapped.garmentType.includes("Bag")) {
+                newBags.push(mapped);
               }
             }
+          }
 
-            setTopsBase(newTopsBase);
-            setTopsBasePage(0);
-            setTopsMid(newTopsMid);
-            setTopsMidPage(0);
-            setTopsOuter(newTopsOuter);
-            setTopsOuterPage(0);
-            setBottoms(newBottoms);
-            setBottomsPage(0);
-            setShoes(newShoes);
-            setShoesPage(0);
-            setBags(newBags);
-            setBagsPage(0);
-            setOutfits(fetchedOutfits);
-            setOutfitPage(0);
-            setHasFetched(true);
-          })
-          .catch(console.error);
+          setTopsBase(newTopsBase);
+          setTopsBasePage(0);
+          setTopsMid(newTopsMid);
+          setTopsMidPage(0);
+          setTopsOuter(newTopsOuter);
+          setTopsOuterPage(0);
+          setBottoms(newBottoms);
+          setBottomsPage(0);
+          setShoes(newShoes);
+          setShoesPage(0);
+          setBags(newBags);
+          setBagsPage(0);
+          setOutfits(fetchedOutfits);
+          setOutfitPage(0);
+          setHasFetched(true);
+          if (fetchedOutfits.length > 0) {
+            setSelectedOutfitIdx(0);
+          }
+        } catch (err) {
+          console.error(err);
+          setHasFetched(true); // Prevent "sudden reset" to idle screen on error
+        } finally {
+          setIsFetching(false);
+        }
         return;
       }
 
@@ -400,7 +406,7 @@ export default function VirtualMirrorV2() {
       };
 
       const sets = Array.isArray(rawData?.sets)
-        ? (rawData.sets as Record<string, unknown>[])
+        ? (rawData?.sets as Record<string, unknown>[])
         : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
@@ -500,6 +506,9 @@ export default function VirtualMirrorV2() {
       setOutfits(newAiOutfits);
       setOutfitPage(0);
       setHasFetched(true);
+      if (newAiOutfits.length > 0) {
+        setSelectedOutfitIdx(0);
+      }
     },
     [
       setTopsBase,
@@ -524,6 +533,7 @@ export default function VirtualMirrorV2() {
       setSelectedShoe,
       setSelectedOutfitIdx,
       setHasFetched,
+      setIsFetching,
     ],
   );
 
@@ -536,6 +546,7 @@ export default function VirtualMirrorV2() {
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
           set: 6,
+          voice: false,
           ...(weather
             ? { weather: weather as unknown as Record<string, unknown> }
             : {}),
@@ -543,7 +554,7 @@ export default function VirtualMirrorV2() {
           ...(storeGender ? { gender: storeGender } : {}),
         });
         if (response.garment_data) {
-          handleAiComplete(response as ChatWonderMessageResponse);
+          await handleAiComplete(response as ChatWonderMessageResponse);
         }
       } catch (err) {
         console.error("[fashion-chip]", err);
@@ -821,10 +832,25 @@ export default function VirtualMirrorV2() {
             weather={weather}
             prompts={[
               `Style me for today, ${getToday()}.`,
-              "Give me a casual everyday look.",
-              "Put together a formal or professional outfit.",
-              "Show me something trendy and stylish.",
-              "Suggest a comfortable outfit for the weekend.",
+              "Give me a low-effort but good-looking outfit.",
+              "Make me look confident and put-together today.",
+              "Suggest an outfit that matches a busy day.",
+              "Build a “effortless cool” look.",
+              "Dress me like I’m going somewhere important but chill.",
+              "Give me a clean aesthetic outfit.",
+              "Style something that feels modern and minimal.",
+              "Put together a look that boosts confidence.",
+              "Suggest an outfit that works from day to night.",
+              "Build a comfortable but sharp outfit.",
+              "Give me something that looks expensive but simple.",
+              "Style me for a productive workday vibe.",
+              "Create a relaxed but polished look.",
+              "Suggest an outfit that feels fresh and new.",
+              "Build a “don’t overthink it” outfit for today.",
+              "Style something that matches a creative mindset.",
+              "Give me an outfit that feels clean and breathable.",
+              "Put together something versatile for any plan today.",
+              "Suggest a look that feels confident without trying too hard.",
             ]}
             className="relative z-40"
             direction="below"
@@ -937,13 +963,17 @@ export default function VirtualMirrorV2() {
                       flexShrink: 0,
                       display: "flex",
                       flexDirection: "column",
-                      gap: "3px",
+                      alignItems: "center",
+                      textAlign: "center",
+                      gap: "6px",
+                      marginTop: "4px",
+                      marginBottom: "4px",
                     }}
                   >
                     <span
                       style={{
                         color: "white",
-                        fontSize: "13px",
+                        fontSize: "24px",
                         fontWeight: 700,
                         lineHeight: 1.3,
                         overflow: "hidden",
@@ -954,11 +984,11 @@ export default function VirtualMirrorV2() {
                     {selectedOutfit.description && (
                       <span
                         style={{
-                          color: "rgba(255,255,255,0.5)",
-                          fontSize: "9px",
+                          color: "rgba(255,255,255,0.6)",
+                          fontSize: "14px",
                           lineHeight: 1.5,
                           overflow: "hidden",
-                          maxHeight: "2.5em",
+                          maxHeight: "3em",
                         }}
                       >
                         {selectedOutfit.description}

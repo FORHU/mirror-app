@@ -37,12 +37,21 @@ export function PromptFloater({
   const { isProcessing, isSpeaking } = useVoiceContext();
   const isIdle = !isProcessing && !isSpeaking;
   const [open, setOpen] = useState(false);
+  const [displayedPrompts, setDisplayedPrompts] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
     const timeoutId = window.setTimeout(() => setOpen(false), 12000);
     return () => window.clearTimeout(timeoutId);
   }, [open]);
+
+  const handleToggle = () => {
+    if (!open && prompts && prompts.length > 0) {
+      const shuffled = [...prompts].sort(() => 0.5 - Math.random());
+      setDisplayedPrompts(shuffled.slice(0, 3));
+    }
+    setOpen((o) => !o);
+  };
 
   if (!isIdle) return null;
 
@@ -90,7 +99,7 @@ export function PromptFloater({
           >
             <div style={{ overflow: "hidden" }}>
               <QuickResponseChips
-                prompts={prompts}
+                prompts={prompts ? displayedPrompts : undefined}
                 categories={categories}
                 onPromptSelect={() => setOpen(false)}
                 onSelect={onSelect}
@@ -103,7 +112,7 @@ export function PromptFloater({
 
       <motion.button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleToggle}
         whileTap={{ scale: 0.96 }}
         aria-label={open ? "Hide suggestions" : "Show suggestions"}
         className="flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap"

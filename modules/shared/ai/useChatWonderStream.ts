@@ -146,7 +146,7 @@ export function useChatWonderStream(): UseChatWonderStreamResult {
         const payload: Record<string, unknown> = {
           input: finalInput,
           conversationId: options?.conversationId,
-          voice: true,
+          voice: false,
           kioskId,
           sitemap_context: SITEMAP_CONTEXT,
           ...(pendingCategory ? { category: pendingCategory } : {}),

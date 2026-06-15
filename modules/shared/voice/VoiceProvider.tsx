@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
@@ -193,16 +193,6 @@ const GARMENT_SLOT_WORDS: Record<string, GarmentSlot> = {
 function cleanMessage(text: string): string {
   const cut = text.indexOf("\n\n");
   return (cut !== -1 ? text.slice(0, cut) : text).trim();
-}
-
-function firstNSentences(text: string, n: number): string {
-  const re = /[^.!?]*[.!?]+/g;
-  const sentences: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null && sentences.length < n) {
-    sentences.push(m[0]);
-  }
-  return sentences.length > 0 ? sentences.join("").trim() : text.trim();
 }
 
 function extractFashionGarmentSelection(
@@ -907,25 +897,7 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
           historyRef.current = newHistory;
           setChatHistory(newHistory);
 
-          const snippet = firstNSentences(displayMessage, 3);
-          const ttsAudio = await pollyTts(snippet).catch(() => null);
-          if (ttsAudio) {
-            setVoiceState("speaking");
-            const playCtx = new AudioContext();
-            playbackCtxRef.current = playCtx;
-            const decoded = await playCtx.decodeAudioData(ttsAudio.slice(0));
-            const src = playCtx.createBufferSource();
-            src.buffer = decoded;
-            src.connect(playCtx.destination);
-            playbackRef.current = src;
-            src.onended = () => {
-              stopPlayback();
-              setVoiceState("idle");
-            };
-            src.start(0);
-          } else {
-            setVoiceState("idle");
-          }
+          setVoiceState("idle");
 
           onActionRef.current?.({
             type: "GARMENT_RECOMMENDATION",
