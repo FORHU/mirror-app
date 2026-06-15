@@ -290,6 +290,7 @@ export default function CosmeticRecommendationPage() {
       .message({
         input,
         pageMode: "cosmetics",
+        voice: false,
         skinAnalysis,
         sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
       })
@@ -415,6 +416,7 @@ export default function CosmeticRecommendationPage() {
         const response = await chatWonderService.message({
           input: `[stylist] ${prompt}`,
           pageMode: "cosmetics",
+          voice: false,
           skinAnalysis: skinAnalysisResult,
           sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
           set: 6,

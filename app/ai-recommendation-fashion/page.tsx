@@ -536,6 +536,7 @@ export default function VirtualMirrorV2() {
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
           set: 6,
+          voice: false,
           ...(weather
             ? { weather: weather as unknown as Record<string, unknown> }
             : {}),
