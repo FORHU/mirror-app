@@ -309,15 +309,25 @@ export default function CosmeticProductsPage() {
     [pageItems],
   );
 
-  // Prefetch the next API page when the upcoming display page isn't fully
-  // loaded yet, so "Next" always has products ready.
-  useEffect(() => {
-    if (!hasMore || isLoadingMore || isLoadingFirst) return;
-    if (filtered.length < (displayPage + 1) * PAGE_SIZE) {
+  const goPrev = useCallback(
+    () => setDisplayPage((p) => Math.max(1, p - 1)),
+    [],
+  );
+
+  // Advance a page, loading another API page first when the upcoming page isn't
+  // fully loaded yet (so "Next" always has products ready).
+  const goNext = useCallback(() => {
+    if (
+      hasMore &&
+      !isLoadingMore &&
+      !isLoadingFirst &&
+      filtered.length < (displayPage + 2) * PAGE_SIZE
+    ) {
       setIsLoadingMore(true);
       setNextPage((p) => p + 1);
     }
-  }, [displayPage, filtered.length, hasMore, isLoadingMore, isLoadingFirst]);
+    setDisplayPage((p) => p + 1);
+  }, [hasMore, isLoadingMore, isLoadingFirst, filtered.length, displayPage]);
 
   // Reset both columns to the top whenever the page changes.
   useEffect(() => {
@@ -605,7 +615,7 @@ export default function CosmeticProductsPage() {
           <div className="flex items-center justify-center gap-5 py-3 shrink-0 select-none">
             <button
               type="button"
-              onClick={() => setDisplayPage((p) => Math.max(1, p - 1))}
+              onClick={goPrev}
               disabled={!canPrev}
               className="px-4 py-1.5 rounded-full text-[11px] uppercase tracking-[0.12em] border transition-opacity disabled:opacity-30"
               style={{
@@ -624,7 +634,7 @@ export default function CosmeticProductsPage() {
             </span>
             <button
               type="button"
-              onClick={() => setDisplayPage((p) => p + 1)}
+              onClick={goNext}
               disabled={!canNext}
               className="px-4 py-1.5 rounded-full text-[11px] uppercase tracking-[0.12em] border transition-opacity disabled:opacity-30"
               style={{
