@@ -106,9 +106,15 @@ function normalizeRecommendation(
           : [],
       fileUrl: imageUrl ? { fileUrl: imageUrl } : null,
       details: str(product?.details) || null,
-      metaData: product?.metaData && typeof product.metaData === "object" ? (product.metaData as Record<string, unknown>) : null,
+      metaData:
+        product?.metaData && typeof product.metaData === "object"
+          ? (product.metaData as Record<string, unknown>)
+          : null,
       hexColor: str(product?.hexColor) || null,
-      priceAmount: typeof product?.priceAmount === "number" ? (product.priceAmount as number) : null,
+      priceAmount:
+        typeof product?.priceAmount === "number"
+          ? (product.priceAmount as number)
+          : null,
       priceUnit: str(product?.priceUnit) || null,
       spf: typeof product?.spf === "number" ? (product.spf as number) : null,
       waterproof: product?.waterproof === true,

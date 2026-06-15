@@ -599,8 +599,14 @@ export function OverviewGrid({
           playsInline
           className="absolute inset-0 w-full h-full object-cover opacity-60"
         >
-          <source src="https://d1bdogktone6hj.cloudfront.net/uploads/loading.mp4" type="video/mp4" />
-          <source src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4" type="video/mp4" />
+          <source
+            src="https://d1bdogktone6hj.cloudfront.net/uploads/loading.mp4"
+            type="video/mp4"
+          />
+          <source
+            src="https://videos.pexels.com/video-files/3129671/3129671-uhd_3840_2160_30fps.mp4"
+            type="video/mp4"
+          />
         </video>
       </div>
     );
