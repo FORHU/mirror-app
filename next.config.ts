@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const rootPkg = require("../package.json") as { version: string };
 
 // Strip /api suffix so rewrites don't double it: http://host:3007/api/ → http://host:3007
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
@@ -6,6 +9,9 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "")
   .replace(/\/$/, "");
 
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: rootPkg.version,
+  },
   output: "standalone",
   reactStrictMode: true,
   // Prevent webpack from bundling AWS SDK packages — they must run as native
