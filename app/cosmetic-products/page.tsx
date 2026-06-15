@@ -296,7 +296,8 @@ export default function CosmeticProductsPage() {
 
   // Only the current page's slice is shown in the scroll columns.
   const pageItems = useMemo(
-    () => filtered.slice((displayPage - 1) * PAGE_SIZE, displayPage * PAGE_SIZE),
+    () =>
+      filtered.slice((displayPage - 1) * PAGE_SIZE, displayPage * PAGE_SIZE),
     [filtered, displayPage],
   );
 
