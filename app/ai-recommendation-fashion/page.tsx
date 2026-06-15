@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import {
@@ -16,11 +16,11 @@ import {
   chatWonderService,
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
-import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
+// import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
-import { useVoice } from "@/modules/shared/voice/useVoice";
-import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
+// import { useVoice } from "@/modules/shared/voice/useVoice";
+// import type { ChatWonderAction } from "@/modules/shared/ai/chatwonder.types";
 import { ChatNavLoader } from "@/components/ChatNavLoader";
 import { QuoteCarousel } from "@/components/QuoteCarousel";
 import MirrorHeader from "@/components/MirrorHeader";
@@ -37,7 +37,7 @@ import type { SwapSlot } from "@/modules/fashion/types";
 import { useSwipe } from "@/modules/fashion/hooks/useSwipe";
 import {
   FASHION_QUOTES,
-  FASHION_PROMPT_KEY,
+  // FASHION_PROMPT_KEY,
 } from "@/modules/fashion/constants";
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
@@ -46,22 +46,22 @@ export default function VirtualMirrorV2() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.toString();
-  const { isProcessing, submitText } = useVoiceContext();
+  // const { isProcessing, submitText } = useVoiceContext();
   const [isFetching, setIsFetching] = useState(false);
-  const isLoading = isProcessing || isFetching;
+  const isLoading = isFetching;
 
-  const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
-  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
+  // const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
+  // const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
-  useEffect(() => {
-    setAssistantIdle(isLoading);
-  }, [isLoading, setAssistantIdle]);
-  useEffect(
-    () => () => {
-      setAssistantIdle(false);
-    },
-    [setAssistantIdle],
-  );
+  // useEffect(() => {
+  //   setAssistantIdle(isLoading);
+  // }, [isLoading, setAssistantIdle]);
+  // useEffect(
+  //   () => () => {
+  //     setAssistantIdle(false);
+  //   },
+  //   [setAssistantIdle],
+  // );
 
   const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
@@ -207,15 +207,15 @@ export default function VirtualMirrorV2() {
       ? topsOuter.filter((g) => g.id !== swappingGarmentId)
       : topsOuter;
 
-  const pagedTopsBase = filteredTopsBase.slice(
+  const _pagedTopsBase = filteredTopsBase.slice(
     topsBasePage * topsLayerPageSize,
     (topsBasePage + 1) * topsLayerPageSize,
   );
-  const pagedTopsMid = filteredTopsMid.slice(
+  const _pagedTopsMid = filteredTopsMid.slice(
     topsMidPage * topsLayerPageSize,
     (topsMidPage + 1) * topsLayerPageSize,
   );
-  const pagedTopsOuter = filteredTopsOuter.slice(
+  const _pagedTopsOuter = filteredTopsOuter.slice(
     topsOuterPage * topsLayerPageSize,
     (topsOuterPage + 1) * topsLayerPageSize,
   );
@@ -226,7 +226,7 @@ export default function VirtualMirrorV2() {
     swapSlot === "shoes" && swappingGarmentId
       ? shoes.filter((g) => g.id !== swappingGarmentId)
       : shoes;
-  const pagedShoes = filteredShoes.slice(
+  const _pagedShoes = filteredShoes.slice(
     shoesPage * shoesPageSize,
     (shoesPage + 1) * shoesPageSize,
   );
@@ -237,7 +237,7 @@ export default function VirtualMirrorV2() {
     swapSlot === "bottoms" && swappingGarmentId
       ? bottoms.filter((g) => g.id !== swappingGarmentId)
       : bottoms;
-  const pagedBottoms = filteredBottoms.slice(
+  const _pagedBottoms = filteredBottoms.slice(
     bottomsPage * bottomsPageSize,
     (bottomsPage + 1) * bottomsPageSize,
   );
@@ -249,7 +249,7 @@ export default function VirtualMirrorV2() {
     swapSlot === "bags" && swappingGarmentId
       ? bags.filter((g) => g.id !== swappingGarmentId)
       : bags;
-  const pagedBags = filteredBags.slice(
+  const _pagedBags = filteredBags.slice(
     bagsPage * accessoryPageSize,
     (bagsPage + 1) * accessoryPageSize,
   );
@@ -554,78 +554,78 @@ export default function VirtualMirrorV2() {
     [weather, skinAnalysisResult, handleAiComplete],
   );
 
-  const fashionPageContext = useMemo(
-    () => ({
-      route: "/ai-recommendation-fashion",
-      pageName: "Fashion Recommendations",
-      mode: "garment" as const,
-    }),
-    [],
-  );
+  // const fashionPageContext = useMemo(
+  //   () => ({
+  //     route: "/ai-recommendation-fashion",
+  //     pageName: "Fashion Recommendations",
+  //     mode: "garment" as const,
+  //   }),
+  //   [],
+  // );
 
-  const handleVoiceAction = useCallback(
-    (action: ChatWonderAction) => {
-      if (action.type === "fashion_select_outfit") {
-        const idx = action.index;
-        if (idx < 0 || idx >= outfits.length) return;
-        setOutfitPage(Math.floor(idx / outfitPageSize));
-        selectOutfit(idx);
-        return;
-      }
-      if (action.type === "fashion_select_garment") {
-        const { slot, index } = action;
-        type SlotEntry = {
-          arr: RemoteGarment[];
-          set: (g: RemoteGarment) => void;
-        };
-        const slotMap: Record<typeof slot, SlotEntry> = {
-          base: { arr: pagedTopsBase, set: setSelectedTopBase },
-          mid: { arr: pagedTopsMid, set: setSelectedTopMid },
-          outer: { arr: pagedTopsOuter, set: setSelectedTopOuter },
-          bottoms: { arr: pagedBottoms, set: setSelectedBottom },
-          shoes: { arr: pagedShoes, set: setSelectedShoe },
-          bags: { arr: pagedBags, set: setSelectedBag },
-        };
-        const target = slotMap[slot];
-        const garment = target.arr[index];
-        if (!garment) return;
-        if (swapSlot === slot && swapItemId) {
-          const id = swapItemId;
-          setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
-          setSwapSlot(null);
-          setSwapItemId(null);
-        } else {
-          target.set(garment);
-          setSelectedOutfitIdx(null);
-        }
-      }
-    },
-    [
-      outfits,
-      outfitPageSize,
-      selectOutfit,
-      pagedTopsBase,
-      pagedTopsMid,
-      pagedTopsOuter,
-      pagedBottoms,
-      pagedShoes,
-      pagedBags,
-      swapSlot,
-      swapItemId,
-      setSelectedTopBase,
-      setSelectedTopMid,
-      setSelectedTopOuter,
-      setSelectedBottom,
-      setSelectedShoe,
-      setSelectedBag,
-      setSelectedOutfitIdx,
-      setOutfitOverrides,
-      setSwapSlot,
-      setSwapItemId,
-    ],
-  );
+  // const handleVoiceAction = useCallback(
+  //   (action: ChatWonderAction) => {
+  //     if (action.type === "fashion_select_outfit") {
+  //       const idx = action.index;
+  //       if (idx < 0 || idx >= outfits.length) return;
+  //       setOutfitPage(Math.floor(idx / outfitPageSize));
+  //       selectOutfit(idx);
+  //       return;
+  //     }
+  //     if (action.type === "fashion_select_garment") {
+  //       const { slot, index } = action;
+  //       type SlotEntry = {
+  //         arr: RemoteGarment[];
+  //         set: (g: RemoteGarment) => void;
+  //       };
+  //       const slotMap: Record<typeof slot, SlotEntry> = {
+  //         base: { arr: pagedTopsBase, set: setSelectedTopBase },
+  //         mid: { arr: pagedTopsMid, set: setSelectedTopMid },
+  //         outer: { arr: pagedTopsOuter, set: setSelectedTopOuter },
+  //         bottoms: { arr: pagedBottoms, set: setSelectedBottom },
+  //         shoes: { arr: pagedShoes, set: setSelectedShoe },
+  //         bags: { arr: pagedBags, set: setSelectedBag },
+  //       };
+  //       const target = slotMap[slot];
+  //       const garment = target.arr[index];
+  //       if (!garment) return;
+  //       if (swapSlot === slot && swapItemId) {
+  //         const id = swapItemId;
+  //         setOutfitOverrides((prev) => ({ ...prev, [id]: garment }));
+  //         setSwapSlot(null);
+  //         setSwapItemId(null);
+  //       } else {
+  //         target.set(garment);
+  //         setSelectedOutfitIdx(null);
+  //       }
+  //     }
+  //   },
+  //   [
+  //     outfits,
+  //     outfitPageSize,
+  //     selectOutfit,
+  //     pagedTopsBase,
+  //     pagedTopsMid,
+  //     pagedTopsOuter,
+  //     pagedBottoms,
+  //     pagedShoes,
+  //     pagedBags,
+  //     swapSlot,
+  //     swapItemId,
+  //     setSelectedTopBase,
+  //     setSelectedTopMid,
+  //     setSelectedTopOuter,
+  //     setSelectedBottom,
+  //     setSelectedShoe,
+  //     setSelectedBag,
+  //     setSelectedOutfitIdx,
+  //     setOutfitOverrides,
+  //     setSwapSlot,
+  //     setSwapItemId,
+  //   ],
+  // );
 
-  useVoice(fashionPageContext, handleVoiceAction);
+  // useVoice(fashionPageContext, handleVoiceAction);
 
   // Re-fetch whenever URL params change — covers both initial mount and
   // chip-tap navigation (?metaCategory=Casual&limit=4 etc.).
@@ -652,40 +652,40 @@ export default function VirtualMirrorV2() {
   }, [currentSearch]);
 
   // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
-  const handoffFiredRef = useRef(false);
-  useEffect(() => {
-    if (handoffFiredRef.current) return;
-    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
-    if (!prompt) return;
-    handoffFiredRef.current = true;
-    sessionStorage.removeItem(FASHION_PROMPT_KEY);
-    void submitText(prompt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // const handoffFiredRef = useRef(false);
+  // useEffect(() => {
+  //   if (handoffFiredRef.current) return;
+  //   const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+  //   if (!prompt) return;
+  //   handoffFiredRef.current = true;
+  //   sessionStorage.removeItem(FASHION_PROMPT_KEY);
+  //   void submitText(prompt);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   // Consume garment data forwarded from another page (VoiceProvider stores it
   // via setPendingGarmentData right before the stylist navigation pushes here).
-  useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-    setTimeout(() => {
-      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // useEffect(() => {
+  //   const pending = useMirrorStore.getState().pendingGarmentData;
+  //   if (!pending) return;
+  //   useMirrorStore.getState().setPendingGarmentData(null);
+  //   setTimeout(() => {
+  //     handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
+  //   }, 0);
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   // Consume garment data from the chat/voice path when already on this page
   // (VoiceProvider/ChatWonderProvider set chatGarmentData instead of navigating).
-  useEffect(() => {
-    if (!chatGarmentData) return;
-    useMirrorStore.getState().setChatGarmentData(null);
-    Promise.resolve().then(() =>
-      handleAiComplete({
-        garment_data: chatGarmentData,
-      } as ChatWonderMessageResponse),
-    );
-  }, [chatGarmentData, handleAiComplete]);
+  // useEffect(() => {
+  //   if (!chatGarmentData) return;
+  //   useMirrorStore.getState().setChatGarmentData(null);
+  //   Promise.resolve().then(() =>
+  //     handleAiComplete({
+  //       garment_data: chatGarmentData,
+  //     } as ChatWonderMessageResponse),
+  //   );
+  // }, [chatGarmentData, handleAiComplete]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).

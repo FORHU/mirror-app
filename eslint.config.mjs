@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "scripts/**",
     "public/**",
+    // Node.js build/screenshot scripts — CommonJS, not part of the Next.js app
+    "docs/**",
   ]),
   {
     rules: {
