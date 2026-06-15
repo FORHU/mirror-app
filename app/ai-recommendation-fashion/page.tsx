@@ -50,7 +50,6 @@ export default function VirtualMirrorV2() {
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
   const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
-  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
