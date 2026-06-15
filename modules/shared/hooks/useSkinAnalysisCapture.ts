@@ -35,6 +35,10 @@ export function useSkinAnalysisCapture() {
 
   useEffect(() => {
     if (!isPresent || firedRef.current) return;
+    if (existingResult) {
+      firedRef.current = true;
+      return;
+    }
 
     const dataUrl = captureFrame();
     if (!dataUrl) return;
@@ -48,11 +52,13 @@ export function useSkinAnalysisCapture() {
       try {
         const unsubscribe = await listenForSkinAnalysis({
           onComplete: (data) => {
+            console.log("[skin-analysis] ✅ done:", data);
             unsubscribe();
             setSkinAnalysisResult(data as SkinAnalysis);
             setAnalysisState("done");
           },
-          onError: () => {
+          onError: (message) => {
+            console.log("[skin-analysis] ❌ error:", message);
             unsubscribe();
             setAnalysisState("error");
           },
@@ -65,7 +71,7 @@ export function useSkinAnalysisCapture() {
         setAnalysisState("error");
       }
     })();
-  }, [isPresent, captureFrame, setSkinAnalysisResult, setSkinCaptureUrl]);
+  }, [isPresent, existingResult, captureFrame, setSkinAnalysisResult, setSkinCaptureUrl]);
 
   return { analysisState };
 }
