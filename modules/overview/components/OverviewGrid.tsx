@@ -365,7 +365,7 @@ function TileHeader({
   rightContent?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between pb-3 relative z-10 w-full">
+    <div className="flex flex-col pb-3 relative z-10 w-full gap-2">
       <div className="flex items-center gap-3 shrink-0">
         <div className="icon-box !w-10 !h-10 flex items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/10">
           <Icon className="w-5 h-5 text-white/90" strokeWidth={1.5} />
@@ -374,7 +374,7 @@ function TileHeader({
           {label}
         </span>
       </div>
-      {rightContent}
+      {rightContent && <div className="self-start">{rightContent}</div>}
     </div>
   );
 }
