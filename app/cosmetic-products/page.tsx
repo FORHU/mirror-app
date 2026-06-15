@@ -21,6 +21,9 @@ import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 const API_LIMIT = 100;
+// Auto-rotate the browse grid through each skin-type category (and its pages)
+// so a kiosk viewer sees the full catalogue without touching anything.
+const ROTATE_MS = 10_000;
 // Products shown per scroll page; the user pages explicitly past this cap.
 const PAGE_SIZE = 20;
 
@@ -244,6 +247,11 @@ export default function CosmeticProductsPage() {
     null,
   );
 
+  // Which skin-type category the browse grid currently shows. Advanced
+  // automatically by the rotation timer (see effect below).
+  const [displayedSkinType, setDisplayedSkinType] =
+    useState<SkinTypeKey>("OILY");
+
   // Camera gating: a real video device must exist (enumerateDevices), the
   // proximity sensor must not have failed, AND a face must currently be
   // present. Only then do we treat the camera as usable for live analysis.
@@ -298,9 +306,13 @@ export default function CosmeticProductsPage() {
     };
   }, [nextPage, isLoadingFirst]);
 
-  // The skin-type tabs are now action buttons (mock-evaluate triggers), not
-  // catalog filters, so the browse grid shows every loaded product.
-  const filtered = apiProducts;
+  // The tabs are action buttons (mock-evaluate triggers), not manual filters,
+  // but the browse grid still shows one category at a time and the rotation
+  // timer cycles through them so the viewer sees oily/dry/normal/sensitive picks.
+  const filtered = useMemo(
+    () => apiProducts.filter((p) => matchesSkinType(p, displayedSkinType)),
+    [apiProducts, displayedSkinType],
+  );
 
   // Detect whether the device actually has a camera (videoinput). Combined with
   // the proximity sensor status + presence to decide if live analysis is usable.
@@ -370,11 +382,35 @@ export default function CosmeticProductsPage() {
     setDisplayPage((p) => p + 1);
   }, [hasMore, isLoadingMore, isLoadingFirst, filtered.length, displayPage]);
 
-  // Reset both columns to the top whenever the page changes.
+  // Reset both columns to the top whenever the page or category changes.
   useEffect(() => {
     if (leftColRef.current) leftColRef.current.scrollTop = 0;
     if (rightColRef.current) rightColRef.current.scrollTop = 0;
-  }, [displayPage]);
+  }, [displayPage, displayedSkinType]);
+
+  // Auto-rotate the grid: page through the current category, then move to the
+  // next skin type and loop. Paused while a product is selected (so the viewer
+  // can read it) and until products have loaded. Any state change here re-arms
+  // the timer, so manual Prev/Next naturally resets the countdown too.
+  useEffect(() => {
+    if (selectedProductId || filtered.length === 0) return;
+    const timer = window.setTimeout(() => {
+      if (displayPage < totalLoadedPages) {
+        setDisplayPage((p) => p + 1);
+      } else {
+        const idx = SKIN_TYPES.indexOf(displayedSkinType);
+        setDisplayedSkinType(SKIN_TYPES[(idx + 1) % SKIN_TYPES.length]);
+        setDisplayPage(1);
+      }
+    }, ROTATE_MS);
+    return () => window.clearTimeout(timer);
+  }, [
+    displayPage,
+    displayedSkinType,
+    totalLoadedPages,
+    selectedProductId,
+    filtered.length,
+  ]);
 
   // Mirror one column's scroll position onto the other.
   const handleColumnScroll = useCallback((source: "left" | "right") => {
@@ -566,6 +602,8 @@ export default function CosmeticProductsPage() {
         >
           {SKIN_TYPES.map((key) => {
             const disabled = cameraDetected || isInitialLoading;
+            // Highlight the category the rotation timer is currently showing.
+            const active = displayedSkinType === key;
             return (
               <button
                 key={key}
@@ -573,12 +611,15 @@ export default function CosmeticProductsPage() {
                 onClick={() => handleSkinTypeClick(key)}
                 disabled={disabled}
                 aria-disabled={disabled}
+                aria-pressed={active}
                 className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   padding: "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
                   background: "transparent",
-                  border: "1.5px solid rgba(255,255,255,0.1)",
+                  border: active
+                    ? "1.5px solid rgba(255,255,255,0.5)"
+                    : "1.5px solid rgba(255,255,255,0.1)",
                   cursor: disabled ? "not-allowed" : "pointer",
                 }}
               >
@@ -586,7 +627,7 @@ export default function CosmeticProductsPage() {
                   className="font-semibold tracking-[0.18em] uppercase"
                   style={{
                     fontSize: "clamp(12px, 1.3vw, 19px)",
-                    color: "rgba(255,255,255,0.85)",
+                    color: active ? "#ffffff" : "rgba(255,255,255,0.85)",
                   }}
                 >
                   {SKIN_TYPE_FILTERS[key].label}
