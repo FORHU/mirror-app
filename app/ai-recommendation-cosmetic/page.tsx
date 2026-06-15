@@ -153,35 +153,6 @@ const PROMPT_SUGGESTIONS = [
   "How do I improve my skin texture and glow?",
 ];
 
-/** Collapsed AI suggestion banner: tap to expand into a scrollable panel.
- *  Mount with `key={text}` so a new suggestion always starts collapsed. */
-function ExpandableSuggestion({ text }: { text: string }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => setExpanded((v) => !v)}
-      className="w-full text-left tap-highlight-none focus:outline-none"
-    >
-      <p
-        className={`text-[14px] text-white/58 italic leading-relaxed font-light ${
-          expanded ? "max-h-[32vh] overflow-y-auto pr-2" : "line-clamp-4"
-        }`}
-        // The page root sets touchAction: "none"; re-enable vertical pan so the
-        // expanded text is touch-scrollable on the mirror.
-        style={expanded ? { touchAction: "pan-y" } : undefined}
-      >
-        &quot;{text}&quot;
-      </p>
-      {text.length > 240 && (
-        <span className="mt-1.5 block text-[10px] uppercase tracking-[0.2em] text-white/35">
-          {expanded ? "Tap to collapse" : "Tap to read more"}
-        </span>
-      )}
-    </button>
-  );
-}
-
 export default function CosmeticRecommendationPage() {
   const { weather } = useWeather();
   const router = useRouter();
@@ -206,7 +177,6 @@ export default function CosmeticRecommendationPage() {
   );
   const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
   const pendingCosmeticsData = useMirrorStore((s) => s.pendingCosmeticsData);
-  const aiSuggestion = useMirrorStore((s) => s.aiSuggestion);
   const chatCosmeticsData = useMirrorStore((s) => s.chatCosmeticsData);
   const handoffStartedRef = useRef(false);
   const evaluateStartedRef = useRef(false);
@@ -599,52 +569,6 @@ export default function CosmeticRecommendationPage() {
                     </p>
                   </div>
                 </div>
-              ) : !showQuotes && skinAnalysisResult ? (
-                <div className="px-8 py-4 transition-all duration-500">
-                  <h2 className="text-3xl font-light mb-2 text-white/88">
-                    Skin Profile
-                  </h2>
-
-                  <div className="space-y-6">
-                    <div>
-                      <div className="text-xs text-white/40 uppercase tracking-widest mb-1.5">
-                        Detected Type
-                      </div>
-                      <div className="text-2xl font-light text-white/90 capitalize">
-                        {skinAnalysisResult.skinType} Skin
-                      </div>
-                    </div>
-
-                    {skinAnalysisResult.concerns.length > 0 && (
-                      <div>
-                        <div className="text-xs text-white/40 uppercase tracking-widest mb-3">
-                          Key Concerns
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {skinAnalysisResult.concerns.map((c) => (
-                            <span
-                              key={c}
-                              className="px-2.5 py-1 text-white/55 text-xs uppercase font-medium tracking-wider"
-                            >
-                              {c}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {skinAnalysisResult.routineTip && (
-                      <div className="mt-8 pt-6">
-                        <div className="text-xs text-white/40 uppercase tracking-widest mb-3 font-semibold">
-                          AI Routine Tip
-                        </div>
-                        <p className="text-base text-white/60 leading-relaxed italic font-light">
-                          &quot;{skinAnalysisResult.routineTip}&quot;
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
               ) : (
                 <QuoteCarousel
                   quotes={COSMETIC_QUOTES}
@@ -654,12 +578,6 @@ export default function CosmeticRecommendationPage() {
                 />
               )}
             </div>
-
-            {aiSuggestion && (
-              <div className="mt-6 px-5 shrink-0 w-full">
-                <ExpandableSuggestion key={aiSuggestion} text={aiSuggestion} />
-              </div>
-            )}
           </div>
         </div>
 
