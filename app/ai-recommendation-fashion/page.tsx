@@ -50,11 +50,12 @@ export default function VirtualMirrorV2() {
   }, []);
 
   const storeGender = useOverviewStore((s) => s.pendingGender);
+  const storeCategory = useMirrorStore((s) => s.pendingCategory);
 
   const fashionQuery = useFashionQuery(
     activePrompt,
     weather as unknown as Record<string, unknown>,
-    null,
+    storeCategory === "ALL" ? null : storeCategory,
     storeGender,
     coords,
   );
