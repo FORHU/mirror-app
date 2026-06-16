@@ -72,7 +72,7 @@ async function fetchCosmeticsQuery(
   const payload = {
     input,
     pageMode: "cosmetics" as const,
-    set: 6,
+    set: 4,
     voice: false,
     ...(weather ? { weather } : {}),
     ...(skinAnalysis ? { skinAnalysis } : {}),
@@ -101,7 +101,7 @@ async function fetchCosmeticsQuery(
   // 2. Fetch products for the AI-provided query (recommendations come inline).
   if (cosmeticsQuery) {
     const cq = new URLSearchParams(cosmeticsQuery);
-    if (!cq.has("limit")) cq.set("limit", "6");
+    if (!cq.has("limit")) cq.set("limit", "4");
     const fetchedProducts = await cosmeticsService.getByQuery(cq.toString());
     return adaptCosmeticsData(fetchedProducts);
   }

@@ -431,7 +431,7 @@ function CosmeticsStrip({
     <div
       className={`relative z-10 ${standalone ? "flex flex-col h-full px-1" : "grid gap-5 grid-cols-3 overflow-hidden"}`}
     >
-      {items.slice(0, standalone ? 20 : 6).map((c) => (
+      {items.slice(0, standalone ? 4 : 6).map((c) => (
         <button
           key={c.id}
           onTouchEnd={(e) => {

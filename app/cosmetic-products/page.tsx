@@ -318,8 +318,7 @@ export default function CosmeticProductsPage() {
   // the proximity sensor status + presence to decide if live analysis is usable.
   useEffect(() => {
     let cancelled = false;
-    const md =
-      typeof navigator !== "undefined" ? navigator.mediaDevices : null;
+    const md = typeof navigator !== "undefined" ? navigator.mediaDevices : null;
     // hasVideoInput defaults to false, so no synchronous setState is needed
     // here — just bail when the API is unavailable.
     if (!md?.enumerateDevices) return;
@@ -556,7 +555,9 @@ export default function CosmeticProductsPage() {
         onError: (message) => {
           finish();
           setIsAnalyzing(false);
-          setAnalysisError(message || "Skin analysis failed — please try again.");
+          setAnalysisError(
+            message || "Skin analysis failed — please try again.",
+          );
         },
       });
 
@@ -566,7 +567,9 @@ export default function CosmeticProductsPage() {
       finish();
       setIsAnalyzing(false);
       setAnalysisError(
-        err instanceof Error ? err.message : "Skin analysis failed — please try again.",
+        err instanceof Error
+          ? err.message
+          : "Skin analysis failed — please try again.",
       );
     }
   }, [cameraDetected, isAnalyzing, captureFrame, router]);

@@ -116,7 +116,10 @@ export default function FashionCatalog() {
         const requestedParams = new URLSearchParams(baseQuery);
         const metaCategoryParam = requestedParams.get("metaCategory");
         const requestedCats = metaCategoryParam
-          ? metaCategoryParam.split(",").map((s) => s.trim()).filter(Boolean)
+          ? metaCategoryParam
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [];
         const strictOutfits =
           requestedCats.length === 0

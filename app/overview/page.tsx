@@ -104,6 +104,7 @@ export default function OverviewPage() {
       if (prompt.startsWith("__SILENT__:")) {
         finalPrompt = prompt.replace("__SILENT__:", "");
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePrompt(finalPrompt);
       setPendingPrompt(null);
       handoffFiredRef.current = true;

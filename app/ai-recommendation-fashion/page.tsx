@@ -326,7 +326,10 @@ export default function VirtualMirrorV2() {
           const requestedParams = new URLSearchParams(query);
           const metaCategoryParam = requestedParams.get("metaCategory");
           const requestedCats = metaCategoryParam
-            ? metaCategoryParam.split(",").map((s) => s.trim()).filter(Boolean)
+            ? metaCategoryParam
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
             : [];
           const strictOutfits =
             requestedCats.length === 0
