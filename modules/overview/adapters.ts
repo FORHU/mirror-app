@@ -41,7 +41,7 @@ export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
   // New format: { query, reason } — outfits fetched by the consumer, nothing to adapt here
   if (data && typeof data.query === "string")
     return { garments: [], outfits: [] };
-  const sets = data && Array.isArray(data.sets) ? data.sets : [];
+  const sets = (data && Array.isArray(data.sets) ? data.sets : data && Array.isArray(data.fsets) ? data.fsets : []);
 
   const garments: GarmentTileItem[] = [];
   const outfits: OutfitTileItem[] = [];
@@ -182,8 +182,9 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
     processRecs(raw);
   } else if (data && Array.isArray(data.recommendations)) {
     processRecs(data.recommendations);
-  } else if (data && Array.isArray(data.sets)) {
-    for (const rawSet of data.sets) {
+  } else if (data && (Array.isArray(data.sets) || Array.isArray(data.csets))) {
+    const setsArray = Array.isArray(data.sets) ? data.sets : data.csets;
+    for (const rawSet of (setsArray as unknown[])) {
       const set = asRecord(rawSet);
       if (set && Array.isArray(set.recommendations)) {
         processRecs(set.recommendations);
