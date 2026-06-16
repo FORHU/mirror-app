@@ -35,7 +35,8 @@ const SCENARIOS = [
     title: "Style me for today",
     description: "Daily outfit and skincare routine",
     icon: "🌤️",
-    metaCategory: "Casual",
+    metaCategory:
+      "Casual,Streetwear,Athleisure,Vintage,Minimalist,AvantGarde,Traditional,Cultural",
     gradient: "from-blue-500/20 to-cyan-500/5",
     border: "border-blue-500/20",
     prompts: [
@@ -49,7 +50,7 @@ const SCENARIOS = [
     title: "Special Event",
     description: "Plan my full look and prep",
     icon: "🥂",
-    metaCategory: "Formal",
+    metaCategory: "Formal,Business,Luxury,Uniform,SmartCasual",
     gradient: "from-purple-500/20 to-pink-500/5",
     border: "border-purple-500/20",
     prompts: [
@@ -63,7 +64,8 @@ const SCENARIOS = [
     title: "Casual & Comfy",
     description: "Relaxed weekend look",
     icon: "🛋️",
-    metaCategory: "Athleisure",
+    metaCategory:
+      "Casual,Streetwear,Athleisure,Vintage,Minimalist,AvantGarde,Traditional,Cultural",
     gradient: "from-emerald-500/20 to-teal-500/5",
     border: "border-emerald-500/20",
     prompts: [
@@ -77,7 +79,7 @@ const SCENARIOS = [
     title: "Office Ready",
     description: "Professional workwear",
     icon: "💼",
-    metaCategory: "SmartCasual",
+    metaCategory: "Formal,Business,Luxury,Uniform,SmartCasual",
     gradient: "from-amber-500/20 to-orange-500/5",
     border: "border-amber-500/20",
     prompts: [
