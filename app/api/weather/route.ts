@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 type Coords = { lat: number; lon: number };
 
-
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
   const token =
     process.env.MAPBOX_TOKEN ?? process.env.NEXT_PUBLIC_MAPBOX_TOKEN;

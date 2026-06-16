@@ -27,7 +27,7 @@ import {
 import { outlineService } from "@/modules/shared/api/outline.service";
 import MirrorHeader from "@/components/MirrorHeader";
 import { useWeather } from "@/modules/shared/hooks/useWeather";
-import { useOutfitsQuery, useCosmeticsQuery } from "./queries";
+import { useOverviewDataQuery } from "./queries";
 
 export default function OverviewPage() {
   // ── store actions (stable refs) ──
@@ -104,6 +104,7 @@ export default function OverviewPage() {
       if (prompt.startsWith("__SILENT__:")) {
         finalPrompt = prompt.replace("__SILENT__:", "");
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePrompt(finalPrompt);
       setPendingPrompt(null);
       handoffFiredRef.current = true;
@@ -113,46 +114,45 @@ export default function OverviewPage() {
   }, [pendingPrompt, setPendingPrompt, setGreeting]);
 
   // ── React Query Fetching ──
-  const outfitsQuery = useOutfitsQuery(
+  const overviewQuery = useOverviewDataQuery(
     activePrompt,
     weather as unknown as Record<string, unknown>,
     category,
     gender,
-    coords,
-  );
-  const cosmeticsQuery = useCosmeticsQuery(
-    activePrompt,
-    weather as unknown as Record<string, unknown>,
     skinAnalysisResult,
     coords,
   );
 
-  const isLoading =
-    hydrating || outfitsQuery.isFetching || cosmeticsQuery.isFetching;
+  const isLoading = hydrating || overviewQuery.isFetching;
 
   // Sync back to store for global snapshots
   useEffect(() => {
-    if (outfitsQuery.data) {
-      useMirrorStore.getState().setOverviewFashionSnapshot(outfitsQuery.data);
+    if (overviewQuery.data?.outfits) {
+      useMirrorStore
+        .getState()
+        .setOverviewFashionSnapshot(overviewQuery.data.outfits);
     }
-  }, [outfitsQuery.data]);
+  }, [overviewQuery.data?.outfits]);
 
   useEffect(() => {
     // Only overwrite the persisted snapshot with a non-empty result — an empty
     // array is truthy and would otherwise wipe a good snapshot for good.
-    if (cosmeticsQuery.data?.length) {
+    if (overviewQuery.data?.cosmetics?.length) {
       useMirrorStore
         .getState()
-        .setOverviewCosmeticsSnapshot(cosmeticsQuery.data);
+        .setOverviewCosmeticsSnapshot(overviewQuery.data.cosmetics);
     }
-  }, [cosmeticsQuery.data]);
+  }, [overviewQuery.data?.cosmetics]);
 
   // ── redirect to AI Assistant when there's nothing to show ──
   useEffect(() => {
     if (hydrating) return;
     if (activePrompt) return;
-    if (outfitsQuery.isFetching || cosmeticsQuery.isFetching) return;
-    if (outfitsQuery.data?.outfits?.length || cosmeticsQuery.data?.length)
+    if (overviewQuery.isFetching) return;
+    if (
+      overviewQuery.data?.outfits?.outfits?.length ||
+      overviewQuery.data?.cosmetics?.length
+    )
       return;
     if (
       overviewFashionSnapshot?.outfits?.length ||
@@ -165,10 +165,8 @@ export default function OverviewPage() {
     hydrating,
     router,
     activePrompt,
-    outfitsQuery.isFetching,
-    cosmeticsQuery.isFetching,
-    outfitsQuery.data,
-    cosmeticsQuery.data,
+    overviewQuery.isFetching,
+    overviewQuery.data,
     overviewFashionSnapshot,
     overviewCosmeticsSnapshot,
   ]);
@@ -176,50 +174,52 @@ export default function OverviewPage() {
   // Create query-based state for OverviewGrid props
   // Use React Query data if we fetched it, otherwise fall back to the snapshot (for direct navigation without a new prompt)
   const outfitsState = useMemo(() => {
-    const data = outfitsQuery.data ||
+    const data = overviewQuery.data?.outfits ||
       overviewFashionSnapshot || { garments: [], outfits: [] };
     const hasData = data.outfits.length > 0 || data.garments.length > 0;
     return {
-      status: outfitsQuery.isFetching
+      status: overviewQuery.isFetching
         ? "loading"
-        : outfitsQuery.isError
+        : overviewQuery.isError
           ? "error"
           : hasData
             ? "ready"
             : "idle",
       data,
-      error: outfitsQuery.error?.message ?? null,
+      error: overviewQuery.error?.message ?? null,
     } as const;
   }, [
-    outfitsQuery.isFetching,
-    outfitsQuery.isError,
-    outfitsQuery.error,
-    outfitsQuery.data,
+    overviewQuery.isFetching,
+    overviewQuery.isError,
+    overviewQuery.error,
+    overviewQuery.data,
     overviewFashionSnapshot,
   ]);
 
   const cosmeticsState = useMemo(() => {
     const data =
-      (cosmeticsQuery.data?.length ? cosmeticsQuery.data : null) ||
+      (overviewQuery.data?.cosmetics?.length
+        ? overviewQuery.data.cosmetics
+        : null) ||
       overviewCosmeticsSnapshot ||
       [];
     const hasData = data.length > 0;
     return {
-      status: cosmeticsQuery.isFetching
+      status: overviewQuery.isFetching
         ? "loading"
-        : cosmeticsQuery.isError
+        : overviewQuery.isError
           ? "error"
           : hasData
             ? "ready"
             : "idle",
       data,
-      error: cosmeticsQuery.error?.message ?? null,
+      error: overviewQuery.error?.message ?? null,
     } as const;
   }, [
-    cosmeticsQuery.isFetching,
-    cosmeticsQuery.isError,
-    cosmeticsQuery.error,
-    cosmeticsQuery.data,
+    overviewQuery.isFetching,
+    overviewQuery.isError,
+    overviewQuery.error,
+    overviewQuery.data,
     overviewCosmeticsSnapshot,
   ]);
 

@@ -60,8 +60,7 @@ export function GarmentSelectionPanel({
         flex: isOpen ? "0 0 25%" : "0 0 56px",
         width: isOpen ? "25%" : "56px",
         padding: isOpen ? "8px 8px 8px 4px" : "0 6px",
-        borderLeft: "1px solid rgba(255,255,255,0.08)",
-        background: isOpen ? "rgba(7,7,12,0.28)" : "rgba(7,7,12,0.18)",
+        background: "transparent",
       }}
     >
       {isOpen ? (

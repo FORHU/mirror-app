@@ -323,6 +323,11 @@ export default function CosmeticRecommendationPage() {
         return data.sets.flatMap(
           (s: { recommendations?: unknown[] }) => s.recommendations || [],
         );
+      const cdata = data as { csets?: Array<{ recommendations?: unknown[] }> };
+      if (Array.isArray(cdata.csets))
+        return cdata.csets.flatMap(
+          (s: { recommendations?: unknown[] }) => s.recommendations || [],
+        );
     }
     return skinAnalysisResult?.recommendations || [];
   }, [isHandoffLoading, pendingCosmeticsData, skinAnalysisResult]);
@@ -412,7 +417,7 @@ export default function CosmeticRecommendationPage() {
           voice: false,
           skinAnalysis: skinAnalysisResult,
           sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
-          set: 6,
+          csets: 6,
         });
         if (response.message) {
           useMirrorStore.getState().setAiSuggestion(response.message);

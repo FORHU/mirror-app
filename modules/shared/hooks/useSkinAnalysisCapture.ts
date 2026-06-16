@@ -71,7 +71,13 @@ export function useSkinAnalysisCapture() {
         setAnalysisState("error");
       }
     })();
-  }, [isPresent, existingResult, captureFrame, setSkinAnalysisResult, setSkinCaptureUrl]);
+  }, [
+    isPresent,
+    existingResult,
+    captureFrame,
+    setSkinAnalysisResult,
+    setSkinCaptureUrl,
+  ]);
 
   return { analysisState };
 }

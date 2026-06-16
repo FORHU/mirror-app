@@ -134,10 +134,10 @@ const MOCK_PROFILES: SkinAnalysis[] = [
 export default function AIAssistantPage() {
   const router = useRouter();
   const isPresent = useMirrorStore((s) => s.isPresent);
+  const showIdle = useMirrorStore((s) => s.assistantIdle);
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
   const updateUser = useAuthStore((s) => s.updateUser);
 
-  const [showIdle, setShowIdle] = useState(true);
   const [taglineIndex, setTaglineIndex] = useState(0);
   const [activeGender, setActiveGender] = useState<"MALE" | "FEMALE" | null>(
     null,
@@ -146,11 +146,10 @@ export default function AIAssistantPage() {
     (typeof SCENARIOS)[number] | null
   >(null);
 
-  // Tell the shared layout we're idle so it can hide global elements if needed
+  // Tell the shared layout we're no longer idle when we leave the page
   useEffect(() => {
-    setAssistantIdle(showIdle);
     return () => setAssistantIdle(false);
-  }, [showIdle, setAssistantIdle]);
+  }, [setAssistantIdle]);
 
   // Dev console helper: call window.__resetSession() to restart ChatWonder manually
   useEffect(() => {
@@ -179,13 +178,12 @@ export default function AIAssistantPage() {
   }, [showIdle]);
 
   const handleWake = useCallback(() => {
-    if (showIdle) setShowIdle(false);
-  }, [showIdle]);
+    if (showIdle) setAssistantIdle(false);
+  }, [showIdle, setAssistantIdle]);
 
-  // Auto-wake when the proximity sensor detects someone stepping up
   useEffect(() => {
-    if (isPresent && showIdle) queueMicrotask(() => setShowIdle(false));
-  }, [isPresent, showIdle]);
+    if (isPresent && showIdle) queueMicrotask(() => setAssistantIdle(false));
+  }, [isPresent, showIdle, setAssistantIdle]);
 
   const runScenario = useCallback(
     (
