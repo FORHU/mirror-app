@@ -525,7 +525,6 @@ function Tile({
         .filter(Boolean)
         .join(" ")}
     >
-
       <TileHeader icon={icon} label={label} rightContent={rightContent} />
       <div className="flex-1 min-h-0 flex flex-col relative z-10">
         {state.status === "loading" ? (

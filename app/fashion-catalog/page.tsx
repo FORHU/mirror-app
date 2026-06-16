@@ -39,7 +39,6 @@ const CATEGORY_MAP: Record<string, string[]> = {
   ],
   Casual: [
     "Casual",
-    "SmartCasual",
     "Streetwear",
     "Athleisure",
     "Vintage",
@@ -48,7 +47,7 @@ const CATEGORY_MAP: Record<string, string[]> = {
     "Traditional",
     "Cultural",
   ],
-  Formal: ["Formal", "Business", "Luxury", "Uniform"],
+  Formal: ["Formal", "Business", "Luxury", "Uniform", "SmartCasual"],
 };
 
 const PAGE_SIZE = 20;
@@ -571,8 +570,9 @@ export default function FashionCatalog() {
               disabled={isUpdatingGender}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white transition-opacity"
               style={{
-                background: "rgba(255,255,255,0.15)",
-                border: "1px solid rgba(255,255,255,0.3)",
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                backdropFilter: "blur(12px)",
                 opacity: isUpdatingGender ? 0.4 : 1,
                 cursor: isUpdatingGender ? "not-allowed" : "pointer",
               }}
