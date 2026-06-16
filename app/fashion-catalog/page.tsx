@@ -39,6 +39,7 @@ const CATEGORY_MAP: Record<string, string[]> = {
   ],
   Casual: [
     "Casual",
+    "SmartCasual",
     "Streetwear",
     "Athleisure",
     "Vintage",
@@ -47,7 +48,7 @@ const CATEGORY_MAP: Record<string, string[]> = {
     "Traditional",
     "Cultural",
   ],
-  Formal: ["Formal", "Business", "SmartCasual", "Luxury", "Uniform"],
+  Formal: ["Formal", "Business", "Luxury", "Uniform"],
 };
 
 const PAGE_SIZE = 20;
@@ -109,43 +110,7 @@ export default function FashionCatalog() {
           buildQuery(baseQuery, pageNum),
         );
 
-        // Category filter based on linked garment categories.
-        // Outfits have no reliable category tag of their own; their garments do.
-        // An outfit passes if the majority of garment category values fall within
-        // the requested category list.
-        const requestedParams = new URLSearchParams(baseQuery);
-        const metaCategoryParam = requestedParams.get("metaCategory");
-        const requestedCats = metaCategoryParam
-          ? metaCategoryParam
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
-        const strictOutfits =
-          requestedCats.length === 0
-            ? fetched
-            : fetched.filter((outfit) => {
-                const allCats: string[] = [];
-                for (const item of outfit.items) {
-                  const g = item.garment as typeof item.garment & {
-                    category?: string | string[];
-                  };
-                  const raw = g.category;
-                  if (Array.isArray(raw)) {
-                    allCats.push(
-                      ...(raw as unknown[]).filter(
-                        (c): c is string => typeof c === "string",
-                      ),
-                    );
-                  } else if (typeof raw === "string" && raw) {
-                    allCats.push(raw);
-                  }
-                }
-                if (allCats.length === 0) return true;
-                return allCats.some((c) => requestedCats.includes(c));
-              });
-
-        setOutfits(strictOutfits);
+        setOutfits(fetched);
         setSelectedOutfitIdx(null);
       } catch (err) {
         console.error("[fashion-catalog]", err);

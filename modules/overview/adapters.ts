@@ -41,7 +41,12 @@ export function adaptGarmentData(raw: unknown): GarmentAdaptResult {
   // New format: { query, reason } — outfits fetched by the consumer, nothing to adapt here
   if (data && typeof data.query === "string")
     return { garments: [], outfits: [] };
-  const sets = (data && Array.isArray(data.sets) ? data.sets : data && Array.isArray(data.fsets) ? data.fsets : []);
+  const sets =
+    data && Array.isArray(data.sets)
+      ? data.sets
+      : data && Array.isArray(data.fsets)
+        ? data.fsets
+        : [];
 
   const garments: GarmentTileItem[] = [];
   const outfits: OutfitTileItem[] = [];
@@ -184,7 +189,7 @@ export function adaptCosmeticsData(raw: unknown): CosmeticTileItem[] {
     processRecs(data.recommendations);
   } else if (data && (Array.isArray(data.sets) || Array.isArray(data.csets))) {
     const setsArray = Array.isArray(data.sets) ? data.sets : data.csets;
-    for (const rawSet of (setsArray as unknown[])) {
+    for (const rawSet of setsArray as unknown[]) {
       const set = asRecord(rawSet);
       if (set && Array.isArray(set.recommendations)) {
         processRecs(set.recommendations);
@@ -265,13 +270,13 @@ export function adaptRemoteOutfitsToTiles(raw: unknown): GarmentAdaptResult {
     if (!outfitImage && !outfitGarments.length) continue;
     const meta = asRecord(outfit.metaData);
     const metaTags = Array.isArray(meta?.tags)
-      ? (meta.tags as unknown[]).map(str).filter(Boolean)
+      ? (meta?.tags as unknown[]).map(str).filter(Boolean)
       : [];
     const garmentType = Array.isArray(meta?.garmentType)
-      ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+      ? (meta?.garmentType as unknown[]).map(str).filter(Boolean)
       : [];
     const category = Array.isArray(meta?.category)
-      ? (meta.category as unknown[]).map(str).filter(Boolean)
+      ? (meta?.category as unknown[]).map(str).filter(Boolean)
       : [];
     outfits.push({
       id: outfitId,
@@ -480,13 +485,13 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
     seenOutfit.add(outfitId);
     const meta = asRecord(outfit.metaData);
     const metaTags = Array.isArray(meta?.tags)
-      ? (meta.tags as unknown[]).map(str).filter(Boolean)
+      ? (meta?.tags as unknown[]).map(str).filter(Boolean)
       : [];
     const garmentType = Array.isArray(meta?.garmentType)
-      ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+      ? (meta?.garmentType as unknown[]).map(str).filter(Boolean)
       : [];
     const category = Array.isArray(meta?.category)
-      ? (meta.category as unknown[]).map(str).filter(Boolean)
+      ? (meta?.category as unknown[]).map(str).filter(Boolean)
       : [];
     outfits.push({
       id: outfitId,
@@ -557,13 +562,13 @@ export function adaptOutlineToTiles(raw: unknown): OutlineTiles {
       seenOutfit.add(outfitId);
       const meta = asRecord(outfit.metaData);
       const metaTags = Array.isArray(meta?.tags)
-        ? (meta.tags as unknown[]).map(str).filter(Boolean)
+        ? (meta?.tags as unknown[]).map(str).filter(Boolean)
         : [];
       const garmentType = Array.isArray(meta?.garmentType)
-        ? (meta.garmentType as unknown[]).map(str).filter(Boolean)
+        ? (meta?.garmentType as unknown[]).map(str).filter(Boolean)
         : [];
       const category = Array.isArray(meta?.category)
-        ? (meta.category as unknown[]).map(str).filter(Boolean)
+        ? (meta?.category as unknown[]).map(str).filter(Boolean)
         : [];
       outfits.push({
         id: outfitId,
