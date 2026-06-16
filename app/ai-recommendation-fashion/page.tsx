@@ -443,7 +443,9 @@ export default function VirtualMirrorV2() {
 
       const sets = Array.isArray(rawData?.sets)
         ? (rawData?.sets as Record<string, unknown>[])
-        : [];
+        : Array.isArray(rawData?.fsets)
+          ? (rawData?.fsets as Record<string, unknown>[])
+          : [];
       const newTopsBase: RemoteGarment[] = [];
       const newTopsMid: RemoteGarment[] = [];
       const newTopsOuter: RemoteGarment[] = [];
@@ -582,7 +584,7 @@ export default function VirtualMirrorV2() {
         const response = await chatWonderService.message({
           input: `[stylist] ${prompt}`,
           pageMode: "garment",
-          set: 6,
+          fsets: 6,
           voice: false,
           ...(weather
             ? { weather: weather as unknown as Record<string, unknown> }

@@ -29,8 +29,10 @@ export interface ChatWonderMessageRequest {
   pageMode?: "garment" | "cosmetics" | "map" | "overview" | null;
   /** Fashion category filter forwarded from the catalog page (e.g. "metaCategory=Winterwear,Summerwear" or "ALL"). */
   category?: string;
-  /** Number of cosmetic product IDs to return. */
-  set?: number;
+  /** Number of fashion sets to return. */
+  fsets?: number;
+  /** Number of cosmetic sets/products to return. */
+  csets?: number;
   gender?: string | null;
 }
 
@@ -262,7 +264,8 @@ async function sendMessageOnce(
   if (request.skinAnalysis) body.skin_analysis = request.skinAnalysis;
   if (request.pageMode) body.page_mode = request.pageMode;
   if (request.category) body.category = request.category;
-  if (request.set !== undefined) body.set = request.set;
+  if (request.fsets !== undefined) body.fsets = request.fsets;
+  if (request.csets !== undefined) body.csets = request.csets;
   if (request.gender) body.gender = request.gender;
   body.sitemap_context = request.sitemapContext ?? SITEMAP_CONTEXT;
 

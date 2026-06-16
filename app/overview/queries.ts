@@ -11,133 +11,116 @@ import {
   adaptCosmeticsData,
 } from "@/modules/overview";
 
-async function fetchOutfitsQuery(
+async function fetchOverviewData(
   input: string,
   weather?: Record<string, unknown> | null,
   category?: string | null,
   gender?: string | null,
+  skinAnalysis?: SkinAnalysis | null,
   coords?: { lat: number; lon: number } | null,
 ) {
   // 1. Fetch from ChatWonder
   const payload = {
     input,
-    pageMode: "garment" as const,
-    set: 4,
+    pageMode: "overview" as const,
+    fsets: 4,
+    csets: 4,
     voice: false,
     ...(weather ? { weather } : {}),
     ...(category ? { category } : {}),
     ...(gender ? { gender } : {}),
+    ...(skinAnalysis ? { skinAnalysis } : {}),
     ...(coords ? { location: { lat: coords.lat, lng: coords.lon } } : {}),
   };
 
-  let garmentResponse;
+  let response;
   try {
-    garmentResponse = await chatWonderService.message(payload);
+    response = await chatWonderService.message(payload);
   } catch (err) {
     if (err instanceof Error && err.message.includes("HTTP 409")) {
       await chatWonderService.restart();
-      garmentResponse = await chatWonderService.message(payload);
+      response = await chatWonderService.message(payload);
     } else {
       throw err;
     }
   }
 
-  const rawGarmentData = garmentResponse.garment_data as Record<
+  const rawGarmentData = response.garment_data as Record<
     string,
     unknown
   > | null;
   const garmentQuery =
     typeof rawGarmentData?.query === "string" ? rawGarmentData.query : null;
 
-  // 2. Fetch specific items
-  if (garmentQuery) {
-    let q = garmentQuery.replace(/limit=\d+/, "limit=4");
-    if (!q.includes("limit=")) q += "&limit=20";
-
-    const fetchedOutfits = await outfitService.getByQuery(q);
-    const shuffled = fetchedOutfits.sort(() => 0.5 - Math.random()).slice(0, 4);
-    return adaptRemoteOutfitsToTiles(shuffled);
-  }
-
-  return adaptGarmentData(garmentResponse.garment_data);
-}
-
-async function fetchCosmeticsQuery(
-  input: string,
-  weather?: Record<string, unknown> | null,
-  skinAnalysis?: SkinAnalysis | null,
-  coords?: { lat: number; lon: number } | null,
-) {
-  // 1. Fetch from ChatWonder
-  const payload = {
-    input,
-    pageMode: "cosmetics" as const,
-    set: 4,
-    voice: false,
-    ...(weather ? { weather } : {}),
-    ...(skinAnalysis ? { skinAnalysis } : {}),
-    ...(coords ? { location: { lat: coords.lat, lng: coords.lon } } : {}),
-  };
-
-  let cosmeticsResponse;
-  try {
-    cosmeticsResponse = await chatWonderService.message(payload);
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("HTTP 409")) {
-      await chatWonderService.restart();
-      cosmeticsResponse = await chatWonderService.message(payload);
-    } else {
-      throw err;
-    }
-  }
-
-  const rawCosmeticsData = cosmeticsResponse.cosmetics_data as Record<
+  const rawCosmeticsData = response.cosmetics_data as Record<
     string,
     unknown
   > | null;
   const cosmeticsQuery =
     typeof rawCosmeticsData?.query === "string" ? rawCosmeticsData.query : null;
 
-  // 2. Fetch products for the AI-provided query (recommendations come inline).
-  if (cosmeticsQuery) {
-    const cq = new URLSearchParams(cosmeticsQuery);
-    if (!cq.has("limit")) cq.set("limit", "4");
-    const fetchedProducts = await cosmeticsService.getByQuery(cq.toString());
-    return adaptCosmeticsData(fetchedProducts);
-  }
+  // 2. Fetch specific items in parallel if AI provided DB queries
+  const fetchPromises = [
+    (async () => {
+      if (garmentQuery) {
+        let q = garmentQuery.replace(/limit=\d+/, "limit=4");
+        if (!q.includes("limit=")) q += "&limit=20";
+        const fetchedOutfits = await outfitService.getByQuery(q);
+        const shuffled = fetchedOutfits
+          .sort(() => 0.5 - Math.random())
+          .slice(0, 4);
+        return adaptRemoteOutfitsToTiles(shuffled);
+      }
+      return adaptGarmentData(response.garment_data);
+    })(),
+    (async () => {
+      if (cosmeticsQuery) {
+        const cq = new URLSearchParams(cosmeticsQuery);
+        if (!cq.has("limit")) cq.set("limit", "4");
+        const fetchedProducts = await cosmeticsService.getByQuery(
+          cq.toString(),
+        );
+        return adaptCosmeticsData(fetchedProducts);
+      }
+      return adaptCosmeticsData(response.cosmetics_data);
+    })(),
+  ];
 
-  return adaptCosmeticsData(cosmeticsResponse.cosmetics_data);
+  const [outfits, cosmetics] = await Promise.all([
+    fetchPromises[0] as Promise<ReturnType<typeof adaptGarmentData>>,
+    fetchPromises[1] as Promise<ReturnType<typeof adaptCosmeticsData>>,
+  ]);
+
+  return { outfits, cosmetics };
 }
 
-export function useOutfitsQuery(
+export function useOverviewDataQuery(
   prompt: string | null,
   weather?: Record<string, unknown> | null,
   category?: string | null,
   gender?: string | null,
-  coords?: { lat: number; lon: number } | null,
-) {
-  return useQuery({
-    queryKey: ["chatWonder", "outfits", prompt, category, gender],
-    queryFn: () => {
-      if (!prompt) throw new Error("No prompt provided");
-      return fetchOutfitsQuery(prompt, weather, category, gender, coords);
-    },
-    enabled: !!prompt,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
-  });
-}
-
-export function useCosmeticsQuery(
-  prompt: string | null,
-  weather?: Record<string, unknown> | null,
   skinAnalysis?: SkinAnalysis | null,
   coords?: { lat: number; lon: number } | null,
 ) {
   return useQuery({
-    queryKey: ["chatWonder", "cosmetics", prompt, skinAnalysis],
+    queryKey: [
+      "chatWonder",
+      "overview",
+      prompt,
+      category,
+      gender,
+      skinAnalysis,
+    ],
     queryFn: () => {
       if (!prompt) throw new Error("No prompt provided");
-      return fetchCosmeticsQuery(prompt, weather, skinAnalysis, coords);
+      return fetchOverviewData(
+        prompt,
+        weather,
+        category,
+        gender,
+        skinAnalysis,
+        coords,
+      );
     },
     enabled: !!prompt,
     staleTime: 1000 * 60 * 5, // 5 minutes cache
