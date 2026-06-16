@@ -90,11 +90,11 @@ function normalizeWeather(raw: unknown, fallbackCity = "---"): WeatherData {
 
 async function fetchWithCoords(lat: number, lon: number): Promise<WeatherData> {
   try {
-    const r = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}`);
+    const r = await fetch(`/api/mirror/weather?lat=${lat}&lng=${lon}&_t=${Date.now()}`);
     return normalizeWeather(await r.json());
   } catch {
     try {
-      const r = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+      const r = await fetch(`/api/weather?lat=${lat}&lon=${lon}&_t=${Date.now()}`);
       return normalizeWeather(await r.json());
     } catch {
       return fallbackWeather();

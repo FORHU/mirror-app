@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
 type Coords = { lat: number; lon: number };
 
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
@@ -42,6 +43,7 @@ export async function GET(request: NextRequest) {
     reverseGeocode(coords.lat, coords.lon),
     fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&temperature_unit=celsius`,
+      { cache: "no-store" }
     ).then((r) => r.json()),
   ]);
 
