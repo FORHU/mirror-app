@@ -96,14 +96,38 @@ export default function OverviewPage() {
     if (!prompt) {
       try {
         prompt = sessionStorage.getItem(OVERVIEW_PROMPT_KEY);
-        if (prompt) sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
       } catch {}
     }
+
+    try {
+      const savedCategory = sessionStorage.getItem("mirror_fashion_category");
+      if (savedCategory)
+        useOverviewStore.getState().setPendingCategory(savedCategory);
+
+      const savedGender = sessionStorage.getItem("mirror_fashion_gender");
+      if (savedGender && savedGender !== "null") {
+        useOverviewStore
+          .getState()
+          .setPendingGender(savedGender as "MALE" | "FEMALE");
+      } else if (savedGender === "null") {
+        useOverviewStore.getState().setPendingGender(null);
+      }
+    } catch {}
+
     if (prompt) {
       let finalPrompt = prompt;
-      if (prompt.startsWith("__SILENT__:")) {
+      if (prompt.startsWith("__SILENT__: ")) {
+        finalPrompt = prompt.replace("__SILENT__: ", "");
+      } else if (prompt.startsWith("__SILENT__:!")) {
+        finalPrompt = prompt.replace("__SILENT__:!", "");
+      } else if (prompt.startsWith("__SILENT__:! ")) {
+        finalPrompt = prompt.replace("__SILENT__:! ", "");
+      } else if (prompt.startsWith("__SILENT__:!")) {
+        finalPrompt = prompt.replace("__SILENT__:!", "");
+      } else if (prompt.startsWith("__SILENT__:")) {
         finalPrompt = prompt.replace("__SILENT__:", "");
       }
+
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActivePrompt(finalPrompt);
       setPendingPrompt(null);

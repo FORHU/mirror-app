@@ -43,6 +43,9 @@ export async function performRestart(router: AppRouterInstance) {
   // 2. Local: drop gender and any derived UI state immediately
   try {
     sessionStorage.removeItem("mirror_gender");
+    sessionStorage.removeItem("mirror_fashion_category");
+    sessionStorage.removeItem("mirror_fashion_gender");
+    sessionStorage.removeItem("mirror_fashion_current_cache");
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
     sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
     sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);

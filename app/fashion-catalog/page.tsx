@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import "../../styles/glow.css";
 import {
@@ -65,7 +65,14 @@ export default function FashionCatalog() {
     return g === "MALE" || g === "FEMALE" ? g : "All";
   });
 
-  const [activeMainCategory, setActiveMainCategory] = useState("All");
+  const activeMainCategory = useMemo(() => {
+    const metaCat = searchParams.get("metaCategory");
+    if (!metaCat) return "All";
+    for (const [key, val] of Object.entries(CATEGORY_MAP)) {
+      if (metaCat === val.join(",")) return key;
+    }
+    return "All";
+  }, [searchParams]);
   const [activeGender, setActiveGender] = useState<"All" | "MALE" | "FEMALE">(
     storedGender,
   );
@@ -75,11 +82,29 @@ export default function FashionCatalog() {
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
+  const [selectedGarmentId, setSelectedGarmentId] = useState<string | null>(
+    null,
+  );
+  const [isFullViewOpen, setIsFullViewOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(0);
 
   const selectedOutfit =
     selectedOutfitIdx !== null ? (outfits[selectedOutfitIdx] ?? null) : null;
+
+  const selectedGarment = useMemo(() => {
+    if (!selectedOutfit || !selectedGarmentId) return null;
+    return (
+      selectedOutfit.items.find((i) => i.garment.id === selectedGarmentId)
+        ?.garment || null
+    );
+  }, [selectedOutfit, selectedGarmentId]);
+
+  const displayImage =
+    selectedGarment?.imageUrl || selectedOutfit?.file?.fileUrl;
+  const displayName = selectedGarment?.name || selectedOutfit?.name;
+  const displayDescription =
+    selectedGarment?.description || selectedOutfit?.description;
 
   const [leftOutfits, rightOutfits] = (() => {
     const left: { outfit: RemoteOutfit; idx: number }[] = [];
@@ -121,6 +146,42 @@ export default function FashionCatalog() {
   );
 
   const localGenderChangeRef = useRef(false);
+
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const left = leftScrollRef.current;
+    const right = rightScrollRef.current;
+    if (!left || !right) return;
+
+    let isSyncingLeft = false;
+    let isSyncingRight = false;
+
+    const handleLeftScroll = () => {
+      if (!isSyncingLeft) {
+        isSyncingRight = true;
+        right.scrollTop = left.scrollTop;
+      }
+      isSyncingLeft = false;
+    };
+
+    const handleRightScroll = () => {
+      if (!isSyncingRight) {
+        isSyncingLeft = true;
+        left.scrollTop = right.scrollTop;
+      }
+      isSyncingRight = false;
+    };
+
+    left.addEventListener("scroll", handleLeftScroll, { passive: true });
+    right.addEventListener("scroll", handleRightScroll, { passive: true });
+
+    return () => {
+      left.removeEventListener("scroll", handleLeftScroll);
+      right.removeEventListener("scroll", handleRightScroll);
+    };
+  }, [outfits.length, isLoading, activeMainCategory]);
 
   const handleGenderChange = useCallback(
     (gender: "All" | "MALE" | "FEMALE") => {
@@ -202,6 +263,11 @@ export default function FashionCatalog() {
       const label = activeGender === "MALE" ? "male" : "female";
       prompt = `${prompt} Please recommend ${label} outfits only.`;
     }
+    sessionStorage.setItem("mirror_fashion_category", category);
+    sessionStorage.setItem(
+      "mirror_fashion_gender",
+      activeGender === "All" ? "null" : activeGender,
+    );
     sessionStorage.setItem(FASHION_PROMPT_KEY, prompt);
     router.push("/ai-recommendation-fashion");
   }, [
@@ -215,12 +281,10 @@ export default function FashionCatalog() {
   const handleChipSelect = useCallback(
     (prompt: string) => {
       if (prompt === "All") {
-        setActiveMainCategory("All");
         router.push("/fashion-catalog");
         return;
       }
       if (MAIN_CATEGORIES.includes(prompt)) {
-        setActiveMainCategory(prompt);
         const sub = CATEGORY_MAP[prompt] ?? [];
         if (sub.length > 0) {
           router.push(`/fashion-catalog?metaCategory=${sub.join(",")}`);
@@ -243,9 +307,10 @@ export default function FashionCatalog() {
       tabIndex={0}
       aria-label={`Outfit ${idx + 1}`}
       className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-      onClick={() =>
-        setSelectedOutfitIdx(selectedOutfitIdx === idx ? null : idx)
-      }
+      onClick={() => {
+        setSelectedOutfitIdx(selectedOutfitIdx === idx ? null : idx);
+        setSelectedGarmentId(null);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -383,6 +448,7 @@ export default function FashionCatalog() {
               loop={false}
               gap={6}
               style={{ touchAction: "pan-y" }}
+              scrollRef={leftScrollRef}
             >
               {leftOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
@@ -399,39 +465,66 @@ export default function FashionCatalog() {
                   flex: 1,
                   minHeight: 0,
                   width: "100%",
-                  padding: "10px 8px 176px",
+                  padding: "10px 8px 120px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
-                  overflow: "auto",
-                  scrollPaddingBottom: "180px",
+                  overflow: "hidden",
                   background: "transparent",
                 }}
               >
                 <div
+                  className="group"
                   style={{
-                    flex: "1 1 auto",
-                    minHeight: "min(58vh, 620px)",
+                    position: "relative",
+                    width: "100%",
+                    height: "48vh",
                     borderRadius: "12px",
                     background: "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                     overflow: "hidden",
+                    flexShrink: 0,
                   }}
                 >
-                  {selectedOutfit.file?.fileUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={selectedOutfit.file.fileUrl}
-                      alt={selectedOutfit.name}
-                      draggable={false}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
+                  {displayImage ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={displayImage}
+                        alt={displayName}
+                        draggable={false}
+                        onClick={() => setIsFullViewOpen(true)}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          objectPosition: "bottom center",
+                          display: "block",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                      <button
+                        onClick={() => setIsFullViewOpen(true)}
+                        className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
+                        style={{ touchAction: "manipulation" }}
+                        title="Full Screen"
+                      >
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <polyline points="9 21 3 21 3 15"></polyline>
+                          <line x1="21" y1="3" x2="14" y2="10"></line>
+                          <line x1="3" y1="21" x2="10" y2="14"></line>
+                        </svg>
+                      </button>
+                    </>
                   ) : (
                     <span className="text-white/25 text-xs uppercase tracking-[0.18em]">
                       Outfit
@@ -439,111 +532,159 @@ export default function FashionCatalog() {
                   )}
                 </div>
 
-                <div>
+                <div className="shrink-0">
                   <div className="text-white font-semibold text-sm leading-tight">
-                    {selectedOutfit.name}
+                    {displayName}
                   </div>
-                  {selectedOutfit.description && (
+                  {displayDescription && (
                     <div className="text-white/40 text-xs leading-snug mt-1">
-                      {selectedOutfit.description}
+                      {displayDescription}
                     </div>
                   )}
                 </div>
 
-                {selectedOutfit.items.map((item) => {
-                  const g = item.garment;
-                  return (
-                    <div
-                      key={g.id}
-                      style={{
-                        flex: "0 0 auto",
-                        minHeight: "76px",
-                        background: "transparent",
-                        borderRadius: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "10px",
-                        gap: "12px",
-                      }}
-                    >
+                <div
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    WebkitOverflowScrolling: "touch",
+                    touchAction: "pan-y",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                    paddingRight: "4px",
+                  }}
+                >
+                  {selectedOutfit.items.map((item) => {
+                    const g = item.garment;
+                    const isSelected = selectedGarmentId === g.id;
+                    return (
                       <div
+                        key={g.id}
+                        onClick={() => setSelectedGarmentId(g.id)}
+                        className="transition-all cursor-pointer"
                         style={{
-                          width: "60px",
-                          height: "60px",
-                          borderRadius: "8px",
-                          background: "transparent",
+                          flex: "0 0 auto",
+                          minHeight: "76px",
+                          background: isSelected
+                            ? "rgba(255,255,255,0.08)"
+                            : "transparent",
+                          border: isSelected
+                            ? "1px solid rgba(255,255,255,0.2)"
+                            : "1px solid transparent",
+                          borderRadius: "12px",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          overflow: "hidden",
-                          flexShrink: 0,
+                          padding: "10px",
+                          gap: "12px",
+                          touchAction: "manipulation",
                         }}
                       >
-                        {g.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={g.imageUrl}
-                            alt={g.name}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                              opacity: 0.85,
-                            }}
-                          />
-                        ) : (
+                        <div
+                          style={{
+                            width: "60px",
+                            height: "60px",
+                            borderRadius: "8px",
+                            background: "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            overflow: "hidden",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {g.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={g.imageUrl}
+                              alt={g.name}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                opacity: 0.85,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                color: "rgba(255,255,255,0.2)",
+                                fontSize: "9px",
+                              }}
+                            >
+                              No IMG
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                          }}
+                        >
                           <span
                             style={{
-                              color: "rgba(255,255,255,0.2)",
+                              color: "rgba(255,255,255,0.4)",
                               fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
                             }}
                           >
-                            No IMG
+                            {g.layerLevel ?? g.garmentType[0]}
                           </span>
-                        )}
+                          <span
+                            style={{
+                              color: "white",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {g.name}
+                          </span>
+                          <span
+                            style={{
+                              color: "rgba(255,255,255,0.45)",
+                              fontSize: "11px",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {g.description}
+                          </span>
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "4px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: "rgba(255,255,255,0.4)",
-                            fontSize: "9px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                          }}
-                        >
-                          {g.layerLevel ?? g.garmentType[0]}
-                        </span>
-                        <span
-                          style={{
-                            color: "white",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            lineHeight: 1.3,
-                          }}
-                        >
-                          {g.name}
-                        </span>
-                        <span
-                          style={{
-                            color: "rgba(255,255,255,0.45)",
-                            fontSize: "11px",
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          {g.description}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Recommendations button fixed at the bottom of the center column */}
+                <div className="w-full flex flex-col items-center shrink-0 pointer-events-auto mt-2">
+                  <div className="w-full flex justify-center mb-6">
+                    <button
+                      onClick={handleRecommendationsClick}
+                      disabled={isUpdatingGender}
+                      className="flex items-center justify-center gap-2 px-5 py-3 w-full max-w-xs rounded-full text-sm font-medium text-white transition-opacity"
+                      style={{
+                        background: "rgba(255,255,255,0.12)",
+                        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+                        backdropFilter: "blur(12px)",
+                        WebkitBackdropFilter: "blur(12px)",
+                        opacity: isUpdatingGender ? 0.4 : 1,
+                        cursor: isUpdatingGender ? "not-allowed" : "pointer",
+                        touchAction: "manipulation",
+                      }}
+                    >
+                      <span className="pointer-events-none">
+                        Ask AI for Recommendation
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -557,6 +698,7 @@ export default function FashionCatalog() {
               loop={false}
               gap={6}
               style={{ touchAction: "pan-y" }}
+              scrollRef={rightScrollRef}
             >
               {rightOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
@@ -564,30 +706,33 @@ export default function FashionCatalog() {
         </div>
       )}
 
-      {/* Bottom action row */}
-      {!isLoading && (
-        <div className="absolute bottom-40 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
-          {/* Recommendations button */}
-          <div className="pointer-events-auto w-full max-w-xs flex justify-center">
-            <button
-              onClick={handleRecommendationsClick}
-              disabled={isUpdatingGender}
-              className="flex items-center justify-center gap-2 px-5 py-3 w-full rounded-full text-sm font-medium text-white transition-opacity"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.25)",
-                backdropFilter: "blur(12px)",
-                WebkitBackdropFilter: "blur(12px)",
-                opacity: isUpdatingGender ? 0.4 : 1,
-                cursor: isUpdatingGender ? "not-allowed" : "pointer",
-                touchAction: "manipulation",
-              }}
-            >
-              <span className="pointer-events-none">
-                Ask AI for Recommendation
-              </span>
-            </button>
-          </div>
+      {/* Full View Modal */}
+      {isFullViewOpen && displayImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md cursor-zoom-out transition-all duration-300"
+          onClick={() => setIsFullViewOpen(false)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={displayImage}
+            alt={displayName}
+            style={{
+              maxWidth: "92vw",
+              maxHeight: "92vh",
+              objectFit: "contain",
+              borderRadius: "16px",
+              boxShadow: "0 0 60px rgba(0,0,0,0.5)",
+            }}
+          />
+          <button
+            className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-colors text-xl font-light"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFullViewOpen(false);
+            }}
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>
