@@ -69,13 +69,16 @@ export async function performRestart(router: AppRouterInstance) {
     chatCosmeticsData: null,
     chatTailorData: null,
     isChatOpen: false,
+    assistantIdle: true,
   });
 
   // 3. Server: null gender + new ChatWonder session, and soft-delete the Outline in the background.
   return Promise.allSettled([
     chatWonderService.restart(),
     outlineService.reset(),
-  ]).then(() => {}).catch(() => {});
+  ])
+    .then(() => {})
+    .catch(() => {});
 }
 
 /**
