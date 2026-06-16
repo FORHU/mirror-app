@@ -35,7 +35,7 @@ import {
 import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas";
 
 export default function VirtualMirrorV2() {
-  const { weather } = useWeather();
+  const { weather, coords } = useWeather();
   const router = useRouter();
 
   const { isProcessing } = useVoiceContext();
@@ -56,6 +56,7 @@ export default function VirtualMirrorV2() {
     weather as unknown as Record<string, unknown>,
     null,
     storeGender,
+    coords,
   );
 
   const isLoading = isProcessing || fashionQuery.isFetching;

@@ -37,6 +37,9 @@ export function useFashionQuery(
       coords?.lat,
       coords?.lon,
     ],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
     queryFn: async (): Promise<FashionQueryData> => {
       if (!prompt) throw new Error("No prompt provided");
 
@@ -238,6 +241,5 @@ export function useFashionQuery(
       };
     },
     enabled: !!prompt,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 }

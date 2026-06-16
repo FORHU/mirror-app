@@ -605,8 +605,10 @@ export default function CosmeticProductsPage() {
         >
           {SKIN_TYPES.map((key) => {
             const disabled = cameraDetected || isInitialLoading;
-            // Highlight the category the rotation timer is currently showing.
-            const active = displayedSkinType === key;
+            // Buttons are action triggers, not filters — so they carry no
+            // persistent highlight. (Previously highlighted the auto-rotating
+            // category, which made OILY look pre-selected on load with no camera.)
+            const active = false;
             return (
               <button
                 key={key}

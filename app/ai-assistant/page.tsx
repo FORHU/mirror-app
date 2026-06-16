@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 import MirrorHeader from "@/components/MirrorHeader";
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
 import { useOverviewStore } from "@/modules/overview";
 import { cn } from "../../modules/shared/utils";
-import type { SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 
 const TAGLINES = [
   "Personalized for every reflection.",
