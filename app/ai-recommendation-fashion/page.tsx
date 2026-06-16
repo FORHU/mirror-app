@@ -829,46 +829,56 @@ export default function VirtualMirrorV2() {
                                   padding: "5px 8px",
                                   display: "flex",
                                   flexDirection: "column",
-                                  justifyContent: "center",
-                                  gap: "2px",
-                                  overflow: "hidden",
+                                  justifyContent: "flex-start",
                                 }}
                               >
-                                <span
+                                <div
                                   style={{
-                                    color: "rgba(255,255,255,0.4)",
-                                    fontSize: "8px",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.08em",
+                                    margin: "auto 0",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "1px",
                                     overflow: "hidden",
-                                    whiteSpace: "nowrap",
+                                    minHeight: 0,
                                   }}
                                 >
-                                  {isOverridden
-                                    ? "Changed"
-                                    : effective.garmentType?.[0]}
-                                </span>
-                                <span
-                                  style={{
-                                    color: "white",
-                                    fontSize: "10px",
-                                    fontWeight: 600,
-                                    lineHeight: 1.3,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {effective.name}
-                                </span>
-                                <span
-                                  style={{
-                                    color: "rgba(255,255,255,0.4)",
-                                    fontSize: "9px",
-                                    lineHeight: 1.4,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {effective.description}
-                                </span>
+                                  <span
+                                    style={{
+                                      color: "rgba(255,255,255,0.4)",
+                                      fontSize: "8px",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.08em",
+                                      overflow: "hidden",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {isOverridden
+                                      ? "Changed"
+                                      : effective.garmentType?.[0]}
+                                  </span>
+                                  <span
+                                    style={{
+                                      color: "white",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      lineHeight: 1.3,
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    {effective.name}
+                                  </span>
+                                  <span
+                                    className="line-clamp-1"
+                                    style={{
+                                      color: "rgba(255,255,255,0.4)",
+                                      fontSize: "9px",
+                                      lineHeight: 1.4,
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    {effective.description}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           );
