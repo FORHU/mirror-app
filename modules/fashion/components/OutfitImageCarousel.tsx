@@ -197,7 +197,7 @@ export function OutfitImageCarousel({
       </div>
 
       {/* progress dots — uniform fixed size; active state is colour only (no resize) */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 mb-6">
         {outfits.slice(0, 12).map((o, i) => (
           <div
             key={o.id}

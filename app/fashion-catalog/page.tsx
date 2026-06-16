@@ -458,7 +458,7 @@ export default function FashionCatalog() {
 
           {/* Center — selected outfit detail */}
           <div
-            className="h-full flex flex-col items-center overflow-hidden"
+            className="h-full flex flex-col items-center overflow-hidden relative"
             style={{ flex: "1 1 0", minWidth: 0, minHeight: 0 }}
           >
             {selectedOutfit && (
@@ -467,7 +467,7 @@ export default function FashionCatalog() {
                   flex: 1,
                   minHeight: 0,
                   width: "100%",
-                  padding: "10px 8px 120px",
+                  padding: "10px 8px 180px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
@@ -480,7 +480,7 @@ export default function FashionCatalog() {
                   style={{
                     position: "relative",
                     width: "100%",
-                    height: "48vh",
+                    height: "40vh",
                     borderRadius: "12px",
                     background: "transparent",
                     overflow: "hidden",
@@ -568,127 +568,109 @@ export default function FashionCatalog() {
                         onClick={() => setSelectedGarmentId(g.id)}
                         className="transition-all cursor-pointer"
                         style={{
-                          flex: "0 0 auto",
-                          minHeight: "76px",
-                          background: isSelected
-                            ? "rgba(255,255,255,0.08)"
-                            : "transparent",
-                          border: isSelected
-                            ? "1px solid rgba(255,255,255,0.2)"
-                            : "1px solid transparent",
-                          borderRadius: "12px",
-                          display: "flex",
-                          alignItems: "center",
-                          padding: "10px",
-                          gap: "12px",
-                          touchAction: "manipulation",
+                          opacity: isSelected ? 1 : 0.45,
+                          transform: isSelected ? "scale(1)" : "scale(0.98)",
                         }}
                       >
                         <div
                           style={{
-                            width: "60px",
-                            height: "60px",
-                            borderRadius: "8px",
-                            background: "transparent",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            overflow: "hidden",
-                            flexShrink: 0,
+                            gap: "12px",
+                            padding: "10px",
+                            borderRadius: "10px",
+                            background: isSelected
+                              ? "rgba(255,255,255,0.12)"
+                              : "transparent",
+                            border: isSelected
+                              ? "1px solid rgba(255,255,255,0.2)"
+                              : "1px solid transparent",
                           }}
                         >
-                          {g.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={g.imageUrl}
-                              alt={g.name}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                opacity: 0.85,
-                              }}
-                            />
-                          ) : (
+                          <div
+                            style={{
+                              width: "44px",
+                              height: "44px",
+                              borderRadius: "8px",
+                              overflow: "hidden",
+                              background: "rgba(0,0,0,0.4)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {g.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={g.imageUrl}
+                                alt={g.name}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  opacity: 0.85,
+                                }}
+                              />
+                            ) : (
+                              <span
+                                style={{
+                                  color: "rgba(255,255,255,0.2)",
+                                  fontSize: "9px",
+                                }}
+                              >
+                                No IMG
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                            }}
+                          >
                             <span
                               style={{
-                                color: "rgba(255,255,255,0.2)",
+                                color: "rgba(255,255,255,0.4)",
                                 fontSize: "9px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
                               }}
                             >
-                              No IMG
+                              {g.layerLevel ?? g.garmentType[0]}
                             </span>
-                          )}
-                        </div>
-                        <div
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: "rgba(255,255,255,0.4)",
-                              fontSize: "9px",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                            }}
-                          >
-                            {g.layerLevel ?? g.garmentType[0]}
-                          </span>
-                          <span
-                            style={{
-                              color: "white",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {g.name}
-                          </span>
-                          <span
-                            style={{
-                              color: "rgba(255,255,255,0.45)",
-                              fontSize: "11px",
-                              lineHeight: 1.4,
-                            }}
-                          >
-                            {g.description}
-                          </span>
+                            <span
+                              style={{
+                                color: "white",
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {g.name}
+                            </span>
+                            <span
+                              style={{
+                                color: "rgba(255,255,255,0.45)",
+                                fontSize: "11px",
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {g.description}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
-                {/* Recommendations button fixed at the bottom of the center column */}
-                <div className="w-full flex flex-col items-center shrink-0 pointer-events-auto mt-2">
-                  <div className="w-full flex justify-center mb-6">
-                    <button
-                      onClick={handleRecommendationsClick}
-                      disabled={isUpdatingGender}
-                      className="flex items-center justify-center gap-2 px-5 py-3 w-full max-w-xs rounded-full text-sm font-medium text-white transition-opacity"
-                      style={{
-                        background: "rgba(255,255,255,0.12)",
-                        boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
-                        backdropFilter: "blur(12px)",
-                        WebkitBackdropFilter: "blur(12px)",
-                        opacity: isUpdatingGender ? 0.4 : 1,
-                        cursor: isUpdatingGender ? "not-allowed" : "pointer",
-                        touchAction: "manipulation",
-                      }}
-                    >
-                      <span className="pointer-events-none">
-                        Ask AI for Recommendation
-                      </span>
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
+
+            {/* Removed Ask AI button from here to make it global */}
           </div>
 
           {/* Right column */}
@@ -705,6 +687,30 @@ export default function FashionCatalog() {
               {rightOutfits.map(renderOutfitCard)}
             </MarqueeColumn>
           </div>
+        </div>
+      )}
+
+      {/* Global Ask AI button for ALL tabs, positioned explicitly above the session ID */}
+      {!isLoading && (
+        <div className="fixed bottom-[125px] left-0 w-full flex justify-center pointer-events-none z-[9999] px-4">
+          <button
+            onClick={handleRecommendationsClick}
+            disabled={isUpdatingGender}
+            className="flex items-center justify-center gap-2 px-5 py-3 w-full max-w-xs rounded-full text-sm font-medium text-white transition-opacity pointer-events-auto"
+            style={{
+              background: "rgba(255,255,255,0.12)",
+              boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.25)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              opacity: isUpdatingGender ? 0.4 : 1,
+              cursor: isUpdatingGender ? "not-allowed" : "pointer",
+              touchAction: "manipulation",
+            }}
+          >
+            <span className="pointer-events-none">
+              Ask AI for Recommendation
+            </span>
+          </button>
         </div>
       )}
 
