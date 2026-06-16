@@ -156,10 +156,12 @@ function OutfitDetailPane({
   outfit,
   selectedGarmentId,
   onSelectGarment,
+  onExpand,
 }: {
   outfit: OutfitTileItem | null;
   selectedGarmentId: string | null;
   onSelectGarment: (id: string | null) => void;
+  onExpand: () => void;
 }) {
   if (!outfit) return null;
 
@@ -178,17 +180,33 @@ function OutfitDetailPane({
       className="flex flex-col w-full h-full overflow-hidden"
     >
       {/* Hero image — shows selected garment or outfit */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden group/hero">
         {heroUrl ? (
-          <motion.img
-            key={heroUrl}
-            src={proxied(heroUrl)}
-            alt={heroName}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="w-full h-full object-contain"
-          />
+          <>
+            <motion.img
+              key={heroUrl}
+              src={proxied(heroUrl)}
+              alt={heroName}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="w-full h-full object-contain cursor-zoom-in"
+              onClick={onExpand}
+            />
+            <button
+              onClick={onExpand}
+              className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
+              style={{ touchAction: "manipulation" }}
+              title="Full Screen"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+            </button>
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-white/20 text-xs uppercase tracking-widest">
@@ -561,6 +579,7 @@ export function OverviewGrid({
   const [centerPanel, setCenterPanel] = useState<"outfit" | "cosmetic">(
     "outfit",
   );
+  const [isFullViewOpen, setIsFullViewOpen] = useState(false);
 
   const outfitList = Array.isArray(outfits.data)
     ? outfits.data
@@ -573,6 +592,11 @@ export function OverviewGrid({
     outfitList.find((o: OutfitTileItem) => o.id === selectedOutfitId) ??
     outfitList[0] ??
     null;
+
+  const activeGarment =
+    selectedOutfit?.garments.find((g) => g.id === selectedGarmentId) ?? null;
+  const fullViewImageUrl = activeGarment?.imageUrl || selectedOutfit?.imageUrl;
+  const fullViewImageName = activeGarment?.name || selectedOutfit?.name;
 
   const outfitsState: TileState<boolean> = {
     status: outfits.status,
@@ -642,6 +666,7 @@ export function OverviewGrid({
             outfit={selectedOutfit}
             selectedGarmentId={selectedGarmentId}
             onSelectGarment={setSelectedGarmentId}
+            onExpand={() => setIsFullViewOpen(true)}
           />
         )}
       </div>
@@ -677,6 +702,36 @@ export function OverviewGrid({
           <EmptyTile text="No cosmetic picks yet." />
         )}
       </Tile>
+
+      {/* Full View Modal */}
+      {isFullViewOpen && fullViewImageUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md cursor-zoom-out transition-all duration-300"
+          onClick={() => setIsFullViewOpen(false)}
+        >
+          <img
+            src={proxied(fullViewImageUrl)}
+            alt={fullViewImageName || "Outfit"}
+            style={{
+              maxWidth: "92vw",
+              maxHeight: "92vh",
+              objectFit: "contain",
+              borderRadius: "16px",
+              boxShadow: "0 0 60px rgba(0,0,0,0.5)",
+            }}
+          />
+          <button
+            className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white/80 active:bg-white/30 transition-colors text-xl font-light"
+            style={{ touchAction: "manipulation" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsFullViewOpen(false);
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }

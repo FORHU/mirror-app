@@ -330,6 +330,7 @@ export default function FashionCatalog() {
             ? "2px solid rgba(255,255,255,0.6)"
             : "2px solid transparent",
         transition: "border-color 0.2s",
+        touchAction: "manipulation",
       }}
     >
       {outfit.file?.fileUrl ? (
@@ -402,6 +403,7 @@ export default function FashionCatalog() {
                   cursor: isUpdatingGender ? "not-allowed" : "pointer",
                   opacity: isUpdatingGender ? 0.4 : 1,
                   WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
                 }}
               >
                 <span className="pointer-events-none">
@@ -442,7 +444,7 @@ export default function FashionCatalog() {
           {/* Left column */}
           <div
             className="h-full flex flex-col p-2 gap-2 min-h-0"
-            style={{ flex: "0 0 20%", width: "20%" }}
+            style={{ flex: "0 0 25%", width: "25%" }}
           >
             <MarqueeColumn
               loop={false}
@@ -504,13 +506,13 @@ export default function FashionCatalog() {
                       />
                       <button
                         onClick={() => setIsFullViewOpen(true)}
-                        className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
+                        className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
                         style={{ touchAction: "manipulation" }}
                         title="Full Screen"
                       >
                         <svg
-                          width="15"
-                          height="15"
+                          width="20"
+                          height="20"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -692,7 +694,7 @@ export default function FashionCatalog() {
           {/* Right column */}
           <div
             className="h-full flex flex-col p-2 gap-2 min-h-0"
-            style={{ flex: "0 0 20%", width: "20%" }}
+            style={{ flex: "0 0 25%", width: "25%" }}
           >
             <MarqueeColumn
               loop={false}
@@ -725,7 +727,8 @@ export default function FashionCatalog() {
             }}
           />
           <button
-            className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-colors text-xl font-light"
+            className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white/80 active:bg-white/30 transition-colors text-xl font-light"
+            style={{ touchAction: "manipulation" }}
             onClick={(e) => {
               e.stopPropagation();
               setIsFullViewOpen(false);

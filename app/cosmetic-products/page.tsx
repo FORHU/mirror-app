@@ -146,8 +146,8 @@ const ProductCard = memo(function ProductCard({
         WebkitTapHighlightColor: "transparent",
         cursor: "pointer",
         border: selected
-          ? "1.5px solid rgba(255,255,255,0.55)"
-          : "1.5px solid transparent",
+          ? "1px solid rgba(255,255,255,0.8)"
+          : "1px solid transparent",
       }}
     >
       <div
@@ -623,8 +623,8 @@ export default function CosmeticProductsPage() {
                   padding: "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
                   background: "transparent",
                   border: active
-                    ? "1.5px solid rgba(255,255,255,0.5)"
-                    : "1.5px solid rgba(255,255,255,0.1)",
+                    ? "1px solid rgba(255,255,255,0.7)"
+                    : "1px solid rgba(255,255,255,0.15)",
                   cursor: disabled ? "not-allowed" : "pointer",
                 }}
               >
@@ -657,7 +657,7 @@ export default function CosmeticProductsPage() {
             WebkitTapHighlightColor: "transparent",
             padding: "clamp(10px, 1.5vh, 18px) clamp(22px, 3vw, 44px)",
             background: "transparent",
-            border: "1.5px solid rgba(255,255,255,0.5)",
+            border: "1px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
             cursor: !cameraDetected || isAnalyzing ? "not-allowed" : "pointer",
           }}
@@ -686,7 +686,7 @@ export default function CosmeticProductsPage() {
             ref={leftColRef}
             onScroll={() => handleColumnScroll("left")}
             className="h-full min-h-0 flex flex-col gap-3"
-            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
+            style={{ flex: "0 0 25%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
             {isInitialLoading
               ? Array.from({ length: 3 }).map((_, i) => (
@@ -752,7 +752,7 @@ export default function CosmeticProductsPage() {
             ref={rightColRef}
             onScroll={() => handleColumnScroll("right")}
             className="h-full min-h-0 flex flex-col gap-3"
-            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
+            style={{ flex: "0 0 25%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
             {isInitialLoading
               ? Array.from({ length: 3 }).map((_, i) => (
