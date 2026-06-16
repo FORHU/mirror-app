@@ -10,7 +10,9 @@ interface RestartButtonProps {
   onConfirmChange?: (isConfirming: boolean) => void;
 }
 
-export default function RestartButton({ onConfirmChange }: RestartButtonProps = {}) {
+export default function RestartButton({
+  onConfirmChange,
+}: RestartButtonProps = {}) {
   const [isPending, setIsPending] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -49,7 +51,7 @@ export default function RestartButton({ onConfirmChange }: RestartButtonProps = 
           {sessionId}
         </span>
       )}
-      
+
       {showConfirm ? (
         <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10">
           <span className="text-white/50 text-[10px] font-semibold uppercase tracking-[0.15em] pl-3 pr-1">

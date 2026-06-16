@@ -65,7 +65,13 @@ function OutfitListPane({
   );
 }
 
-function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null; onExpand: () => void; }) {
+function CosmeticDetailPane({
+  item,
+  onExpand,
+}: {
+  item: CosmeticTileItem | null;
+  onExpand: () => void;
+}) {
   if (!item) return null;
   return (
     <motion.div
@@ -73,10 +79,10 @@ function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null;
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
-      className="flex flex-col w-full h-full overflow-hidden"
+      className="flex flex-col items-center justify-center w-full h-full overflow-hidden"
     >
       {/* Hero image */}
-      <div className="relative flex-1 min-h-0 overflow-hidden group/hero">
+      <div className="relative shrink min-h-0 overflow-hidden group/hero flex items-center justify-center max-h-[50%] w-full px-12 py-4">
         <motion.img
           key={item.imageUrl}
           initial={{ opacity: 0 }}
@@ -92,11 +98,20 @@ function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null;
         />
         <button
           onClick={onExpand}
-          className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
+          className="absolute top-0 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
           style={{ touchAction: "manipulation" }}
           title="Full Screen"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <polyline points="15 3 21 3 21 9"></polyline>
             <polyline points="9 21 3 21 3 15"></polyline>
             <line x1="21" y1="3" x2="14" y2="10"></line>
@@ -106,20 +121,23 @@ function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null;
       </div>
 
       {/* Details and Ingredients */}
-      <div className="shrink-0 max-h-[45%] overflow-y-auto scrollbar-hidden flex flex-col gap-3 px-4 pt-3 pb-6">
-        <div className="flex flex-col">
-          <p className="text-white font-bold text-xl leading-snug drop-shadow-lg">
+      <div className="shrink-0 max-h-[45%] w-full overflow-y-auto scrollbar-hidden flex flex-col items-center gap-3 px-12 pt-4 pb-6 text-center">
+        <div className="flex flex-col items-center">
+          <p className="text-white font-bold text-xl leading-snug drop-shadow-lg text-center">
             {item.name}
           </p>
           {item.brand && (
-            <p className="text-white/60 text-[10px] font-semibold tracking-widest mt-1 truncate uppercase">
+            <p className="text-white/60 text-[10px] font-semibold tracking-widest mt-1 truncate uppercase text-center">
               {item.brand}
             </p>
           )}
         </div>
-        
-        {(item.category || item.type || item.tags?.length || item.benefits?.length) && (
-          <div className="flex gap-1.5 flex-wrap">
+
+        {(item.category ||
+          item.type ||
+          item.tags?.length ||
+          item.benefits?.length) && (
+          <div className="flex gap-1.5 flex-wrap justify-center">
             {item.category && (
               <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-semibold uppercase tracking-wider">
                 {item.category.replace(/_/g, " ")}
@@ -150,7 +168,7 @@ function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null;
         )}
 
         {(item.reason || item.details) && (
-          <p className="text-white/60 text-xs font-light leading-relaxed">
+          <p className="text-white/60 text-xs font-light leading-relaxed text-center">
             {item.reason || item.details}
           </p>
         )}
@@ -179,11 +197,11 @@ function CosmeticDetailPane({ item, onExpand }: { item: CosmeticTileItem | null;
             .filter(Boolean);
           if (!ingredients.length) return null;
           return (
-            <div>
-              <p className="text-white/40 text-[9px] uppercase tracking-widest mb-1.5 font-semibold">
+            <div className="flex flex-col items-center">
+              <p className="text-white/40 text-[9px] uppercase tracking-widest mb-1.5 font-semibold text-center">
                 Ingredients
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 justify-center">
                 {ingredients.map((ing, i) => (
                   <span
                     key={i}
@@ -218,7 +236,6 @@ function OutfitDetailPane({
     outfit.garments.find((g) => g.id === selectedGarmentId) ?? null;
   const heroUrl = activeGarment?.imageUrl || outfit.imageUrl;
   const heroName = activeGarment?.name || outfit.name;
-  const heroSub = activeGarment?.category || outfit.vibe;
 
   return (
     <motion.div
@@ -226,81 +243,86 @@ function OutfitDetailPane({
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4 }}
-      className="flex flex-col w-full h-full overflow-hidden"
+      className="flex flex-col items-center w-full h-full overflow-hidden"
     >
-      {/* Hero image — shows selected garment or outfit */}
-      <div className="relative flex-1 min-h-0 overflow-hidden group/hero">
-        {heroUrl ? (
-          <>
-            <motion.img
-              key={heroUrl}
-              src={proxied(heroUrl)}
-              alt={heroName}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="w-full h-full object-contain cursor-zoom-in"
-              onClick={onExpand}
-            />
-            <button
-              onClick={onExpand}
-              className="absolute top-4 right-4 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
-              style={{ touchAction: "manipulation" }}
-              title="Full Screen"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-              </svg>
-            </button>
-          </>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-white/20 text-xs uppercase tracking-widest">
-              No Image
-            </span>
-          </div>
-        )}
-        <div
-          className="absolute inset-x-0 bottom-0 h-1/3 pointer-events-none"
-          style={{
-            background:
-              "linear-gradient(to top, var(--color-canvas), transparent)",
-          }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 p-5">
-          <p className="text-white font-bold text-xl leading-snug drop-shadow-lg">
-            {heroName}
-          </p>
-          {heroSub && (
-            <p className="text-white/60 text-[10px] font-semibold tracking-widest mt-1 truncate uppercase">
-              {heroSub}
-            </p>
+      {/* Hero image */}
+      <div className="relative flex-1 min-h-0 overflow-hidden group/hero w-full px-4 flex items-center justify-center pb-2">
+        <div className="w-full h-full flex items-center justify-center relative">
+          {heroUrl ? (
+            <>
+              <motion.img
+                key={heroUrl}
+                src={proxied(heroUrl)}
+                alt={heroName}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="w-full h-full object-contain cursor-zoom-in"
+                onClick={onExpand}
+              />
+              <button
+                onClick={onExpand}
+                className="absolute top-4 right-0 w-12 h-12 flex items-center justify-center rounded-full bg-black/40 text-white/90 active:bg-black/60 transition-all duration-200 shadow-lg backdrop-blur-md"
+                style={{ touchAction: "manipulation" }}
+                title="Full Screen"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <line x1="21" y1="3" x2="14" y2="10"></line>
+                  <line x1="3" y1="21" x2="10" y2="14"></line>
+                </svg>
+              </button>
+            </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="text-white/20 text-xs uppercase tracking-widest">
+                No Image
+              </span>
+            </div>
           )}
         </div>
       </div>
 
       {/* Garment strip + detail — capped so they never push past screen */}
-      <div className="shrink-0 max-h-[45%] overflow-y-auto scrollbar-hidden flex flex-col gap-3 px-4 pt-3 pb-6">
-        {/* Garments strip — selectable */}
+      {/* Details section — capped so they never push past screen */}
+      <div className="shrink-0 max-h-[50%] w-full overflow-y-auto scrollbar-hidden flex flex-col items-start px-8 pt-4 pb-6 text-left border-t border-white/5">
+        {/* Outfit Title & Description */}
+        <div className="flex flex-col w-full mb-4">
+          <p className="text-white font-bold text-base leading-snug">
+            {outfit.name}
+          </p>
+          {outfit.reason && (
+            <p className="text-white/60 text-[11px] font-light leading-relaxed mt-2">
+              {outfit.reason}
+            </p>
+          )}
+        </div>
+
+        {/* Vertical Detailed Garments List */}
         {outfit.garments.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto scrollbar-hidden shrink-0 pb-1">
+          <div className="flex flex-col w-full">
             {outfit.garments.map((g) => {
               const isSelected = g.id === selectedGarmentId;
               return (
                 <button
                   key={g.id}
                   type="button"
-                  title={g.name}
                   onClick={() => onSelectGarment(isSelected ? null : g.id)}
-                  className={`shrink-0 flex flex-col gap-1 transition-all ${isSelected ? "opacity-100" : "opacity-50 hover:opacity-80"}`}
-                  style={{ width: "72px" }}
+                  className="flex gap-4 w-full text-left transition-all py-3 border-b border-white/5 last:border-0 hover:bg-white/5"
                 >
                   <div
-                    className={`rounded-[8px] overflow-hidden border transition-all ${isSelected ? "border-white/60" : "border-transparent"}`}
-                    style={{ aspectRatio: "3/4" }}
+                    className={`shrink-0 rounded-[6px] overflow-hidden bg-black/20 ${isSelected ? "ring-1 ring-white/60" : ""}`}
+                    style={{ width: "54px", aspectRatio: "4/5" }}
                   >
                     {g.imageUrl ? (
                       <img
@@ -314,108 +336,32 @@ function OutfitDetailPane({
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center p-1 text-center bg-black/40">
+                      <div className="w-full h-full flex items-center justify-center p-1 text-center">
                         <span className="text-white/20 text-[8px] uppercase tracking-widest leading-tight">
                           No Image
                         </span>
                       </div>
                     )}
                   </div>
+                  <div className="flex flex-col flex-1 min-w-0 justify-center">
+                    {g.layerLevel && (
+                      <p className="text-[#e0e0e0] text-[8px] font-bold uppercase tracking-widest mb-1">
+                        {g.layerLevel}
+                      </p>
+                    )}
+                    <p className="text-white text-[12px] font-bold leading-tight mb-1 truncate">
+                      {g.name}
+                    </p>
+                    {g.description && (
+                      <p className="text-white/60 text-[10px] leading-relaxed line-clamp-3">
+                        {g.description}
+                      </p>
+                    )}
+                  </div>
                 </button>
               );
             })}
           </div>
-        )}
-
-        {/* Detail section — garment details when one is active, outfit details otherwise */}
-        {activeGarment ? (
-          <>
-            {(activeGarment.garmentType?.length ||
-              activeGarment.silhouette ||
-              activeGarment.fittingSlot?.length ||
-              activeGarment.layerLevel) && (
-              <div className="flex gap-1.5 flex-wrap">
-                {activeGarment.garmentType?.map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-semibold uppercase tracking-wider"
-                  >
-                    {t}
-                  </span>
-                ))}
-                {activeGarment.silhouette && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-semibold uppercase tracking-wider">
-                    {activeGarment.silhouette}
-                  </span>
-                )}
-                {activeGarment.fittingSlot?.map((s) => (
-                  <span
-                    key={s}
-                    className="px-2 py-0.5 rounded-full bg-[#4fc3f7]/10 border border-[#4fc3f7]/20 text-[#4fc3f7] text-[9px] font-medium"
-                  >
-                    {s}
-                  </span>
-                ))}
-                {activeGarment.layerLevel && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/8 border border-white/10 text-white/50 text-[9px] font-medium">
-                    {activeGarment.layerLevel}
-                  </span>
-                )}
-              </div>
-            )}
-            {activeGarment.description && (
-              <p className="text-white/60 text-xs font-light leading-relaxed">
-                {activeGarment.description}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            {(outfit.silhouette ||
-              outfit.garmentType?.length ||
-              outfit.category?.length) && (
-              <div className="flex gap-1.5 flex-wrap">
-                {outfit.silhouette && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-semibold uppercase tracking-wider">
-                    {outfit.silhouette}
-                  </span>
-                )}
-                {outfit.garmentType?.map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-0.5 rounded-full bg-white/10 text-white/60 text-[9px] font-semibold uppercase tracking-wider"
-                  >
-                    {t}
-                  </span>
-                ))}
-                {outfit.category?.map((c) => (
-                  <span
-                    key={c}
-                    className="px-2 py-0.5 rounded-full bg-[#4fc3f7]/10 border border-[#4fc3f7]/20 text-[#4fc3f7] text-[9px] font-medium"
-                  >
-                    {c}
-                  </span>
-                ))}
-              </div>
-            )}
-            {outfit.reason && (
-              <p className="text-white/60 text-xs font-light leading-relaxed">
-                {outfit.reason}
-              </p>
-            )}
-            {outfit.metaTags?.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {outfit.metaTags.slice(0, 6).map((t) => (
-                  <span
-                    key={t}
-                    className="px-2 py-0.5 rounded-full bg-white/8 border border-white/10 text-white/40 text-[9px] font-medium"
-                  >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </>
         )}
       </div>
     </motion.div>
@@ -519,7 +465,7 @@ function CosmeticsStrip({
                   src={proxied(c.imageUrl)}
                   alt={c.name}
                   loading="lazy"
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/item:scale-105"
+                  className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover/item:scale-105"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.opacity =
                       "0.15";
@@ -646,13 +592,15 @@ export function OverviewGrid({
   const activeGarment =
     selectedOutfit?.garments.find((g) => g.id === selectedGarmentId) ?? null;
 
-  const fullViewImageUrl = centerPanel === "cosmetic" 
-    ? activeCosmetic?.imageUrl 
-    : activeGarment?.imageUrl || selectedOutfit?.imageUrl;
+  const fullViewImageUrl =
+    centerPanel === "cosmetic"
+      ? activeCosmetic?.imageUrl
+      : activeGarment?.imageUrl || selectedOutfit?.imageUrl;
 
-  const fullViewImageName = centerPanel === "cosmetic"
-    ? activeCosmetic?.name
-    : activeGarment?.name || selectedOutfit?.name;
+  const fullViewImageName =
+    centerPanel === "cosmetic"
+      ? activeCosmetic?.name
+      : activeGarment?.name || selectedOutfit?.name;
 
   const outfitsState: TileState<boolean> = {
     status: outfits.status,
