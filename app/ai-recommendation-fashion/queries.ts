@@ -46,7 +46,7 @@ export function useFashionQuery(
       const payload = {
         input: `[stylist] ${prompt}`,
         pageMode: "garment" as const,
-        set: 4,
+        fsets: 4,
         voice: false,
         ...(weather ? { weather } : {}),
         ...(category ? { category } : {}),
