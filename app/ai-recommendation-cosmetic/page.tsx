@@ -461,9 +461,6 @@ export default function CosmeticRecommendationPage() {
   const isLoadingRecommendations =
     isHandoffLoading || (!pendingCosmeticsData && !skinAnalysisResult);
   const showRecommendationSkeletons = isLoadingRecommendations || isProcessing;
-  // Show the cycling quotes whenever the AI is talking (overrides the product /
-  // skin-profile view) or while nothing has loaded yet.
-  const showQuotes = isProcessing || (!selectedRec && !skinAnalysisResult);
 
   return (
     <div
@@ -506,7 +503,7 @@ export default function CosmeticRecommendationPage() {
         <div className="flex-1 h-full flex flex-col items-center justify-center p-4 relative">
           <div className="w-full h-full max-w-none flex flex-col items-center justify-center">
             <div className="flex flex-col justify-center">
-              {!showQuotes && selectedRec ? (
+              {selectedRec ? (
                 <div className="relative flex flex-col items-center text-center gap-6 px-6 py-2 transition-all duration-300">
                   <div className="relative flex shrink-0 items-center justify-center">
                     {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
@@ -542,14 +539,17 @@ export default function CosmeticRecommendationPage() {
                     </p>
                   </div>
                 </div>
-              ) : (
+              ) : sortedRecs.length === 0 ? (
+                // Loader/idle state — only while no products have loaded yet.
+                // Once side products are present, the center stays blank until
+                // the user taps one.
                 <QuoteCarousel
                   quotes={COSMETIC_QUOTES}
                   label="Skin Tip"
                   labelClassName="text-white/30"
                   className="flex flex-col items-center justify-center p-12 text-center"
                 />
-              )}
+              ) : null}
             </div>
           </div>
         </div>
