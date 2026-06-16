@@ -170,11 +170,11 @@ export function QuickResponseChips({
                     }}
                   >
                     {cat.icon && (
-                      <span className="text-[13px] leading-none">
+                      <span className="text-[13px] leading-none pointer-events-none">
                         {cat.icon}
                       </span>
                     )}
-                    {cat.label}
+                    <span className="pointer-events-none">{cat.label}</span>
 
                     {/* active dot */}
                     {active && (
@@ -237,7 +237,7 @@ export function QuickResponseChips({
                     maxWidth: "320px",
                   }}
                 >
-                  {prompt}
+                  <span className="pointer-events-none">{prompt}</span>
                 </motion.button>
               ))}
             </motion.div>

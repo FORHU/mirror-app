@@ -276,8 +276,10 @@ export default function FashionCatalog() {
           className="w-full h-full object-cover pointer-events-none"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[11px] text-white/20">{outfit.name}</span>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <span className="text-[11px] text-white/20 pointer-events-none">
+            {outfit.name}
+          </span>
         </div>
       )}
     </div>
@@ -337,7 +339,9 @@ export default function FashionCatalog() {
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+                <span className="pointer-events-none">
+                  {g === "All" ? "All" : g === "MALE" ? "Male" : "Female"}
+                </span>
               </button>
             ))}
           </div>
@@ -564,20 +568,24 @@ export default function FashionCatalog() {
       {!isLoading && (
         <div className="absolute bottom-25 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
           {/* Recommendations button */}
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto w-full max-w-xs flex justify-center">
             <button
               onClick={handleRecommendationsClick}
               disabled={isUpdatingGender}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white transition-opacity"
+              className="flex items-center justify-center gap-2 px-5 py-3 w-full rounded-full text-sm font-medium text-white transition-opacity"
               style={{
                 background: "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.25)",
                 backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
                 opacity: isUpdatingGender ? 0.4 : 1,
                 cursor: isUpdatingGender ? "not-allowed" : "pointer",
+                touchAction: "manipulation",
               }}
             >
-              Recommendations
+              <span className="pointer-events-none">
+                Ask AI for Recommendation
+              </span>
             </button>
           </div>
         </div>
