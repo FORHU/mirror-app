@@ -3,7 +3,6 @@ import {
   chatWonderService,
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
-import { type SkinAnalysis } from "@/modules/shared/api/cosmetics.service";
 import { type RemoteGarment } from "@/modules/shared/api/garment.service";
 import { type RemoteOutfit } from "@/modules/shared/api/outfit.service";
 
@@ -23,23 +22,21 @@ export function useFashionQuery(
   weather?: Record<string, unknown> | null,
   category?: string | null,
   gender?: string | null,
-  skinAnalysis?: SkinAnalysis | null,
   coords?: { lat: number; lon: number } | null,
 ) {
   return useQuery({
-    queryKey: ["chatWonder", "fashion", prompt, category, gender, skinAnalysis],
+    queryKey: ["chatWonder", "fashion", prompt, category, gender, coords?.lat, coords?.lon],
     queryFn: async (): Promise<FashionQueryData> => {
       if (!prompt) throw new Error("No prompt provided");
 
       const payload = {
         input: `[stylist] ${prompt}`,
         pageMode: "garment" as const,
-        fsets: 6,
+        set: 4,
         voice: false,
         ...(weather ? { weather } : {}),
         ...(category ? { category } : {}),
         ...(gender ? { gender } : {}),
-        ...(skinAnalysis ? { skinAnalysis } : {}),
         ...(coords ? { location: { lat: coords.lat, lng: coords.lon } } : {}),
       };
 
@@ -60,6 +57,15 @@ export function useFashionQuery(
       }
 
       const rawData = response.garment_data as Record<string, unknown> | null;
+      const garmentQuery = typeof rawData?.query === "string" ? rawData.query : null;
+
+      let fetchedOutfits: RemoteOutfit[] = [];
+      if (garmentQuery) {
+        let q = garmentQuery.replace(/limit=\d+/, "limit=6");
+        if (!q.includes("limit=")) q += "&limit=20";
+        fetchedOutfits = await outfitService.getByQuery(q);
+      }
+
       const sets = Array.isArray(rawData?.sets)
         ? (rawData?.sets as Record<string, unknown>[])
         : Array.isArray(rawData?.fsets)
@@ -168,6 +174,42 @@ export function useFashionQuery(
           };
         });
 
+      // Combine AI-generated outfits (if any) with DB-fetched outfits
+      const finalOutfits = [...newAiOutfits, ...fetchedOutfits];
+
+      // Extract garments from DB-fetched outfits too!
+      for (const outfit of fetchedOutfits) {
+        for (const item of outfit.items) {
+          const g = item.garment;
+          const garmentType = g.garmentType || [];
+          const fittingSlot = g.fittingSlot || [];
+          const layerLevel = String((g as any).layerLevel || "BASE").toUpperCase();
+
+          if (garmentType.includes("Bag")) {
+            push(g as any, newBags, "RightHandAccessory");
+          } else if (fittingSlot.includes("LowerGarment")) {
+            push(g as any, newBottoms, "LowerGarment");
+          } else if (fittingSlot.includes("FootGarment")) {
+            push(g as any, newShoes, "FootGarment");
+          } else {
+            const t = garmentType[0] ?? "";
+            if (
+              ["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t) ||
+              layerLevel === "OUTER"
+            ) {
+              push(g as any, newTopsOuter, "UpperGarment");
+            } else if (
+              ["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t) ||
+              layerLevel === "MID"
+            ) {
+              push(g as any, newTopsMid, "UpperGarment");
+            } else {
+              push(g as any, newTopsBase, "UpperGarment");
+            }
+          }
+        }
+      }
+
       return {
         message: response.message ?? "",
         topsBase: newTopsBase,
@@ -176,7 +218,7 @@ export function useFashionQuery(
         bottoms: newBottoms,
         shoes: newShoes,
         bags: newBags,
-        outfits: newAiOutfits,
+        outfits: finalOutfits,
       };
     },
     enabled: !!prompt,

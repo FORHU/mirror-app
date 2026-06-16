@@ -50,15 +50,12 @@ export default function VirtualMirrorV2() {
   }, []);
 
   const storeGender = useOverviewStore((s) => s.pendingGender);
-  const skinAnalysisResult = useMirrorStore((s) => s.skinAnalysisResult);
 
   const fashionQuery = useFashionQuery(
     activePrompt,
     weather as unknown as Record<string, unknown>,
     null,
     storeGender,
-    skinAnalysisResult,
-    null,
   );
 
   const isLoading = isProcessing || fashionQuery.isFetching;
