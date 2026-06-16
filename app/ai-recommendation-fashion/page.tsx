@@ -1,21 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import "../../styles/glow.css";
 import {
   garmentService,
   type RemoteGarment,
 } from "@/modules/shared/api/garment.service";
 import { FittingSlot } from "@/modules/garment/types";
-import {
-  outfitService,
-  type RemoteOutfit,
-} from "@/modules/shared/api/outfit.service";
-import {
-  chatWonderService,
-  type ChatWonderMessageResponse,
-} from "@/modules/shared/api/chat-wonder.service";
+import { useFashionQuery } from "./queries";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useOverviewStore } from "@/modules/overview/store/useOverviewStore";
@@ -44,14 +37,39 @@ import type { OutfitPreviewCanvasHandle } from "@/components/OutfitPreviewCanvas
 export default function VirtualMirrorV2() {
   const { weather } = useWeather();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const currentSearch = searchParams.toString();
-  const { isProcessing, submitText } = useVoiceContext();
-  const [isFetching, setIsFetching] = useState(false);
-  const isLoading = isProcessing || isFetching;
+
+  const { isProcessing } = useVoiceContext();
+  const [activePrompt, setActivePrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedPrompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
+    if (savedPrompt) {
+      setTimeout(() => setActivePrompt(savedPrompt), 0);
+      sessionStorage.removeItem(FASHION_PROMPT_KEY);
+    }
+  }, []);
+
+  const storeGender = useOverviewStore((s) => s.pendingGender);
+
+  const fashionQuery = useFashionQuery(
+    activePrompt,
+    weather as unknown as Record<string, unknown>,
+    null,
+    storeGender,
+  );
+
+  const isLoading = isProcessing || fashionQuery.isFetching;
+  const hasFetched = fashionQuery.isSuccess;
+  const emptyArray = useMemo(() => [], []);
+  const outfits = fashionQuery.data?.outfits ?? emptyArray;
+  const topsBase = fashionQuery.data?.topsBase ?? emptyArray;
+  const topsMid = fashionQuery.data?.topsMid ?? emptyArray;
+  const topsOuter = fashionQuery.data?.topsOuter ?? emptyArray;
+  const bottoms = fashionQuery.data?.bottoms ?? emptyArray;
+  const shoes = fashionQuery.data?.shoes ?? emptyArray;
+  const bags = fashionQuery.data?.bags ?? emptyArray;
 
   const setAssistantIdle = useMirrorStore((s) => s.setAssistantIdle);
-  const chatGarmentData = useMirrorStore((s) => s.chatGarmentData);
   useEffect(() => {
     setAssistantIdle(isLoading);
   }, [isLoading, setAssistantIdle]);
@@ -62,8 +80,6 @@ export default function VirtualMirrorV2() {
     [setAssistantIdle],
   );
 
-  const [outfits, setOutfits] = useState<RemoteOutfit[]>([]);
-  const [hasFetched, setHasFetched] = useState(false);
   const [selectedOutfitIdx, setSelectedOutfitIdx] = useState<number | null>(
     null,
   );
@@ -167,9 +183,6 @@ export default function VirtualMirrorV2() {
   const accessoryPageSize = 2;
   const topsLayerPageSize = 2;
 
-  const [topsBase, setTopsBase] = useState<RemoteGarment[]>([]);
-  const [topsMid, setTopsMid] = useState<RemoteGarment[]>([]);
-  const [topsOuter, setTopsOuter] = useState<RemoteGarment[]>([]);
   const [catalogTopsBase, setCatalogTopsBase] = useState<RemoteGarment[]>([]);
   const [catalogTopsMid, setCatalogTopsMid] = useState<RemoteGarment[]>([]);
   const [catalogTopsOuter, setCatalogTopsOuter] = useState<RemoteGarment[]>([]);
@@ -178,9 +191,9 @@ export default function VirtualMirrorV2() {
   const [catalogBags, setCatalogBags] = useState<RemoteGarment[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
 
-  const [topsBasePage, setTopsBasePage] = useState(0);
-  const [topsMidPage, setTopsMidPage] = useState(0);
-  const [topsOuterPage, setTopsOuterPage] = useState(0);
+  const [topsBasePage, _setTopsBasePage] = useState(0);
+  const [topsMidPage, _setTopsMidPage] = useState(0);
+  const [topsOuterPage, _setTopsOuterPage] = useState(0);
 
   const swappingGarmentId = (() => {
     if (!swapItemId || selectedOutfitIdx === null) return null;
@@ -217,8 +230,7 @@ export default function VirtualMirrorV2() {
     (topsOuterPage + 1) * topsLayerPageSize,
   );
 
-  const [shoes, setShoes] = useState<RemoteGarment[]>([]);
-  const [shoesPage, setShoesPage] = useState(0);
+  const [shoesPage, _setShoesPage] = useState(0);
   const filteredShoes =
     swapSlot === "shoes" && swappingGarmentId
       ? shoes.filter((g) => g.id !== swappingGarmentId)
@@ -228,8 +240,7 @@ export default function VirtualMirrorV2() {
     (shoesPage + 1) * shoesPageSize,
   );
 
-  const [bottoms, setBottoms] = useState<RemoteGarment[]>([]);
-  const [bottomsPage, setBottomsPage] = useState(0);
+  const [bottomsPage, _setBottomsPage] = useState(0);
   const filteredBottoms =
     swapSlot === "bottoms" && swappingGarmentId
       ? bottoms.filter((g) => g.id !== swappingGarmentId)
@@ -239,9 +250,7 @@ export default function VirtualMirrorV2() {
     (bottomsPage + 1) * bottomsPageSize,
   );
 
-  const [bags, setBags] = useState<RemoteGarment[]>([]);
-
-  const [bagsPage, setBagsPage] = useState(0);
+  const [bagsPage, _setBagsPage] = useState(0);
   const filteredBags =
     swapSlot === "bags" && swappingGarmentId
       ? bags.filter((g) => g.id !== swappingGarmentId)
@@ -300,309 +309,9 @@ export default function VirtualMirrorV2() {
     };
   }, []);
 
-  const handleAiComplete = useCallback(
-    async (response: ChatWonderMessageResponse) => {
-      setSelectedBag(null);
-      setSelectedTopBase(null);
-      setSelectedTopMid(null);
-      setSelectedTopOuter(null);
-      setSelectedBottom(null);
-      setSelectedShoe(null);
-      setSelectedOutfitIdx(null);
-
-      const rawData = response.garment_data as Record<string, unknown> | null;
-      const query = typeof rawData?.query === "string" ? rawData.query : null;
-
-      if (query) {
-        setIsFetching(true);
-        // New format: ChatWonder sends query params, we fetch real DB outfits
-        try {
-          const fetchedOutfits = await outfitService.getByQuery(query);
-
-          // Category filter based on linked garment categories.
-          // Outfits have no reliable category tag of their own; their garments do.
-          // An outfit passes if the majority of garment category values fall within
-          // the requested category list.
-          const requestedParams = new URLSearchParams(query);
-          const metaCategoryParam = requestedParams.get("metaCategory");
-          const requestedCats = metaCategoryParam
-            ? metaCategoryParam
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
-            : [];
-          const strictOutfits =
-            requestedCats.length === 0
-              ? fetchedOutfits
-              : fetchedOutfits.filter((outfit) => {
-                  const allCats: string[] = [];
-                  for (const item of outfit.items) {
-                    const g = item.garment as typeof item.garment & {
-                      category?: string | string[];
-                    };
-                    const raw = g.category;
-                    if (Array.isArray(raw)) {
-                      allCats.push(
-                        ...(raw as unknown[]).filter(
-                          (c): c is string => typeof c === "string",
-                        ),
-                      );
-                    } else if (typeof raw === "string" && raw) {
-                      allCats.push(raw);
-                    }
-                  }
-                  if (allCats.length === 0) return true;
-                  return allCats.some((c) => requestedCats.includes(c));
-                });
-
-          const newTopsBase: RemoteGarment[] = [];
-          const newTopsMid: RemoteGarment[] = [];
-          const newTopsOuter: RemoteGarment[] = [];
-          const newBottoms: RemoteGarment[] = [];
-          const newShoes: RemoteGarment[] = [];
-          const newBags: RemoteGarment[] = [];
-          const seen = new Set<string>();
-
-          for (const outfit of strictOutfits) {
-            for (const item of outfit?.items || []) {
-              const g = item?.garment;
-              if (!g) continue;
-              if (seen.has(g.id)) continue;
-              seen.add(g.id);
-
-              const mapped: RemoteGarment = {
-                id: g.id,
-                name: g.name || "",
-                description: g.description ?? "",
-                imageUrl: g.imageUrl || "",
-                fittingSlot: g.fittingSlot || [],
-                garmentType: g.garmentType || [],
-                category: [],
-                tags: [],
-                gender: null,
-                silhouette: null,
-                layerLevel: g.layerLevel ?? null,
-                file: null,
-              };
-
-              if (mapped.fittingSlot.includes("UpperGarment")) {
-                const layer = g.layerLevel ?? "BASE";
-                if (layer === "OUTER") newTopsOuter.push(mapped);
-                else if (layer === "MID") newTopsMid.push(mapped);
-                else newTopsBase.push(mapped);
-              } else if (mapped.fittingSlot.includes("LowerGarment")) {
-                newBottoms.push(mapped);
-              } else if (mapped.fittingSlot.includes("FootGarment")) {
-                newShoes.push(mapped);
-              } else if (mapped.garmentType.includes("Bag")) {
-                newBags.push(mapped);
-              }
-            }
-          }
-
-          setTopsBase(newTopsBase);
-          setTopsBasePage(0);
-          setTopsMid(newTopsMid);
-          setTopsMidPage(0);
-          setTopsOuter(newTopsOuter);
-          setTopsOuterPage(0);
-          setBottoms(newBottoms);
-          setBottomsPage(0);
-          setShoes(newShoes);
-          setShoesPage(0);
-          setBags(newBags);
-          setBagsPage(0);
-          setOutfits(strictOutfits);
-          setOutfitPage(0);
-          setHasFetched(true);
-          if (strictOutfits.length > 0) {
-            setSelectedOutfitIdx(0);
-          }
-        } catch (err) {
-          console.error(err);
-          setHasFetched(true); // Prevent "sudden reset" to idle screen on error
-        } finally {
-          setIsFetching(false);
-        }
-        return;
-      }
-
-      // Legacy format: ChatWonder sends sets[] with inline recommendations
-      type AiItem = {
-        id?: string;
-        name: string;
-        type?: string;
-        description?: string;
-        reason?: string;
-        imageUrl?: string;
-        category?: string | string[];
-        garmentType?: string[];
-        fittingSlot?: string[];
-        layerLevel?: string;
-      };
-
-      const sets = Array.isArray(rawData?.sets)
-        ? (rawData?.sets as Record<string, unknown>[])
-        : Array.isArray(rawData?.fsets)
-          ? (rawData?.fsets as Record<string, unknown>[])
-          : [];
-      const newTopsBase: RemoteGarment[] = [];
-      const newTopsMid: RemoteGarment[] = [];
-      const newTopsOuter: RemoteGarment[] = [];
-      const newBottoms: RemoteGarment[] = [];
-      const newShoes: RemoteGarment[] = [];
-      const newBags: RemoteGarment[] = [];
-      const seen = new Set<string>();
-
-      const toGarment = (item: AiItem, slot: string): RemoteGarment => ({
-        id: item.id ?? crypto.randomUUID(),
-        name: item.name,
-        description: item.reason ?? item.description ?? "",
-        imageUrl: item.imageUrl ?? "",
-        fittingSlot: [slot],
-        garmentType: item.garmentType ?? (item.type ? [item.type] : []),
-        category: Array.isArray(item.category)
-          ? item.category
-          : item.category
-            ? [item.category]
-            : [],
-        tags: [],
-        gender: null,
-        silhouette: null,
-        layerLevel: item.layerLevel ?? null,
-        file: null,
-      });
-
-      function push(
-        item: AiItem | undefined,
-        bucket: RemoteGarment[],
-        slot: string,
-      ) {
-        if (!item?.id) return;
-        if (seen.has(item.id)) return;
-        seen.add(item.id);
-        bucket.push(toGarment(item, slot));
-      }
-
-      for (const s of sets) {
-        for (const r of (Array.isArray(s.recommendations)
-          ? s.recommendations
-          : []) as AiItem[]) {
-          if (r.fittingSlot?.includes("UpperGarment")) {
-            const layer = r.layerLevel ?? "BASE";
-            if (layer === "OUTER") push(r, newTopsOuter, "UpperGarment");
-            else if (layer === "MID") push(r, newTopsMid, "UpperGarment");
-            else push(r, newTopsBase, "UpperGarment");
-          }
-          if (r.fittingSlot?.includes("LowerGarment"))
-            push(r, newBottoms, "LowerGarment");
-          if (r.fittingSlot?.includes("FootGarment"))
-            push(r, newShoes, "FootGarment");
-          if (r.garmentType?.includes("Bag"))
-            push(r, newBags, "RightHandAccessory");
-        }
-      }
-      setTopsBase(newTopsBase);
-      setTopsMid(newTopsMid);
-      setTopsOuter(newTopsOuter);
-      setBottoms(newBottoms);
-      setShoes(newShoes);
-      setBags(newBags);
-      setBagsPage(0);
-
-      const seenOutfitIds = new Set<string>();
-      const newAiOutfits: RemoteOutfit[] = sets
-        .filter((s) => s.outfit_imageUrl)
-        .map((s, i) => {
-          const baseId = String(s.outfit_id ?? `outfit-${i}`);
-          const id = seenOutfitIds.has(baseId) ? `${baseId}-${i}` : baseId;
-          seenOutfitIds.add(id);
-          return {
-            id,
-            name: String(s.outfit_name ?? "Outfit"),
-            description: String(s.reason ?? ""),
-            file: { fileUrl: String(s.outfit_imageUrl ?? "") },
-            items: ((s.recommendations ?? []) as Record<string, unknown>[]).map(
-              (r) => ({
-                id: String(r.id ?? crypto.randomUUID()),
-                slot: String(
-                  (r.fittingSlot as string[])?.[0] ?? "UpperGarment",
-                ),
-                garment: {
-                  id: String(r.id ?? ""),
-                  name: String(r.name ?? ""),
-                  description: String(r.description ?? ""),
-                  imageUrl: String(r.imageUrl ?? ""),
-                  garmentType: (r.garmentType as string[]) ?? [],
-                  fittingSlot: (r.fittingSlot as string[]) ?? [],
-                },
-              }),
-            ),
-            metaData: null,
-          };
-        });
-      setOutfits(newAiOutfits);
-      setOutfitPage(0);
-      setHasFetched(true);
-      if (newAiOutfits.length > 0) {
-        setSelectedOutfitIdx(0);
-      }
-    },
-    [
-      setTopsBase,
-      setTopsBasePage,
-      setTopsMid,
-      setTopsMidPage,
-      setTopsOuter,
-      setTopsOuterPage,
-      setBottoms,
-      setBottomsPage,
-      setShoes,
-      setShoesPage,
-      setBags,
-      setBagsPage,
-      setOutfits,
-      setOutfitPage,
-      setSelectedBag,
-      setSelectedTopBase,
-      setSelectedTopMid,
-      setSelectedTopOuter,
-      setSelectedBottom,
-      setSelectedShoe,
-      setSelectedOutfitIdx,
-      setHasFetched,
-      setIsFetching,
-    ],
-  );
-
-  const handleChipSelect = useCallback(
-    async (prompt: string) => {
-      setIsFetching(true);
-      try {
-        const storeGender = useOverviewStore.getState().pendingGender;
-        const skinAnalysisResult = useMirrorStore.getState().skinAnalysisResult;
-        const response = await chatWonderService.message({
-          input: `[stylist] ${prompt}`,
-          pageMode: "garment",
-          fsets: 6,
-          voice: false,
-          ...(weather
-            ? { weather: weather as unknown as Record<string, unknown> }
-            : {}),
-          skinAnalysis: skinAnalysisResult,
-          ...(storeGender ? { gender: storeGender } : {}),
-        });
-        if (response.garment_data) {
-          await handleAiComplete(response as ChatWonderMessageResponse);
-        }
-      } catch (err) {
-        console.error("[fashion-chip]", err);
-      } finally {
-        setIsFetching(false);
-      }
-    },
-    [weather, handleAiComplete],
-  );
+  const handleChipSelect = useCallback((prompt: string) => {
+    setActivePrompt(prompt);
+  }, []);
 
   const fashionPageContext = useMemo(
     () => ({
@@ -676,66 +385,6 @@ export default function VirtualMirrorV2() {
   );
 
   useVoice(fashionPageContext, handleVoiceAction);
-
-  // Re-fetch whenever URL params change — covers both initial mount and
-  // chip-tap navigation (?metaCategory=Casual&limit=4 etc.).
-  // limit=4 is injected if the caller omitted it.
-  const lastSearchParamsRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (lastSearchParamsRef.current === currentSearch) return;
-    lastSearchParamsRef.current = currentSearch;
-
-    // Do not auto-fetch if there are no query parameters — leave idle state showing.
-    if (!currentSearch) {
-      queueMicrotask(() => setOutfits([]));
-      return;
-    }
-
-    const params = new URLSearchParams(currentSearch);
-    if (!params.has("limit")) params.set("limit", "4");
-    queueMicrotask(() =>
-      handleAiComplete({
-        garment_data: { query: params.toString() },
-      } as ChatWonderMessageResponse),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSearch]);
-
-  // Consume a fashion prompt forwarded from the AI assistant via sessionStorage.
-  const handoffFiredRef = useRef(false);
-  useEffect(() => {
-    if (handoffFiredRef.current) return;
-    const prompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
-    if (!prompt) return;
-    handoffFiredRef.current = true;
-    sessionStorage.removeItem(FASHION_PROMPT_KEY);
-    void submitText(prompt);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Consume garment data forwarded from another page (VoiceProvider stores it
-  // via setPendingGarmentData right before the stylist navigation pushes here).
-  useEffect(() => {
-    const pending = useMirrorStore.getState().pendingGarmentData;
-    if (!pending) return;
-    useMirrorStore.getState().setPendingGarmentData(null);
-    setTimeout(() => {
-      handleAiComplete({ garment_data: pending } as ChatWonderMessageResponse);
-    }, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Consume garment data from the chat/voice path when already on this page
-  // (VoiceProvider/ChatWonderProvider set chatGarmentData instead of navigating).
-  useEffect(() => {
-    if (!chatGarmentData) return;
-    useMirrorStore.getState().setChatGarmentData(null);
-    Promise.resolve().then(() =>
-      handleAiComplete({
-        garment_data: chatGarmentData,
-      } as ChatWonderMessageResponse),
-    );
-  }, [chatGarmentData, handleAiComplete]);
 
   // Select a garment for a slot — applies a pending swap, or sets the slot and
   // clears the active outfit selection (same behavior as the old inline grids).
@@ -898,7 +547,15 @@ export default function VirtualMirrorV2() {
       )}
 
       {/* AI Suggestion Banner */}
-      <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }} />
+      {hasFetched && fashionQuery.data?.message && (
+        <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }}>
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 text-center border border-white/20 shadow-lg text-white">
+            <p className="text-sm font-medium leading-relaxed max-w-2xl mx-auto drop-shadow-md">
+              {fashionQuery.data.message}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Idle state — no fetch started yet */}
       {!isLoading && !hasFetched && (
