@@ -4,7 +4,10 @@ import {
   type ChatWonderMessageResponse,
 } from "@/modules/shared/api/chat-wonder.service";
 import { type RemoteGarment } from "@/modules/shared/api/garment.service";
-import { type RemoteOutfit } from "@/modules/shared/api/outfit.service";
+import {
+  type RemoteOutfit,
+  outfitService,
+} from "@/modules/shared/api/outfit.service";
 
 export interface FashionQueryData {
   message: string;
@@ -25,7 +28,15 @@ export function useFashionQuery(
   coords?: { lat: number; lon: number } | null,
 ) {
   return useQuery({
-    queryKey: ["chatWonder", "fashion", prompt, category, gender, coords?.lat, coords?.lon],
+    queryKey: [
+      "chatWonder",
+      "fashion",
+      prompt,
+      category,
+      gender,
+      coords?.lat,
+      coords?.lon,
+    ],
     queryFn: async (): Promise<FashionQueryData> => {
       if (!prompt) throw new Error("No prompt provided");
 
@@ -57,7 +68,8 @@ export function useFashionQuery(
       }
 
       const rawData = response.garment_data as Record<string, unknown> | null;
-      const garmentQuery = typeof rawData?.query === "string" ? rawData.query : null;
+      const garmentQuery =
+        typeof rawData?.query === "string" ? rawData.query : null;
 
       let fetchedOutfits: RemoteOutfit[] = [];
       if (garmentQuery) {
@@ -183,28 +195,32 @@ export function useFashionQuery(
           const g = item.garment;
           const garmentType = g.garmentType || [];
           const fittingSlot = g.fittingSlot || [];
-          const layerLevel = String((g as any).layerLevel || "BASE").toUpperCase();
+          const layerLevel = String(g.layerLevel || "BASE").toUpperCase();
+
+          const garmentRecord = g as unknown as Record<string, unknown>;
 
           if (garmentType.includes("Bag")) {
-            push(g as any, newBags, "RightHandAccessory");
+            push(garmentRecord, newBags, "RightHandAccessory");
           } else if (fittingSlot.includes("LowerGarment")) {
-            push(g as any, newBottoms, "LowerGarment");
+            push(garmentRecord, newBottoms, "LowerGarment");
           } else if (fittingSlot.includes("FootGarment")) {
-            push(g as any, newShoes, "FootGarment");
+            push(garmentRecord, newShoes, "FootGarment");
           } else {
             const t = garmentType[0] ?? "";
             if (
-              ["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(t) ||
+              ["Blazer", "Jacket", "Coat", "Parka", "Windbreaker"].includes(
+                t,
+              ) ||
               layerLevel === "OUTER"
             ) {
-              push(g as any, newTopsOuter, "UpperGarment");
+              push(garmentRecord, newTopsOuter, "UpperGarment");
             } else if (
               ["Hoodie", "Sweater", "Cardigan", "Pullover"].includes(t) ||
               layerLevel === "MID"
             ) {
-              push(g as any, newTopsMid, "UpperGarment");
+              push(garmentRecord, newTopsMid, "UpperGarment");
             } else {
-              push(g as any, newTopsBase, "UpperGarment");
+              push(garmentRecord, newTopsBase, "UpperGarment");
             }
           }
         }
