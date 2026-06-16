@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ROUTES } from "@/navigation";
 import { useVoiceContext } from "@/modules/shared/voice/VoiceProvider";
@@ -67,6 +67,7 @@ function NavButton({
 export default function AssistantNavBar() {
   const { isProcessing, isSpeaking } = useVoiceContext();
   const assistantIdle = useMirrorStore((s) => s.assistantIdle);
+  const [isConfirmingRestart, setIsConfirmingRestart] = useState(false);
 
   // Overview is disabled until at least one tile has been populated with data.
   const overviewHasData = useOverviewStore(
@@ -91,18 +92,26 @@ export default function AssistantNavBar() {
             "0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)",
         }}
       >
-        <div className="flex-1 min-w-0 flex items-center justify-around pr-2">
+        <div
+          className={`flex-1 min-w-0 flex items-center justify-around pr-2 transition-all duration-300 ${
+            isConfirmingRestart ? "opacity-30 blur-sm pointer-events-none" : ""
+          }`}
+        >
           <NavButton label="Home" route={ROUTES.AI_ASSISTANT} />
           <NavButton label="Fashion" route={ROUTES.FASHION_CATALOG} />
         </div>
 
         {/* center gap */}
-        <div className="w-24 shrink-0 flex items-center justify-center">
-          <RestartButton />
+        <div className="w-24 shrink-0 flex items-center justify-center relative z-10">
+          <RestartButton onConfirmChange={setIsConfirmingRestart} />
         </div>
 
         {/* right group */}
-        <div className="flex-1 min-w-0 flex items-center justify-around pl-2">
+        <div
+          className={`flex-1 min-w-0 flex items-center justify-around pl-2 transition-all duration-300 ${
+            isConfirmingRestart ? "opacity-30 blur-sm pointer-events-none" : ""
+          }`}
+        >
           <NavButton label="Cosmetics" route={ROUTES.COSMETIC_PRODUCTS} />
           <NavButton
             label="Overview"
