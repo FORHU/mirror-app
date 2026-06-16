@@ -8,7 +8,7 @@ import MirrorHeader from "@/components/MirrorHeader";
 import { ROUTES } from "@/navigation";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
 import { useAuthStore } from "@/modules/shared/store/useAuthStore";
-import { useOverviewStore } from "@/modules/overview";
+import { useOverviewStore, OVERVIEW_PROMPT_KEY } from "@/modules/overview";
 import { cn } from "../../modules/shared/utils";
 
 const TAGLINES = [
@@ -194,9 +194,16 @@ export default function AIAssistantPage() {
       store.setGreeting("Pulling that together for you…");
       const randomPrompt =
         scenario.prompts[Math.floor(Math.random() * scenario.prompts.length)];
+
+      const category = "metaCategory=" + scenario.metaCategory;
+
       store.setPendingPrompt(`[stylist] ${randomPrompt}`);
-      store.setPendingCategory("metaCategory=" + scenario.metaCategory);
+      store.setPendingCategory(category);
       store.setPendingGender(gender);
+
+      sessionStorage.setItem(OVERVIEW_PROMPT_KEY, `[stylist] ${randomPrompt}`);
+      sessionStorage.setItem("mirror_fashion_category", category);
+      sessionStorage.setItem("mirror_fashion_gender", gender ?? "null");
 
       // Globally mock skin analysis if the camera hasn't populated it yet
       const mirrorStore = useMirrorStore.getState();
@@ -451,7 +458,7 @@ export default function AIAssistantPage() {
                 onClick={handleGenderSkip}
                 className="text-white/30 text-xs uppercase tracking-[0.25em] hover:text-white/55 transition-colors"
               >
-                Skip
+                All Gender
               </button>
             </motion.div>
           </motion.div>

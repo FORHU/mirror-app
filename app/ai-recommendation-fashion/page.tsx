@@ -49,7 +49,7 @@ export default function VirtualMirrorV2() {
     if (savedPrompt) {
       setTimeout(() => setActivePrompt(savedPrompt), 0);
     }
-    
+
     const savedCategory = sessionStorage.getItem("mirror_fashion_category");
     if (savedCategory) {
       setPendingCategory(savedCategory);
@@ -561,8 +561,6 @@ export default function VirtualMirrorV2() {
           />
         </div>
       )}
-
-
 
       {/* Idle state — no fetch started yet */}
       {!isLoading && !hasFetched && (
