@@ -2,42 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 type Coords = { lat: number; lon: number };
 
-async function fetchCoords(): Promise<Coords | null> {
-  const apis: Array<() => Promise<Coords>> = [
-    async () => {
-      const d = await fetch("https://freeipapi.com/api/json").then((r) =>
-        r.json(),
-      );
-      if (!d.latitude || !d.longitude) throw new Error("no coords");
-      return { lat: +d.latitude, lon: +d.longitude };
-    },
-    async () => {
-      const d = await fetch("https://ipwho.is/").then((r) => r.json());
-      if (!d.latitude || !d.longitude) throw new Error("no coords");
-      return { lat: +d.latitude, lon: +d.longitude };
-    },
-    async () => {
-      const d = await fetch("https://ip.seeip.org/geoip").then((r) => r.json());
-      if (!d.latitude || !d.longitude) throw new Error("no coords");
-      return { lat: +d.latitude, lon: +d.longitude };
-    },
-    async () => {
-      const d = await fetch("https://ipapi.co/json/").then((r) => r.json());
-      if (!d.latitude || !d.longitude) throw new Error("no coords");
-      return { lat: +d.latitude, lon: +d.longitude };
-    },
-  ];
-
-  for (const api of apis) {
-    try {
-      const result = await api();
-      if (result.lat && result.lon) return result;
-    } catch {
-      // try next
-    }
-  }
-  return null;
-}
 
 async function reverseGeocode(lat: number, lon: number): Promise<string> {
   const token =
@@ -54,7 +18,7 @@ async function reverseGeocode(lat: number, lon: number): Promise<string> {
 }
 
 export async function GET(request: NextRequest) {
-  // Priority: .env override → browser-supplied coords → IP geo
+  // Priority: .env override → browser-supplied coords → no coords (returns blank)
   const envLat = process.env.WEATHER_LAT ? +process.env.WEATHER_LAT : null;
   const envLon = process.env.WEATHER_LON ? +process.env.WEATHER_LON : null;
 
@@ -68,7 +32,7 @@ export async function GET(request: NextRequest) {
       ? { lat: envLat, lon: envLon }
       : clientLat && clientLon
         ? { lat: clientLat, lon: clientLon }
-        : await fetchCoords();
+        : null;
 
   if (!coords) {
     return NextResponse.json({ temp: null, code: 0, city: "---" });

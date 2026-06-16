@@ -66,33 +66,40 @@ export function CosmeticGrid({
             {emptyMessage}
           </div>
         ) : (
-          pagedItems.map((r) => (
-            <div
-              key={r.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={selectedId === r.id}
-              aria-label={`${r.cosmeticProduct?.name || "Product"}${
-                r.cosmeticProduct?.brand ? `, ${r.cosmeticProduct.brand}` : ""
-              } — rank ${r.rank}`}
-              onClick={() => onSelect(r)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(r);
-                }
-              }}
-              className={`rounded-md overflow-hidden flex flex-col items-center bg-white/[0.015] hover:bg-white/[0.035] transition-colors focus:outline-none focus-visible:ring-0 ${
-                fitRows ? "p-1" : "p-2"
-              }`}
-              style={{
-                height: fitRows ? "100%" : "168px",
-                minHeight: 0,
-                borderRadius: "6px",
-                cursor: "pointer",
-                position: "relative",
-              }}
-            >
+          pagedItems.map((r) => {
+            const isSelected = selectedId === r.id;
+
+            return (
+              <div
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
+                aria-label={`${r.cosmeticProduct?.name || "Product"}${
+                  r.cosmeticProduct?.brand ? `, ${r.cosmeticProduct.brand}` : ""
+                } — rank ${r.rank}`}
+                onClick={() => onSelect(r)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(r);
+                  }
+                }}
+                className={`rounded-md overflow-hidden flex flex-col items-center transition-[background-color,transform,opacity] duration-200 ease-out focus:outline-none focus-visible:ring-0 ${
+                  isSelected
+                    ? "bg-white/[0.07]"
+                    : "bg-white/[0.015] hover:bg-white/[0.035]"
+                } ${fitRows ? "p-1" : "p-2"}`}
+                style={{
+                  height: fitRows ? "100%" : "168px",
+                  minHeight: 0,
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  position: "relative",
+                  transform: isSelected ? "scale(1.035)" : "scale(1)",
+                  zIndex: isSelected ? 1 : 0,
+                }}
+              >
               {r.cosmeticProduct?.fileUrl?.fileUrl ? (
                 <div
                   className={`w-full flex-1 min-h-0 flex items-center justify-center ${
@@ -139,8 +146,9 @@ export function CosmeticGrid({
                   {r.cosmeticProduct?.name || "Unknown Product"}
                 </div>
               </div>
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
     </div>

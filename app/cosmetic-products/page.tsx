@@ -15,10 +15,15 @@ import {
   type SkinTypeKey,
 } from "@/modules/cosmetics/constants";
 import { useMirrorStore } from "@/modules/shared/store/useMirrorStore";
+import { useCaptureFrame } from "@/components/ProximitySensorMount";
+import { listenForSkinAnalysis } from "@/modules/shared/api/skinAnalysisSocket";
 import { ROUTES } from "@/navigation";
 
 const SKIN_TYPES = Object.keys(SKIN_TYPE_FILTERS) as SkinTypeKey[];
 const API_LIMIT = 100;
+// Auto-rotate the browse grid through each skin-type category (and its pages)
+// so a kiosk viewer sees the full catalogue without touching anything.
+const ROTATE_MS = 10_000;
 // Products shown per scroll page; the user pages explicitly past this cap.
 const PAGE_SIZE = 20;
 
@@ -220,6 +225,9 @@ const COLUMN_SCROLL_STYLE = {
 
 export default function CosmeticProductsPage() {
   const router = useRouter();
+  const captureFrame = useCaptureFrame();
+  const isPresent = useMirrorStore((s) => s.isPresent);
+  const sensorStatus = useMirrorStore((s) => s.sensorStatus);
 
   const [apiProducts, setApiProducts] = useState<CosmeticProduct[]>([]);
   const [isLoadingFirst, setIsLoadingFirst] = useState(true);
@@ -235,10 +243,23 @@ export default function CosmeticProductsPage() {
   const rightColRef = useRef<HTMLDivElement | null>(null);
   const isSyncingScroll = useRef(false);
 
-  const [skinType, setSkinType] = useState<SkinTypeKey>("NORMAL");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     null,
   );
+
+  // Which skin-type category the browse grid currently shows. Advanced
+  // automatically by the rotation timer (see effect below).
+  const [displayedSkinType, setDisplayedSkinType] =
+    useState<SkinTypeKey>("OILY");
+
+  // Camera gating: a real video device must exist (enumerateDevices), the
+  // proximity sensor must not have failed, AND a face must currently be
+  // present. Only then do we treat the camera as usable for live analysis.
+  const [hasVideoInput, setHasVideoInput] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const cameraDetected =
+    hasVideoInput && sensorStatus !== "unavailable" && isPresent;
 
   // Load page 1 on mount
   useEffect(() => {
@@ -285,10 +306,41 @@ export default function CosmeticProductsPage() {
     };
   }, [nextPage, isLoadingFirst]);
 
+  // The tabs are action buttons (mock-evaluate triggers), not manual filters,
+  // but the browse grid still shows one category at a time and the rotation
+  // timer cycles through them so the viewer sees oily/dry/normal/sensitive picks.
   const filtered = useMemo(
-    () => apiProducts.filter((p) => matchesSkinType(p, skinType)),
-    [apiProducts, skinType],
+    () => apiProducts.filter((p) => matchesSkinType(p, displayedSkinType)),
+    [apiProducts, displayedSkinType],
   );
+
+  // Detect whether the device actually has a camera (videoinput). Combined with
+  // the proximity sensor status + presence to decide if live analysis is usable.
+  useEffect(() => {
+    let cancelled = false;
+    const md =
+      typeof navigator !== "undefined" ? navigator.mediaDevices : null;
+    // hasVideoInput defaults to false, so no synchronous setState is needed
+    // here — just bail when the API is unavailable.
+    if (!md?.enumerateDevices) return;
+    const check = () => {
+      md.enumerateDevices()
+        .then((devices) => {
+          if (!cancelled) {
+            setHasVideoInput(devices.some((d) => d.kind === "videoinput"));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setHasVideoInput(false);
+        });
+    };
+    check();
+    md.addEventListener?.("devicechange", check);
+    return () => {
+      cancelled = true;
+      md.removeEventListener?.("devicechange", check);
+    };
+  }, []);
 
   const totalLoadedPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const canPrev = displayPage > 1;
@@ -330,11 +382,35 @@ export default function CosmeticProductsPage() {
     setDisplayPage((p) => p + 1);
   }, [hasMore, isLoadingMore, isLoadingFirst, filtered.length, displayPage]);
 
-  // Reset both columns to the top whenever the page changes.
+  // Reset both columns to the top whenever the page or category changes.
   useEffect(() => {
     if (leftColRef.current) leftColRef.current.scrollTop = 0;
     if (rightColRef.current) rightColRef.current.scrollTop = 0;
-  }, [displayPage]);
+  }, [displayPage, displayedSkinType]);
+
+  // Auto-rotate the grid: page through the current category, then move to the
+  // next skin type and loop. Paused while a product is selected (so the viewer
+  // can read it) and until products have loaded. Any state change here re-arms
+  // the timer, so manual Prev/Next naturally resets the countdown too.
+  useEffect(() => {
+    if (selectedProductId || filtered.length === 0) return;
+    const timer = window.setTimeout(() => {
+      if (displayPage < totalLoadedPages) {
+        setDisplayPage((p) => p + 1);
+      } else {
+        const idx = SKIN_TYPES.indexOf(displayedSkinType);
+        setDisplayedSkinType(SKIN_TYPES[(idx + 1) % SKIN_TYPES.length]);
+        setDisplayPage(1);
+      }
+    }, ROTATE_MS);
+    return () => window.clearTimeout(timer);
+  }, [
+    displayPage,
+    displayedSkinType,
+    totalLoadedPages,
+    selectedProductId,
+    filtered.length,
+  ]);
 
   // Mirror one column's scroll position onto the other.
   const handleColumnScroll = useCallback((source: "left" | "right") => {
@@ -357,11 +433,51 @@ export default function CosmeticProductsPage() {
     ? getProductExplanation(selectedProduct)
     : null;
 
-  const handleSkinTypeSelect = useCallback((key: SkinTypeKey) => {
-    setSkinType(key);
-    setSelectedProductId(null);
-    setDisplayPage(1);
-  }, []);
+  // Mock path (no camera): clicking a skin-type button immediately builds a
+  // synthetic SkinAnalysis for that type and jumps to the recommendations.
+  const evaluateMock = useCallback(
+    (key: SkinTypeKey) => {
+      const recommendations = recommendationPool(
+        apiProducts.filter((p) => matchesSkinType(p, key)),
+      )
+        .slice(0, 10)
+        .map((product, index) => ({
+          id: `catalog-${key.toLowerCase()}-${product.id}`,
+          rank: index + 1,
+          score: Math.max(0.7, 1 - index * 0.03),
+          reason:
+            getProductExplanation(product) ??
+            `Recommended for ${SKIN_TYPE_FILTERS[key].label.toLowerCase()} skin.`,
+          cosmeticProduct: product,
+        }));
+      const result: SkinAnalysis = {
+        id: `catalog-evaluation-${key.toLowerCase()}`,
+        skinType: key,
+        skinTone: null,
+        hydrationPct: key === "DRY" ? 32 : key === "OILY" ? 68 : 52,
+        oilinessPct: key === "OILY" ? 78 : key === "DRY" ? 24 : 48,
+        concerns: [SKIN_TYPE_FILTERS[key].label],
+        routineTip: `Showing recommendations for ${SKIN_TYPE_FILTERS[key].label.toLowerCase()} skin.`,
+        recommendations,
+      };
+
+      useMirrorStore.getState().setPendingCosmeticsData(null);
+      useMirrorStore.getState().setChatCosmeticsData(null);
+      useMirrorStore.getState().setSkinAnalysisResult(result);
+      sessionStorage.setItem(COSMETIC_EVALUATE_KEY, "1");
+      router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+    },
+    [apiProducts, router],
+  );
+
+  // Skin-type button handler — disabled (no-op) while a live camera is detected.
+  const handleSkinTypeClick = useCallback(
+    (key: SkinTypeKey) => {
+      if (cameraDetected || apiProducts.length === 0) return;
+      evaluateMock(key);
+    },
+    [cameraDetected, apiProducts.length, evaluateMock],
+  );
 
   const handleProductSelect = useCallback(
     (productId: string) => {
@@ -397,35 +513,63 @@ export default function CosmeticProductsPage() {
     [apiProducts],
   );
 
-  const handleEvaluateSkin = useCallback(() => {
-    const recommendations = recommendationPool(filtered)
-      .slice(0, 10)
-      .map((product, index) => ({
-        id: `catalog-${skinType.toLowerCase()}-${product.id}`,
-        rank: index + 1,
-        score: Math.max(0.7, 1 - index * 0.03),
-        reason:
-          getProductExplanation(product) ??
-          `Recommended for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
-        cosmeticProduct: product,
-      }));
-    const result: SkinAnalysis = {
-      id: `catalog-evaluation-${skinType.toLowerCase()}`,
-      skinType: skinType,
-      skinTone: null,
-      hydrationPct: skinType === "DRY" ? 32 : skinType === "OILY" ? 68 : 52,
-      oilinessPct: skinType === "OILY" ? 78 : skinType === "DRY" ? 24 : 48,
-      concerns: [SKIN_TYPE_FILTERS[skinType].label],
-      routineTip: `Showing recommendations for ${SKIN_TYPE_FILTERS[skinType].label.toLowerCase()} skin.`,
-      recommendations,
-    };
+  // Real path (camera detected): capture a fresh frame, upload it, kick off the
+  // backend analysis, and wait for the Socket.io result before navigating.
+  const handleEvaluateSkin = useCallback(async () => {
+    if (!cameraDetected || isAnalyzing) return;
 
+    const dataUrl = captureFrame();
+    if (!dataUrl) {
+      setAnalysisError("Couldn't capture from the camera — please try again.");
+      return;
+    }
+
+    setAnalysisError(null);
+    setIsAnalyzing(true);
+    useMirrorStore.getState().setSkinCaptureUrl(dataUrl);
     useMirrorStore.getState().setPendingCosmeticsData(null);
     useMirrorStore.getState().setChatCosmeticsData(null);
-    useMirrorStore.getState().setSkinAnalysisResult(result);
-    sessionStorage.setItem(COSMETIC_EVALUATE_KEY, "1");
-    router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
-  }, [filtered, router, skinType]);
+
+    let unsubscribe = () => {};
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      unsubscribe();
+      window.clearTimeout(timeout);
+    };
+    const timeout = window.setTimeout(() => {
+      finish();
+      setIsAnalyzing(false);
+      setAnalysisError("Analysis timed out — please try again.");
+    }, 45_000);
+
+    try {
+      // Subscribe BEFORE starting so the push can't race ahead of us.
+      unsubscribe = await listenForSkinAnalysis({
+        onComplete: (data) => {
+          finish();
+          useMirrorStore.getState().setSkinAnalysisResult(data as SkinAnalysis);
+          sessionStorage.setItem(COSMETIC_EVALUATE_KEY, "1");
+          router.push(ROUTES.AI_RECOMMENDATION_COSMETIC);
+        },
+        onError: (message) => {
+          finish();
+          setIsAnalyzing(false);
+          setAnalysisError(message || "Skin analysis failed — please try again.");
+        },
+      });
+
+      const { id: fileId } = await cosmeticsService.uploadCapture(dataUrl);
+      await cosmeticsService.startSkinAnalysis(fileId);
+    } catch (err) {
+      finish();
+      setIsAnalyzing(false);
+      setAnalysisError(
+        err instanceof Error ? err.message : "Skin analysis failed — please try again.",
+      );
+    }
+  }, [cameraDetected, isAnalyzing, captureFrame, router]);
 
   const isInitialLoading = isLoadingFirst && apiProducts.length === 0;
 
@@ -443,8 +587,12 @@ export default function CosmeticProductsPage() {
         onBack={() => router.back()}
       />
 
-      <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-10 gap-6">
-        {/* Skin type tabs */}
+      {/* pb-32 clears the global fixed AssistantNavBar (bottom-4 + h-20 ≈ 96px)
+          so the last product row / pagination isn't hidden behind the nav. */}
+      <div className="flex-1 min-h-0 flex flex-col items-center px-6 pt-2 pb-32 gap-6">
+        {/* Skin type buttons — disabled while a live camera is detected
+            (use "Evaluate Your Skin" instead); when no camera is present each
+            one triggers a mock evaluation for that skin type. */}
         <div
           className="grid grid-cols-4 w-full"
           style={{
@@ -453,14 +601,18 @@ export default function CosmeticProductsPage() {
           }}
         >
           {SKIN_TYPES.map((key) => {
-            const active = skinType === key;
+            const disabled = cameraDetected || isInitialLoading;
+            // Highlight the category the rotation timer is currently showing.
+            const active = displayedSkinType === key;
             return (
               <button
                 key={key}
                 type="button"
-                onClick={() => handleSkinTypeSelect(key)}
+                onClick={() => handleSkinTypeClick(key)}
+                disabled={disabled}
+                aria-disabled={disabled}
                 aria-pressed={active}
-                className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none"
+                className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   WebkitTapHighlightColor: "transparent",
                   padding: "clamp(10px, 1.8vh, 24px) clamp(10px, 1.4vw, 24px)",
@@ -468,7 +620,7 @@ export default function CosmeticProductsPage() {
                   border: active
                     ? "1.5px solid rgba(255,255,255,0.5)"
                     : "1.5px solid rgba(255,255,255,0.1)",
-                  cursor: "pointer",
+                  cursor: disabled ? "not-allowed" : "pointer",
                 }}
               >
                 <div
@@ -494,7 +646,7 @@ export default function CosmeticProductsPage() {
         <button
           type="button"
           onClick={handleEvaluateSkin}
-          disabled={isInitialLoading || filtered.length === 0}
+          disabled={!cameraDetected || isAnalyzing}
           className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             WebkitTapHighlightColor: "transparent",
@@ -502,14 +654,11 @@ export default function CosmeticProductsPage() {
             background: "transparent",
             border: "1.5px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
-            cursor:
-              isInitialLoading || filtered.length === 0
-                ? "not-allowed"
-                : "pointer",
+            cursor: !cameraDetected || isAnalyzing ? "not-allowed" : "pointer",
           }}
         >
           <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
-            Evaluate Your Skin
+            {isAnalyzing ? "Analyzing…" : "Evaluate Your Skin"}
           </span>
         </button>
 
@@ -518,7 +667,11 @@ export default function CosmeticProductsPage() {
             ? "Loading products…"
             : error
               ? error
-              : `${filtered.length} product${filtered.length === 1 ? "" : "s"} for ${SKIN_TYPE_FILTERS[skinType].label} skin`}
+              : analysisError
+                ? analysisError
+                : cameraDetected
+                  ? "Camera detected — tap “Evaluate Your Skin” for a live analysis"
+                  : "No camera detected — tap a skin type to see recommendations"}
         </div>
 
         {/* Product columns */}

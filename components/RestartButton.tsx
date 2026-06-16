@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { performRestart } from "@/modules/shared/voice/sessionCommands";
@@ -10,6 +10,7 @@ export default function RestartButton() {
     const [isPending, setIsPending] = useState(false);
     const router = useRouter();
     const queryClient = useQueryClient();
+    const touchHandledRef = useRef(false);
 
     const { data: sessionId } = useQuery({
         queryKey: ["currentSessionId"],
@@ -29,15 +30,6 @@ export default function RestartButton() {
         });
     };
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        e.preventDefault();
-        handleAction();
-    };
-
-    const handleClick = () => {
-        handleAction();
-    };
-
     return (
         <div className="relative flex flex-col items-center justify-center">
             {sessionId && (
@@ -47,12 +39,21 @@ export default function RestartButton() {
             )}
             <button
                 type="button"
-                onTouchStart={handleTouchStart}
-                onClick={handleClick}
+                onTouchStart={() => {
+                    touchHandledRef.current = true;
+                    handleAction();
+                }}
+                onClick={() => {
+                    if (touchHandledRef.current) {
+                        touchHandledRef.current = false;
+                        return;
+                    }
+                    handleAction();
+                }}
                 disabled={isPending}
-                className={`text-[9px] px-3 py-1.5 border rounded-lg uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 ${isPending
-                    ? "border-white/30 text-white/70 bg-white/10"
-                    : "border-white/10 text-white/25 hover:bg-white/5 active:scale-95"
+                className={`whitespace-nowrap px-4 py-2 rounded-2xl text-[11px] font-medium uppercase tracking-[0.1em] transition-all duration-300 flex items-center gap-2 ${isPending
+                    ? "text-white/50 bg-white/5 border border-transparent"
+                    : "text-white/50 hover:text-white/85 hover:bg-white/5 active:bg-white/10 border border-transparent"
                     }`}
             >
                 {isPending && (
