@@ -806,6 +806,8 @@ export function VoiceProvider({ children }: { children: React.ReactNode }) {
                 input: `[stylist] ${t}`,
                 sitemapContext: [...SITEMAP_CONTEXT, "back"],
                 pageMode: effectiveMode,
+                fsets: 4,
+                csets: 4,
                 ...(resolvedGarmentLoc &&
                 (effectiveMode === "garment" || effectiveMode === "overview")
                   ? {
