@@ -202,6 +202,8 @@ export default function FashionCatalog() {
       const label = activeGender === "MALE" ? "male" : "female";
       prompt = `${prompt} Please recommend ${label} outfits only.`;
     }
+    sessionStorage.setItem("mirror_fashion_category", category);
+    sessionStorage.setItem("mirror_fashion_gender", activeGender === "All" ? "null" : activeGender);
     sessionStorage.setItem(FASHION_PROMPT_KEY, prompt);
     router.push("/ai-recommendation-fashion");
   }, [
