@@ -41,13 +41,27 @@ export default function VirtualMirrorV2() {
   const { isProcessing } = useVoiceContext();
   const [activePrompt, setActivePrompt] = useState<string | null>(null);
 
+  const setPendingCategory = useMirrorStore((s) => s.setPendingCategory);
+  const setPendingGender = useOverviewStore((s) => s.setPendingGender);
+
   useEffect(() => {
     const savedPrompt = sessionStorage.getItem(FASHION_PROMPT_KEY);
     if (savedPrompt) {
       setTimeout(() => setActivePrompt(savedPrompt), 0);
-      sessionStorage.removeItem(FASHION_PROMPT_KEY);
     }
-  }, []);
+
+    const savedCategory = sessionStorage.getItem("mirror_fashion_category");
+    if (savedCategory) {
+      setPendingCategory(savedCategory);
+    }
+
+    const savedGender = sessionStorage.getItem("mirror_fashion_gender");
+    if (savedGender && savedGender !== "null") {
+      setPendingGender(savedGender as "MALE" | "FEMALE");
+    } else if (savedGender === "null") {
+      setPendingGender(null);
+    }
+  }, [setPendingCategory, setPendingGender]);
 
   const storeGender = useOverviewStore((s) => s.pendingGender);
   const storeCategory = useMirrorStore((s) => s.pendingCategory);
@@ -545,17 +559,6 @@ export default function VirtualMirrorV2() {
             className="relative z-40"
             direction="below"
           />
-        </div>
-      )}
-
-      {/* AI Suggestion Banner */}
-      {hasFetched && fashionQuery.data?.message && (
-        <div className="px-4 pb-2 z-10" style={{ marginTop: "-8px" }}>
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 text-center border border-white/20 shadow-lg text-white">
-            <p className="text-sm font-medium leading-relaxed max-w-2xl mx-auto drop-shadow-md">
-              {fashionQuery.data.message}
-            </p>
-          </div>
         </div>
       )}
 

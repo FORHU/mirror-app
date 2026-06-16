@@ -14,6 +14,7 @@ export function MarqueeColumn({
   resumeDelay = 4500,
   gap = 14,
   style,
+  scrollRef,
 }: {
   loop: boolean;
   children: React.ReactNode;
@@ -25,8 +26,11 @@ export function MarqueeColumn({
   gap?: number;
   /** Extra styles applied to the scroll container (e.g. scrollSnapType). */
   style?: React.CSSProperties;
+  /** Optional ref to access the scrollable container. */
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const internalRef = useRef<HTMLDivElement | null>(null);
+  const ref = scrollRef || internalRef;
   const pausedUntilRef = useRef(0);
 
   useEffect(() => {
@@ -56,7 +60,7 @@ export function MarqueeColumn({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [loop, speed]);
+  }, [loop, speed, ref]);
 
   const pause = () => {
     pausedUntilRef.current = Date.now() + resumeDelay;

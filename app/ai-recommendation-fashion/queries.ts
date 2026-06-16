@@ -43,6 +43,21 @@ export function useFashionQuery(
     queryFn: async (): Promise<FashionQueryData> => {
       if (!prompt) throw new Error("No prompt provided");
 
+      const queryKeyStr = JSON.stringify([
+        prompt,
+        category,
+        gender,
+        coords?.lat,
+        coords?.lon,
+      ]);
+      const cacheStr = sessionStorage.getItem("mirror_fashion_current_cache");
+      if (cacheStr) {
+        try {
+          const { key, data } = JSON.parse(cacheStr);
+          if (key === queryKeyStr) return data;
+        } catch {}
+      }
+
       const payload = {
         input: `[stylist] ${prompt}`,
         pageMode: "garment" as const,
@@ -229,7 +244,7 @@ export function useFashionQuery(
         }
       }
 
-      return {
+      const finalData = {
         message: response.message ?? "",
         topsBase: newTopsBase,
         topsMid: newTopsMid,
@@ -239,6 +254,15 @@ export function useFashionQuery(
         bags: newBags,
         outfits: finalOutfits,
       };
+
+      try {
+        sessionStorage.setItem(
+          "mirror_fashion_current_cache",
+          JSON.stringify({ key: queryKeyStr, data: finalData }),
+        );
+      } catch {}
+
+      return finalData;
     },
     enabled: !!prompt,
   });
