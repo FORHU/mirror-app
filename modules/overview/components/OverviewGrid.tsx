@@ -228,11 +228,11 @@ function OutfitDetailPane({
                   type="button"
                   title={g.name}
                   onClick={() => onSelectGarment(isSelected ? null : g.id)}
-                  className={`shrink-0 flex flex-col gap-1 transition-all ${isSelected ? "opacity-100 scale-105" : "opacity-50 hover:opacity-80"}`}
+                  className={`shrink-0 flex flex-col gap-1 transition-all ${isSelected ? "opacity-100" : "opacity-50 hover:opacity-80"}`}
                   style={{ width: "72px" }}
                 >
                   <div
-                    className={`rounded-xl overflow-hidden bg-white/5 border transition-all ${isSelected ? "border-white/60 ring-1 ring-white/30" : "border-white/10"}`}
+                    className={`rounded-[8px] overflow-hidden border transition-all ${isSelected ? "border-white/60" : "border-transparent"}`}
                     style={{ aspectRatio: "3/4" }}
                   >
                     {g.imageUrl ? (
@@ -441,8 +441,8 @@ function CosmeticsStrip({
           onClick={() => onSelect?.(c.id)}
           className={`min-w-0 transition-all group/item text-left overflow-hidden ${
             standalone
-              ? `flex flex-col flex-1 min-h-0 mb-3 last:mb-0 rounded-2xl overflow-hidden ${selectedId === c.id ? "ring-1 ring-white/30 bg-white/5" : "opacity-60 hover:opacity-100"}`
-              : "flex flex-col rounded-2xl bg-white/5 border border-white/10 hover:border-white/30"
+              ? `flex flex-col flex-1 min-h-0 mb-3 last:mb-0 rounded-[10px] overflow-hidden ${selectedId === c.id ? "border border-white/60" : "border border-transparent opacity-60 hover:opacity-100"}`
+              : "flex flex-col rounded-[10px] border border-transparent hover:border-white/30"
           }`}
         >
           {standalone ? (
@@ -462,7 +462,7 @@ function CosmeticsStrip({
             </>
           ) : (
             <>
-              <div className="aspect-square bg-white/3 overflow-hidden">
+              <div className="aspect-square overflow-hidden">
                 <img
                   src={proxied(c.imageUrl)}
                   alt={c.name}
@@ -519,19 +519,12 @@ function Tile({
       className={[
         standalone
           ? "flex flex-col p-2 min-h-0 overflow-hidden relative group"
-          : "glass-card-strong neon-border-white rounded-4xl flex flex-col p-6 min-h-0 overflow-hidden relative group",
+          : "rounded-4xl flex flex-col p-6 min-h-0 overflow-hidden relative group",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      {!standalone && (
-        <>
-          {/* Premium Glass Glare Overlay */}
-          <div className="absolute inset-0 bg-linear-to-br from-white/8 via-white/1 to-transparent pointer-events-none" />
-          <div className="absolute inset-0 bg-linear-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-        </>
-      )}
 
       <TileHeader icon={icon} label={label} rightContent={rightContent} />
       <div className="flex-1 min-h-0 flex flex-col relative z-10">
