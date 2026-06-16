@@ -566,7 +566,7 @@ export default function FashionCatalog() {
 
       {/* Bottom action row */}
       {!isLoading && (
-        <div className="absolute bottom-25 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
+        <div className="absolute bottom-40 left-0 right-0 z-40 flex flex-col items-center gap-3 px-4 pointer-events-none">
           {/* Recommendations button */}
           <div className="pointer-events-auto w-full max-w-xs flex justify-center">
             <button
