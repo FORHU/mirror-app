@@ -49,6 +49,7 @@ export async function performRestart(router: AppRouterInstance) {
     sessionStorage.removeItem(FASHION_PROMPT_KEY);
     sessionStorage.removeItem(COSMETIC_PROMPT_KEY);
     sessionStorage.removeItem(OVERVIEW_PROMPT_KEY);
+    localStorage.clear();
   } catch {
     /* sessionStorage may be unavailable */
   }
