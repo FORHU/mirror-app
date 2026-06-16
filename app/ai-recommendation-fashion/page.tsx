@@ -616,7 +616,7 @@ export default function VirtualMirrorV2() {
                       minHeight: 0,
                       borderRadius: "12px",
                       overflow: "hidden",
-                      background: "rgba(255,255,255,0.01)",
+                      background: "transparent",
                     }}
                   >
                     {selectedOutfit.file?.fileUrl ? (
@@ -831,7 +831,7 @@ export default function VirtualMirrorV2() {
                               >
                                 <span
                                   style={{
-                                    color: "rgba(255,255,255,0.35)",
+                                    color: "rgba(255,255,255,0.4)",
                                     fontSize: "8px",
                                     textTransform: "uppercase",
                                     letterSpacing: "0.08em",
@@ -856,7 +856,7 @@ export default function VirtualMirrorV2() {
                                 </span>
                                 <span
                                   style={{
-                                    color: "rgba(255,255,255,0.45)",
+                                    color: "rgba(255,255,255,0.4)",
                                     fontSize: "9px",
                                     lineHeight: 1.4,
                                     overflow: "hidden",
@@ -997,7 +997,7 @@ export default function VirtualMirrorV2() {
                           </span>
                           <span
                             style={{
-                              color: "rgba(255,255,255,0.45)",
+                              color: "rgba(255,255,255,0.4)",
                               fontSize: "9px",
                               lineHeight: 1.4,
                               display: "-webkit-box",

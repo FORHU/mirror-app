@@ -243,6 +243,7 @@ export default function FashionCatalog() {
       role="button"
       tabIndex={0}
       aria-label={`Outfit ${idx + 1}`}
+      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
       onClick={() =>
         setSelectedOutfitIdx(selectedOutfitIdx === idx ? null : idx)
       }
@@ -258,7 +259,7 @@ export default function FashionCatalog() {
         flex: "0 0 auto",
         borderRadius: "10px",
         overflow: "hidden",
-        background: "rgba(255,255,255,0.01)",
+        background: "transparent",
         cursor: "pointer",
         border:
           selectedOutfitIdx === idx
@@ -408,9 +409,8 @@ export default function FashionCatalog() {
                   style={{
                     flex: "1 1 auto",
                     minHeight: "min(58vh, 620px)",
-                    borderRadius: "14px",
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: "12px",
+                    background: "transparent",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -441,7 +441,7 @@ export default function FashionCatalog() {
                     {selectedOutfit.name}
                   </div>
                   {selectedOutfit.description && (
-                    <div className="text-white/45 text-xs leading-snug mt-1">
+                    <div className="text-white/40 text-xs leading-snug mt-1">
                       {selectedOutfit.description}
                     </div>
                   )}
@@ -455,13 +455,11 @@ export default function FashionCatalog() {
                       style={{
                         flex: "0 0 auto",
                         minHeight: "76px",
-                        background: "rgba(255,255,255,0.06)",
-                        backdropFilter: "blur(12px)",
+                        background: "transparent",
                         borderRadius: "12px",
                         display: "flex",
                         alignItems: "center",
                         padding: "10px",
-                        border: "1px solid rgba(255,255,255,0.08)",
                         gap: "12px",
                       }}
                     >
@@ -470,7 +468,7 @@ export default function FashionCatalog() {
                           width: "60px",
                           height: "60px",
                           borderRadius: "8px",
-                          background: "rgba(0,0,0,0.3)",
+                          background: "transparent",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -573,9 +571,8 @@ export default function FashionCatalog() {
               disabled={isUpdatingGender}
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium text-white transition-opacity"
               style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.25)",
-                backdropFilter: "blur(12px)",
+                background: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.3)",
                 opacity: isUpdatingGender ? 0.4 : 1,
                 cursor: isUpdatingGender ? "not-allowed" : "pointer",
               }}

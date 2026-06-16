@@ -89,7 +89,7 @@ export function OutfitListPanel({
                           position: "relative",
                           borderRadius: "10px",
                           overflow: "hidden",
-                          background: "rgba(255,255,255,0.01)",
+                          background: "transparent",
                           cursor: "pointer",
                           border:
                             selectedOutfitIdx === globalIdx
