@@ -482,94 +482,96 @@ export default function CosmeticRecommendationPage() {
       {/* Main 3 Column Layout */}
       {/* pb clears the global fixed AssistantNavBar (bottom-4 + h-20 ≈ 96px) so
           the bottom row of product cards isn't covered by the nav. */}
-      <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-32 gap-7">
-        {/* Left Column - Recommendations 1-5 */}
-        <div
-          className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
-          style={{ width: sideColumnWidth }}
-        >
-          <CosmeticGrid
-            pagedItems={leftColRecs}
-            loading={showRecommendationSkeletons}
-            pageSize={3}
-            columns={1}
-            selectedId={selectedId}
-            onSelect={handleRecommendationSelect}
-            emptyMessage="No products available."
-          />
-        </div>
+      {sortedRecs.length === 0 ? (
+        /* Full-width horizontal loader / idle state — mirrors the fashion page's
+           Style-tip loader (flex-1, full width) so the quote spans the screen
+           instead of being squeezed into the narrow center column. */
+        <QuoteCarousel
+          quotes={COSMETIC_QUOTES}
+          label="Skin Tip"
+          labelClassName="text-white/30"
+          className="flex-1 flex flex-col items-center justify-center px-6 pb-32 text-center"
+        />
+      ) : (
+        <div className="flex-1 min-h-0 flex w-full h-full p-4 pt-2 pb-32 gap-7">
+          {/* Left Column - Recommendations 1-5 */}
+          <div
+            className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
+            style={{ width: sideColumnWidth }}
+          >
+            <CosmeticGrid
+              pagedItems={leftColRecs}
+              loading={showRecommendationSkeletons}
+              pageSize={3}
+              columns={1}
+              selectedId={selectedId}
+              onSelect={handleRecommendationSelect}
+              emptyMessage="No products available."
+            />
+          </div>
 
-        {/* Center Column - Evaluation/Details */}
-        <div className="flex-1 h-full flex flex-col items-center justify-center p-4 relative">
-          <div className="w-full h-full max-w-none flex flex-col items-center justify-center">
-            <div className="flex flex-col justify-center">
-              {selectedRec ? (
-                <div className="relative flex flex-col items-center text-center gap-6 px-6 py-2 transition-all duration-300">
-                  <div className="relative flex shrink-0 items-center justify-center">
-                    {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
-                        alt={selectedRec.cosmeticProduct?.name || "Product"}
-                        decoding="async"
-                        className="relative z-10 object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.62)]"
-                        style={{
-                          filter: "none",
-                          opacity: 1,
-                          maxWidth: "min(34vw, 420px)",
-                          maxHeight: "min(40vh, 460px)",
-                        }}
-                      />
-                    ) : (
-                      <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
-                        No Image
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="max-w-md">
-                    <div className="text-[11px] text-white/45 uppercase tracking-[0.24em] mb-1.5 font-semibold">
-                      {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
+          {/* Center Column - Evaluation/Details */}
+          <div className="flex-1 h-full flex flex-col items-center justify-center p-4 relative">
+            <div className="w-full h-full max-w-none flex flex-col items-center justify-center">
+              <div className="flex flex-col justify-center">
+                {selectedRec ? (
+                  <div className="relative flex flex-col items-center text-center gap-6 px-6 py-2 transition-all duration-300">
+                    <div className="relative flex shrink-0 items-center justify-center">
+                      {selectedRec.cosmeticProduct?.fileUrl?.fileUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={selectedRec.cosmeticProduct.fileUrl.fileUrl}
+                          alt={selectedRec.cosmeticProduct?.name || "Product"}
+                          decoding="async"
+                          className="relative z-10 object-contain drop-shadow-[0_24px_40px_rgba(0,0,0,0.62)]"
+                          style={{
+                            filter: "none",
+                            opacity: 1,
+                            maxWidth: "min(34vw, 420px)",
+                            maxHeight: "min(40vh, 460px)",
+                          }}
+                        />
+                      ) : (
+                        <span className="relative z-10 text-white/20 text-xs uppercase tracking-widest">
+                          No Image
+                        </span>
+                      )}
                     </div>
-                    <h2 className="text-2xl font-light leading-tight mb-3 text-white/90">
-                      {selectedRec.cosmeticProduct?.name || "Unknown Product"}
-                    </h2>
-                    <p className="text-[14px] text-white/52 leading-relaxed font-light">
-                      {selectedRec.reason}
-                    </p>
+
+                    <div className="max-w-md">
+                      <div className="text-[11px] text-white/45 uppercase tracking-[0.24em] mb-1.5 font-semibold">
+                        {selectedRec.cosmeticProduct?.brand || "Curated Brand"}
+                      </div>
+                      <h2 className="text-2xl font-light leading-tight mb-3 text-white/90">
+                        {selectedRec.cosmeticProduct?.name || "Unknown Product"}
+                      </h2>
+                      <p className="text-[14px] text-white/52 leading-relaxed font-light">
+                        {selectedRec.reason}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : sortedRecs.length === 0 ? (
-                // Loader/idle state — only while no products have loaded yet.
-                // Once side products are present, the center stays blank until
-                // the user taps one.
-                <QuoteCarousel
-                  quotes={COSMETIC_QUOTES}
-                  label="Skin Tip"
-                  labelClassName="text-white/30"
-                  className="flex flex-col items-center justify-center p-12 text-center"
-                />
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Column - Recommendations 4-6 */}
-        <div
-          className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
-          style={{ width: sideColumnWidth }}
-        >
-          <CosmeticGrid
-            pagedItems={rightColRecs}
-            loading={showRecommendationSkeletons}
-            pageSize={3}
-            columns={1}
-            selectedId={selectedId}
-            onSelect={handleRecommendationSelect}
-            emptyMessage="No more products"
-          />
+          {/* Right Column - Recommendations 4-6 */}
+          <div
+            className="flex min-h-0 flex-col h-full overflow-hidden transition-[width] duration-300 ease-out"
+            style={{ width: sideColumnWidth }}
+          >
+            <CosmeticGrid
+              pagedItems={rightColRecs}
+              loading={showRecommendationSkeletons}
+              pageSize={3}
+              columns={1}
+              selectedId={selectedId}
+              onSelect={handleRecommendationSelect}
+              emptyMessage="No more products"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Suggestions floater — hidden while recommendations are still loading */}
       {!showRecommendationSkeletons && (
