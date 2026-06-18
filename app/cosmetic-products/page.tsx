@@ -432,8 +432,9 @@ export default function CosmeticProductsPage() {
     ? getProductExplanation(selectedProduct)
     : null;
 
-  // Mock path (no camera): clicking a skin-type button immediately builds a
-  // synthetic SkinAnalysis for that type and jumps to the recommendations.
+  // Mock path (no camera): build a synthetic SkinAnalysis for the given skin
+  // type and jump to the recommendations. Used both by the skin-type buttons
+  // and as the fallback for "Evaluate Your Skin" when no camera is present.
   const evaluateMock = useCallback(
     (key: SkinTypeKey) => {
       const recommendations = recommendationPool(
@@ -512,10 +513,19 @@ export default function CosmeticProductsPage() {
     [apiProducts],
   );
 
-  // Real path (camera detected): capture a fresh frame, upload it, kick off the
-  // backend analysis, and wait for the Socket.io result before navigating.
+  // Evaluate handler. With a live camera: capture a fresh frame, upload it, kick
+  // off the backend analysis, and wait for the Socket.io result before
+  // navigating. With NO camera: fall back to a mock evaluation so the button
+  // still works on camera-less kiosks (uses a representative skin type).
   const handleEvaluateSkin = useCallback(async () => {
-    if (!cameraDetected || isAnalyzing) return;
+    if (isAnalyzing || apiProducts.length === 0) return;
+
+    // No usable camera → use mock data instead of disabling the button.
+    if (!cameraDetected) {
+      const key = SKIN_TYPES[Math.floor(Math.random() * SKIN_TYPES.length)];
+      evaluateMock(key);
+      return;
+    }
 
     const dataUrl = captureFrame();
     if (!dataUrl) {
@@ -572,9 +582,17 @@ export default function CosmeticProductsPage() {
           : "Skin analysis failed — please try again.",
       );
     }
-  }, [cameraDetected, isAnalyzing, captureFrame, router]);
+  }, [
+    cameraDetected,
+    isAnalyzing,
+    apiProducts.length,
+    captureFrame,
+    router,
+    evaluateMock,
+  ]);
 
   const isInitialLoading = isLoadingFirst && apiProducts.length === 0;
+  const evaluateDisabled = isAnalyzing || isInitialLoading;
 
   return (
     <div
@@ -651,7 +669,7 @@ export default function CosmeticProductsPage() {
         <button
           type="button"
           onClick={handleEvaluateSkin}
-          disabled={!cameraDetected || isAnalyzing}
+          disabled={evaluateDisabled}
           className="rounded-2xl text-center transition-colors tap-highlight-none focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             WebkitTapHighlightColor: "transparent",
@@ -659,7 +677,7 @@ export default function CosmeticProductsPage() {
             background: "transparent",
             border: "1.5px solid rgba(255,255,255,0.5)",
             color: "#ffffff",
-            cursor: !cameraDetected || isAnalyzing ? "not-allowed" : "pointer",
+            cursor: evaluateDisabled ? "not-allowed" : "pointer",
           }}
         >
           <span className="font-semibold tracking-[0.18em] uppercase text-[12px]">
@@ -676,17 +694,17 @@ export default function CosmeticProductsPage() {
                 ? analysisError
                 : cameraDetected
                   ? "Camera detected — tap “Evaluate Your Skin” for a live analysis"
-                  : "No camera detected — tap a skin type to see recommendations"}
+                  : "No camera detected — tap “Evaluate Your Skin” for a sample analysis"}
         </div>
 
-        {/* Product columns */}
+        {/* Product columns — 25% left / 50% center / 25% right */}
         <div className="w-full flex-1 min-h-0 flex px-2">
           {/* Left column */}
           <div
             ref={leftColRef}
             onScroll={() => handleColumnScroll("left")}
             className="h-full min-h-0 flex flex-col gap-3"
-            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
+            style={{ flex: "0 0 25%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
             {isInitialLoading
               ? Array.from({ length: 3 }).map((_, i) => (
@@ -702,10 +720,10 @@ export default function CosmeticProductsPage() {
                 ))}
           </div>
 
-          {/* Center — selected product detail */}
+          {/* Center — empty space (shows the selected product detail when one is picked) */}
           <div
             className="h-full min-h-0 flex items-center justify-center px-6"
-            style={{ flex: 1, minWidth: 0 }}
+            style={{ flex: "0 0 50%", minWidth: 0 }}
           >
             {selectedProduct && (
               <div className="w-full h-full flex flex-col items-center justify-center text-center">
@@ -752,7 +770,7 @@ export default function CosmeticProductsPage() {
             ref={rightColRef}
             onScroll={() => handleColumnScroll("right")}
             className="h-full min-h-0 flex flex-col gap-3"
-            style={{ flex: "0 0 28%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
+            style={{ flex: "0 0 25%", minWidth: 0, ...COLUMN_SCROLL_STYLE }}
           >
             {isInitialLoading
               ? Array.from({ length: 3 }).map((_, i) => (
