@@ -352,9 +352,9 @@ export default function CosmeticRecommendationPage() {
       .setOverviewCosmeticsSnapshot(adaptCosmeticsData(sortedRecs));
   }, [sortedRecs]);
 
-  // 6 items total, split 3 on left, 3 on right.
-  const leftColRecs = useMemo(() => sortedRecs.slice(0, 3), [sortedRecs]);
-  const rightColRecs = useMemo(() => sortedRecs.slice(3, 6), [sortedRecs]);
+  // 8 items total, split 4 on left, 4 on right.
+  const leftColRecs = useMemo(() => sortedRecs.slice(0, 4), [sortedRecs]);
+  const rightColRecs = useMemo(() => sortedRecs.slice(4, 8), [sortedRecs]);
 
   // Derive the active recommendation during render. Nothing is selected by
   // default — the center stays neutral and the side grids grow until the user
@@ -364,10 +364,9 @@ export default function CosmeticRecommendationPage() {
     return sortedRecs.find((rec) => rec.id === selectedId) ?? null;
   }, [selectedId, sortedRecs]);
 
-  // While no product is selected, give the side columns more room so their
-  // product tiles render larger (browse mode). Selecting one collapses the
-  // sides and reveals the enlarged product in the center.
-  const sideColumnWidth = selectedRec ? "30%" : "40%";
+  // Fixed 25% / 50% / 25% layout: each side column holds 4 products and the
+  // center keeps a constant 50% for the selected-product detail.
+  const sideColumnWidth = "25%";
 
   const handleRecommendationSelect = useCallback(
     (rec: SkinRecommendation) => setSelectedId(rec.id),
@@ -502,7 +501,7 @@ export default function CosmeticRecommendationPage() {
             <CosmeticGrid
               pagedItems={leftColRecs}
               loading={showRecommendationSkeletons}
-              pageSize={3}
+              pageSize={4}
               columns={1}
               selectedId={selectedId}
               onSelect={handleRecommendationSelect}
