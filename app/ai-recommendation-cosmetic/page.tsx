@@ -196,7 +196,7 @@ export default function CosmeticRecommendationPage() {
       if (!data) return;
       if (data.query) {
         const params = new URLSearchParams(data.query);
-        if (!params.has("limit")) params.set("limit", "6");
+        if (!params.has("limit")) params.set("limit", "8");
         router.push(`/ai-recommendation-cosmetic?${params.toString()}`);
         return;
       }
@@ -214,7 +214,7 @@ export default function CosmeticRecommendationPage() {
 
     let cancelled = false;
     const params = new URLSearchParams(currentSearch);
-    if (!params.has("limit")) params.set("limit", "6");
+    if (!params.has("limit")) params.set("limit", "8");
     const queryStr = params.toString();
     Promise.resolve()
       .then(() => {
@@ -416,7 +416,7 @@ export default function CosmeticRecommendationPage() {
           voice: false,
           skinAnalysis: skinAnalysisResult,
           sitemapContext: [ROUTES.AI_RECOMMENDATION_COSMETIC],
-          csets: 6,
+          csets: 8,
         });
         if (response.message) {
           useMirrorStore.getState().setAiSuggestion(response.message);
@@ -562,7 +562,7 @@ export default function CosmeticRecommendationPage() {
             <CosmeticGrid
               pagedItems={rightColRecs}
               loading={showRecommendationSkeletons}
-              pageSize={3}
+              pageSize={4}
               columns={1}
               selectedId={selectedId}
               onSelect={handleRecommendationSelect}
